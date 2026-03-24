@@ -52,7 +52,8 @@ function parseBarcodes(product) {
     if (added.has(bc)) return;
     added.add(bc);
     const mp = mbj.find(m => m.value === bc);
-    if (mp?.type === 'ozon_1') result.push({ label: 'Ozon ИП И.', value: bc, kind: 'ozon' });
+    if (mp?.type === 'ozon_1') result.push({ label: 'Ozon ИП И.', value: bc, kind: 'ozon', storeKey: 'ozon_1' });
+    else if (mp?.type === 'ozon_2') result.push({ label: 'Ozon ИП Е.', value: bc, kind: 'ozon', storeKey: 'ozon_2' });
     else if (mp?.type === 'wb') result.push({ label: 'WB', value: bc, kind: 'wb' });
     else if (mp?.type === 'ozon' || bc.startsWith('OZN')) result.push({ label: 'Ozon', value: bc, kind: 'ozon' });
     else if (bc.startsWith('MRKT')) result.push({ label: 'Яндекс Маркет', value: bc, kind: 'yandex' });
@@ -467,33 +468,36 @@ export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
     } catch (err) { toast.error(err.response?.data?.error || 'Ошибка добавления'); }
   };
 
+  const OZON_STORES = [
+    { key: 'ozon_1', label: 'Ozon ИП И.' },
+    { key: 'ozon_2', label: 'Ozon ИП Е.' },
+  ];
   const [ozonResults, setOzonResults] = useState({});
-  const [ozonLoading, setOzonLoading] = useState(false);
+  const [ozonLoadingStore, setOzonLoadingStore] = useState(null);
   const [expandedOzon, setExpandedOzon] = useState(null);
 
-  const checkAllOzon = async () => {
+  const checkOzonStore = async (storeKey, storeLabel) => {
     const allBc = (product ? parseBarcodes(product) : []).map(b => b.value);
     if (allBc.length === 0) return;
-    setOzonLoading(true);
+    setOzonLoadingStore(storeKey);
     try {
-      const res = await api.post('/products/check-ozon', { barcodes: allBc });
+      const res = await api.post('/products/check-ozon', { barcodes: allBc, store: storeKey });
       const results = res.data.results || {};
-      setOzonResults(results);
-      // Save found barcodes as ozon_1 type in DB
+      setOzonResults(prev => ({ ...prev, ...Object.fromEntries(Object.entries(results).map(([bc, r]) => [bc + ':' + storeKey, r])) }));
       const foundBarcodes = Object.entries(results).filter(([_, r]) => r.found).map(([bc]) => bc);
       for (const bc of foundBarcodes) {
-        await api.put(`/products/${productId}/barcode-type`, { value: bc, type: 'ozon_1' }).catch(() => {});
+        await api.put(`/products/${productId}/barcode-type`, { value: bc, type: storeKey }).catch(() => {});
       }
       if (foundBarcodes.length > 0) {
-        loadProduct(); // reload to show saved labels
-        toast.success(`Ozon ИП И.: найдено ${foundBarcodes.length} из ${allBc.length} ШК`);
+        loadProduct();
+        toast.success(`${storeLabel}: найдено ${foundBarcodes.length} из ${allBc.length} ШК`);
       } else {
-        toast.error('Ozon ИП И.: ни один ШК не найден');
+        toast.error(`${storeLabel}: ни один ШК не найден`);
       }
     } catch (err) {
-      toast.error('Ошибка Ozon ИП И.: ' + (err.response?.data?.error || err.message));
+      toast.error(`Ошибка ${storeLabel}: ` + (err.response?.data?.error || err.message));
     } finally {
-      setOzonLoading(false);
+      setOzonLoadingStore(null);
     }
   };
 
@@ -568,23 +572,23 @@ export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
               ) : (
                 <div className="space-y-1.5">
                   {barcodes.map((bc, i) => {
-                    const oz = ozonResults[bc.value];
-                    const savedOzon = bc.label === 'Ozon ИП И.';
-                    const ozonFound = oz?.found || savedOzon;
+                    const isOzon1 = bc.storeKey === 'ozon_1' || bc.label === 'Ozon ИП И.';
+                    const isOzon2 = bc.storeKey === 'ozon_2' || bc.label === 'Ozon ИП Е.';
+                    const ozonFound = isOzon1 || isOzon2;
                     const isExpanded = expandedOzon === bc.value;
+                    const ozData = ozonResults[bc.value + ':ozon_1'] || ozonResults[bc.value + ':ozon_2'];
                     return (
                       <div key={i}>
                         <BarcodeRow
                           {...bc}
-                          label={ozonFound ? 'Ozon ИП И.' : bc.label}
                           onDelete={handleDeleteBarcode}
                           ozonStatus={ozonFound ? 'found' : undefined}
                           onOzonClick={() => setExpandedOzon(isExpanded ? null : bc.value)}
                         />
-                        {isExpanded && oz?.ozon_product && (
+                        {isExpanded && ozData?.ozon_product && (
                           <div className="ml-3 mt-1 mb-1 px-3 py-2 bg-green-50 rounded-lg border border-green-100 text-xs">
-                            <p className="font-semibold text-green-700">{oz.ozon_product.name}</p>
-                            <p className="text-gray-400 mt-0.5">offer: {oz.ozon_product.offer_id} · id: {oz.ozon_product.product_id}</p>
+                            <p className="font-semibold text-green-700">{ozData.ozon_product.name}</p>
+                            <p className="text-gray-400 mt-0.5">offer: {ozData.ozon_product.offer_id} · id: {ozData.ozon_product.product_id}</p>
                           </div>
                         )}
                       </div>
@@ -593,13 +597,18 @@ export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
                 </div>
               )}
               {barcodes.length > 0 && (
-                <button
-                  onClick={checkAllOzon}
-                  disabled={ozonLoading}
-                  className="mt-3 w-full py-2 rounded-xl text-sm font-semibold border transition-all bg-blue-50 border-blue-200 text-blue-600 hover:bg-blue-100 disabled:opacity-50"
-                >
-                  {ozonLoading ? 'Проверяем Ozon ИП И....' : Object.keys(ozonResults).length > 0 ? 'Перепроверить Ozon ИП И.' : 'Проверить Ozon ИП И.'}
-                </button>
+                <div className="mt-3 flex gap-2">
+                  {OZON_STORES.map(store => (
+                    <button
+                      key={store.key}
+                      onClick={() => checkOzonStore(store.key, store.label)}
+                      disabled={!!ozonLoadingStore}
+                      className="flex-1 py-2 rounded-xl text-xs font-semibold border transition-all bg-blue-50 border-blue-200 text-blue-600 hover:bg-blue-100 disabled:opacity-50"
+                    >
+                      {ozonLoadingStore === store.key ? `${store.label}...` : store.label}
+                    </button>
+                  ))}
+                </div>
               )}
               </div>
               </div>

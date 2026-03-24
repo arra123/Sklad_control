@@ -444,113 +444,98 @@ router.get('/barcode/:value', requireAuth, async (req, res) => {
 });
 
 // POST /api/products/check-ozon — check barcode on Ozon marketplace (READ ONLY)
-// POST /api/products/check-ozon — check multiple barcodes on Ozon (READ ONLY)
+// ─── Ozon stores config ──────────────────────────────────────────────────────
+const OZON_STORES = {
+  ozon_1: { envClientId: 'OZON_CLIENT_ID', envApiKey: 'OZON_API_KEY', label: 'Ozon ИП И.' },
+  ozon_2: { envClientId: 'OZON2_CLIENT_ID', envApiKey: 'OZON2_API_KEY', label: 'Ozon ИП Е.' },
+};
+
+function getOzonCredentials(storeKey) {
+  const store = OZON_STORES[storeKey];
+  if (!store) return null;
+  const clientId = process.env[store.envClientId];
+  const apiKey = process.env[store.envApiKey];
+  if (!clientId || !apiKey) return null;
+  return { clientId, apiKey, label: store.label, key: storeKey };
+}
+
+function ozonPost(clientId, apiKey, path, data) {
+  const https = require('https');
+  return new Promise((resolve, reject) => {
+    const body = JSON.stringify(data);
+    const req = https.request({
+      hostname: 'api-seller.ozon.ru', path, method: 'POST',
+      headers: { 'Client-Id': clientId, 'Api-Key': apiKey, 'Content-Type': 'application/json' },
+    }, resp => {
+      let buf = '';
+      resp.on('data', c => buf += c);
+      resp.on('end', () => { try { resolve(JSON.parse(buf)); } catch { reject(new Error('Invalid JSON')); } });
+    });
+    req.on('error', reject);
+    req.write(body);
+    req.end();
+  });
+}
+
+async function fetchOzonBarcodeMap(clientId, apiKey) {
+  const map = new Map();
+  let lastId = '';
+  for (let page = 0; page < 50; page++) {
+    const listResult = await ozonPost(clientId, apiKey, '/v3/product/list', { filter: { visibility: 'ALL' }, last_id: lastId, limit: 100 });
+    const items = listResult?.result?.items || [];
+    if (items.length === 0) break;
+    const infoResult = await ozonPost(clientId, apiKey, '/v3/product/info/list', { offer_id: items.map(i => i.offer_id) });
+    for (const item of (infoResult?.items || [])) {
+      for (const bc of (item.barcodes || [])) {
+        map.set(bc, { product_id: item.id, offer_id: item.offer_id, name: item.name });
+      }
+    }
+    lastId = listResult?.result?.last_id || '';
+    if (!lastId || items.length < 100) break;
+  }
+  return map;
+}
+
+// GET /api/products/ozon-stores — list configured Ozon stores
+router.get('/ozon-stores', requireAuth, requireAdmin, (req, res) => {
+  const stores = [];
+  for (const [key, cfg] of Object.entries(OZON_STORES)) {
+    const creds = getOzonCredentials(key);
+    stores.push({ key, label: cfg.label, configured: !!creds });
+  }
+  res.json(stores);
+});
+
+// POST /api/products/check-ozon — check barcodes on a specific Ozon store (READ ONLY)
 router.post('/check-ozon', requireAuth, requireAdmin, async (req, res) => {
-  const { barcodes: inputBarcodes } = req.body;
+  const { barcodes: inputBarcodes, store = 'ozon_1' } = req.body;
   const bcList = Array.isArray(inputBarcodes) ? inputBarcodes.map(b => String(b).trim()).filter(Boolean) : [];
   if (bcList.length === 0) return res.status(400).json({ error: 'Штрих-коды обязательны' });
 
-  const clientId = process.env.OZON_CLIENT_ID;
-  const apiKey = process.env.OZON_API_KEY;
-  if (!clientId || !apiKey) return res.status(500).json({ error: 'Ozon API не настроен' });
+  const creds = getOzonCredentials(store);
+  if (!creds) return res.status(500).json({ error: `${OZON_STORES[store]?.label || store} API не настроен` });
 
   try {
-    const https = require('https');
-    function ozonPost(path, data) {
-      return new Promise((resolve, reject) => {
-        const body = JSON.stringify(data);
-        const req = https.request({
-          hostname: 'api-seller.ozon.ru', path, method: 'POST',
-          headers: { 'Client-Id': clientId, 'Api-Key': apiKey, 'Content-Type': 'application/json' },
-        }, resp => {
-          let buf = '';
-          resp.on('data', c => buf += c);
-          resp.on('end', () => { try { resolve(JSON.parse(buf)); } catch { reject(new Error('Invalid JSON')); } });
-        });
-        req.on('error', reject);
-        req.write(body);
-        req.end();
-      });
-    }
-
-    // Build barcode→ozon_product map by fetching all Ozon products
-    const bcSet = new Set(bcList);
+    const ozonMap = await fetchOzonBarcodeMap(creds.clientId, creds.apiKey);
     const results = {};
-    let lastId = '';
-
-    for (let page = 0; page < 20 && bcSet.size > 0; page++) {
-      const listResult = await ozonPost('/v3/product/list', { filter: { visibility: 'ALL' }, last_id: lastId, limit: 100 });
-      const items = listResult?.result?.items || [];
-      if (items.length === 0) break;
-
-      const infoResult = await ozonPost('/v3/product/info/list', { offer_id: items.map(i => i.offer_id) });
-      for (const item of (infoResult?.items || [])) {
-        for (const bc of (item.barcodes || [])) {
-          if (bcSet.has(bc)) {
-            results[bc] = { found: true, ozon_product: { product_id: item.id, offer_id: item.offer_id, name: item.name } };
-            bcSet.delete(bc);
-          }
-        }
-      }
-
-      lastId = listResult?.result?.last_id || '';
-      if (!lastId || items.length < 100) break;
+    for (const bc of bcList) {
+      const found = ozonMap.get(bc);
+      results[bc] = found ? { found: true, ozon_product: found } : { found: false };
     }
-
-    // Mark remaining as not found
-    for (const bc of bcSet) {
-      results[bc] = { found: false };
-    }
-
     res.json({ results });
   } catch (err) {
     res.status(500).json({ error: 'Ошибка Ozon API: ' + err.message });
   }
 });
 
-// POST /api/products/check-ozon-all — check ALL products' barcodes against Ozon (READ ONLY)
+// POST /api/products/check-ozon-all — check ALL products against a specific Ozon store
 router.post('/check-ozon-all', requireAuth, requireAdmin, async (req, res) => {
-  const clientId = process.env.OZON_CLIENT_ID;
-  const apiKey = process.env.OZON_API_KEY;
-  if (!clientId || !apiKey) return res.status(500).json({ error: 'Ozon API не настроен' });
+  const { store = 'ozon_1' } = req.body;
+  const creds = getOzonCredentials(store);
+  if (!creds) return res.status(500).json({ error: `${OZON_STORES[store]?.label || store} API не настроен` });
 
   try {
-    const https = require('https');
-    function ozonPost(path, data) {
-      return new Promise((resolve, reject) => {
-        const body = JSON.stringify(data);
-        const req = https.request({
-          hostname: 'api-seller.ozon.ru', path, method: 'POST',
-          headers: { 'Client-Id': clientId, 'Api-Key': apiKey, 'Content-Type': 'application/json' },
-        }, resp => {
-          let buf = '';
-          resp.on('data', c => buf += c);
-          resp.on('end', () => { try { resolve(JSON.parse(buf)); } catch { reject(new Error('Invalid JSON')); } });
-        });
-        req.on('error', reject);
-        req.write(body);
-        req.end();
-      });
-    }
-
-    // 1. Collect all Ozon barcodes
-    const ozonBarcodeMap = new Map(); // barcode → {product_id, offer_id, name}
-    let lastId = '';
-    for (let page = 0; page < 50; page++) {
-      const listResult = await ozonPost('/v3/product/list', { filter: { visibility: 'ALL' }, last_id: lastId, limit: 100 });
-      const items = listResult?.result?.items || [];
-      if (items.length === 0) break;
-      const infoResult = await ozonPost('/v3/product/info/list', { offer_id: items.map(i => i.offer_id) });
-      for (const item of (infoResult?.items || [])) {
-        for (const bc of (item.barcodes || [])) {
-          ozonBarcodeMap.set(bc, { product_id: item.id, offer_id: item.offer_id, name: item.name });
-        }
-      }
-      lastId = listResult?.result?.last_id || '';
-      if (!lastId || items.length < 100) break;
-    }
-
-    // 2. Get all our products with barcodes
+    const ozonMap = await fetchOzonBarcodeMap(creds.clientId, creds.apiKey);
     const productsResult = await pool.query(
       `SELECT id, name, code, barcode_list, production_barcode, marketplace_barcodes_json
        FROM products_s WHERE archived = false`
@@ -569,13 +554,12 @@ router.post('/check-ozon-all', requireAuth, requireAdmin, async (req, res) => {
       let foundOnOzon = false;
       const productMatches = [];
       for (const bc of allBc) {
-        if (ozonBarcodeMap.has(bc)) {
+        if (ozonMap.has(bc)) {
           foundOnOzon = true;
-          productMatches.push({ barcode: bc, ozon: ozonBarcodeMap.get(bc) });
-          // Auto-save as ozon_1
+          productMatches.push({ barcode: bc, ozon: ozonMap.get(bc) });
           const existing = mbj.find(m => m.value === bc);
-          if (existing) { existing.type = 'ozon_1'; }
-          else { mbj.push({ value: bc, type: 'ozon_1' }); }
+          if (existing) { existing.type = store; }
+          else { mbj.push({ value: bc, type: store }); }
         }
       }
 
@@ -591,12 +575,12 @@ router.post('/check-ozon-all', requireAuth, requireAdmin, async (req, res) => {
     }
 
     res.json({
-      ozon_products_count: ozonBarcodeMap.size,
+      store, label: creds.label,
+      ozon_products_count: ozonMap.size,
       our_products_count: productsResult.rows.length,
       matched_count: matched.length,
       not_found_count: notFound.length,
-      matched,
-      not_found: notFound,
+      matched, not_found: notFound,
     });
   } catch (err) {
     res.status(500).json({ error: 'Ошибка Ozon API: ' + err.message });

@@ -63,6 +63,8 @@ jobs:
             ENV_FILE=/var/www/bem-dev.ru/sklad/backend/.env
             grep -q 'OZON_CLIENT_ID' "$ENV_FILE" 2>/dev/null || echo 'OZON_CLIENT_ID=2843272' >> "$ENV_FILE"
             grep -q 'OZON_API_KEY' "$ENV_FILE" 2>/dev/null || echo 'OZON_API_KEY=aa4a0bcf-49d3-4230-94c9-759fb19b8abf' >> "$ENV_FILE"
+            grep -q 'OZON2_CLIENT_ID' "$ENV_FILE" 2>/dev/null || echo 'OZON2_CLIENT_ID=163276' >> "$ENV_FILE"
+            grep -q 'OZON2_API_KEY' "$ENV_FILE" 2>/dev/null || echo 'OZON2_API_KEY=35bbfde5-9eb8-47f5-b765-1e0a2d09c58d' >> "$ENV_FILE"
 
       - name: Install deps and restart
         uses: appleboy/ssh-action@v1.2.0
