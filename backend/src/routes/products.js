@@ -444,9 +444,11 @@ router.get('/barcode/:value', requireAuth, async (req, res) => {
 });
 
 // POST /api/products/check-ozon — check barcode on Ozon marketplace (READ ONLY)
+// POST /api/products/check-ozon — check multiple barcodes on Ozon (READ ONLY)
 router.post('/check-ozon', requireAuth, requireAdmin, async (req, res) => {
-  const { barcode } = req.body;
-  if (!barcode?.trim()) return res.status(400).json({ error: 'Штрих-код обязателен' });
+  const { barcodes: inputBarcodes } = req.body;
+  const bcList = Array.isArray(inputBarcodes) ? inputBarcodes.map(b => String(b).trim()).filter(Boolean) : [];
+  if (bcList.length === 0) return res.status(400).json({ error: 'Штрих-коды обязательны' });
 
   const clientId = process.env.OZON_CLIENT_ID;
   const apiKey = process.env.OZON_API_KEY;
@@ -454,80 +456,53 @@ router.post('/check-ozon', requireAuth, requireAdmin, async (req, res) => {
 
   try {
     const https = require('https');
-    const trimmed = barcode.trim();
-
-    // Fetch all products from Ozon in batches and search for barcode
-    let lastId = '';
-    let found = null;
-
-    for (let page = 0; page < 20; page++) {
-      const listBody = JSON.stringify({ filter: { visibility: 'ALL' }, last_id: lastId, limit: 100 });
-      const listResult = await new Promise((resolve, reject) => {
+    function ozonPost(path, data) {
+      return new Promise((resolve, reject) => {
+        const body = JSON.stringify(data);
         const req = https.request({
-          hostname: 'api-seller.ozon.ru',
-          path: '/v3/product/list',
-          method: 'POST',
+          hostname: 'api-seller.ozon.ru', path, method: 'POST',
           headers: { 'Client-Id': clientId, 'Api-Key': apiKey, 'Content-Type': 'application/json' },
         }, resp => {
-          let body = '';
-          resp.on('data', c => body += c);
-          resp.on('end', () => {
-            try { resolve(JSON.parse(body)); } catch { reject(new Error('Invalid JSON from Ozon')); }
-          });
+          let buf = '';
+          resp.on('data', c => buf += c);
+          resp.on('end', () => { try { resolve(JSON.parse(buf)); } catch { reject(new Error('Invalid JSON')); } });
         });
         req.on('error', reject);
-        req.write(listBody);
+        req.write(body);
         req.end();
       });
+    }
 
+    // Build barcode→ozon_product map by fetching all Ozon products
+    const bcSet = new Set(bcList);
+    const results = {};
+    let lastId = '';
+
+    for (let page = 0; page < 20 && bcSet.size > 0; page++) {
+      const listResult = await ozonPost('/v3/product/list', { filter: { visibility: 'ALL' }, last_id: lastId, limit: 100 });
       const items = listResult?.result?.items || [];
       if (items.length === 0) break;
 
-      // Get detailed info with barcodes for this batch
-      const offerIds = items.map(i => i.offer_id);
-      const infoBody = JSON.stringify({ offer_id: offerIds });
-      const infoResult = await new Promise((resolve, reject) => {
-        const req = https.request({
-          hostname: 'api-seller.ozon.ru',
-          path: '/v3/product/info/list',
-          method: 'POST',
-          headers: { 'Client-Id': clientId, 'Api-Key': apiKey, 'Content-Type': 'application/json' },
-        }, resp => {
-          let body = '';
-          resp.on('data', c => body += c);
-          resp.on('end', () => {
-            try { resolve(JSON.parse(body)); } catch { reject(new Error('Invalid JSON from Ozon')); }
-          });
-        });
-        req.on('error', reject);
-        req.write(infoBody);
-        req.end();
-      });
-
-      const details = infoResult?.items || [];
-      for (const item of details) {
-        const barcodes = item.barcodes || [];
-        if (barcodes.includes(trimmed)) {
-          found = {
-            product_id: item.id,
-            offer_id: item.offer_id,
-            name: item.name,
-            barcodes: item.barcodes,
-          };
-          break;
+      const infoResult = await ozonPost('/v3/product/info/list', { offer_id: items.map(i => i.offer_id) });
+      for (const item of (infoResult?.items || [])) {
+        for (const bc of (item.barcodes || [])) {
+          if (bcSet.has(bc)) {
+            results[bc] = { found: true, ozon_product: { product_id: item.id, offer_id: item.offer_id, name: item.name } };
+            bcSet.delete(bc);
+          }
         }
       }
-      if (found) break;
 
       lastId = listResult?.result?.last_id || '';
       if (!lastId || items.length < 100) break;
     }
 
-    if (found) {
-      res.json({ found: true, ozon_product: found });
-    } else {
-      res.json({ found: false, barcode: trimmed });
+    // Mark remaining as not found
+    for (const bc of bcSet) {
+      results[bc] = { found: false };
     }
+
+    res.json({ results });
   } catch (err) {
     res.status(500).json({ error: 'Ошибка Ozon API: ' + err.message });
   }

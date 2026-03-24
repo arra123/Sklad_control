@@ -461,18 +461,20 @@ export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
     } catch (err) { toast.error(err.response?.data?.error || 'Ошибка добавления'); }
   };
 
-  const [ozonChecks, setOzonChecks] = useState({});
-  const [ozonLoading, setOzonLoading] = useState({});
+  const [ozonResults, setOzonResults] = useState({});
+  const [ozonLoading, setOzonLoading] = useState(false);
 
-  const checkOzon = async (bcValue) => {
-    setOzonLoading(prev => ({ ...prev, [bcValue]: true }));
+  const checkAllOzon = async () => {
+    const allBc = (product ? parseBarcodes(product) : []).map(b => b.value);
+    if (allBc.length === 0) return;
+    setOzonLoading(true);
     try {
-      const res = await api.post('/products/check-ozon', { barcode: bcValue });
-      setOzonChecks(prev => ({ ...prev, [bcValue]: res.data }));
+      const res = await api.post('/products/check-ozon', { barcodes: allBc });
+      setOzonResults(res.data.results || {});
     } catch (err) {
-      toast.error('Ошибка проверки: ' + (err.response?.data?.error || err.message));
+      toast.error('Ошибка Ozon: ' + (err.response?.data?.error || err.message));
     } finally {
-      setOzonLoading(prev => ({ ...prev, [bcValue]: false }));
+      setOzonLoading(false);
     }
   };
 
@@ -586,35 +588,30 @@ export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
               ) : (
                 <div className="space-y-1.5">
                   {barcodes.map((bc, i) => {
-                    const ozonResult = ozonChecks[bc.value];
-                    const isOzonLoading = ozonLoading[bc.value];
+                    const oz = ozonResults[bc.value];
+                    const ozonLabel = oz?.found ? 'ozon_1' : null;
                     return (
-                      <div key={i}>
-                        <BarcodeRow {...bc} onDelete={handleDeleteBarcode} />
-                        <div className="flex items-center gap-2 mt-1 ml-1">
-                          <button
-                            onClick={() => checkOzon(bc.value)}
-                            disabled={isOzonLoading}
-                            className={`text-[11px] font-medium px-2 py-0.5 rounded-lg border transition-all ${
-                              ozonResult?.found
-                                ? 'bg-green-50 border-green-300 text-green-700'
-                                : ozonResult && !ozonResult.found
-                                ? 'bg-red-50 border-red-200 text-red-500'
-                                : 'bg-blue-50 border-blue-200 text-blue-600 hover:bg-blue-100'
-                            }`}
-                          >
-                            {isOzonLoading ? '...' : ozonResult?.found ? 'ozon_1' : ozonResult ? 'Не найден на Ozon' : 'Проверка Ozon'}
-                          </button>
-                          {ozonResult?.found && (
-                            <span className="text-[10px] text-gray-400 truncate max-w-[200px]" title={ozonResult.ozon_product.name}>
-                              {ozonResult.ozon_product.name}
-                            </span>
-                          )}
-                        </div>
+                      <div key={i} className={oz?.found ? 'ring-1 ring-green-300 rounded-xl' : oz && !oz.found ? 'ring-1 ring-red-200 rounded-xl' : ''}>
+                        <BarcodeRow {...bc} label={ozonLabel || bc.label} onDelete={handleDeleteBarcode} />
+                        {oz?.found && (
+                          <p className="text-[10px] text-green-600 font-medium px-3 pb-1.5 -mt-1">{oz.ozon_product.name}</p>
+                        )}
+                        {oz && !oz.found && (
+                          <p className="text-[10px] text-red-400 px-3 pb-1.5 -mt-1">Не найден на Ozon</p>
+                        )}
                       </div>
                     );
                   })}
                 </div>
+              )}
+              {barcodes.length > 0 && (
+                <button
+                  onClick={checkAllOzon}
+                  disabled={ozonLoading}
+                  className="mt-3 w-full py-2 rounded-xl text-sm font-semibold border transition-all bg-blue-50 border-blue-200 text-blue-600 hover:bg-blue-100 disabled:opacity-50"
+                >
+                  {ozonLoading ? 'Проверяем Ozon...' : Object.keys(ozonResults).length > 0 ? 'Перепроверить на Ozon' : 'Проверить на Ozon'}
+                </button>
               )}
             </div>
 
