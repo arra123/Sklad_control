@@ -73,16 +73,21 @@ function parsePrices(sourceJson) {
     }));
 }
 
-function BarcodeRow({ label, value, kind, onDelete }) {
+function BarcodeRow({ label, value, kind, onDelete, ozonStatus, onOzonClick }) {
   const [copied, setCopied] = useState(false);
   const colors = MARKETPLACE_COLORS[kind] || MARKETPLACE_COLORS.unknown;
   return (
-    <div className={cn('flex items-center gap-3 px-3 py-2 rounded-xl border group', colors.bg, colors.border)}>
-      <div className="w-32 flex-shrink-0">
+    <div className={cn('flex items-center gap-2 px-3 py-2 rounded-xl border group', colors.bg, colors.border)}>
+      <div className="w-24 flex-shrink-0">
         {label ? <span className={cn('text-xs font-semibold', colors.text)}>{label}</span>
                : <span className="text-xs text-gray-300 italic">—</span>}
       </div>
-      <span className="flex-1 text-sm font-mono text-gray-700 min-w-0 truncate">{value}</span>
+      <span className="flex-1 text-xs font-mono text-gray-700 min-w-0 truncate">{value}</span>
+      {ozonStatus === 'found' && (
+        <button onClick={onOzonClick} className="flex-shrink-0 w-5 h-5 rounded-full bg-green-100 flex items-center justify-center hover:bg-green-200 transition-colors" title="Найден на Ozon_1">
+          <Check size={11} className="text-green-600" />
+        </button>
+      )}
       <button onClick={() => { navigator.clipboard.writeText(value); setCopied(true); setTimeout(() => setCopied(false), 1500); }}
         className="flex-shrink-0 text-gray-300 hover:text-gray-600 transition-colors">
         {copied ? <Check size={13} className="text-green-500" /> : <Copy size={13} />}
@@ -464,6 +469,7 @@ export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
 
   const [ozonResults, setOzonResults] = useState({});
   const [ozonLoading, setOzonLoading] = useState(false);
+  const [expandedOzon, setExpandedOzon] = useState(null);
 
   const checkAllOzon = async () => {
     const allBc = (product ? parseBarcodes(product) : []).map(b => b.value);
@@ -563,15 +569,23 @@ export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
                 <div className="space-y-1.5">
                   {barcodes.map((bc, i) => {
                     const oz = ozonResults[bc.value];
-                    const ozonLabel = oz?.found ? 'ozon_1' : null;
+                    const savedOzon = bc.label === 'ozon_1';
+                    const ozonFound = oz?.found || savedOzon;
+                    const isExpanded = expandedOzon === bc.value;
                     return (
-                      <div key={i} className={oz?.found ? 'ring-1 ring-green-300 rounded-xl' : oz && !oz.found ? 'ring-1 ring-red-200 rounded-xl' : ''}>
-                        <BarcodeRow {...bc} label={ozonLabel || bc.label} onDelete={handleDeleteBarcode} />
-                        {oz?.found && (
-                          <p className="text-[10px] text-green-600 font-medium px-3 pb-1.5 -mt-1">{oz.ozon_product.name}</p>
-                        )}
-                        {oz && !oz.found && (
-                          <p className="text-[10px] text-red-400 px-3 pb-1.5 -mt-1">Не найден на Ozon_1</p>
+                      <div key={i}>
+                        <BarcodeRow
+                          {...bc}
+                          label={ozonFound ? 'ozon_1' : bc.label}
+                          onDelete={handleDeleteBarcode}
+                          ozonStatus={ozonFound ? 'found' : undefined}
+                          onOzonClick={() => setExpandedOzon(isExpanded ? null : bc.value)}
+                        />
+                        {isExpanded && oz?.ozon_product && (
+                          <div className="ml-3 mt-1 mb-1 px-3 py-2 bg-green-50 rounded-lg border border-green-100 text-xs">
+                            <p className="font-semibold text-green-700">{oz.ozon_product.name}</p>
+                            <p className="text-gray-400 mt-0.5">offer: {oz.ozon_product.offer_id} · id: {oz.ozon_product.product_id}</p>
+                          </div>
                         )}
                       </div>
                     );

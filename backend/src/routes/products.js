@@ -508,6 +508,101 @@ router.post('/check-ozon', requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
+// POST /api/products/check-ozon-all — check ALL products' barcodes against Ozon (READ ONLY)
+router.post('/check-ozon-all', requireAuth, requireAdmin, async (req, res) => {
+  const clientId = process.env.OZON_CLIENT_ID;
+  const apiKey = process.env.OZON_API_KEY;
+  if (!clientId || !apiKey) return res.status(500).json({ error: 'Ozon API не настроен' });
+
+  try {
+    const https = require('https');
+    function ozonPost(path, data) {
+      return new Promise((resolve, reject) => {
+        const body = JSON.stringify(data);
+        const req = https.request({
+          hostname: 'api-seller.ozon.ru', path, method: 'POST',
+          headers: { 'Client-Id': clientId, 'Api-Key': apiKey, 'Content-Type': 'application/json' },
+        }, resp => {
+          let buf = '';
+          resp.on('data', c => buf += c);
+          resp.on('end', () => { try { resolve(JSON.parse(buf)); } catch { reject(new Error('Invalid JSON')); } });
+        });
+        req.on('error', reject);
+        req.write(body);
+        req.end();
+      });
+    }
+
+    // 1. Collect all Ozon barcodes
+    const ozonBarcodeMap = new Map(); // barcode → {product_id, offer_id, name}
+    let lastId = '';
+    for (let page = 0; page < 50; page++) {
+      const listResult = await ozonPost('/v3/product/list', { filter: { visibility: 'ALL' }, last_id: lastId, limit: 100 });
+      const items = listResult?.result?.items || [];
+      if (items.length === 0) break;
+      const infoResult = await ozonPost('/v3/product/info/list', { offer_id: items.map(i => i.offer_id) });
+      for (const item of (infoResult?.items || [])) {
+        for (const bc of (item.barcodes || [])) {
+          ozonBarcodeMap.set(bc, { product_id: item.id, offer_id: item.offer_id, name: item.name });
+        }
+      }
+      lastId = listResult?.result?.last_id || '';
+      if (!lastId || items.length < 100) break;
+    }
+
+    // 2. Get all our products with barcodes
+    const productsResult = await pool.query(
+      `SELECT id, name, code, barcode_list, production_barcode, marketplace_barcodes_json
+       FROM products_s WHERE archived = false`
+    );
+
+    const matched = [];
+    const notFound = [];
+
+    for (const product of productsResult.rows) {
+      const allBc = new Set();
+      if (product.production_barcode) allBc.add(product.production_barcode);
+      (product.barcode_list || '').split(';').map(s => s.trim()).filter(Boolean).forEach(bc => allBc.add(bc));
+      const mbj = Array.isArray(product.marketplace_barcodes_json) ? product.marketplace_barcodes_json : [];
+      mbj.forEach(b => { if (b.value) allBc.add(b.value); });
+
+      let foundOnOzon = false;
+      const productMatches = [];
+      for (const bc of allBc) {
+        if (ozonBarcodeMap.has(bc)) {
+          foundOnOzon = true;
+          productMatches.push({ barcode: bc, ozon: ozonBarcodeMap.get(bc) });
+          // Auto-save as ozon_1
+          const existing = mbj.find(m => m.value === bc);
+          if (existing) { existing.type = 'ozon_1'; }
+          else { mbj.push({ value: bc, type: 'ozon_1' }); }
+        }
+      }
+
+      if (foundOnOzon) {
+        await pool.query(
+          'UPDATE products_s SET marketplace_barcodes_json=$1, updated_at=NOW() WHERE id=$2',
+          [JSON.stringify(mbj), product.id]
+        );
+        matched.push({ id: product.id, name: product.name, code: product.code, matches: productMatches });
+      } else {
+        notFound.push({ id: product.id, name: product.name, code: product.code, barcodes: [...allBc] });
+      }
+    }
+
+    res.json({
+      ozon_products_count: ozonBarcodeMap.size,
+      our_products_count: productsResult.rows.length,
+      matched_count: matched.length,
+      not_found_count: notFound.length,
+      matched,
+      not_found: notFound,
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Ошибка Ozon API: ' + err.message });
+  }
+});
+
 // PUT /api/products/:id/barcode-type — set marketplace type for a barcode
 router.put('/:id/barcode-type', requireAuth, requireAdmin, async (req, res) => {
   const { value, type } = req.body;

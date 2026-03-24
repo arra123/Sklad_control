@@ -488,6 +488,85 @@ const TABS = [
   { key: 'about', label: 'О системе', icon: Info },
 ];
 
+// ─── Ozon Bulk Check ─────────────────────────────────────────────────────────
+function OzonBulkCheck() {
+  const toast = useToast();
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState(null);
+
+  const runCheck = async () => {
+    setLoading(true);
+    setResult(null);
+    try {
+      const res = await api.post('/products/check-ozon-all');
+      setResult(res.data);
+      toast.success(`Ozon_1: найдено ${res.data.matched_count} из ${res.data.our_products_count}`);
+    } catch (err) {
+      toast.error('Ошибка: ' + (err.response?.data?.error || err.message));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="card p-6">
+      <div className="flex items-center gap-2 mb-1">
+        <Search className="w-5 h-5 text-blue-500" />
+        <h2 className="font-semibold text-gray-900 dark:text-white">Проверка Ozon_1</h2>
+      </div>
+      <p className="text-xs text-gray-400 mb-4">Проверяет ШК всех товаров на Ozon_1 и автоматически присваивает метку найденным.</p>
+      <Button
+        variant="outline"
+        icon={<Search size={15} className={loading ? 'animate-spin' : ''} />}
+        onClick={runCheck}
+        loading={loading}
+      >
+        {loading ? 'Проверяем все товары...' : 'Проверить все на Ozon_1'}
+      </Button>
+
+      {result && (
+        <div className="mt-4 space-y-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="bg-blue-50 rounded-xl p-3 text-center">
+              <p className="text-lg font-black text-blue-600">{result.ozon_products_count}</p>
+              <p className="text-[10px] text-gray-400 uppercase">На Ozon_1</p>
+            </div>
+            <div className="bg-gray-50 rounded-xl p-3 text-center">
+              <p className="text-lg font-black text-gray-900">{result.our_products_count}</p>
+              <p className="text-[10px] text-gray-400 uppercase">Наших товаров</p>
+            </div>
+            <div className="bg-green-50 rounded-xl p-3 text-center">
+              <p className="text-lg font-black text-green-600">{result.matched_count}</p>
+              <p className="text-[10px] text-gray-400 uppercase">Совпали</p>
+            </div>
+            <div className="bg-red-50 rounded-xl p-3 text-center">
+              <p className="text-lg font-black text-red-600">{result.not_found_count}</p>
+              <p className="text-[10px] text-gray-400 uppercase">Не найдены</p>
+            </div>
+          </div>
+
+          {result.not_found?.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-red-500 uppercase tracking-wider mb-2">Не найдены на Ozon_1 ({result.not_found.length})</p>
+              <div className="max-h-[300px] overflow-y-auto space-y-1">
+                {result.not_found.map(p => (
+                  <div key={p.id} className="flex items-center gap-3 px-3 py-2 bg-red-50 rounded-xl border border-red-100">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-800 truncate">{p.name}</p>
+                      {p.code && <p className="text-[10px] text-gray-400">{p.code}</p>}
+                    </div>
+                    <p className="text-[10px] text-gray-400 flex-shrink-0">{p.barcodes?.length || 0} ШК</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Component ──────────────────────────────────────────────────────────
 export default function SettingsPage() {
   const toast = useToast();
@@ -741,24 +820,28 @@ export default function SettingsPage() {
 
       {/* ═══ Data ═══ */}
       {tab === 'data' && (
-        <div className="card p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <RefreshCw className="w-5 h-5 text-primary-500" />
-            <h2 className="font-semibold text-gray-900 dark:text-white">Синхронизация данных</h2>
-          </div>
-          <p className="text-sm text-gray-500 mb-4">Загружает актуальные данные и обновляет каталог товаров.</p>
-          {lastImport && (
-            <div className="mb-4 p-3 bg-gray-50 rounded-xl text-sm">
-              <p className="text-gray-600">Последняя синхронизация: <span className="font-medium">{new Date(lastImport.created_at).toLocaleString('ru-RU')}</span></p>
-              <p className="text-gray-500 mt-0.5">
-                {lastImport.products_count} товаров &middot; {lastImport.bundles_count} комплектов {' · '}
-                <span className={lastImport.status === 'success' ? 'text-green-500' : 'text-red-500'}>{lastImport.status === 'success' ? 'Успешно' : 'Ошибка'}</span>
-              </p>
+        <div className="space-y-5">
+          <div className="card p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <RefreshCw className="w-5 h-5 text-primary-500" />
+              <h2 className="font-semibold text-gray-900 dark:text-white">Синхронизация данных</h2>
             </div>
-          )}
-          <Button variant="outline" icon={<RefreshCw size={15} className={syncLoading ? 'animate-spin' : ''} />} onClick={handleSync} loading={syncLoading}>
-            Синхронизировать
-          </Button>
+            <p className="text-sm text-gray-500 mb-4">Загружает актуальные данные и обновляет каталог товаров.</p>
+            {lastImport && (
+              <div className="mb-4 p-3 bg-gray-50 rounded-xl text-sm">
+                <p className="text-gray-600">Последняя синхронизация: <span className="font-medium">{new Date(lastImport.created_at).toLocaleString('ru-RU')}</span></p>
+                <p className="text-gray-500 mt-0.5">
+                  {lastImport.products_count} товаров &middot; {lastImport.bundles_count} комплектов {' · '}
+                  <span className={lastImport.status === 'success' ? 'text-green-500' : 'text-red-500'}>{lastImport.status === 'success' ? 'Успешно' : 'Ошибка'}</span>
+                </p>
+              </div>
+            )}
+            <Button variant="outline" icon={<RefreshCw size={15} className={syncLoading ? 'animate-spin' : ''} />} onClick={handleSync} loading={syncLoading}>
+              Синхронизировать
+            </Button>
+          </div>
+
+          <OzonBulkCheck />
         </div>
       )}
 
