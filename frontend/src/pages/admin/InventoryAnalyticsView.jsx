@@ -130,6 +130,119 @@ function getChildType(child) {
   return 'box';
 }
 
+// ═══ Inventory Task Scans (expandable per task) ═══
+function TaskScansPanel({ taskId }) {
+  const [scans, setScans] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api.get(`/tasks/${taskId}/analytics`)
+      .then(r => setScans(r.data?.scans || []))
+      .catch(() => setScans([]))
+      .finally(() => setLoading(false));
+  }, [taskId]);
+
+  if (loading) return <div className="py-3 text-center"><Spinner size="sm" /></div>;
+  if (!scans?.length) return <p className="py-3 text-center text-xs text-gray-300">Нет сканов</p>;
+
+  // Compute avg seconds
+  const gaps = scans.slice(1).map(s => Number(s.seconds_since_prev)).filter(s => !isNaN(s) && s > 0);
+  const avgSec = gaps.length > 0 ? (gaps.reduce((a, b) => a + b, 0) / gaps.length).toFixed(1) : null;
+
+  return (
+    <div>
+      <div className="flex items-center gap-4 px-3 py-2 text-[11px] text-gray-400 border-b border-gray-100">
+        <span>{scans.length} сканов</span>
+        {avgSec && <span>Ср. время: {avgSec}с</span>}
+        {gaps.length > 0 && <span>Мин: {Math.min(...gaps)}с / Макс: {Math.max(...gaps)}с</span>}
+      </div>
+      <div className="divide-y divide-gray-50 max-h-[400px] overflow-y-auto">
+        {scans.map((sc, i) => (
+          <div key={sc.id} className="flex items-center gap-2.5 px-3 py-1.5">
+            <span className="text-[11px] font-mono text-gray-300 w-5 text-right flex-shrink-0">{i + 1}</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-gray-800 truncate">{sc.product_name || 'Неизвестный'}</p>
+              {sc.product_code && <p className="text-[10px] text-gray-400">{sc.product_code}</p>}
+            </div>
+            <div className="text-right flex-shrink-0">
+              <p className="text-[11px] font-mono text-gray-600">{fmtTime(sc.created_at)}</p>
+              {sc.seconds_since_prev != null ? (
+                <p className={`text-[10px] ${Number(sc.seconds_since_prev) > 10 ? 'text-amber-500' : 'text-gray-300'}`}>+{sc.seconds_since_prev}с</p>
+              ) : (
+                <p className="text-[10px] text-primary-400">старт</p>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function fmtTime(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+
+// ═══ Inventory History List for a leaf node ═══
+function InventoryHistorySection({ node }) {
+  const [history, setHistory] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [expandedTask, setExpandedTask] = useState(null);
+
+  const kind = node.kind;
+  const locationType = kind === 'shelf_box' ? 'shelf_box' : kind === 'pallet_box' ? 'pallet_box' : kind;
+
+  useEffect(() => {
+    api.get('/tasks/analytics/inventory-history', { params: { location_type: locationType, id: node.id } })
+      .then(r => setHistory(r.data?.history || []))
+      .catch(() => setHistory([]))
+      .finally(() => setLoading(false));
+  }, [node.id, locationType]);
+
+  if (loading) return <div className="py-6 text-center"><Spinner size="sm" /></div>;
+  if (!history?.length) return <p className="text-sm text-gray-400 italic py-4">Нет завершённых инвентаризаций</p>;
+
+  return (
+    <div className="space-y-3">
+      {history.map((ev, i) => {
+        const isExpanded = expandedTask === ev.task_id;
+        const isLatest = i === 0;
+        return (
+          <div key={ev.task_id} className={`rounded-2xl border overflow-hidden ${isLatest ? 'border-primary-200 bg-primary-50/30' : 'border-gray-200 bg-white'}`}>
+            <button
+              onClick={() => setExpandedTask(isExpanded ? null : ev.task_id)}
+              className="w-full text-left px-4 py-3 hover:opacity-80 transition-opacity"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <svg className={`w-3 h-3 text-gray-400 flex-shrink-0 transition-transform ${isExpanded ? 'rotate-90' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 18l6-6-6-6"/></svg>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-gray-900 truncate">
+                      {ev.task_title || `Задача #${ev.task_id}`}
+                      {isLatest && <span className="ml-2 text-[10px] text-primary-500 font-medium">последняя</span>}
+                    </p>
+                    <div className="flex items-center gap-3 text-[11px] text-gray-400 mt-0.5">
+                      <span>{fmtDate(ev.completed_at)}</span>
+                      {ev.employee_name && <span>{ev.employee_name}</span>}
+                      {ev.duration_seconds > 0 && <span>{fmtDuration(ev.duration_seconds)}</span>}
+                    </div>
+                  </div>
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <p className="text-lg font-black text-gray-900">{Number(ev.counted_qty || 0)}</p>
+                  <p className="text-[10px] text-gray-400">шт.</p>
+                </div>
+              </div>
+            </button>
+            {isExpanded && <TaskScansPanel taskId={ev.task_id} />}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ═══ Detail Panel with drill-down ═══
 function DetailPanel({ node, breadcrumbs, onDrill, onBack }) {
   const st = statusColor(node);
@@ -137,6 +250,7 @@ function DetailPanel({ node, breadcrumbs, onDrill, onBack }) {
   const deltaPrev = Number(node.delta_vs_previous || 0);
   const hasInventory = !!node.last_inventory_at;
   const childrenData = getChildren(node);
+  const isLeaf = !childrenData;
 
   return (
     <div>
@@ -191,7 +305,6 @@ function DetailPanel({ node, breadcrumbs, onDrill, onBack }) {
               )}
             </div>
 
-            {/* Delta between inventories */}
             {node.previous_inventory_qty != null && (
               <div className="bg-gray-50 dark:bg-gray-800 rounded-xl px-4 py-2.5 mb-3 flex items-center gap-4 text-xs">
                 <span className="text-gray-400">Между инвентами:</span>
@@ -217,7 +330,7 @@ function DetailPanel({ node, breadcrumbs, onDrill, onBack }) {
 
       {/* Children — drill-down */}
       {childrenData && childrenData.items.length > 0 && (
-        <div>
+        <div className="mb-4">
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
             {childrenData.label} ({childrenData.items.length})
           </p>
@@ -231,6 +344,16 @@ function DetailPanel({ node, breadcrumbs, onDrill, onBack }) {
               />
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Inventory history with scans — for leaf nodes */}
+      {isLeaf && hasInventory && (
+        <div>
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+            История инвентаризаций
+          </p>
+          <InventoryHistorySection node={node} />
         </div>
       )}
     </div>
