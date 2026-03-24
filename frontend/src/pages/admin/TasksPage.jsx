@@ -272,6 +272,8 @@ function TaskDetailPanel({ task, onClose, onReload }) {
                       const statusLabel = box.status === 'completed' ? 'Готово' : box.status === 'in_progress' ? 'В работе' : 'Ожидает';
                       const statusBadge = box.status === 'completed' ? 'success' : box.status === 'in_progress' ? 'warning' : 'default';
                       const isOpen = openBoxIds.has(box.id);
+                      const boxGaps = boxScans.slice(1).map(s => Number(s.seconds_since_prev)).filter(s => !isNaN(s) && s > 0);
+                      const boxAvgPick = boxGaps.length > 0 ? (boxGaps.reduce((a, b) => a + b, 0) / boxGaps.length).toFixed(1) : null;
                       return (
                         <div key={box.id} className={`rounded-2xl border ${statusColor} overflow-hidden`}>
                           {/* Box header — clickable */}
@@ -287,6 +289,7 @@ function TaskDetailPanel({ task, onClose, onReload }) {
                               </span>
                             </div>
                             <div className="flex items-center gap-2 flex-shrink-0">
+                              {boxAvgPick && <span className="text-[10px] text-primary-500 font-semibold">{boxAvgPick}с/шт</span>}
                               <span className="text-xs text-gray-400">{boxScans.length}</span>
                               <Badge variant={statusBadge}>{statusLabel}</Badge>
                             </div>
