@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import {
-  Settings, Palette, Sun, Moon, Check, RefreshCw, Info,
+  Settings, Palette, Sun, Moon, Check, RefreshCw, Info, Search,
   Volume2, VolumeX, Zap, Package, Table2, Bell, ScanLine,
   Play, ChevronUp, ChevronDown, History, Eye
 } from 'lucide-react';
