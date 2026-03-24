@@ -208,6 +208,10 @@ function InventoryHistorySection({ node }) {
       {history.map((ev, i) => {
         const isExpanded = expandedTask === ev.task_id;
         const isLatest = i === 0;
+        const counted = Number(ev.counted_qty || 0);
+        const dur = Number(ev.duration_seconds || 0);
+        const avgPick = counted > 0 && dur > 0 ? (dur / counted).toFixed(1) : null;
+        const picksPerMin = counted > 0 && dur > 0 ? (counted / (dur / 60)).toFixed(1) : null;
         return (
           <div key={ev.task_id} className={`rounded-2xl border overflow-hidden ${isLatest ? 'border-primary-200 bg-primary-50/30' : 'border-gray-200 bg-white'}`}>
             <button
@@ -225,13 +229,16 @@ function InventoryHistorySection({ node }) {
                     <div className="flex items-center gap-3 text-[11px] text-gray-400 mt-0.5">
                       <span>{fmtDate(ev.completed_at)}</span>
                       {ev.employee_name && <span>{ev.employee_name}</span>}
-                      {ev.duration_seconds > 0 && <span>{fmtDuration(ev.duration_seconds)}</span>}
+                      {dur > 0 && <span>{fmtDuration(dur)}</span>}
                     </div>
                   </div>
                 </div>
                 <div className="text-right flex-shrink-0">
-                  <p className="text-lg font-black text-gray-900">{Number(ev.counted_qty || 0)}</p>
-                  <p className="text-[10px] text-gray-400">шт.</p>
+                  <p className="text-lg font-black text-gray-900">{counted}<span className="text-xs font-medium text-gray-400 ml-0.5">шт</span></p>
+                  <div className="flex items-center gap-2 justify-end">
+                    {avgPick && <span className="text-[10px] text-primary-500 font-semibold">{avgPick}с/шт</span>}
+                    {picksPerMin && <span className="text-[10px] text-gray-400">{picksPerMin}/мин</span>}
+                  </div>
                 </div>
               </div>
             </button>
