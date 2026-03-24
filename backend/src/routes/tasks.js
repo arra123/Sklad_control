@@ -432,7 +432,9 @@ function aggregateInventoryStats(children) {
           .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0] || null
       : null,
     last_inventory_by: latestChild?.last_inventory_by || null,
-    last_inventory_duration_seconds: latestChild?.last_inventory_duration_seconds ?? null,
+    last_inventory_duration_seconds: coverageComplete
+      ? list.reduce((sum, child) => sum + Number(child?.last_inventory_duration_seconds || 0), 0)
+      : (latestChild?.last_inventory_duration_seconds ?? null),
     delta_vs_current: lastInventoryQty == null ? null : currentQty - lastInventoryQty,
     delta_vs_previous: lastInventoryQty == null || previousInventoryQty == null ? null : lastInventoryQty - previousInventoryQty,
     history_count: list.reduce((sum, child) => sum + Number(child?.history_count || 0), 0),

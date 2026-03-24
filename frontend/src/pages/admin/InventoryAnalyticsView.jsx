@@ -56,6 +56,9 @@ function InventoryCard({ node, type, onDrill }) {
   const st = statusColor(node);
   const hasInventory = !!node.last_inventory_at;
   const delta = Number(node.delta_vs_current || 0);
+  const invQty = Number(node.last_inventory_qty || 0);
+  const dur = Number(node.last_inventory_duration_seconds || 0);
+  const avgPick = invQty > 0 && dur > 0 ? (dur / invQty).toFixed(1) : null;
 
   return (
     <div
@@ -83,7 +86,7 @@ function InventoryCard({ node, type, onDrill }) {
             <div className="mt-1.5 grid grid-cols-3 gap-2 text-xs">
               <div>
                 <span className="text-gray-400">По инвенту</span>
-                <p className="font-bold text-gray-900 dark:text-white">{fmtQty(node.last_inventory_qty)} шт.</p>
+                <p className="font-bold text-gray-900 dark:text-white">{fmtQty(invQty)} шт.</p>
               </div>
               <div>
                 <span className="text-gray-400">Сейчас</span>
@@ -102,8 +105,9 @@ function InventoryCard({ node, type, onDrill }) {
           {hasInventory && (
             <div className="mt-2 flex items-center gap-3 text-[11px] text-gray-400">
               <span className="flex items-center gap-1"><Clock size={10} /> {timeAgo(node.last_inventory_at)}</span>
+              {dur > 0 && <span>{fmtDuration(dur)}</span>}
+              {avgPick && <span className="text-primary-500 font-semibold">{avgPick}с/шт</span>}
               {node.last_inventory_by && <span>{node.last_inventory_by}</span>}
-              {node.last_inventory_duration_seconds > 0 && <span>{fmtDuration(node.last_inventory_duration_seconds)}</span>}
             </div>
           )}
         </div>
