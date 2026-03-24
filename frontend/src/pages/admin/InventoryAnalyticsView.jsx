@@ -3,6 +3,7 @@ import { CheckCircle2, AlertTriangle, Clock, ChevronRight, ChevronDown, Search, 
 import api from '../../api/client';
 import Spinner from '../../components/ui/Spinner';
 import Badge from '../../components/ui/Badge';
+import { useAppSettings } from '../../context/AppSettingsContext';
 
 function fmtDate(iso) {
   if (!iso) return '—';
@@ -28,12 +29,23 @@ function timeAgo(iso) {
   return 'только что';
 }
 
-function statusColor(node) {
-  if (!node.last_inventory_at) return { bg: '#fee2e2', border: '#fca5a5', text: '#b91c1c', label: 'Не было' };
+function hexToBgBorder(hex) {
+  return { bg: hex + '18', border: hex + '60', text: hex };
+}
+
+function statusColor(node, settings = {}) {
+  const freshH = settings.inventory_fresh_hours || 24;
+  const staleH = settings.inventory_stale_hours || 72;
+  const cFresh = settings.inventory_color_fresh || '#047857';
+  const cWarn = settings.inventory_color_warn || '#a16207';
+  const cStale = settings.inventory_color_stale || '#b91c1c';
+  const cNone = settings.inventory_color_none || '#b91c1c';
+
+  if (!node.last_inventory_at) return { ...hexToBgBorder(cNone), label: 'Не было' };
   const hours = (Date.now() - new Date(node.last_inventory_at).getTime()) / 3600000;
-  if (hours < 24) return { bg: '#d1fae5', border: '#6ee7b7', text: '#047857', label: 'Свежий' };
-  if (hours < 72) return { bg: '#fef9c3', border: '#fde047', text: '#a16207', label: 'Давно' };
-  return { bg: '#fee2e2', border: '#fca5a5', text: '#b91c1c', label: 'Устарел' };
+  if (hours < freshH) return { ...hexToBgBorder(cFresh), label: 'Свежий' };
+  if (hours < staleH) return { ...hexToBgBorder(cWarn), label: 'Давно' };
+  return { ...hexToBgBorder(cStale), label: 'Устарел' };
 }
 
 function fmtQty(val) {
@@ -52,8 +64,8 @@ function StatBox({ label, value, accent }) {
 }
 
 // ═══ Inventory Card (row in list) ═══
-function InventoryCard({ node, type, onDrill }) {
-  const st = statusColor(node);
+function InventoryCard({ node, type, onDrill, settings }) {
+  const st = statusColor(node, settings);
   const hasInventory = !!node.last_inventory_at;
   const delta = Number(node.delta_vs_current || 0);
   const invQty = Number(node.last_inventory_qty || 0);
@@ -255,8 +267,8 @@ function InventoryHistorySection({ node }) {
 }
 
 // ═══ Detail Panel with drill-down ═══
-function DetailPanel({ node, breadcrumbs, onDrill, onBack }) {
-  const st = statusColor(node);
+function DetailPanel({ node, breadcrumbs, onDrill, onBack, settings }) {
+  const st = statusColor(node, settings);
   const delta = Number(node.delta_vs_current || 0);
   const deltaPrev = Number(node.delta_vs_previous || 0);
   const hasInventory = !!node.last_inventory_at;
@@ -352,6 +364,7 @@ function DetailPanel({ node, breadcrumbs, onDrill, onBack }) {
                 node={child}
                 type={getChildType(child)}
                 onDrill={onDrill}
+                settings={settings}
               />
             ))}
           </div>
@@ -373,11 +386,11 @@ function DetailPanel({ node, breadcrumbs, onDrill, onBack }) {
 
 // ═══ Main Component ═══
 export default function InventoryAnalyticsView() {
+  const { settings: s } = useAppSettings();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selectedWarehouse, setSelectedWarehouse] = useState(null);
-  // Drill-down stack: [{node, label}]
   const [drillStack, setDrillStack] = useState([]);
 
   useEffect(() => {
@@ -410,6 +423,7 @@ export default function InventoryAnalyticsView() {
         breadcrumbs={drillStack}
         onDrill={handleDrill}
         onBack={handleBack}
+        settings={s}
       />
     );
   }
@@ -441,17 +455,19 @@ export default function InventoryAnalyticsView() {
       })
     : [];
 
-  // Stats — based on selected warehouse
+  // Stats — based on selected warehouse + settings thresholds
+  const freshH = s.inventory_fresh_hours || 24;
+  const staleH = s.inventory_stale_hours || 72;
   const statsNodes = filteredNodes;
   const inventoried = statsNodes.filter(n => !!n.last_inventory_at).length;
   const notInventoried = statsNodes.length - inventoried;
   const freshCount = statsNodes.filter(n => {
     if (!n.last_inventory_at) return false;
-    return (Date.now() - new Date(n.last_inventory_at).getTime()) < 24 * 3600000;
+    return (Date.now() - new Date(n.last_inventory_at).getTime()) < freshH * 3600000;
   }).length;
   const staleCount = statsNodes.filter(n => {
     if (!n.last_inventory_at) return false;
-    return (Date.now() - new Date(n.last_inventory_at).getTime()) > 72 * 3600000;
+    return (Date.now() - new Date(n.last_inventory_at).getTime()) > staleH * 3600000;
   }).length;
 
   return (
@@ -463,16 +479,16 @@ export default function InventoryAnalyticsView() {
           <p className="text-xs text-gray-400 mt-1 uppercase font-semibold">{selectedWarehouse ? 'Склад' : 'Складов'}</p>
         </div>
         <div className="card p-4 text-center">
-          <p className="text-3xl font-black text-green-600">{freshCount}</p>
-          <p className="text-xs text-gray-400 mt-1 uppercase font-semibold">Свежих (24ч)</p>
+          <p className="text-3xl font-black" style={{ color: s.inventory_color_fresh || '#047857' }}>{freshCount}</p>
+          <p className="text-xs text-gray-400 mt-1 uppercase font-semibold">Свежих ({freshH}ч)</p>
         </div>
         <div className="card p-4 text-center">
-          <p className="text-3xl font-black text-red-600">{notInventoried}</p>
+          <p className="text-3xl font-black" style={{ color: s.inventory_color_stale || '#b91c1c' }}>{notInventoried}</p>
           <p className="text-xs text-gray-400 mt-1 uppercase font-semibold">Без инвента</p>
         </div>
         <div className="card p-4 text-center">
-          <p className="text-3xl font-black text-amber-600">{staleCount}</p>
-          <p className="text-xs text-gray-400 mt-1 uppercase font-semibold">Устарели (72ч+)</p>
+          <p className="text-3xl font-black" style={{ color: s.inventory_color_warn || '#a16207' }}>{staleCount}</p>
+          <p className="text-xs text-gray-400 mt-1 uppercase font-semibold">Устарели ({staleH}ч+)</p>
         </div>
       </div>
 
@@ -514,14 +530,14 @@ export default function InventoryAnalyticsView() {
               {searchResults.slice(0, 20).map((n, i) => (
                 <div key={i} className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
                   onClick={() => handleDrill(n)}>
-                  <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: statusColor(n).text }} />
+                  <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: statusColor(n, s).text }} />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{n.label || n.name || n.code}</p>
                     {n._path && <p className="text-xs text-gray-400 truncate">{n._path}</p>}
                   </div>
                   {n.last_inventory_at && <span className="text-xs text-gray-400 flex-shrink-0">{fmtQty(n.last_inventory_qty)} шт.</span>}
-                  <span className="text-[11px] font-semibold px-2 py-0.5 rounded-lg flex-shrink-0" style={{ background: statusColor(n).bg, color: statusColor(n).text }}>
-                    {statusColor(n).label}
+                  <span className="text-[11px] font-semibold px-2 py-0.5 rounded-lg flex-shrink-0" style={{ background: statusColor(n, s).bg, color: statusColor(n, s).text }}>
+                    {statusColor(n, s).label}
                   </span>
                 </div>
               ))}
@@ -553,7 +569,7 @@ export default function InventoryAnalyticsView() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
               {locations.map((loc, i) => (
-                <InventoryCard key={loc.id || i} node={loc} type="group" onDrill={handleDrill} />
+                <InventoryCard key={loc.id || i} node={loc} type="group" onDrill={handleDrill} settings={s} />
               ))}
             </div>
           </div>

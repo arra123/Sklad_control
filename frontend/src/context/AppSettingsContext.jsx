@@ -28,6 +28,16 @@ export const SETTINGS_DEFAULTS = {
   // Уведомления (toast)
   toast_duration_success: 3,   // сек
   toast_duration_error: 5,     // сек
+
+  // Инвентаризация — пороги свежести (часы)
+  inventory_fresh_hours: 24,     // до этого — зелёный «Свежий»
+  inventory_stale_hours: 72,     // после этого — красный «Устарел», между — жёлтый «Давно»
+
+  // Инвентаризация — цвета
+  inventory_color_fresh: '#047857',   // зелёный
+  inventory_color_warn: '#a16207',    // жёлтый
+  inventory_color_stale: '#b91c1c',   // красный
+  inventory_color_none: '#b91c1c',    // не было
 };
 
 const AppSettingsContext = createContext(null);

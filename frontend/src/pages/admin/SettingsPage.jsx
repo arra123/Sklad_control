@@ -708,6 +708,34 @@ export default function SettingsPage() {
               <NumberStepper value={s.toast_duration_error} onChange={v => updateSetting('toast_duration_error', v)} min={1} max={60} step={1} unit="с" />
             </SettingRow>
           </div>
+
+          <div className="card p-6">
+            <div className="flex items-center gap-2 mb-1">
+              <Eye className="w-5 h-5 text-primary-500" />
+              <h2 className="font-semibold text-gray-900 dark:text-white">Инвентаризация</h2>
+            </div>
+            <p className="text-xs text-gray-400 mb-4">Пороги свежести и цвета в аналитике.</p>
+            <SettingRow label="«Свежий» до" hint="Часы с последней инвентаризации — зелёный статус">
+              <NumberStepper value={s.inventory_fresh_hours} onChange={v => updateSetting('inventory_fresh_hours', v)} min={1} max={720} step={1} unit="ч" />
+            </SettingRow>
+            <SettingRow label="«Устарел» после" hint="После стольких часов — красный статус">
+              <NumberStepper value={s.inventory_stale_hours} onChange={v => updateSetting('inventory_stale_hours', v)} min={1} max={720} step={1} unit="ч" />
+            </SettingRow>
+            <SettingRow label="Цвет «Свежий»">
+              <input type="color" value={s.inventory_color_fresh} onChange={e => updateSetting('inventory_color_fresh', e.target.value)} className="w-8 h-8 rounded-lg border border-gray-200 cursor-pointer" />
+            </SettingRow>
+            <SettingRow label="Цвет «Давно»">
+              <input type="color" value={s.inventory_color_warn} onChange={e => updateSetting('inventory_color_warn', e.target.value)} className="w-8 h-8 rounded-lg border border-gray-200 cursor-pointer" />
+            </SettingRow>
+            <SettingRow label="Цвет «Устарел»">
+              <input type="color" value={s.inventory_color_stale} onChange={e => updateSetting('inventory_color_stale', e.target.value)} className="w-8 h-8 rounded-lg border border-gray-200 cursor-pointer" />
+            </SettingRow>
+            <div className="mt-4 flex items-center gap-3 text-xs">
+              <span className="px-2 py-1 rounded-lg font-semibold" style={{ background: s.inventory_color_fresh + '20', color: s.inventory_color_fresh }}>Свежий (&lt;{s.inventory_fresh_hours}ч)</span>
+              <span className="px-2 py-1 rounded-lg font-semibold" style={{ background: s.inventory_color_warn + '20', color: s.inventory_color_warn }}>Давно</span>
+              <span className="px-2 py-1 rounded-lg font-semibold" style={{ background: s.inventory_color_stale + '20', color: s.inventory_color_stale }}>Устарел (&gt;{s.inventory_stale_hours}ч)</span>
+            </div>
+          </div>
         </div>
       )}
 
