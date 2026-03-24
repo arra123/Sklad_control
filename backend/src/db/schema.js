@@ -1,0 +1,562 @@
+const pool = require('./pool');
+
+async function createSchema() {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // ─── Users & Employees ───────────────────────────────────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS employees_s (
+        id SERIAL PRIMARY KEY,
+        full_name VARCHAR(255) NOT NULL,
+        position VARCHAR(255),
+        phone VARCHAR(50),
+        active BOOLEAN NOT NULL DEFAULT true,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS users_s (
+        id SERIAL PRIMARY KEY,
+        username VARCHAR(100) NOT NULL UNIQUE,
+        password_hash VARCHAR(255) NOT NULL,
+        role VARCHAR(20) NOT NULL DEFAULT 'employee' CHECK (role IN ('admin', 'employee')),
+        employee_id INTEGER REFERENCES employees_s(id) ON DELETE SET NULL,
+        active BOOLEAN NOT NULL DEFAULT true,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+
+    // Add password_plain and widen role check
+    await client.query(`ALTER TABLE users_s ADD COLUMN IF NOT EXISTS password_plain VARCHAR(255)`);
+    await client.query(`ALTER TABLE users_s ADD COLUMN IF NOT EXISTS role_id INTEGER`);
+    await client.query(`ALTER TABLE users_s DROP CONSTRAINT IF EXISTS users_c_role_check`);
+
+    // Add shelf_id to scans for multi-shelf tracking
+    await client.query(`ALTER TABLE inventory_task_scans_s ADD COLUMN IF NOT EXISTS shelf_id INTEGER`);
+
+    // Multi-shelf support for inventory tasks
+    await client.query(`ALTER TABLE inventory_tasks_s ADD COLUMN IF NOT EXISTS shelf_ids JSONB`);
+    await client.query(`ALTER TABLE inventory_tasks_s ADD COLUMN IF NOT EXISTS current_shelf_index INTEGER DEFAULT 0`);
+
+    // ─── Product Catalog ─────────────────────────────────────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS product_folders_s (
+        id SERIAL PRIMARY KEY,
+        external_id VARCHAR(255) UNIQUE,
+        name VARCHAR(500) NOT NULL,
+        parent_id INTEGER REFERENCES product_folders_s(id) ON DELETE SET NULL,
+        full_path TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS products_s (
+        id SERIAL PRIMARY KEY,
+        external_id VARCHAR(255) UNIQUE,
+        name VARCHAR(500) NOT NULL,
+        code VARCHAR(255),
+        article VARCHAR(255),
+        entity_type VARCHAR(20) NOT NULL DEFAULT 'product' CHECK (entity_type IN ('product', 'bundle')),
+        barcode_list TEXT,
+        production_barcode VARCHAR(255),
+        marketplace_barcodes_json JSONB,
+        stock NUMERIC(15,3) DEFAULT 0,
+        reserve NUMERIC(15,3) DEFAULT 0,
+        in_transit NUMERIC(15,3) DEFAULT 0,
+        quantity NUMERIC(15,3) DEFAULT 0,
+        folder_id INTEGER REFERENCES product_folders_s(id) ON DELETE SET NULL,
+        folder_path TEXT,
+        archived BOOLEAN NOT NULL DEFAULT false,
+        source_json JSONB,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_products_c_name ON products_s(name);
+      CREATE INDEX IF NOT EXISTS idx_products_c_code ON products_s(code);
+      CREATE INDEX IF NOT EXISTS idx_products_c_external_id ON products_s(external_id);
+      CREATE INDEX IF NOT EXISTS idx_products_c_entity_type ON products_s(entity_type);
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS bundle_components_s (
+        id SERIAL PRIMARY KEY,
+        bundle_id INTEGER NOT NULL REFERENCES products_s(id) ON DELETE CASCADE,
+        component_id INTEGER REFERENCES products_s(id) ON DELETE SET NULL,
+        component_external_id VARCHAR(255),
+        quantity NUMERIC(15,3) NOT NULL DEFAULT 1,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE(bundle_id, component_id)
+      )
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS import_runs_s (
+        id SERIAL PRIMARY KEY,
+        status VARCHAR(20) NOT NULL DEFAULT 'running' CHECK (status IN ('running', 'success', 'error')),
+        products_count INTEGER DEFAULT 0,
+        bundles_count INTEGER DEFAULT 0,
+        errors_json JSONB,
+        source_dir TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        finished_at TIMESTAMPTZ
+      )
+    `);
+
+    // ─── Warehouse Structure ─────────────────────────────────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS warehouses_s (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        external_id VARCHAR(255),
+        active BOOLEAN NOT NULL DEFAULT true,
+        notes TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS racks_s (
+        id SERIAL PRIMARY KEY,
+        warehouse_id INTEGER NOT NULL REFERENCES warehouses_s(id) ON DELETE CASCADE,
+        name VARCHAR(255) NOT NULL,
+        number INTEGER NOT NULL,
+        code VARCHAR(50),
+        barcode_value VARCHAR(255) UNIQUE,
+        notes TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS shelves_s (
+        id SERIAL PRIMARY KEY,
+        rack_id INTEGER NOT NULL REFERENCES racks_s(id) ON DELETE CASCADE,
+        name VARCHAR(255) NOT NULL,
+        number INTEGER NOT NULL,
+        code VARCHAR(50),
+        barcode_value VARCHAR(255) UNIQUE,
+        notes TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await client.query(`ALTER TABLE shelves_s ADD COLUMN IF NOT EXISTS uses_boxes BOOLEAN NOT NULL DEFAULT false`);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS shelf_items_s (
+        id SERIAL PRIMARY KEY,
+        shelf_id INTEGER NOT NULL REFERENCES shelves_s(id) ON DELETE CASCADE,
+        product_id INTEGER NOT NULL REFERENCES products_s(id) ON DELETE CASCADE,
+        quantity NUMERIC(15,3) NOT NULL DEFAULT 0,
+        updated_by INTEGER REFERENCES users_s(id) ON DELETE SET NULL,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE(shelf_id, product_id)
+      )
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS shelf_movements_s (
+        id SERIAL PRIMARY KEY,
+        shelf_id INTEGER NOT NULL REFERENCES shelves_s(id) ON DELETE CASCADE,
+        product_id INTEGER REFERENCES products_s(id) ON DELETE SET NULL,
+        operation_type VARCHAR(30) NOT NULL CHECK (operation_type IN ('inventory', 'correction', 'stock_in', 'stock_out')),
+        quantity_before NUMERIC(15,3) NOT NULL DEFAULT 0,
+        quantity_after NUMERIC(15,3) NOT NULL DEFAULT 0,
+        quantity_delta NUMERIC(15,3) NOT NULL DEFAULT 0,
+        user_id INTEGER REFERENCES users_s(id) ON DELETE SET NULL,
+        task_id INTEGER,
+        notes TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+
+    // ─── Inventory Tasks ─────────────────────────────────────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS inventory_tasks_s (
+        id SERIAL PRIMARY KEY,
+        title VARCHAR(500) NOT NULL,
+        status VARCHAR(20) NOT NULL DEFAULT 'new' CHECK (status IN ('new', 'in_progress', 'completed', 'cancelled')),
+        employee_id INTEGER REFERENCES employees_s(id) ON DELETE SET NULL,
+        shelf_id INTEGER REFERENCES shelves_s(id) ON DELETE SET NULL,
+        notes TEXT,
+        created_by INTEGER REFERENCES users_s(id) ON DELETE SET NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        started_at TIMESTAMPTZ,
+        completed_at TIMESTAMPTZ,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS inventory_task_scans_s (
+        id SERIAL PRIMARY KEY,
+        task_id INTEGER NOT NULL REFERENCES inventory_tasks_s(id) ON DELETE CASCADE,
+        product_id INTEGER REFERENCES products_s(id) ON DELETE SET NULL,
+        product_external_id VARCHAR(255),
+        scanned_value VARCHAR(500) NOT NULL,
+        quantity_delta NUMERIC(15,3) NOT NULL DEFAULT 1,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+
+    // ─── Scan Errors ─────────────────────────────────────────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS scan_errors_s (
+        id SERIAL PRIMARY KEY,
+        task_id INTEGER REFERENCES inventory_tasks_s(id) ON DELETE SET NULL,
+        scanned_value VARCHAR(500) NOT NULL,
+        employee_note TEXT,
+        user_id INTEGER REFERENCES users_s(id),
+        resolved_at TIMESTAMPTZ,
+        resolved_by INTEGER REFERENCES users_s(id) ON DELETE SET NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+
+    // Migration: add resolved columns if they don't exist (for existing tables)
+    await client.query(`ALTER TABLE scan_errors_s ADD COLUMN IF NOT EXISTS resolved_at TIMESTAMPTZ`);
+    await client.query(`ALTER TABLE scan_errors_s ADD COLUMN IF NOT EXISTS resolved_by INTEGER REFERENCES users_s(id) ON DELETE SET NULL`);
+
+    // External employee link
+    await client.query(`ALTER TABLE employees_s ADD COLUMN IF NOT EXISTS external_employee_id INTEGER UNIQUE`);
+    await client.query(`ALTER TABLE employees_s ADD COLUMN IF NOT EXISTS department VARCHAR(255)`);
+
+    // ─── Settings ────────────────────────────────────────────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS settings_s (
+        id SERIAL PRIMARY KEY,
+        key VARCHAR(100) NOT NULL UNIQUE,
+        value TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+
+    // ─── Updated_at triggers ─────────────────────────────────────────
+    await client.query(`
+      CREATE OR REPLACE FUNCTION update_updated_at_s()
+      RETURNS TRIGGER AS $$
+      BEGIN
+        NEW.updated_at = NOW();
+        RETURN NEW;
+      END;
+      $$ LANGUAGE plpgsql;
+    `);
+
+    const tablesWithUpdatedAt = [
+      'employees_s', 'users_s', 'product_folders_s', 'products_s',
+      'warehouses_s', 'racks_s', 'shelves_s', 'inventory_tasks_s', 'settings_s'
+    ];
+
+    for (const table of tablesWithUpdatedAt) {
+      await client.query(`
+        DROP TRIGGER IF EXISTS trg_${table}_updated_at ON ${table};
+        CREATE TRIGGER trg_${table}_updated_at
+          BEFORE UPDATE ON ${table}
+          FOR EACH ROW EXECUTE FUNCTION update_updated_at_s();
+      `);
+    }
+
+    // ─── System / Frontend Error Log ─────────────────────────────────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS system_errors_s (
+        id             SERIAL PRIMARY KEY,
+        user_id        INTEGER REFERENCES users_s(id) ON DELETE SET NULL,
+        username       VARCHAR(100),
+        user_role      VARCHAR(20),
+        error_type     VARCHAR(30) NOT NULL DEFAULT 'unknown',
+        error_message  TEXT,
+        error_stack    TEXT,
+        page_url       TEXT,
+        component      VARCHAR(255),
+        http_status    INTEGER,
+        request_url    TEXT,
+        request_method VARCHAR(10),
+        response_data  TEXT,
+        browser_info   TEXT,
+        extra_json     JSONB,
+        created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_system_errors_c_created ON system_errors_s(created_at DESC)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_system_errors_c_type    ON system_errors_s(error_type)`);
+
+    // ─── Migrations ──────────────────────────────────────────────────
+
+    // Allow 'manager' role
+    await client.query(`ALTER TABLE users_s DROP CONSTRAINT IF EXISTS users_c_role_check`);
+    await client.query(`ALTER TABLE users_s ADD CONSTRAINT users_c_role_check CHECK (role IN ('admin', 'manager', 'employee'))`);
+
+    // Warehouse type for FBO support
+    await client.query(`ALTER TABLE warehouses_s ADD COLUMN IF NOT EXISTS warehouse_type VARCHAR(20) NOT NULL DEFAULT 'fbs'`);
+    await client.query(`ALTER TABLE warehouses_s ALTER COLUMN warehouse_type TYPE VARCHAR(20)`);
+
+    // FBO: Rows (analogous to racks)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS pallet_rows_s (
+        id SERIAL PRIMARY KEY,
+        warehouse_id INTEGER NOT NULL REFERENCES warehouses_s(id) ON DELETE CASCADE,
+        number INTEGER NOT NULL,
+        name VARCHAR(255) NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE(warehouse_id, number)
+      )
+    `);
+
+    // FBO: Pallets (analogous to shelves)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS pallets_s (
+        id SERIAL PRIMARY KEY,
+        row_id INTEGER NOT NULL REFERENCES pallet_rows_s(id) ON DELETE CASCADE,
+        number INTEGER NOT NULL,
+        name VARCHAR(255) NOT NULL,
+        barcode_value VARCHAR(255) UNIQUE,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE(row_id, number)
+      )
+    `);
+
+    // FBO: Boxes (physical boxes with barcodes stored on pallets)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS boxes_s (
+        id SERIAL PRIMARY KEY,
+        barcode_value VARCHAR(255) NOT NULL UNIQUE,
+        product_id INTEGER REFERENCES products_s(id) ON DELETE SET NULL,
+        pallet_id INTEGER REFERENCES pallets_s(id) ON DELETE SET NULL,
+        task_id INTEGER REFERENCES inventory_tasks_s(id) ON DELETE SET NULL,
+        quantity INTEGER NOT NULL DEFAULT 0,
+        box_size INTEGER NOT NULL DEFAULT 50,
+        status VARCHAR(20) NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'closed')),
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        closed_at TIMESTAMPTZ
+      )
+    `);
+
+    // Add packaging columns to inventory_tasks_s
+    await client.query(`ALTER TABLE inventory_tasks_s ADD COLUMN IF NOT EXISTS task_type VARCHAR(20) NOT NULL DEFAULT 'inventory'`);
+    await client.query(`ALTER TABLE inventory_tasks_s ADD COLUMN IF NOT EXISTS product_id INTEGER REFERENCES products_s(id) ON DELETE SET NULL`);
+    await client.query(`ALTER TABLE inventory_tasks_s ADD COLUMN IF NOT EXISTS box_size INTEGER DEFAULT 50`);
+    await client.query(`ALTER TABLE inventory_tasks_s ADD COLUMN IF NOT EXISTS target_pallet_id INTEGER REFERENCES pallets_s(id) ON DELETE SET NULL`);
+    await client.query(`ALTER TABLE inventory_tasks_s ADD COLUMN IF NOT EXISTS packing_phase VARCHAR(20) DEFAULT 'packaging'`);
+
+    // Add confirmed column to boxes_s
+    await client.query(`ALTER TABLE boxes_s ADD COLUMN IF NOT EXISTS confirmed BOOLEAN NOT NULL DEFAULT false`);
+    await client.query(`ALTER TABLE inventory_tasks_s ADD COLUMN IF NOT EXISTS target_box_id INTEGER REFERENCES boxes_s(id) ON DELETE SET NULL`);
+
+    // Mark remainder boxes (not placed on FBO pallet, transferred to FBS shelf instead)
+    await client.query(`ALTER TABLE boxes_s ADD COLUMN IF NOT EXISTS is_remainder BOOLEAN NOT NULL DEFAULT false`);
+    // Store which FBS shelf the remainder went to
+    await client.query(`ALTER TABLE boxes_s ADD COLUMN IF NOT EXISTS remainder_shelf_id INTEGER REFERENCES shelves_s(id) ON DELETE SET NULL`);
+
+    // Pallet: uses_boxes flag (true = товар в коробках, false = товар напрямую)
+    await client.query(`ALTER TABLE pallets_s ADD COLUMN IF NOT EXISTS uses_boxes BOOLEAN NOT NULL DEFAULT true`);
+
+    // Add 'visual' warehouse type
+    await client.query(`ALTER TABLE warehouses_s DROP CONSTRAINT IF EXISTS warehouses_c_warehouse_type_check`);
+    await client.query(`ALTER TABLE warehouses_s ADD CONSTRAINT warehouses_c_warehouse_type_check CHECK (warehouse_type IN ('fbs', 'fbo', 'both', 'visual', 'visual_pallet'))`);
+
+    // shelf_boxes_s: physical boxes on FBS shelves (for visual/experimental warehouses)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS shelf_boxes_s (
+        id SERIAL PRIMARY KEY,
+        shelf_id INTEGER NOT NULL REFERENCES shelves_s(id) ON DELETE CASCADE,
+        position INTEGER NOT NULL DEFAULT 1,
+        name VARCHAR(100),
+        barcode_value VARCHAR(255) UNIQUE,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE(shelf_id, position)
+      )
+    `);
+    await client.query(`ALTER TABLE shelf_boxes_s ADD COLUMN IF NOT EXISTS product_id INTEGER REFERENCES products_s(id) ON DELETE SET NULL`);
+    await client.query(`ALTER TABLE shelf_boxes_s ADD COLUMN IF NOT EXISTS task_id INTEGER REFERENCES inventory_tasks_s(id) ON DELETE SET NULL`);
+    await client.query(`ALTER TABLE shelf_boxes_s ADD COLUMN IF NOT EXISTS quantity INTEGER NOT NULL DEFAULT 0`);
+    await client.query(`ALTER TABLE shelf_boxes_s ADD COLUMN IF NOT EXISTS box_size INTEGER NOT NULL DEFAULT 50`);
+    await client.query(`ALTER TABLE shelf_boxes_s ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'closed'`);
+    await client.query(`ALTER TABLE shelf_boxes_s ADD COLUMN IF NOT EXISTS confirmed BOOLEAN NOT NULL DEFAULT false`);
+    await client.query(`ALTER TABLE shelf_boxes_s ADD COLUMN IF NOT EXISTS closed_at TIMESTAMPTZ`);
+    await client.query(`ALTER TABLE inventory_tasks_s ADD COLUMN IF NOT EXISTS target_shelf_box_id INTEGER REFERENCES shelf_boxes_s(id) ON DELETE SET NULL`);
+
+    // Multi-product contents for pallet boxes
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS box_items_s (
+        id SERIAL PRIMARY KEY,
+        box_id INTEGER NOT NULL REFERENCES boxes_s(id) ON DELETE CASCADE,
+        product_id INTEGER NOT NULL REFERENCES products_s(id) ON DELETE CASCADE,
+        quantity NUMERIC(15,3) NOT NULL DEFAULT 0,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE(box_id, product_id)
+      )
+    `);
+
+    // Multi-product contents for shelf boxes
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS shelf_box_items_s (
+        id SERIAL PRIMARY KEY,
+        shelf_box_id INTEGER NOT NULL REFERENCES shelf_boxes_s(id) ON DELETE CASCADE,
+        product_id INTEGER NOT NULL REFERENCES products_s(id) ON DELETE CASCADE,
+        quantity NUMERIC(15,3) NOT NULL DEFAULT 0,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE(shelf_box_id, product_id)
+      )
+    `);
+
+    // One inventory task can now include multiple boxes processed one by one
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS inventory_task_boxes_s (
+        id SERIAL PRIMARY KEY,
+        task_id INTEGER NOT NULL REFERENCES inventory_tasks_s(id) ON DELETE CASCADE,
+        box_id INTEGER REFERENCES boxes_s(id) ON DELETE CASCADE,
+        shelf_box_id INTEGER REFERENCES shelf_boxes_s(id) ON DELETE CASCADE,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'in_progress', 'completed')),
+        started_at TIMESTAMPTZ,
+        completed_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        CONSTRAINT inventory_task_boxes_target_check CHECK (
+          (box_id IS NOT NULL AND shelf_box_id IS NULL)
+          OR (box_id IS NULL AND shelf_box_id IS NOT NULL)
+        )
+      )
+    `);
+    await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_inventory_task_boxes_unique_box ON inventory_task_boxes_s(task_id, box_id) WHERE box_id IS NOT NULL`);
+    await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_inventory_task_boxes_unique_shelf_box ON inventory_task_boxes_s(task_id, shelf_box_id) WHERE shelf_box_id IS NOT NULL`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_inventory_task_boxes_task_sort ON inventory_task_boxes_s(task_id, sort_order)`);
+
+    await client.query(`ALTER TABLE inventory_task_scans_s ADD COLUMN IF NOT EXISTS task_box_id INTEGER REFERENCES inventory_task_boxes_s(id) ON DELETE SET NULL`);
+    await client.query(`ALTER TABLE scan_errors_s ADD COLUMN IF NOT EXISTS task_box_id INTEGER REFERENCES inventory_task_boxes_s(id) ON DELETE SET NULL`);
+
+    // Seed new item tables from legacy one-product boxes
+    await client.query(`
+      INSERT INTO box_items_s (box_id, product_id, quantity, updated_at)
+      SELECT b.id, b.product_id, b.quantity, NOW()
+      FROM boxes_s b
+      WHERE b.product_id IS NOT NULL
+        AND b.quantity > 0
+        AND NOT EXISTS (
+          SELECT 1 FROM box_items_s bi WHERE bi.box_id = b.id AND bi.product_id = b.product_id
+        )
+    `);
+    await client.query(`
+      INSERT INTO shelf_box_items_s (shelf_box_id, product_id, quantity, updated_at)
+      SELECT sb.id, sb.product_id, sb.quantity, NOW()
+      FROM shelf_boxes_s sb
+      WHERE sb.product_id IS NOT NULL
+        AND sb.quantity > 0
+        AND NOT EXISTS (
+          SELECT 1 FROM shelf_box_items_s sbi WHERE sbi.shelf_box_id = sb.id AND sbi.product_id = sb.product_id
+        )
+    `);
+
+    // Visual warehouse seed removed — create warehouses manually via UI
+
+    // Fix old-format barcodes (SHELF-X-Y, RACK-X-Y) → use shelf/rack ID for uniqueness
+    await client.query(`
+      UPDATE shelves_s
+      SET barcode_value = (200000000 + id)::text
+      WHERE barcode_value ~ '^SHELF-'
+    `);
+    await client.query(`
+      UPDATE racks_s
+      SET barcode_value = (100000 + id)::text
+      WHERE barcode_value ~ '^RACK-'
+    `);
+
+    // ─── Pallet items (loose products on pallets, like shelf_items_s) ──
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS pallet_items_s (
+        id SERIAL PRIMARY KEY,
+        pallet_id INTEGER NOT NULL REFERENCES pallets_s(id) ON DELETE CASCADE,
+        product_id INTEGER NOT NULL REFERENCES products_s(id) ON DELETE CASCADE,
+        quantity NUMERIC(15,3) NOT NULL DEFAULT 0,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE(pallet_id, product_id)
+      )
+    `);
+
+    // ─── Employee inventory (what employees are holding) ─────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS employee_inventory_s (
+        id SERIAL PRIMARY KEY,
+        employee_id INTEGER NOT NULL REFERENCES employees_s(id) ON DELETE CASCADE,
+        product_id INTEGER NOT NULL REFERENCES products_s(id) ON DELETE CASCADE,
+        quantity NUMERIC(15,3) NOT NULL DEFAULT 0,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE(employee_id, product_id)
+      )
+    `);
+
+    // ─── Universal movement log ──────────────────────────────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS movements_s (
+        id SERIAL PRIMARY KEY,
+        movement_type VARCHAR(30) NOT NULL,
+        product_id INTEGER REFERENCES products_s(id) ON DELETE SET NULL,
+        quantity NUMERIC(15,3) NOT NULL DEFAULT 0,
+        from_pallet_id INTEGER REFERENCES pallets_s(id) ON DELETE SET NULL,
+        from_shelf_id INTEGER REFERENCES shelves_s(id) ON DELETE SET NULL,
+        from_box_id INTEGER REFERENCES boxes_s(id) ON DELETE SET NULL,
+        from_employee_id INTEGER REFERENCES employees_s(id) ON DELETE SET NULL,
+        to_pallet_id INTEGER REFERENCES pallets_s(id) ON DELETE SET NULL,
+        to_shelf_id INTEGER REFERENCES shelves_s(id) ON DELETE SET NULL,
+        to_box_id INTEGER REFERENCES boxes_s(id) ON DELETE SET NULL,
+        to_employee_id INTEGER REFERENCES employees_s(id) ON DELETE SET NULL,
+        performed_by INTEGER REFERENCES users_s(id) ON DELETE SET NULL,
+        notes TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_movements_c_created ON movements_s(created_at DESC)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_movements_c_product ON movements_s(product_id)`);
+    // Add source column and widen movement_type if needed
+    await client.query(`ALTER TABLE movements_s ADD COLUMN IF NOT EXISTS source VARCHAR(50)`);
+    await client.query(`ALTER TABLE movements_s ALTER COLUMN movement_type TYPE VARCHAR(100)`);
+    await client.query(`ALTER TABLE movements_s ADD COLUMN IF NOT EXISTS quantity_before NUMERIC(15,3)`);
+    await client.query(`ALTER TABLE movements_s ADD COLUMN IF NOT EXISTS quantity_after NUMERIC(15,3)`);
+    // Source of change: scan, manual_edit, task, admin, packaging
+    await client.query(`ALTER TABLE movements_s ADD COLUMN IF NOT EXISTS source VARCHAR(30) NOT NULL DEFAULT 'manual_edit'`);
+    await client.query(`ALTER TABLE shelf_movements_s ADD COLUMN IF NOT EXISTS source VARCHAR(30) NOT NULL DEFAULT 'manual_edit'`);
+
+    // ─── Roles ─────────────────────────────────────────────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS roles_s (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(100) NOT NULL UNIQUE,
+        permissions JSONB NOT NULL DEFAULT '[]',
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await client.query(`ALTER TABLE users_s ADD COLUMN IF NOT EXISTS role_id INTEGER REFERENCES roles_s(id) ON DELETE SET NULL`);
+
+    // Seed default roles
+    await client.query(`
+      INSERT INTO roles_s (name, permissions) VALUES
+        ('Администратор', '["dashboard","products.view","products.edit","warehouse.view","warehouse.edit","tasks.view","tasks.create","tasks.execute","staff.view","staff.edit","movements.view","movements.edit","settings","analytics","errors","roles.manage"]'),
+        ('Менеджер', '["dashboard","products.view","warehouse.view","tasks.view","tasks.create","staff.view","movements.view","analytics","errors"]'),
+        ('Сотрудник', '["tasks.execute","movements.edit"]')
+      ON CONFLICT (name) DO NOTHING
+    `);
+
+    await client.query('COMMIT');
+    console.log('[DB] Schema created/verified successfully');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('[DB] Schema creation failed:', err.message);
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+module.exports = { createSchema };

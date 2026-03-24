@@ -1,0 +1,812 @@
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import {
+  CheckCircle2, ScanLine, Package, AlertTriangle,
+  Check, X, Send, Clock
+} from 'lucide-react';
+import api from '../../api/client';
+import Button from '../../components/ui/Button';
+import Input from '../../components/ui/Input';
+import Spinner from '../../components/ui/Spinner';
+import { useToast } from '../../components/ui/Toast';
+
+function playBeep(success = true) {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.frequency.value = success ? 880 : 440;
+    osc.type = 'sine';
+    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + (success ? 0.15 : 0.4));
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + (success ? 0.15 : 0.4));
+  } catch (e) {}
+}
+
+function fmtTime(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+
+// ─── Step 1: Scan shelf/pallet barcode to start ──────────────────────────────
+function StartStep({ task, onStart }) {
+  const toast = useToast();
+  const [barcode, setBarcode] = useState('');
+  const [loading, setLoading] = useState(false);
+  const inputRef = useRef(null);
+  const timerRef = useRef(null);
+
+  const hasTaskBoxQueue = Number(task.task_boxes_total || 0) > 0;
+  const isShelfBoxTask = !task.target_pallet_id && (task.target_box_id || task.target_shelf_box_id);
+  const isPalletTask = !!task.target_pallet_id || task.task_type === 'production_transfer';
+  // For pallet tasks (even with boxes) — first scan pallet, not box
+  const scanTarget = isShelfBoxTask ? 'box' : isPalletTask ? 'pallet' : 'shelf';
+
+  useEffect(() => { setTimeout(() => inputRef.current?.focus(), 100); }, []);
+
+  const doStart = useCallback(async (value) => {
+    if (!value.trim() || loading) return;
+    setLoading(true);
+    try {
+      const body = scanTarget === 'box'
+        ? { box_barcode: value.trim() }
+        : scanTarget === 'pallet'
+        ? { pallet_barcode: value.trim() }
+        : { shelf_barcode: value.trim() };
+      await api.post(`/tasks/${task.id}/start`, body);
+      playBeep(true);
+      onStart();
+    } catch (err) {
+      playBeep(false);
+      toast.error(err.response?.data?.error || 'Ошибка');
+      setBarcode('');
+      setTimeout(() => inputRef.current?.focus(), 100);
+    } finally { setLoading(false); }
+  }, [task.id, loading, scanTarget]);
+
+  const handleChange = (e) => {
+    const val = e.target.value;
+    setBarcode(val);
+    if (timerRef.current) clearTimeout(timerRef.current);
+    if (val.trim().length >= 4) timerRef.current = setTimeout(() => doStart(val), 350);
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') { if (timerRef.current) clearTimeout(timerRef.current); doStart(barcode); }
+  };
+
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[60vh] p-6 text-center">
+      <div className="w-20 h-20 rounded-3xl bg-primary-100 flex items-center justify-center mb-4">
+        <ScanLine size={36} className="text-primary-600" />
+      </div>
+      <h2 className="text-xl font-bold text-gray-900 mb-1">
+        {task.task_type === 'production_transfer' ? 'Перенос с производства' : 'Инвентаризация'}
+      </h2>
+      <p className="text-gray-500 text-sm mb-4">{task.title}</p>
+
+      {/* Step-by-step instruction card */}
+      <div className="w-full max-w-sm mb-5">
+        <div className="bg-gray-50 rounded-2xl p-4 text-left space-y-3">
+          {scanTarget === 'pallet' && (
+            <>
+              <div className="flex items-start gap-3">
+                <div className="w-7 h-7 rounded-full bg-primary-600 text-white flex items-center justify-center flex-shrink-0 text-xs font-bold">1</div>
+                <div>
+                  <p className="text-sm font-semibold text-gray-900">Подойдите к паллету</p>
+                  <p className="text-xs text-gray-500">{task.pallet_row_name ? task.pallet_row_name + ' → ' : ''}{task.pallet_name || 'Паллет ' + task.pallet_number}</p>
+                  {task.pallet_barcode && <p className="text-xs font-mono text-primary-500 mt-0.5">ШК: {task.pallet_barcode}</p>}
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="w-7 h-7 rounded-full bg-primary-100 text-primary-600 flex items-center justify-center flex-shrink-0 text-xs font-bold">2</div>
+                <p className="text-sm font-medium text-gray-500 pt-1">Отсканируйте штрих-код паллета</p>
+              </div>
+              {hasTaskBoxQueue && (
+                <div className="flex items-start gap-3">
+                  <div className="w-7 h-7 rounded-full bg-gray-200 text-gray-400 flex items-center justify-center flex-shrink-0 text-xs font-bold">3</div>
+                  <p className="text-sm font-medium text-gray-400 pt-1">Затем сканируйте коробки по очереди</p>
+                </div>
+              )}
+            </>
+          )}
+          {scanTarget === 'box' && (
+            <>
+              <div className="flex items-start gap-3">
+                <div className="w-7 h-7 rounded-full bg-primary-600 text-white flex items-center justify-center flex-shrink-0 text-xs font-bold">1</div>
+                <div>
+                  <p className="text-sm font-semibold text-gray-900">Отсканируйте коробку</p>
+                  <p className="text-xs text-gray-500">
+                    {task.shelf_name ? `${task.rack_name} → ${task.shelf_name}` : task.pallet_row_name ? `${task.pallet_row_name} → ${task.pallet_name}` : ''}
+                  </p>
+                </div>
+              </div>
+            </>
+          )}
+          {scanTarget === 'shelf' && (
+            <div className="flex items-start gap-3">
+              <div className="w-7 h-7 rounded-full bg-primary-600 text-white flex items-center justify-center flex-shrink-0 text-xs font-bold">1</div>
+              <div>
+                <p className="text-sm font-semibold text-gray-900">Подойдите к полке и отсканируйте</p>
+                <p className="text-xs text-gray-500">{task.rack_name} → {task.shelf_name}</p>
+                <p className="text-xs font-mono text-primary-500 mt-0.5">ШК: {task.shelf_barcode}</p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="w-full max-w-sm">
+        <Input
+          ref={inputRef}
+          label={scanTarget === 'box' ? '📦 Отсканируйте штрих-код коробки' : scanTarget === 'pallet' ? '📋 Отсканируйте штрих-код паллета' : '📋 Отсканируйте штрих-код полки'}
+          placeholder={scanTarget === 'box' ? 'Наведите сканер на коробку...' : scanTarget === 'pallet' ? 'Наведите сканер на паллет...' : 'Наведите сканер на полку...'}
+          value={barcode}
+          onChange={handleChange}
+          onKeyDown={handleKeyDown}
+          className="text-center text-lg font-mono tracking-widest"
+          autoComplete="off"
+        />
+        {loading && (
+          <div className="flex items-center justify-center mt-3 text-primary-600">
+            <Spinner size="sm" />
+            <span className="ml-2 text-sm">Проверяем...</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Error Report Bottom Sheet ────────────────────────────────────────────────
+function ErrorReportForm({ taskId, scannedValue, errorId, onClose, onSent }) {
+  const toast = useToast();
+  const [note, setNote] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSend = async () => {
+    setLoading(true);
+    try {
+      await api.post(`/tasks/${taskId}/report-error`, {
+        scanned_value: scannedValue,
+        employee_note: note || null,
+        error_id: errorId || null,
+      });
+      toast.success('Ошибка отправлена');
+      onSent();
+      onClose();
+    } catch (err) {
+      const msg = err.response?.data?.error || err.message || 'Не удалось отправить';
+      toast.error(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end bg-black/40" onClick={onClose}>
+      <div className="w-full bg-white rounded-t-3xl p-5 space-y-4" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-red-50 flex items-center justify-center flex-shrink-0">
+            <AlertTriangle size={18} className="text-red-500" />
+          </div>
+          <div>
+            <p className="font-bold text-gray-900">Штрих-код не найден</p>
+            <p className="text-xs font-mono text-gray-400">{scannedValue}</p>
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1.5">Опишите что это за товар</label>
+          <textarea
+            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary-300"
+            rows={3}
+            placeholder="Например: Омега-3 синяя баночка, штрих-код на банке: 4607..."
+            value={note}
+            onChange={e => setNote(e.target.value)}
+            autoFocus
+          />
+        </div>
+
+        <div className="flex gap-3">
+          <Button variant="ghost" className="flex-1" onClick={onClose}>Отмена</Button>
+          <Button variant="primary" className="flex-1" icon={<Send size={15} />} onClick={handleSend} loading={loading}>
+            Отправить
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Step 2: Scanning products ────────────────────────────────────────────────
+function ScanStep({ task, onComplete }) {
+  const toast = useToast();
+  const inputRef = useRef(null);
+  const timerRef = useRef(null);
+  const pollRef = useRef(null);
+  const pickStartRef = useRef(null);
+  const scanQueueRef = useRef(null);
+  const loadingRef = useRef(false);
+  const [taskState, setTaskState] = useState(task);
+  const [barcode, setBarcode] = useState('');
+  const [lastScan, setLastScan] = useState(null);
+  const [lastPickMs, setLastPickMs] = useState(null);
+  const [showPickTimer, setShowPickTimer] = useState(false);
+  const [scans, setScans] = useState([]);
+  const [errors, setErrors] = useState([]);
+  const [taskBoxes, setTaskBoxes] = useState(task.task_boxes || []);
+  const [activeTaskBox, setActiveTaskBox] = useState(task.active_task_box || null);
+  const [avgSeconds, setAvgSeconds] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [completing, setCompleting] = useState(false);
+  const [tab, setTab] = useState('scans');
+  const [errorForm, setErrorForm] = useState(null);
+  const hasTaskBoxQueue = Number(taskState.task_boxes_total || task.task_boxes_total || taskBoxes.length || 0) > 0;
+  const completedBoxes = Number(taskState.task_boxes_completed || taskBoxes.filter(box => box.status === 'completed').length || 0);
+  const totalBoxes = Number(taskState.task_boxes_total || taskBoxes.length || 0);
+  const needsBoxSelection = hasTaskBoxQueue && !activeTaskBox;
+
+  // Auto-hide pick timer after 2 seconds
+  useEffect(() => {
+    if (!showPickTimer) return;
+    const t = setTimeout(() => setShowPickTimer(false), 2000);
+    return () => clearTimeout(t);
+  }, [showPickTimer, lastPickMs]);
+
+  useEffect(() => {
+    setTaskState(task);
+    setTaskBoxes(task.task_boxes || []);
+    setActiveTaskBox(task.active_task_box || null);
+  }, [task]);
+
+  const taskId = task.id;
+
+  const loadState = useCallback(async () => {
+    try {
+      const [taskRes, analyticsRes] = await Promise.all([
+        api.get(`/tasks/${taskId}`),
+        api.get(`/tasks/${taskId}/analytics`),
+      ]);
+      const nextTask = taskRes.data;
+      const analytics = analyticsRes.data;
+      const nextTaskBoxes = analytics.task_boxes || nextTask.task_boxes || [];
+      const nextActiveTaskBox = nextTask.active_task_box || analytics.active_task_box || null;
+      const queueMode = Number(nextTask.task_boxes_total || analytics.task_boxes_total || nextTaskBoxes.length || 0) > 0;
+      const allScans = analytics.scans || [];
+      const allErrors = analytics.errors || [];
+      const visibleScans = queueMode
+        ? (nextActiveTaskBox ? allScans.filter(scan => Number(scan.task_box_id) === Number(nextActiveTaskBox.id)) : [])
+        : allScans;
+      const visibleErrors = queueMode
+        ? (nextActiveTaskBox ? allErrors.filter(error => Number(error.task_box_id) === Number(nextActiveTaskBox.id)) : [])
+        : allErrors;
+
+      setTaskState(nextTask);
+      setTaskBoxes(nextTaskBoxes);
+      setActiveTaskBox(nextActiveTaskBox);
+      setScans(visibleScans);
+      setErrors(visibleErrors);
+
+      const secs = visibleScans
+        .slice(1)
+        .map(s => Number(s.seconds_since_prev))
+        .filter(s => !Number.isNaN(s) && s > 0);
+      setAvgSeconds(secs.length > 0 ? (secs.reduce((a, b) => a + b, 0) / secs.length).toFixed(1) : null);
+    } catch (e) {
+      console.error('task state load error', e);
+    }
+  }, [taskId]);
+
+  // Stable polling — only depends on taskId, not loadState reference
+  useEffect(() => {
+    inputRef.current?.focus();
+    loadState();
+    const interval = setInterval(() => loadState(), 5000);
+    pollRef.current = interval;
+    return () => clearInterval(interval);
+  }, [taskId]);
+
+  // Cleanup debounce timer on unmount
+  useEffect(() => {
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+  }, []);
+
+  const refocus = useCallback(() => setTimeout(() => inputRef.current?.focus(), 200), []);
+
+  const startBox = useCallback(async (value) => {
+    if (!value || loadingRef.current) return;
+    setBarcode('');
+    setLoading(true);
+    loadingRef.current = true;
+    try {
+      await api.post(`/tasks/${taskId}/start`, { box_barcode: value });
+      playBeep(true);
+      setLastScan(null);
+      await loadState();
+    } catch (err) {
+      playBeep(false);
+      toast.error(err.response?.data?.error || 'Ошибка');
+    } finally {
+      setLoading(false);
+      loadingRef.current = false;
+      refocus();
+    }
+  }, [taskId, loadState, toast, refocus]);
+
+  const doScan = useCallback(async (value) => {
+    if (!value) return;
+    // If already scanning, queue the next scan instead of dropping it
+    if (loadingRef.current) {
+      scanQueueRef.current = value;
+      return;
+    }
+    if (needsBoxSelection) {
+      await startBox(value);
+      return;
+    }
+    setBarcode('');
+    setLoading(true);
+    loadingRef.current = true;
+    try {
+      const res = await api.post(`/tasks/${taskId}/scan`, { scanned_value: value });
+      if (res.data.found) {
+        playBeep(true);
+        // Reset pick timer — only on first successful scan after mount/error
+        if (pickStartRef.current) {
+          const ms = Date.now() - pickStartRef.current;
+          setLastPickMs(ms);
+          setShowPickTimer(true);
+        }
+        pickStartRef.current = Date.now();
+        setLastScan({ type: 'found', product: res.data.product });
+        await loadState();
+      } else {
+        playBeep(false);
+        pickStartRef.current = Date.now();
+        setLastScan({ type: 'not_found', value, errorId: res.data.error_id || null });
+        setTab('errors');
+        setErrorForm({ value, errorId: res.data.error_id || null });
+        await loadState();
+      }
+    } catch (err) {
+      playBeep(false);
+      pickStartRef.current = Date.now();
+      toast.error(err.response?.data?.error || 'Ошибка');
+    } finally {
+      setLoading(false);
+      loadingRef.current = false;
+      refocus();
+      // Process queued scan if any
+      if (scanQueueRef.current) {
+        const queued = scanQueueRef.current;
+        scanQueueRef.current = null;
+        setTimeout(() => doScan(queued), 50);
+      }
+    }
+  }, [taskId, loadState, needsBoxSelection, startBox, toast, refocus]);
+
+  const handleChange = (e) => {
+    const val = e.target.value;
+    setBarcode(val);
+    if (timerRef.current) clearTimeout(timerRef.current);
+    if (val.trim().length >= 4) timerRef.current = setTimeout(() => doScan(val.trim()), 300);
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') { if (timerRef.current) clearTimeout(timerRef.current); doScan(barcode.trim()); }
+  };
+
+  const handleComplete = async () => {
+    const confirmText = hasTaskBoxQueue
+      ? `Завершить коробку ${activeTaskBox?.box_barcode || ''}?`
+      : `Завершить задачу? Записано: ${scans.length} сканирований.`;
+    if (hasTaskBoxQueue && !activeTaskBox) {
+      toast.error('Сначала отсканируйте коробку из этой задачи');
+      return;
+    }
+    if (!confirm(confirmText)) return;
+    setCompleting(true);
+    try {
+      const res = await api.post(`/tasks/${task.id}/complete`);
+      if (hasTaskBoxQueue && !res.data.task_completed) {
+        toast.success('Коробка завершена. Отсканируйте следующую.');
+        setBarcode('');
+        setLastScan(null);
+        await loadState();
+      } else {
+        toast.success('Задача завершена!');
+        onComplete();
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Ошибка');
+    } finally { setCompleting(false); }
+  };
+
+  // Build location breadcrumb
+  const locationParts = [];
+  if (taskState.warehouse_name) locationParts.push(taskState.warehouse_name);
+  if (taskState.rack_name) locationParts.push(taskState.rack_name);
+  if (taskState.pallet_row_name) locationParts.push(taskState.pallet_row_name);
+  if (taskState.pallet_name) locationParts.push(taskState.pallet_name);
+  if (taskState.shelf_name) locationParts.push(taskState.shelf_name);
+  if (hasTaskBoxQueue && activeTaskBox?.box_name) locationParts.push(activeTaskBox.box_name);
+  else if (taskState.box_barcode) locationParts.push(taskState.box_barcode);
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* Breadcrumb path */}
+      {locationParts.length > 1 && (
+        <div className="mx-4 mt-3 flex items-center gap-1 text-xs text-gray-400 overflow-x-auto">
+          {locationParts.map((part, i) => (
+            <span key={i} className="flex items-center gap-1 whitespace-nowrap">
+              {i > 0 && <span className="text-gray-300">→</span>}
+              <span className={i === locationParts.length - 1 ? 'text-primary-600 font-semibold' : ''}>{part}</span>
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Верхняя полоса */}
+      <div className="mx-4 mt-2 px-4 py-2.5 bg-primary-50 rounded-2xl flex items-center gap-3">
+        <Package size={15} className="text-primary-500 flex-shrink-0" />
+        <div className="flex-1 min-w-0">
+          {hasTaskBoxQueue ? (
+            <>
+              <p className="text-xs text-primary-500 font-medium">
+                {needsBoxSelection ? 'Ожидается следующая коробка' : 'Текущая коробка'}
+              </p>
+              <p className="text-sm font-bold text-primary-800 truncate">
+                {needsBoxSelection
+                  ? 'Отсканируйте коробку из задачи'
+                  : (activeTaskBox?.box_name || activeTaskBox?.box_barcode || 'Коробка')}
+              </p>
+              <p className="text-[11px] text-primary-500 mt-0.5">
+                Коробок завершено: {completedBoxes} из {totalBoxes}
+              </p>
+            </>
+          ) : task.task_type === 'inventory' && (task.target_box_id || task.target_shelf_box_id) ? (
+            <>
+              <p className="text-xs text-primary-500 font-medium">Коробка</p>
+              <p className="text-sm font-bold text-primary-800 truncate">
+                {taskState.box_barcode}
+                {taskState.shelf_name
+                  ? ` · ${taskState.shelf_name}`
+                  : taskState.pallet_name ? ` · ${taskState.pallet_name}` : ''}
+              </p>
+            </>
+          ) : (taskState.task_type === 'production_transfer' || (taskState.task_type === 'inventory' && taskState.target_pallet_id && !taskState.shelf_id)) && taskState.pallet_barcode ? (
+            <>
+              <p className="text-xs text-primary-500 font-medium">Паллет</p>
+              <p className="text-sm font-bold text-primary-800 truncate">
+                {taskState.pallet_name || `Паллет ${taskState.pallet_number}`}
+                {taskState.pallet_row_name ? ` · ${taskState.pallet_row_name}` : ''}
+              </p>
+            </>
+          ) : taskState.shelf_code ? (
+            <>
+              <p className="text-xs text-primary-500 font-medium">Полка</p>
+              <p className="text-sm font-bold text-primary-800 truncate">{taskState.rack_name} · {taskState.shelf_name}</p>
+            </>
+          ) : (
+            <p className="text-sm font-bold text-primary-800">{taskState.title}</p>
+          )}
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {hasTaskBoxQueue && activeTaskBox && (
+            <button
+              onClick={async () => {
+                if (confirm('Выйти из текущей коробки? Вы вернётесь к выбору коробки.')) {
+                  try {
+                    await api.post(`/tasks/${task.id}/abandon-box`, { task_box_id: activeTaskBox.id });
+                  } catch {}
+                  setActiveTaskBox(null);
+                  setScans([]);
+                  setLastScan(null);
+                  setTab('scans');
+                  await loadState();
+                }
+              }}
+              className="flex items-center gap-1 px-2.5 py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-600 rounded-xl text-xs font-semibold transition-all active:scale-95"
+            >
+              <X size={13} />
+              Выйти
+            </button>
+          )}
+          {(!hasTaskBoxQueue || activeTaskBox) && (
+            <button
+              onClick={handleComplete}
+              disabled={completing}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white rounded-xl text-xs font-semibold transition-all active:scale-95 disabled:opacity-50"
+            >
+              <CheckCircle2 size={14} />
+              {completing ? '...' : hasTaskBoxQueue ? 'Завершить коробку' : 'Завершить'}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {hasTaskBoxQueue && (
+        <div className="mx-4 mt-3 px-4 py-3 bg-gray-50 rounded-2xl">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Коробки в задаче</p>
+            <p className="text-xs font-semibold text-gray-600">{completedBoxes}/{totalBoxes}</p>
+          </div>
+          <div className="space-y-1.5 max-h-32 overflow-y-auto">
+            {taskBoxes.map(box => (
+              <div key={box.id} className="flex items-center justify-between gap-3 rounded-xl bg-white px-3 py-2">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate">{box.box_name || box.box_barcode}</p>
+                  <p className="text-xs text-gray-400 font-mono">{box.box_barcode}</p>
+                </div>
+                <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-lg flex-shrink-0 ${
+                  box.status === 'completed'
+                    ? 'bg-green-100 text-green-700'
+                    : box.status === 'in_progress'
+                    ? 'bg-amber-100 text-amber-700'
+                    : 'bg-gray-100 text-gray-500'
+                }`}>
+                  {box.status === 'completed' ? 'Готово' : box.status === 'in_progress' ? 'Текущая' : 'Ожидает'}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Последний скан */}
+      {lastScan && !needsBoxSelection && (
+        <div className={`mx-4 mt-3 px-4 py-2.5 rounded-2xl flex items-center gap-3 ${
+          lastScan.type === 'found' ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
+        }`}>
+          {lastScan.type === 'found' ? (
+            <>
+              <Check size={16} className="text-green-500 flex-shrink-0" />
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-green-800 truncate">{lastScan.product.name}</p>
+                <p className="text-xs text-green-600">{lastScan.product.code}</p>
+              </div>
+            </>
+          ) : (
+            <>
+              <X size={16} className="text-red-400 flex-shrink-0" />
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-red-700 font-mono truncate">{lastScan.value}</p>
+                <p className="text-xs text-red-500">Не найден — отправлен в ошибки</p>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Поле ввода */}
+      <div className="mx-4 mt-3 relative">
+        <Input
+          ref={inputRef}
+          placeholder={needsBoxSelection ? 'Отсканируйте следующую коробку...' : 'Наведите сканер...'}
+          value={barcode}
+          onChange={handleChange}
+          onKeyDown={handleKeyDown}
+          className="text-center text-lg font-mono tracking-widest"
+          autoComplete="off"
+        />
+        {loading && (
+          <div className="absolute right-3 top-1/2 -translate-y-1/2"><Spinner size="sm" /></div>
+        )}
+        {lastPickMs !== null && showPickTimer && (
+          <div className={`absolute right-0 -bottom-6 flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold ${
+            lastPickMs < 5000
+              ? 'bg-green-100 text-green-700'
+              : lastPickMs < 15000
+              ? 'bg-orange-100 text-orange-700'
+              : 'bg-red-100 text-red-700'
+          }`}>
+            ⚡ {(lastPickMs / 1000).toFixed(1)}с
+          </div>
+        )}
+      </div>
+
+      {needsBoxSelection ? (
+        <div className="flex-1 flex flex-col items-center justify-center mx-4 text-center text-gray-300">
+          <ScanLine size={34} className="mb-2 opacity-50" />
+          <p className="text-sm">Отсканируйте следующую коробку</p>
+          <p className="text-xs mt-1">Осталось коробок: {Math.max(totalBoxes - completedBoxes, 0)}</p>
+        </div>
+      ) : (
+        <>
+          <div className="mx-4 mt-2 grid grid-cols-3 gap-2">
+            <div className="bg-gray-50 rounded-xl px-3 py-2 text-center">
+              <p className="text-xs text-gray-400">Сканов</p>
+              <p className="text-base font-bold text-gray-900">{scans.length}</p>
+            </div>
+            <div className="bg-gray-50 rounded-xl px-3 py-2 text-center">
+              <p className="text-xs text-gray-400">Ошибок</p>
+              <p className={`text-base font-bold ${errors.length > 0 ? 'text-red-500' : 'text-gray-900'}`}>{errors.length}</p>
+            </div>
+            <div className="bg-gray-50 rounded-xl px-3 py-2 text-center">
+              <p className="text-xs text-gray-400">Ср. время</p>
+              <p className="text-base font-bold text-gray-900">{avgSeconds ? `${avgSeconds}с` : '—'}</p>
+            </div>
+          </div>
+
+          <div className="mx-4 mt-3 flex gap-1 bg-gray-100 rounded-xl p-1">
+            <button
+              onClick={() => setTab('scans')}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                tab === 'scans' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400'
+              }`}
+            >
+              <Clock size={13} />
+              Хронология ({scans.length})
+            </button>
+            <button
+              onClick={() => setTab('errors')}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                tab === 'errors'
+                  ? errors.length > 0 ? 'bg-red-500 text-white shadow-sm' : 'bg-white text-gray-900 shadow-sm'
+                  : errors.length > 0 ? 'text-red-400' : 'text-gray-400'
+              }`}
+            >
+              <AlertTriangle size={13} />
+              Ошибки ({errors.length})
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto mx-4 mt-2 mb-4">
+            {tab === 'scans' && (
+              scans.length === 0 ? (
+                <div className="text-center py-10 text-gray-300">
+                  <ScanLine size={32} className="mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">Начните сканирование</p>
+                </div>
+              ) : (
+                <div className="space-y-0">
+                  {[...scans].reverse().map((sc, i) => (
+                    <div key={sc.id} className="flex items-center gap-2.5 py-2 border-b border-gray-50 last:border-0">
+                      <span className="text-xs font-mono text-gray-300 w-5 text-right flex-shrink-0">{scans.length - i}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 leading-tight truncate">{sc.product_name}</p>
+                        {sc.product_code && <p className="text-xs text-gray-400">{sc.product_code}</p>}
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <p className="text-xs font-mono font-semibold text-gray-700">{fmtTime(sc.created_at)}</p>
+                        {sc.seconds_since_prev !== null && sc.seconds_since_prev !== undefined ? (
+                          <p className="text-xs text-gray-300">+{sc.seconds_since_prev}с</p>
+                        ) : (
+                          <p className="text-xs text-primary-400 font-medium">старт</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )
+            )}
+
+            {tab === 'errors' && (
+              errors.length === 0 ? (
+                <div className="text-center py-10 text-gray-300">
+                  <Check size={32} className="mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">Ошибок нет</p>
+                </div>
+              ) : (
+                <div className="space-y-2 pt-1">
+                  {errors.map(err => (
+                    <div key={err.id} className="flex items-start gap-3 p-3 bg-red-50 rounded-xl border border-red-100">
+                      <AlertTriangle size={15} className="text-red-400 flex-shrink-0 mt-0.5" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-mono font-medium text-red-700 truncate">{err.scanned_value}</p>
+                        {err.employee_note && <p className="text-xs text-gray-600 mt-0.5">{err.employee_note}</p>}
+                        <p className="text-xs text-red-400 mt-0.5">{fmtTime(err.created_at)}</p>
+                      </div>
+                      <button
+                        onClick={() => setErrorForm({ value: err.scanned_value, errorId: err.id })}
+                        className="text-xs text-red-400 hover:text-red-600 underline whitespace-nowrap flex-shrink-0"
+                      >
+                        Описать
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )
+            )}
+          </div>
+        </>
+      )}
+
+      {/* Error report bottom sheet */}
+      {errorForm && (
+        <ErrorReportForm
+          taskId={task.id}
+          scannedValue={errorForm.value}
+          errorId={errorForm.errorId}
+          onClose={() => { setErrorForm(null); refocus(); }}
+          onSent={() => { setErrorForm(null); loadState(); }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ─── Completed view ───────────────────────────────────────────────────────────
+function CompletedView({ task, scans }) {
+  const navigate = useNavigate();
+
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[60vh] p-6 text-center">
+      <div className="w-20 h-20 rounded-3xl bg-green-100 flex items-center justify-center mb-5">
+        <CheckCircle2 size={36} className="text-green-500" />
+      </div>
+      <h2 className="text-xl font-bold text-gray-900 mb-2">Готово!</h2>
+      <p className="text-gray-500 text-sm mb-5">{task.title}</p>
+
+      {scans.length > 0 && (
+        <div className="w-full max-w-sm bg-gray-50 rounded-2xl p-4 mb-5 text-left">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Итог</p>
+          <div className="space-y-2">
+            {scans.map(s => (
+              <div key={s.product_id} className="flex items-center justify-between text-sm">
+                <span className="text-gray-700 truncate flex-1 mr-2">{s.product_name}</span>
+                <span className="font-bold text-gray-900 flex-shrink-0">{Number(s.total_quantity)} шт.</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <Button onClick={() => navigate('/employee/tasks')} className="w-full max-w-sm">К задачам</Button>
+    </div>
+  );
+}
+
+// ─── Main ─────────────────────────────────────────────────────────────────────
+export default function TaskScanPage() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const [task, setTask] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const loadTask = useCallback(async () => {
+    try {
+      const res = await api.get(`/tasks/${id}`);
+      setTask(res.data);
+    } catch {
+      navigate('/employee/tasks');
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
+
+  useEffect(() => { loadTask(); }, []);
+
+  if (loading) return <div className="flex items-center justify-center h-64"><Spinner size="lg" /></div>;
+  if (!task) return null;
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* Leave task button */}
+      {(task.status === 'new' || task.status === 'in_progress') && (
+        <div className="px-4 pt-3 pb-0">
+          <button
+            onClick={() => {
+              if (confirm('Покинуть задачу? Задача останется в текущем статусе, вы сможете вернуться к ней позже.')) {
+                navigate('/employee/tasks');
+              }
+            }}
+            className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 18l-6-6 6-6"/></svg>
+            Покинуть задачу
+          </button>
+        </div>
+      )}
+      {task.status === 'new' && <StartStep task={task} onStart={loadTask} />}
+      {task.status === 'in_progress' && <ScanStep task={task} onComplete={loadTask} />}
+      {(task.status === 'completed' || task.status === 'cancelled') && (
+        <CompletedView task={task} scans={task.scans || []} />
+      )}
+    </div>
+  );
+}
