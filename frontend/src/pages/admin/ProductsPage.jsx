@@ -52,7 +52,7 @@ function parseBarcodes(product) {
     if (added.has(bc)) return;
     added.add(bc);
     const mp = mbj.find(m => m.value === bc);
-    if (mp?.type === 'ozon_1') result.push({ label: 'ozon_1', value: bc, kind: 'ozon' });
+    if (mp?.type === 'ozon_1') result.push({ label: 'Ozon ИП И.', value: bc, kind: 'ozon' });
     else if (mp?.type === 'wb') result.push({ label: 'WB', value: bc, kind: 'wb' });
     else if (mp?.type === 'ozon' || bc.startsWith('OZN')) result.push({ label: 'Ozon', value: bc, kind: 'ozon' });
     else if (bc.startsWith('MRKT')) result.push({ label: 'Яндекс Маркет', value: bc, kind: 'yandex' });
@@ -84,7 +84,7 @@ function BarcodeRow({ label, value, kind, onDelete, ozonStatus, onOzonClick }) {
       </div>
       <span className="flex-1 text-xs font-mono text-gray-700 min-w-0 truncate">{value}</span>
       {ozonStatus === 'found' && (
-        <button onClick={onOzonClick} className="flex-shrink-0 w-5 h-5 rounded-full bg-green-100 flex items-center justify-center hover:bg-green-200 transition-colors" title="Найден на Ozon_1">
+        <button onClick={onOzonClick} className="flex-shrink-0 w-5 h-5 rounded-full bg-green-100 flex items-center justify-center hover:bg-green-200 transition-colors" title="Найден на Ozon ИП И.">
           <Check size={11} className="text-green-600" />
         </button>
       )}
@@ -486,12 +486,12 @@ export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
       }
       if (foundBarcodes.length > 0) {
         loadProduct(); // reload to show saved labels
-        toast.success(`Ozon_1: найдено ${foundBarcodes.length} из ${allBc.length} ШК`);
+        toast.success(`Ozon ИП И.: найдено ${foundBarcodes.length} из ${allBc.length} ШК`);
       } else {
-        toast.error('Ozon_1: ни один ШК не найден');
+        toast.error('Ozon ИП И.: ни один ШК не найден');
       }
     } catch (err) {
-      toast.error('Ошибка Ozon_1: ' + (err.response?.data?.error || err.message));
+      toast.error('Ошибка Ozon ИП И.: ' + (err.response?.data?.error || err.message));
     } finally {
       setOzonLoading(false);
     }
@@ -569,14 +569,14 @@ export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
                 <div className="space-y-1.5">
                   {barcodes.map((bc, i) => {
                     const oz = ozonResults[bc.value];
-                    const savedOzon = bc.label === 'ozon_1';
+                    const savedOzon = bc.label === 'Ozon ИП И.';
                     const ozonFound = oz?.found || savedOzon;
                     const isExpanded = expandedOzon === bc.value;
                     return (
                       <div key={i}>
                         <BarcodeRow
                           {...bc}
-                          label={ozonFound ? 'ozon_1' : bc.label}
+                          label={ozonFound ? 'Ozon ИП И.' : bc.label}
                           onDelete={handleDeleteBarcode}
                           ozonStatus={ozonFound ? 'found' : undefined}
                           onOzonClick={() => setExpandedOzon(isExpanded ? null : bc.value)}
@@ -598,7 +598,7 @@ export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
                   disabled={ozonLoading}
                   className="mt-3 w-full py-2 rounded-xl text-sm font-semibold border transition-all bg-blue-50 border-blue-200 text-blue-600 hover:bg-blue-100 disabled:opacity-50"
                 >
-                  {ozonLoading ? 'Проверяем Ozon_1...' : Object.keys(ozonResults).length > 0 ? 'Перепроверить Ozon_1' : 'Проверить Ozon_1'}
+                  {ozonLoading ? 'Проверяем Ozon ИП И....' : Object.keys(ozonResults).length > 0 ? 'Перепроверить Ozon ИП И.' : 'Проверить Ozon ИП И.'}
                 </button>
               )}
               </div>

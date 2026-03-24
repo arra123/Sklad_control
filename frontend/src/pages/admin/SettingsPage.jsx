@@ -501,7 +501,7 @@ function OzonBulkCheck() {
     try {
       const res = await api.post('/products/check-ozon-all');
       setResult(res.data);
-      toast.success(`Ozon_1: найдено ${res.data.matched_count} из ${res.data.our_products_count}`);
+      toast.success(`Ozon ИП И.: найдено ${res.data.matched_count} из ${res.data.our_products_count}`);
     } catch (err) {
       toast.error('Ошибка: ' + (err.response?.data?.error || err.message));
     } finally {
@@ -513,16 +513,16 @@ function OzonBulkCheck() {
     <div className="card p-6">
       <div className="flex items-center gap-2 mb-1">
         <Search className="w-5 h-5 text-blue-500" />
-        <h2 className="font-semibold text-gray-900 dark:text-white">Проверка Ozon_1</h2>
+        <h2 className="font-semibold text-gray-900 dark:text-white">Проверка Ozon ИП И.</h2>
       </div>
-      <p className="text-xs text-gray-400 mb-4">Проверяет ШК всех товаров на Ozon_1 и автоматически присваивает метку найденным.</p>
+      <p className="text-xs text-gray-400 mb-4">Проверяет ШК всех товаров на Ozon ИП И. и автоматически присваивает метку найденным.</p>
       <Button
         variant="outline"
         icon={<Search size={15} className={loading ? 'animate-spin' : ''} />}
         onClick={runCheck}
         loading={loading}
       >
-        {loading ? 'Проверяем все товары...' : 'Проверить все на Ozon_1'}
+        {loading ? 'Проверяем все товары...' : 'Проверить все на Ozon ИП И.'}
       </Button>
 
       {result && (
@@ -530,7 +530,7 @@ function OzonBulkCheck() {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="bg-blue-50 rounded-xl p-3 text-center">
               <p className="text-lg font-black text-blue-600">{result.ozon_products_count}</p>
-              <p className="text-[10px] text-gray-400 uppercase">На Ozon_1</p>
+              <p className="text-[10px] text-gray-400 uppercase">На Ozon ИП И.</p>
             </div>
             <div className="bg-gray-50 rounded-xl p-3 text-center">
               <p className="text-lg font-black text-gray-900">{result.our_products_count}</p>
@@ -548,7 +548,7 @@ function OzonBulkCheck() {
 
           {result.not_found?.length > 0 && (
             <div>
-              <p className="text-xs font-semibold text-red-500 uppercase tracking-wider mb-2">Не найдены на Ozon_1 ({result.not_found.length})</p>
+              <p className="text-xs font-semibold text-red-500 uppercase tracking-wider mb-2">Не найдены на Ozon ИП И. ({result.not_found.length})</p>
               <div className="max-h-[300px] overflow-y-auto space-y-1">
                 {result.not_found.map(p => (
                   <div key={p.id} className="flex items-center gap-3 px-3 py-2 bg-red-50 rounded-xl border border-red-100">
