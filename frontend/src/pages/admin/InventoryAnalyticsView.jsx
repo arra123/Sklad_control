@@ -284,36 +284,38 @@ export default function InventoryAnalyticsView() {
     ? warehouses.filter(w => String(w.id) === String(selectedWarehouse))
     : warehouses;
 
-  // Flatten all nodes for search
-  const allNodes = [];
-  function collectNodes(nodes, path = '') {
-    for (const n of (nodes || [])) {
-      allNodes.push({ ...n, _path: path });
-      if (n.racks) collectNodes(n.racks, path + (path ? ' → ' : '') + (n.name || ''));
-      if (n.rows) collectNodes(n.rows, path + (path ? ' → ' : '') + (n.name || ''));
-      if (n.shelves) collectNodes(n.shelves, path + (path ? ' → ' : '') + (n.name || n.code || ''));
-      if (n.pallets) collectNodes(n.pallets, path + (path ? ' → ' : '') + (n.name || ''));
-      if (n.boxes) collectNodes(n.boxes, path + (path ? ' → ' : '') + (n.label || n.name || n.code || ''));
-      if (n.children) collectNodes(n.children, path + (path ? ' → ' : '') + (n.name || ''));
+  // Flatten nodes for selected warehouses (for stats + search)
+  function collectNodesFrom(sources, path = '') {
+    const result = [];
+    for (const n of (sources || [])) {
+      result.push({ ...n, _path: path });
+      if (n.racks) result.push(...collectNodesFrom(n.racks, path + (path ? ' → ' : '') + (n.name || '')));
+      if (n.rows) result.push(...collectNodesFrom(n.rows, path + (path ? ' → ' : '') + (n.name || '')));
+      if (n.shelves) result.push(...collectNodesFrom(n.shelves, path + (path ? ' → ' : '') + (n.name || n.code || '')));
+      if (n.pallets) result.push(...collectNodesFrom(n.pallets, path + (path ? ' → ' : '') + (n.name || '')));
+      if (n.boxes) result.push(...collectNodesFrom(n.boxes, path + (path ? ' → ' : '') + (n.label || n.name || n.code || '')));
+      if (n.children) result.push(...collectNodesFrom(n.children, path + (path ? ' → ' : '') + (n.name || '')));
     }
+    return result;
   }
-  collectNodes(warehouses);
+  const filteredNodes = collectNodesFrom(filteredWarehouses);
 
   const searchResults = search.length >= 2
-    ? allNodes.filter(n => {
+    ? filteredNodes.filter(n => {
         const hay = [n.name, n.code, n.label, n.barcode_value].filter(Boolean).join(' ').toLowerCase();
         return hay.includes(search.toLowerCase());
       })
     : [];
 
-  // Stats
-  const inventoried = allNodes.filter(n => !!n.last_inventory_at).length;
-  const notInventoried = allNodes.length - inventoried;
-  const freshCount = allNodes.filter(n => {
+  // Stats — based on selected warehouse
+  const statsNodes = filteredNodes;
+  const inventoried = statsNodes.filter(n => !!n.last_inventory_at).length;
+  const notInventoried = statsNodes.length - inventoried;
+  const freshCount = statsNodes.filter(n => {
     if (!n.last_inventory_at) return false;
     return (Date.now() - new Date(n.last_inventory_at).getTime()) < 24 * 3600000;
   }).length;
-  const staleCount = allNodes.filter(n => {
+  const staleCount = statsNodes.filter(n => {
     if (!n.last_inventory_at) return false;
     return (Date.now() - new Date(n.last_inventory_at).getTime()) > 72 * 3600000;
   }).length;
@@ -323,8 +325,8 @@ export default function InventoryAnalyticsView() {
       {/* Stats row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
         <div className="card p-4 text-center">
-          <p className="text-3xl font-black text-gray-900 dark:text-white">{warehouses.length}</p>
-          <p className="text-xs text-gray-400 mt-1 uppercase font-semibold">Складов</p>
+          <p className="text-3xl font-black text-gray-900 dark:text-white">{selectedWarehouse ? 1 : warehouses.length}</p>
+          <p className="text-xs text-gray-400 mt-1 uppercase font-semibold">{selectedWarehouse ? 'Склад' : 'Складов'}</p>
         </div>
         <div className="card p-4 text-center">
           <p className="text-3xl font-black text-green-600">{freshCount}</p>
