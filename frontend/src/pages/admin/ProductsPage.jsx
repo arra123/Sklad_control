@@ -1020,7 +1020,8 @@ export default function ProductsPage() {
   const [showForm, setShowForm] = useState(false);
   const [editProduct, setEditProduct] = useState(null);
   const [reloadKey, setReloadKey] = useState(0);
-  const [activeTab, setActiveTab] = useState('product'); // 'product' | 'bundle'
+  const activeTab = searchParams.get('type') || 'product';
+  const setActiveTab = (t) => { const p = new URLSearchParams(searchParams); p.set('type', t); p.delete('id'); setSearchParams(p); };
 
   const openProduct = (id) => {
     const p = new URLSearchParams(searchParams);

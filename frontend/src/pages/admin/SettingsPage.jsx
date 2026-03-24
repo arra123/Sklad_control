@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Settings, Palette, Sun, Moon, Check, RefreshCw, Info, Search,
   Volume2, VolumeX, Zap, Package, Table2, Bell, ScanLine,
@@ -574,7 +575,9 @@ export default function SettingsPage() {
   const { settings, updateSetting } = useAppSettings();
   const [syncLoading, setSyncLoading] = useState(false);
   const [lastImport, setLastImport] = useState(null);
-  const [tab, setTab] = useState('appearance');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab = searchParams.get('tab') || 'appearance';
+  const setTab = (t) => setSearchParams({ tab: t });
 
   useEffect(() => {
     api.get('/products/import/history')

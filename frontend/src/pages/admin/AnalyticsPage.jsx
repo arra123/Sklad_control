@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   BarChart3, Clock, ScanLine, AlertTriangle, ChevronRight,
   ArrowLeft, Package, CheckCircle2, Warehouse
@@ -252,7 +253,9 @@ export default function AnalyticsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedTask, setSelectedTask] = useState(null);
-  const [tab, setTab] = useState('summary');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab = searchParams.get('tab') || 'summary';
+  const setTab = (t) => setSearchParams({ tab: t });
   const [warehouses, setWarehouses] = useState([]);
   const [selectedWarehouse, setSelectedWarehouse] = useState(null);
 

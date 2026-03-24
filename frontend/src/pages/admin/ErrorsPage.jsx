@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   AlertTriangle, RefreshCw, CheckCircle2, X,
   User, ClipboardList, MapPin, Calendar, CheckCheck,
@@ -366,7 +367,9 @@ function ScanErrorRow({ err, resolved, onClick }) {
 // ─── Главная страница ──────────────────────────────────────────────────────────
 export default function ErrorsPage() {
   const toast = useToast();
-  const [tab, setTab] = useState('scan');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab = searchParams.get('tab') || 'scan';
+  const setTab = (t) => { const p = new URLSearchParams(searchParams); p.set('tab', t); setSearchParams(p); };
 
   // Ошибки сканирования
   const [scanErrors, setScanErrors] = useState([]);

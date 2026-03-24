@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Plus, Users, UserCog, Pencil, Trash2, Eye, EyeOff, Package, ChevronDown, ChevronRight, Search, Copy, Check, X, Shield } from 'lucide-react';
 import api from '../../api/client';
 import { qty } from '../../utils/fmt';
@@ -925,7 +926,9 @@ function RolesManager() {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function StaffPage() {
   const toast = useToast();
-  const [tab, setTab] = useState('employees');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab = searchParams.get('tab') || 'employees';
+  const setTab = (t) => setSearchParams({ tab: t });
   const [employees, setEmployees] = useState([]);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
