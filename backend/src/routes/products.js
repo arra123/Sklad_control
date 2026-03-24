@@ -508,6 +508,30 @@ router.post('/check-ozon', requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
+// PUT /api/products/:id/barcode-type — set marketplace type for a barcode
+router.put('/:id/barcode-type', requireAuth, requireAdmin, async (req, res) => {
+  const { value, type } = req.body;
+  if (!value?.trim() || !type?.trim()) return res.status(400).json({ error: 'value и type обязательны' });
+  try {
+    const product = await pool.query('SELECT marketplace_barcodes_json FROM products_s WHERE id=$1', [req.params.id]);
+    if (!product.rows.length) return res.status(404).json({ error: 'Товар не найден' });
+    const mbj = Array.isArray(product.rows[0].marketplace_barcodes_json) ? product.rows[0].marketplace_barcodes_json : [];
+    const existing = mbj.find(m => m.value === value.trim());
+    if (existing) {
+      existing.type = type.trim();
+    } else {
+      mbj.push({ value: value.trim(), type: type.trim() });
+    }
+    const result = await pool.query(
+      'UPDATE products_s SET marketplace_barcodes_json=$1, updated_at=NOW() WHERE id=$2 RETURNING *',
+      [JSON.stringify(mbj), req.params.id]
+    );
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // POST /api/products/:id/barcode — add single barcode
 router.post('/:id/barcode', requireAuth, requireAdmin, async (req, res) => {
   const { value } = req.body;

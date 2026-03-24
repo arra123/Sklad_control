@@ -52,7 +52,8 @@ function parseBarcodes(product) {
     if (added.has(bc)) return;
     added.add(bc);
     const mp = mbj.find(m => m.value === bc);
-    if (mp?.type === 'wb') result.push({ label: 'WB', value: bc, kind: 'wb' });
+    if (mp?.type === 'ozon_1') result.push({ label: 'ozon_1', value: bc, kind: 'ozon' });
+    else if (mp?.type === 'wb') result.push({ label: 'WB', value: bc, kind: 'wb' });
     else if (mp?.type === 'ozon' || bc.startsWith('OZN')) result.push({ label: 'Ozon', value: bc, kind: 'ozon' });
     else if (bc.startsWith('MRKT')) result.push({ label: 'Яндекс Маркет', value: bc, kind: 'yandex' });
     else if (bc.startsWith('SBER')) result.push({ label: 'СберМегаМаркет', value: bc, kind: 'sber' });
@@ -470,7 +471,19 @@ export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
     setOzonLoading(true);
     try {
       const res = await api.post('/products/check-ozon', { barcodes: allBc });
-      setOzonResults(res.data.results || {});
+      const results = res.data.results || {};
+      setOzonResults(results);
+      // Save found barcodes as ozon_1 type in DB
+      const foundBarcodes = Object.entries(results).filter(([_, r]) => r.found).map(([bc]) => bc);
+      for (const bc of foundBarcodes) {
+        await api.put(`/products/${productId}/barcode-type`, { value: bc, type: 'ozon_1' }).catch(() => {});
+      }
+      if (foundBarcodes.length > 0) {
+        loadProduct(); // reload to show saved labels
+        toast.success(`Ozon_1: найдено ${foundBarcodes.length} из ${allBc.length} ШК`);
+      } else {
+        toast.error('Ozon_1: ни один ШК не найден');
+      }
     } catch (err) {
       toast.error('Ошибка Ozon_1: ' + (err.response?.data?.error || err.message));
     } finally {
@@ -516,63 +529,24 @@ export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
               );
             })()}
 
-            {/* Основная инфо */}
-            <div className="grid grid-cols-2 gap-2">
-              {[
-                { label: 'Код', value: product.code },
-                { label: 'Артикул', value: product.article },
-                { label: 'Папка', value: product.folder_path?.split('/').pop() },
-              ].filter(r => r.value).map(({ label, value }) => (
-                <div key={label} className="bg-gray-50 rounded-xl px-3 py-2">
-                  <p className="text-xs text-gray-400 mb-0.5">{label}</p>
-                  <p className="text-sm font-medium text-gray-800">{value}</p>
-                </div>
-              ))}
-            </div>
-
-            {/* Расположение на складах */}
-            <div>
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-                Расположение на складах
-                {product.shelves?.length > 0 && <span className="text-primary-400 normal-case ml-1">({product.shelves.length})</span>}
-              </p>
-              {!product.shelves?.length ? (
-                <p className="text-sm text-gray-400 italic">Не размещён на складах</p>
-              ) : (
-                <div className="space-y-1.5">
-                  {product.shelves.map((s, i) => (
-                    <div key={i} className="flex items-center justify-between px-3 py-2 bg-gray-50 rounded-xl">
-                      <div>
-                        <p className="text-sm font-medium text-gray-800">{s.location_code || s.shelf_code}</p>
-                        <p className="text-xs text-gray-400">
-                          {s.warehouse_name} · {s.rack_name}
-                          {s.location_type === 'pallet' && ' · паллет'}
-                          {s.location_type === 'box' && ' · коробка'}
-                        </p>
-                      </div>
-                      <span className="text-sm font-bold text-primary-700">{fmtQty(s.quantity)} шт.</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Цены */}
-            {prices.length > 0 && (
-              <div>
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Цены</p>
+            {/* Основная инфо + ШК в два столбца */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              {/* Левая колонка: инфо + ШК */}
+              <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-2">
-                  {prices.map(p => (
-                    <div key={p.name} className="bg-gray-50 rounded-xl px-3 py-2">
-                      <p className="text-xs text-gray-400 mb-0.5">{p.name}</p>
-                      <p className="text-sm font-semibold text-gray-800">{p.value}</p>
+                  {[
+                    { label: 'Код', value: product.code },
+                    { label: 'Артикул', value: product.article },
+                    { label: 'Папка', value: product.folder_path?.split('/').pop() },
+                  ].filter(r => r.value).map(({ label, value }) => (
+                    <div key={label} className="bg-gray-50 rounded-xl px-3 py-2">
+                      <p className="text-xs text-gray-400 mb-0.5">{label}</p>
+                      <p className="text-sm font-medium text-gray-800">{value}</p>
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
 
-            {/* Штрих-коды */}
+                {/* Штрих-коды */}
             <div>
               <div className="flex items-center justify-between mb-2">
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
@@ -613,6 +587,53 @@ export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
                   {ozonLoading ? 'Проверяем Ozon_1...' : Object.keys(ozonResults).length > 0 ? 'Перепроверить Ozon_1' : 'Проверить Ozon_1'}
                 </button>
               )}
+              </div>
+              </div>
+
+              {/* Правая колонка: остатки + цены */}
+              <div className="space-y-4">
+                {/* Расположение на складах */}
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                    Расположение
+                    {product.shelves?.length > 0 && <span className="text-primary-400 normal-case ml-1">({product.shelves.length})</span>}
+                  </p>
+                  {!product.shelves?.length ? (
+                    <p className="text-sm text-gray-400 italic">Не размещён</p>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {product.shelves.map((s, i) => (
+                        <div key={i} className="flex items-center justify-between px-3 py-2 bg-gray-50 rounded-xl">
+                          <div>
+                            <p className="text-sm font-medium text-gray-800">{s.location_code || s.shelf_code}</p>
+                            <p className="text-xs text-gray-400">
+                              {s.warehouse_name} · {s.rack_name}
+                              {s.location_type === 'pallet' && ' · паллет'}
+                              {s.location_type === 'box' && ' · коробка'}
+                            </p>
+                          </div>
+                          <span className="text-sm font-bold text-primary-700">{fmtQty(s.quantity)} шт.</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Цены */}
+                {prices.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Цены</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {prices.map(p => (
+                        <div key={p.name} className="bg-gray-50 rounded-xl px-3 py-2">
+                          <p className="text-xs text-gray-400 mb-0.5">{p.name}</p>
+                          <p className="text-sm font-semibold text-gray-800">{p.value}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Состав комплекта */}
