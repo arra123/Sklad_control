@@ -472,7 +472,7 @@ export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
       const res = await api.post('/products/check-ozon', { barcodes: allBc });
       setOzonResults(res.data.results || {});
     } catch (err) {
-      toast.error('Ошибка Ozon: ' + (err.response?.data?.error || err.message));
+      toast.error('Ошибка Ozon_1: ' + (err.response?.data?.error || err.message));
     } finally {
       setOzonLoading(false);
     }
@@ -597,7 +597,7 @@ export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
                           <p className="text-[10px] text-green-600 font-medium px-3 pb-1.5 -mt-1">{oz.ozon_product.name}</p>
                         )}
                         {oz && !oz.found && (
-                          <p className="text-[10px] text-red-400 px-3 pb-1.5 -mt-1">Не найден на Ozon</p>
+                          <p className="text-[10px] text-red-400 px-3 pb-1.5 -mt-1">Не найден на Ozon_1</p>
                         )}
                       </div>
                     );
@@ -610,7 +610,7 @@ export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
                   disabled={ozonLoading}
                   className="mt-3 w-full py-2 rounded-xl text-sm font-semibold border transition-all bg-blue-50 border-blue-200 text-blue-600 hover:bg-blue-100 disabled:opacity-50"
                 >
-                  {ozonLoading ? 'Проверяем Ozon...' : Object.keys(ozonResults).length > 0 ? 'Перепроверить на Ozon' : 'Проверить на Ozon'}
+                  {ozonLoading ? 'Проверяем Ozon_1...' : Object.keys(ozonResults).length > 0 ? 'Перепроверить Ozon_1' : 'Проверить Ozon_1'}
                 </button>
               )}
             </div>

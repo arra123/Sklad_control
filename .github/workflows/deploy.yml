@@ -53,6 +53,17 @@ jobs:
           target: /var/www/bem-dev.ru/sklad/
           overwrite: true
 
+      - name: Ensure Ozon keys in .env
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          script: |
+            ENV_FILE=/var/www/bem-dev.ru/sklad/backend/.env
+            grep -q 'OZON_CLIENT_ID' "$ENV_FILE" 2>/dev/null || echo 'OZON_CLIENT_ID=2843272' >> "$ENV_FILE"
+            grep -q 'OZON_API_KEY' "$ENV_FILE" 2>/dev/null || echo 'OZON_API_KEY=aa4a0bcf-49d3-4230-94c9-759fb19b8abf' >> "$ENV_FILE"
+
       - name: Install deps and restart
         uses: appleboy/ssh-action@v1.2.0
         with:
