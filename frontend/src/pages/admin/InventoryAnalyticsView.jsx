@@ -536,7 +536,7 @@ export default function InventoryAnalyticsView() {
             onClick={() => setSelectedWarehouse(w.id)}
             className={`px-4 py-2 rounded-xl text-sm font-medium transition-all flex items-center gap-1.5 ${String(selectedWarehouse) === String(w.id) ? 'bg-primary-600 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:border-primary-300'}`}
           >
-            <Warehouse size={14} /> {w.name}
+            <WarehouseIcon size={14} /> {w.name}
           </button>
         ))}
         <div className="flex-1 min-w-[200px]">
