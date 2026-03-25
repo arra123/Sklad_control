@@ -2394,7 +2394,7 @@ function PalletCardsView({ rows, onDrillRow, onDrillPallet }) {
                       <div key={p.id}
                         className="flex items-center gap-2.5 px-4 py-2.5 hover:bg-primary-50 dark:hover:bg-gray-800 cursor-pointer transition-colors group/pallet"
                         onClick={() => onDrillPallet ? onDrillPallet(row, p) : onDrillRow(row)}>
-                        <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: items > 0 ? c.dot : '#d1d5db' }} />
+                        <PalletIcon size={16} className="flex-shrink-0" />
                         <span className="text-sm text-gray-700 dark:text-gray-300 flex-1 group-hover/pallet:text-primary-600 transition-colors">{p.name}</span>
                         <span className={`text-sm font-semibold tabular-nums ${items > 0 ? 'text-gray-900 dark:text-white' : 'text-gray-300 dark:text-gray-600'}`}>
                           {items > 0 ? items.toLocaleString('ru-RU') + ' шт.' : '0 шт.'}
@@ -3265,7 +3265,7 @@ function ShelfCardsView({ warehouse, racks, onDrillRack, onDrillShelf }) {
                         <div key={shelf.id}
                           className="flex items-center gap-2.5 px-4 py-2.5 hover:bg-primary-50 dark:hover:bg-gray-800 cursor-pointer transition-colors group/shelf"
                           onClick={() => onDrillShelf ? onDrillShelf(rack, shelf) : onDrillRack(rack)}>
-                          <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: dotColor }} />
+                          <ShelfIcon size={16} className="flex-shrink-0" />
                           <span className="text-sm text-gray-700 dark:text-gray-300 flex-1 group-hover/shelf:text-primary-600 transition-colors">{shelf.name}</span>
                           <span className={`text-sm font-semibold tabular-nums ${items > 0 ? 'text-gray-900 dark:text-white' : 'text-gray-300 dark:text-gray-600'}`}>
                             {items > 0 ? items.toLocaleString('ru-RU') + ' шт.' : '0 шт.'}
@@ -3303,7 +3303,7 @@ function WarehouseContent({ warehouse, initialRackId, initialShelfId, initialRow
   const setViewMode = (mode) => {
     setSearchParams(prev => {
       const p = new URLSearchParams(prev);
-      if (mode === 'list') p.delete('view'); else p.set('view', mode);
+      p.set('view', mode);
       return p;
     });
   };
