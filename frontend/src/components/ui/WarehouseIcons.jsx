@@ -37,13 +37,21 @@ export function RackIcon({ size = 20, className = '', style }) {
 export function ShelfIcon({ size = 20, className = '', style }) {
   return (
     <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className} style={style}>
-      <rect x="2" y="12" width="20" height="2" rx=".5" fill="#a0a0a0" stroke="#7a7a7a" strokeWidth="1.5"/>
-      <rect x="2" y="22" width="42" height="4" rx="1" fill="#a0a0a0" stroke="#7a7a7a" strokeWidth="1"/>
-      <path d="M4 26v12M20 26v12" stroke="#8a8a8a" strokeWidth="2" strokeLinecap="round"/>
-      <rect x="6" y="10" width="5" height="12" rx="2" fill="#5b9bd5" stroke="#4080b8" strokeWidth=".8"/>
-      <rect x="13" y="12" width="4.5" height="10" rx="1.5" fill="#e87070" stroke="#c44" strokeWidth=".8"/>
-      <rect x="19" y="8" width="8" height="14" rx="1.5" fill="#d4a76a" stroke="#b8884a" strokeWidth=".8"/>
-      <rect x="29" y="14" width="5" height="8" rx="1.5" fill="#7bc47b" stroke="#5a9a5a" strokeWidth=".8"/>
+      {/* полка */}
+      <rect x="3" y="26" width="42" height="3.5" rx="1" fill="#a0a0a0" stroke="#7a7a7a" strokeWidth="1"/>
+      {/* ножки */}
+      <path d="M7 29.5V44M41 29.5V44" stroke="#8a8a8a" strokeWidth="2.5" strokeLinecap="round"/>
+      <rect x="5.5" y="43" width="3" height="2" rx=".5" fill="#6b6b6b"/>
+      <rect x="39.5" y="43" width="3" height="2" rx=".5" fill="#6b6b6b"/>
+      {/* товары на полке */}
+      <rect x="6" y="12" width="7" height="14" rx="2.5" fill="#5b9bd5" stroke="#4080b8" strokeWidth=".8"/>
+      <rect x="7.5" y="16" width="4" height="4" rx=".5" fill="white" opacity=".6"/>
+      <rect x="15" y="14" width="6" height="12" rx="2" fill="#e87070" stroke="#c44" strokeWidth=".8"/>
+      <rect x="16.2" y="17" width="3.5" height="3.5" rx=".5" fill="white" opacity=".6"/>
+      <rect x="23" y="10" width="9" height="16" rx="1.5" fill="#d4a76a" stroke="#b8884a" strokeWidth=".8"/>
+      <line x1="27.5" y1="10" x2="27.5" y2="26" stroke="#b8884a" strokeWidth=".6" opacity=".4"/>
+      <rect x="34" y="16" width="6" height="10" rx="1.5" fill="#7bc47b" stroke="#5a9a5a" strokeWidth=".8"/>
+      <rect x="35.2" y="18.5" width="3.5" height="3" rx=".5" fill="white" opacity=".5"/>
     </svg>
   );
 }

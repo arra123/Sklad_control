@@ -816,7 +816,9 @@ export default function InventoryAnalyticsView() {
 
       {/* Warehouse map */}
       {filteredWarehouses.map(wh => {
-        const locations = [...(wh.racks || []), ...(wh.rows || [])];
+        const racks = (wh.racks || []).map(r => ({ ...r, _type: 'rack' }));
+        const rows = (wh.rows || []).map(r => ({ ...r, _type: 'row' }));
+        const locations = [...racks, ...rows];
         const whInventoried = locations.filter(n => !!n.last_inventory_at).length;
         const whTotal = locations.length;
         const whPct = whTotal > 0 ? Math.round((whInventoried / whTotal) * 100) : 0;
@@ -824,7 +826,7 @@ export default function InventoryAnalyticsView() {
         return (
           <div key={wh.id} className="mb-6">
             <div className="flex items-center gap-3 mb-3">
-              <Warehouse size={18} className="text-primary-500" />
+              <WarehouseIcon size={22} />
               <h3 className="font-bold text-gray-900 dark:text-white">{wh.name}</h3>
               <span className="text-xs text-gray-400">{wh.warehouse_type === 'fbo' ? 'Паллетный' : 'Стеллажный'}</span>
               <div className="flex-1" />
@@ -837,7 +839,7 @@ export default function InventoryAnalyticsView() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
               {locations.map((loc, i) => (
-                <InventoryCard key={loc.id || i} node={loc} type="group" onDrill={handleDrill} settings={s} />
+                <InventoryCard key={loc.id || i} node={loc} type={loc._type || 'shelf'} onDrill={handleDrill} settings={s} />
               ))}
             </div>
           </div>
