@@ -1560,6 +1560,178 @@ router.get('/busy-targets', requireAuth, requireAdminOrManager, async (_req, res
   }
 });
 
+// GET /api/tasks/analytics/audit-report — audit report grouped by employee
+router.get('/analytics/audit-report', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    // 1) Summary
+    const { rows: [summary] } = await pool.query(`
+      SELECT
+        COUNT(*) FILTER (WHERE status = 'completed') as total_tasks,
+        COALESCE((SELECT COUNT(*) FROM inventory_task_scans_s WHERE product_id IS NOT NULL), 0) as total_scans,
+        COALESCE((SELECT COUNT(*) FROM scan_errors_s), 0) as total_errors,
+        ROUND(
+          (SELECT AVG(gap) FROM (
+            SELECT EXTRACT(EPOCH FROM (sc.created_at - LAG(sc.created_at) OVER (PARTITION BY sc.task_id ORDER BY sc.created_at)))::numeric as gap
+            FROM inventory_task_scans_s sc
+            WHERE sc.product_id IS NOT NULL
+          ) sub WHERE sub.gap IS NOT NULL AND sub.gap > 0 AND sub.gap < 300)
+        , 1) as avg_scan_gap
+      FROM inventory_tasks_s
+    `);
+
+    // 2) Employees with aggregated stats
+    const { rows: employees } = await pool.query(`
+      SELECT
+        e.id as employee_id,
+        e.full_name,
+        COUNT(DISTINCT t.id) as tasks_count,
+        COALESCE(SUM(sub_sc.scans_count), 0) as total_scans,
+        COALESCE(SUM(sub_err.errors_count), 0) as total_errors,
+        MAX(t.completed_at) as last_task_at,
+        ROUND(
+          (SELECT AVG(gap) FROM (
+            SELECT EXTRACT(EPOCH FROM (sc2.created_at - LAG(sc2.created_at) OVER (PARTITION BY sc2.task_id ORDER BY sc2.created_at)))::numeric as gap
+            FROM inventory_task_scans_s sc2
+            JOIN inventory_tasks_s t2 ON t2.id = sc2.task_id
+            WHERE t2.employee_id = e.id AND sc2.product_id IS NOT NULL
+          ) g WHERE g.gap IS NOT NULL AND g.gap > 0 AND g.gap < 300)
+        , 1) as avg_scan_gap
+      FROM employees_s e
+      JOIN inventory_tasks_s t ON t.employee_id = e.id AND t.status = 'completed'
+      LEFT JOIN LATERAL (
+        SELECT COUNT(*) as scans_count FROM inventory_task_scans_s WHERE task_id = t.id AND product_id IS NOT NULL
+      ) sub_sc ON true
+      LEFT JOIN LATERAL (
+        SELECT COUNT(*) as errors_count FROM scan_errors_s WHERE task_id = t.id
+      ) sub_err ON true
+      GROUP BY e.id, e.full_name
+      ORDER BY MAX(t.completed_at) DESC
+    `);
+
+    // 3) For each employee, get their tasks
+    const employeeIds = employees.map(e => e.employee_id);
+    let tasksMap = {};
+    if (employeeIds.length > 0) {
+      const { rows: tasks } = await pool.query(`
+        SELECT
+          t.id as task_id,
+          t.title,
+          t.status,
+          t.task_type,
+          t.started_at,
+          t.completed_at,
+          t.employee_id,
+          s.name as shelf_name,
+          r.name as rack_name,
+          pa.name as pallet_name,
+          pr.name as row_name,
+          ROUND(EXTRACT(EPOCH FROM (t.completed_at - t.started_at))::numeric) as duration_seconds,
+          (SELECT COUNT(*) FROM inventory_task_scans_s WHERE task_id = t.id AND product_id IS NOT NULL) as scans_count,
+          (SELECT COUNT(*) FROM scan_errors_s WHERE task_id = t.id) as errors_count,
+          ROUND(
+            (SELECT AVG(gap) FROM (
+              SELECT EXTRACT(EPOCH FROM (sc3.created_at - LAG(sc3.created_at) OVER (ORDER BY sc3.created_at)))::numeric as gap
+              FROM inventory_task_scans_s sc3
+              WHERE sc3.task_id = t.id AND sc3.product_id IS NOT NULL
+            ) g2 WHERE g2.gap IS NOT NULL AND g2.gap > 0 AND g2.gap < 300)
+          , 1) as avg_scan_gap
+        FROM inventory_tasks_s t
+        LEFT JOIN shelves_s s ON s.id = t.shelf_id
+        LEFT JOIN racks_s r ON r.id = s.rack_id
+        LEFT JOIN pallets_s pa ON pa.id = t.target_pallet_id
+        LEFT JOIN pallet_rows_s pr ON pr.id = pa.row_id
+        WHERE t.employee_id = ANY($1) AND t.status = 'completed'
+        ORDER BY t.completed_at DESC
+      `, [employeeIds]);
+
+      // Group tasks by employee
+      for (const task of tasks) {
+        if (!tasksMap[task.employee_id]) tasksMap[task.employee_id] = [];
+        tasksMap[task.employee_id].push(task);
+      }
+
+      // 4) Get boxes for all tasks that have them
+      const allTaskIds = tasks.map(t => t.task_id);
+      let boxesMap = {};
+      if (allTaskIds.length > 0) {
+        const { rows: boxes } = await pool.query(`
+          SELECT
+            tb.id,
+            tb.task_id,
+            COALESCE(sbx.name, CONCAT('Коробка #', tb.id)) as box_name,
+            COALESCE(sbx.barcode_value, bx.barcode_value) as box_barcode,
+            COALESCE(sbx.box_size, bx.box_size) as box_size,
+            tb.status,
+            (SELECT COUNT(*) FROM inventory_task_scans_s WHERE task_id = tb.task_id AND task_box_id = tb.id AND product_id IS NOT NULL) as scans_count
+          FROM inventory_task_boxes_s tb
+          LEFT JOIN shelf_boxes_s sbx ON sbx.id = tb.shelf_box_id
+          LEFT JOIN boxes_s bx ON bx.id = tb.box_id
+          WHERE tb.task_id = ANY($1)
+          ORDER BY tb.sort_order, tb.id
+        `, [allTaskIds]);
+
+        for (const box of boxes) {
+          if (!boxesMap[box.task_id]) boxesMap[box.task_id] = [];
+          boxesMap[box.task_id].push(box);
+        }
+      }
+
+      // Attach boxes to tasks
+      for (const task of tasks) {
+        task.boxes = boxesMap[task.task_id] || [];
+      }
+    }
+
+    // Build response
+    const result = employees.map(emp => ({
+      employee_id: emp.employee_id,
+      full_name: emp.full_name,
+      tasks_count: Number(emp.tasks_count),
+      total_scans: Number(emp.total_scans),
+      total_errors: Number(emp.total_errors),
+      avg_scan_gap: emp.avg_scan_gap != null ? Number(emp.avg_scan_gap) : null,
+      last_task_at: emp.last_task_at,
+      tasks: (tasksMap[emp.employee_id] || []).map(t => ({
+        task_id: t.task_id,
+        title: t.title,
+        status: t.status,
+        task_type: t.task_type,
+        shelf_name: t.shelf_name,
+        rack_name: t.rack_name,
+        pallet_name: t.pallet_name,
+        row_name: t.row_name,
+        scans_count: Number(t.scans_count),
+        errors_count: Number(t.errors_count),
+        duration_seconds: t.duration_seconds != null ? Number(t.duration_seconds) : null,
+        avg_scan_gap: t.avg_scan_gap != null ? Number(t.avg_scan_gap) : null,
+        started_at: t.started_at,
+        completed_at: t.completed_at,
+        boxes: t.boxes.map(b => ({
+          id: b.id,
+          box_name: b.box_name,
+          box_barcode: b.box_barcode,
+          box_size: b.box_size != null ? Number(b.box_size) : null,
+          scans_count: Number(b.scans_count),
+          status: b.status,
+        })),
+      })),
+    }));
+
+    res.json({
+      summary: {
+        total_tasks: Number(summary.total_tasks),
+        total_scans: Number(summary.total_scans),
+        total_errors: Number(summary.total_errors),
+        avg_scan_gap: summary.avg_scan_gap != null ? Number(summary.avg_scan_gap) : null,
+      },
+      employees: result,
+    });
+  } catch (err) {
+    console.error('audit-report error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── Dynamic routes ───────────────────────────────────────────────────────────
 
 // GET /api/tasks/:id
