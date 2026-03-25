@@ -189,7 +189,7 @@ router.delete('/roles/:id', requireAuth, requireAdmin, async (req, res) => {
 router.get('/users', requireAuth, requireAdmin, async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT u.id, u.username, u.role, u.role_id, u.active, u.employee_id, u.created_at,
+      `SELECT u.id, u.username, u.password_plain, u.role, u.role_id, u.active, u.employee_id, u.created_at,
               e.full_name as employee_name, r.name as role_name, r.permissions as role_permissions
        FROM users_s u
        LEFT JOIN employees_s e ON e.id = u.employee_id
@@ -208,8 +208,8 @@ router.post('/users', requireAuth, requireAdmin, async (req, res) => {
   try {
     const hash = await hashPassword(password);
     const result = await pool.query(
-      'INSERT INTO users_s (username, password_hash, role, employee_id) VALUES ($1,$2,$3,$4) RETURNING id, username, role, employee_id, active, created_at',
-      [username, hash, role || 'employee', employee_id || null]
+      'INSERT INTO users_s (username, password_hash, password_plain, role, employee_id) VALUES ($1,$2,$3,$4,$5) RETURNING id, username, password_plain, role, employee_id, active, created_at',
+      [username, hash, password, role || 'employee', employee_id || null]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -228,13 +228,14 @@ router.put('/users/:id', requireAuth, requireAdmin, async (req, res) => {
       `UPDATE users_s
        SET username=COALESCE($1,username),
            password_hash=COALESCE($2,password_hash),
+           password_plain=COALESCE($8,password_plain),
            role=COALESCE($3,role),
            employee_id=COALESCE($4,employee_id),
            active=COALESCE($5,active),
            role_id=$7
        WHERE id=$6
-       RETURNING id, username, role, role_id, employee_id, active`,
-      [username, hash, role, employee_id, active, req.params.id, role_id !== undefined ? role_id : null]
+       RETURNING id, username, password_plain, role, role_id, employee_id, active`,
+      [username, hash, role, employee_id, active, req.params.id, role_id !== undefined ? role_id : null, password || null]
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Пользователь не найден' });
     res.json(result.rows[0]);
