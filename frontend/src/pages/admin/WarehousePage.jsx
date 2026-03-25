@@ -1892,30 +1892,9 @@ function PalletDetailView({ pallet, onClose, initialBoxId }) {
         )}
       </div>
 
-      {pallet.barcode_value && (
-        <div className="card p-4 mb-5 flex items-center gap-4">
-          <div className="flex-shrink-0">
-            <Barcode value={pallet.barcode_value} height={45} width={1.5} />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs text-gray-400 font-medium mb-1">Штрих-код паллета</p>
-            <div className="flex items-center gap-2 bg-gray-50 dark:bg-gray-800 rounded-lg px-3 py-1.5">
-              <code className="font-mono text-sm text-gray-700 dark:text-gray-300 flex-1">{pallet.barcode_value}</code>
-              <button onClick={() => navigator.clipboard.writeText(pallet.barcode_value)}
-                className="text-gray-300 hover:text-primary-500 transition-colors">
-                <Copy size={13} />
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* pallet barcode card hidden */}
 
-      {isBoxMode && (
-        <div className="rounded-2xl border border-amber-200 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 px-4 py-3 mb-5">
-          <p className="text-sm font-medium text-amber-900 dark:text-amber-200">Коробочный режим паллета</p>
-          <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">Сначала создаётся коробка, затем в неё назначается товар и количество. Коробка становится дочерней ячейкой паллета.</p>
-        </div>
-      )}
+      {/* box mode hint removed */}
 
       {isBoxMode && <div className="card p-4">
         <div className="flex items-center justify-between mb-3">
