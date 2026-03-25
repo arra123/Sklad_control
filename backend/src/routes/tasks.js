@@ -1732,6 +1732,130 @@ router.get('/analytics/audit-report', requireAuth, requireAdmin, async (req, res
   }
 });
 
+// GET /api/tasks/analytics/table-report — monthly table grouped by employee
+router.get('/analytics/table-report', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const monthLabels = ['Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя','Дек'];
+    const now = new Date();
+    const months = [];
+    for (let i = 0; i < 3; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      months.push({ month: d.getMonth() + 1, year: d.getFullYear(), label: monthLabels[d.getMonth()] });
+    }
+    const oldest = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+
+    // 1) Summary
+    const { rows: [summary] } = await pool.query(`
+      SELECT
+        COUNT(*) as total_tasks,
+        COALESCE((SELECT COUNT(*) FROM inventory_task_scans_s sc JOIN inventory_tasks_s t2 ON t2.id = sc.task_id WHERE t2.status = 'completed' AND t2.completed_at >= $1 AND sc.product_id IS NOT NULL), 0) as total_scans,
+        COALESCE((SELECT COUNT(*) FROM scan_errors_s se JOIN inventory_tasks_s t3 ON t3.id = se.task_id WHERE t3.status = 'completed' AND t3.completed_at >= $1), 0) as total_errors,
+        COUNT(DISTINCT employee_id) as total_employees
+      FROM inventory_tasks_s
+      WHERE status = 'completed' AND completed_at >= $1
+    `, [oldest]);
+
+    // 2) Tasks with per-task stats for last 3 months
+    const { rows: tasks } = await pool.query(`
+      SELECT
+        t.id as task_id,
+        t.title,
+        t.status,
+        t.employee_id,
+        t.started_at,
+        t.completed_at,
+        EXTRACT(MONTH FROM t.completed_at)::int as m,
+        EXTRACT(YEAR FROM t.completed_at)::int as y,
+        s.name as shelf_name,
+        r.name as rack_name,
+        pa.name as pallet_name,
+        pr.name as row_name,
+        ROUND(EXTRACT(EPOCH FROM (t.completed_at - t.started_at)) / 60.0) as duration_min,
+        (SELECT COUNT(*) FROM inventory_task_scans_s WHERE task_id = t.id AND product_id IS NOT NULL) as scans_count,
+        (SELECT COUNT(*) FROM scan_errors_s WHERE task_id = t.id) as errors_count,
+        ROUND(
+          (SELECT AVG(gap) FROM (
+            SELECT EXTRACT(EPOCH FROM (sc3.created_at - LAG(sc3.created_at) OVER (ORDER BY sc3.created_at)))::numeric as gap
+            FROM inventory_task_scans_s sc3
+            WHERE sc3.task_id = t.id AND sc3.product_id IS NOT NULL
+          ) g2 WHERE g2.gap IS NOT NULL AND g2.gap > 0 AND g2.gap < 300)
+        , 1) as avg_gap
+      FROM inventory_tasks_s t
+      LEFT JOIN shelves_s s ON s.id = t.shelf_id
+      LEFT JOIN racks_s r ON r.id = s.rack_id
+      LEFT JOIN pallets_s pa ON pa.id = t.target_pallet_id
+      LEFT JOIN pallet_rows_s pr ON pr.id = pa.row_id
+      WHERE t.status = 'completed' AND t.completed_at >= $1
+      ORDER BY t.completed_at DESC
+    `, [oldest]);
+
+    // 3) Employees
+    const { rows: empRows } = await pool.query(`
+      SELECT DISTINCT e.id as employee_id, e.full_name
+      FROM employees_s e
+      JOIN inventory_tasks_s t ON t.employee_id = e.id AND t.status = 'completed' AND t.completed_at >= $1
+      ORDER BY e.full_name
+    `, [oldest]);
+
+    // Group tasks by employee
+    const employeesResult = empRows.map(emp => {
+      const empTasks = tasks.filter(t => t.employee_id === emp.employee_id);
+      const monthsData = {};
+      for (const mo of months) {
+        const key = `${mo.year}-${mo.month}`;
+        const mTasks = empTasks.filter(t => Number(t.y) === mo.year && Number(t.m) === mo.month);
+        monthsData[key] = {
+          tasks: mTasks.length,
+          scans: mTasks.reduce((s, t) => s + Number(t.scans_count), 0),
+          errors: mTasks.reduce((s, t) => s + Number(t.errors_count), 0),
+          duration_min: mTasks.reduce((s, t) => s + (Number(t.duration_min) || 0), 0),
+          avg_gap: mTasks.length > 0
+            ? (mTasks.filter(t => t.avg_gap != null).reduce((s, t) => s + Number(t.avg_gap), 0) / (mTasks.filter(t => t.avg_gap != null).length || 1)).toFixed(1)
+            : null,
+        };
+      }
+      return {
+        employee_id: emp.employee_id,
+        full_name: emp.full_name,
+        months: monthsData,
+        tasks: empTasks.map(t => {
+          let location = '';
+          if (t.rack_name && t.shelf_name) location = `${t.rack_name} · ${t.shelf_name}`;
+          else if (t.rack_name) location = t.rack_name;
+          else if (t.pallet_name && t.row_name) location = `${t.row_name} · ${t.pallet_name}`;
+          return {
+            task_id: t.task_id,
+            title: t.title,
+            status: t.status,
+            month_key: `${t.y}-${t.m}`,
+            location,
+            scans_count: Number(t.scans_count),
+            errors_count: Number(t.errors_count),
+            duration_min: t.duration_min != null ? Number(t.duration_min) : null,
+            avg_gap: t.avg_gap != null ? String(t.avg_gap) : null,
+            started_at: t.started_at,
+            completed_at: t.completed_at,
+          };
+        }),
+      };
+    });
+
+    res.json({
+      months,
+      summary: {
+        total_tasks: Number(summary.total_tasks),
+        total_scans: Number(summary.total_scans),
+        total_errors: Number(summary.total_errors),
+        total_employees: Number(summary.total_employees),
+      },
+      employees: employeesResult,
+    });
+  } catch (err) {
+    console.error('table-report error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── Dynamic routes ───────────────────────────────────────────────────────────
 
 // GET /api/tasks/:id

@@ -10,6 +10,7 @@ import Spinner from '../../components/ui/Spinner';
 import Badge from '../../components/ui/Badge';
 import { cn } from '../../utils/cn';
 import InventoryAnalyticsView from './InventoryAnalyticsView';
+import AnalyticsTableView from './AnalyticsTableView';
 
 function fmt(seconds) {
   if (!seconds || seconds < 0) return '—';
@@ -394,10 +395,12 @@ export default function AnalyticsPage() {
   return (
     <div className="p-6 max-w-7xl mx-auto">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">{tab === 'inventory' ? 'Аналитика инвентаризации' : 'Аналитика'}</h1>
+        <h1 className="text-2xl font-bold text-gray-900">{tab === 'inventory' ? 'Аналитика инвентаризации' : tab === 'table' ? 'Таблица по сотрудникам' : 'Аналитика'}</h1>
         <p className="text-gray-500 text-sm mt-0.5">
           {tab === 'inventory'
             ? 'Последний инвент, прошлый инвент, участвовавшие коробки и зоны, которые давно не считались'
+            : tab === 'table'
+            ? 'Сводная таблица задач за последние 3 месяца, сгруппированная по сотрудникам'
             : 'Статистика по выполнению задач и сотрудникам'}
         </p>
       </div>
@@ -406,6 +409,7 @@ export default function AnalyticsPage() {
         {[
           { value: 'summary', label: 'Сводка' },
           { value: 'inventory', label: 'Инвентаризация' },
+          { value: 'table', label: 'Таблица' },
         ].map(item => (
           <button
             key={item.value}
@@ -427,6 +431,8 @@ export default function AnalyticsPage() {
 
       {tab === 'inventory' ? (
         <InventoryAnalyticsView />
+      ) : tab === 'table' ? (
+        <AnalyticsTableView />
       ) : (
         renderSummary()
       )}

@@ -2,235 +2,411 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<title>Иконки GRAсклад</title>
+<title>Иконки GRAсклад — превью</title>
 <style>
-  body { font-family: 'Inter', system-ui, sans-serif; background: #f8fafc; margin: 0; padding: 40px; }
-  h1 { text-align: center; color: #1e293b; margin-bottom: 40px; }
-  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; max-width: 900px; margin: 0 auto; }
-  .card { background: white; border-radius: 16px; padding: 24px; border: 1px solid #e2e8f0; text-align: center; }
-  .card:hover { box-shadow: 0 8px 24px rgba(0,0,0,0.08); }
-  .icon-row { display: flex; justify-content: center; gap: 20px; margin-bottom: 16px; }
-  .icon-box { width: 56px; height: 56px; border-radius: 14px; display: flex; align-items: center; justify-content: center; }
-  .name { font-weight: 700; color: #1e293b; font-size: 14px; margin-bottom: 4px; }
-  .desc { color: #94a3b8; font-size: 12px; }
+  * { margin: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', system-ui, -apple-system, sans-serif; background: #f1f5f9; padding: 32px; }
+  h1 { text-align: center; color: #0f172a; font-size: 24px; margin-bottom: 8px; }
+  .sub { text-align: center; color: #94a3b8; font-size: 13px; margin-bottom: 36px; }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; max-width: 960px; margin: 0 auto; }
+  @media (max-width: 700px) { .grid { grid-template-columns: 1fr 1fr; } }
+  .card { background: white; border-radius: 16px; padding: 28px 20px 20px; border: 1px solid #e2e8f0; transition: box-shadow .2s; }
+  .card:hover { box-shadow: 0 8px 30px rgba(0,0,0,0.07); }
+  .sizes { display: flex; justify-content: center; align-items: flex-end; gap: 16px; margin-bottom: 20px; }
+  .sizes > div { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .sizes .sz { font-size: 10px; color: #94a3b8; }
+  .colors { display: flex; justify-content: center; gap: 10px; margin-bottom: 16px; }
+  .dot { width: 48px; height: 48px; border-radius: 14px; display: flex; align-items: center; justify-content: center; }
+  .name { font-weight: 700; color: #1e293b; font-size: 15px; text-align: center; margin-bottom: 2px; }
+  .desc { color: #94a3b8; font-size: 12px; text-align: center; }
 </style>
 </head>
 <body>
 <h1>Иконки складских сущностей</h1>
+<p class="sub">9 иконок · 3 размера · 4 цветовых варианта</p>
+
 <div class="grid">
 
-  <div class="card">
-    <div class="icon-row">
-      <div class="icon-box" style="background:#ede9fe">
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" style="color:#7c3aed">
-          <path d="M3 21V8l9-5 9 5v13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M9 21v-6h6v6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M3 8l9 4 9-4" stroke="currentColor" stroke-width="1.2" opacity="0.4"/>
-        </svg>
-      </div>
-      <div class="icon-box" style="background:#1e293b">
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" style="color:white">
-          <path d="M3 21V8l9-5 9 5v13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M9 21v-6h6v6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M3 8l9 4 9-4" stroke="currentColor" stroke-width="1.2" opacity="0.4"/>
-        </svg>
-      </div>
+<!-- 1. Склад -->
+<div class="card">
+  <div class="sizes">
+    <div>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="color:#6366f1">
+        <path d="M4 21V9l8-5.5L20 9v12" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+        <path d="M9 21v-5h6v5" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+        <path d="M4 9l8 3.5L20 9" stroke="currentColor" stroke-width="1.2" opacity=".35"/>
+        <circle cx="12" cy="6" r="1" fill="currentColor" opacity=".4"/>
+      </svg>
+      <span class="sz">16</span>
     </div>
-    <div class="name">WarehouseIcon</div>
-    <div class="desc">Склад</div>
+    <div>
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" style="color:#6366f1">
+        <path d="M4 21V9l8-5.5L20 9v12" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+        <path d="M9 21v-5h6v5" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+        <path d="M4 9l8 3.5L20 9" stroke="currentColor" stroke-width="1.2" opacity=".35"/>
+        <circle cx="12" cy="6" r="1" fill="currentColor" opacity=".4"/>
+      </svg>
+      <span class="sz">28</span>
+    </div>
+    <div>
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" style="color:#6366f1">
+        <path d="M4 21V9l8-5.5L20 9v12" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+        <path d="M9 21v-5h6v5" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+        <path d="M4 9l8 3.5L20 9" stroke="currentColor" stroke-width="1.2" opacity=".35"/>
+        <circle cx="12" cy="6" r="1" fill="currentColor" opacity=".4"/>
+      </svg>
+      <span class="sz">40</span>
+    </div>
   </div>
+  <div class="colors">
+    <div class="dot" style="background:#eef2ff"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="color:#6366f1"><path d="M4 21V9l8-5.5L20 9v12" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M9 21v-5h6v5" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M4 9l8 3.5L20 9" stroke="currentColor" stroke-width="1.2" opacity=".35"/><circle cx="12" cy="6" r="1" fill="currentColor" opacity=".4"/></svg></div>
+    <div class="dot" style="background:#dcfce7"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="color:#16a34a"><path d="M4 21V9l8-5.5L20 9v12" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M9 21v-5h6v5" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M4 9l8 3.5L20 9" stroke="currentColor" stroke-width="1.2" opacity=".35"/><circle cx="12" cy="6" r="1" fill="currentColor" opacity=".4"/></svg></div>
+    <div class="dot" style="background:#fee2e2"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="color:#dc2626"><path d="M4 21V9l8-5.5L20 9v12" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M9 21v-5h6v5" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M4 9l8 3.5L20 9" stroke="currentColor" stroke-width="1.2" opacity=".35"/><circle cx="12" cy="6" r="1" fill="currentColor" opacity=".4"/></svg></div>
+    <div class="dot" style="background:#1e293b"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="color:white"><path d="M4 21V9l8-5.5L20 9v12" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M9 21v-5h6v5" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M4 9l8 3.5L20 9" stroke="currentColor" stroke-width="1.2" opacity=".35"/><circle cx="12" cy="6" r="1" fill="currentColor" opacity=".4"/></svg></div>
+  </div>
+  <div class="name">Склад</div>
+  <div class="desc">Warehouse</div>
+</div>
 
-  <div class="card">
-    <div class="icon-row">
-      <div class="icon-box" style="background:#dbeafe">
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" style="color:#2563eb">
-          <rect x="4" y="3" width="16" height="18" rx="1.5" stroke="currentColor" stroke-width="1.8"/>
-          <line x1="4" y1="9" x2="20" y2="9" stroke="currentColor" stroke-width="1.5"/>
-          <line x1="4" y1="15" x2="20" y2="15" stroke="currentColor" stroke-width="1.5"/>
-          <line x1="12" y1="3" x2="12" y2="21" stroke="currentColor" stroke-width="1.2" opacity="0.3"/>
-        </svg>
-      </div>
-      <div class="icon-box" style="background:#1e293b">
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" style="color:white">
-          <rect x="4" y="3" width="16" height="18" rx="1.5" stroke="currentColor" stroke-width="1.8"/>
-          <line x1="4" y1="9" x2="20" y2="9" stroke="currentColor" stroke-width="1.5"/>
-          <line x1="4" y1="15" x2="20" y2="15" stroke="currentColor" stroke-width="1.5"/>
-          <line x1="12" y1="3" x2="12" y2="21" stroke="currentColor" stroke-width="1.2" opacity="0.3"/>
-        </svg>
-      </div>
+<!-- 2. Стеллаж -->
+<div class="card">
+  <div class="sizes">
+    <div>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="color:#2563eb">
+        <path d="M5 3v18M19 3v18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <path d="M5 7h14M5 12h14M5 17h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        <rect x="7" y="8" width="3" height="3.5" rx=".6" fill="currentColor" opacity=".15"/>
+        <rect x="14" y="13" width="3" height="3.5" rx=".6" fill="currentColor" opacity=".15"/>
+      </svg>
+      <span class="sz">16</span>
     </div>
-    <div class="name">RackIcon</div>
-    <div class="desc">Стеллаж</div>
+    <div>
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" style="color:#2563eb">
+        <path d="M5 3v18M19 3v18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <path d="M5 7h14M5 12h14M5 17h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        <rect x="7" y="8" width="3" height="3.5" rx=".6" fill="currentColor" opacity=".15"/>
+        <rect x="14" y="13" width="3" height="3.5" rx=".6" fill="currentColor" opacity=".15"/>
+      </svg>
+      <span class="sz">28</span>
+    </div>
+    <div>
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" style="color:#2563eb">
+        <path d="M5 3v18M19 3v18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <path d="M5 7h14M5 12h14M5 17h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        <rect x="7" y="8" width="3" height="3.5" rx=".6" fill="currentColor" opacity=".15"/>
+        <rect x="14" y="13" width="3" height="3.5" rx=".6" fill="currentColor" opacity=".15"/>
+      </svg>
+      <span class="sz">40</span>
+    </div>
   </div>
+  <div class="colors">
+    <div class="dot" style="background:#dbeafe"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="color:#2563eb"><path d="M5 3v18M19 3v18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M5 7h14M5 12h14M5 17h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><rect x="7" y="8" width="3" height="3.5" rx=".6" fill="currentColor" opacity=".15"/><rect x="14" y="13" width="3" height="3.5" rx=".6" fill="currentColor" opacity=".15"/></svg></div>
+    <div class="dot" style="background:#dcfce7"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="color:#16a34a"><path d="M5 3v18M19 3v18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M5 7h14M5 12h14M5 17h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><rect x="7" y="8" width="3" height="3.5" rx=".6" fill="currentColor" opacity=".15"/><rect x="14" y="13" width="3" height="3.5" rx=".6" fill="currentColor" opacity=".15"/></svg></div>
+    <div class="dot" style="background:#fef3c7"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="color:#d97706"><path d="M5 3v18M19 3v18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M5 7h14M5 12h14M5 17h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><rect x="7" y="8" width="3" height="3.5" rx=".6" fill="currentColor" opacity=".15"/><rect x="14" y="13" width="3" height="3.5" rx=".6" fill="currentColor" opacity=".15"/></svg></div>
+    <div class="dot" style="background:#1e293b"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="color:white"><path d="M5 3v18M19 3v18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M5 7h14M5 12h14M5 17h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><rect x="7" y="8" width="3" height="3.5" rx=".6" fill="currentColor" opacity=".15"/><rect x="14" y="13" width="3" height="3.5" rx=".6" fill="currentColor" opacity=".15"/></svg></div>
+  </div>
+  <div class="name">Стеллаж</div>
+  <div class="desc">Rack</div>
+</div>
 
-  <div class="card">
-    <div class="icon-row">
-      <div class="icon-box" style="background:#d1fae5">
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" style="color:#059669">
-          <path d="M3 10h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-          <path d="M5 10v10M19 10v10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-          <rect x="7" y="5" width="4" height="5" rx="0.8" fill="currentColor" opacity="0.2" stroke="currentColor" stroke-width="1"/>
-          <rect x="13" y="6" width="3.5" height="4" rx="0.8" fill="currentColor" opacity="0.15" stroke="currentColor" stroke-width="1"/>
-        </svg>
-      </div>
-      <div class="icon-box" style="background:#1e293b">
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" style="color:white">
-          <path d="M3 10h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-          <path d="M5 10v10M19 10v10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-          <rect x="7" y="5" width="4" height="5" rx="0.8" fill="currentColor" opacity="0.2" stroke="currentColor" stroke-width="1"/>
-          <rect x="13" y="6" width="3.5" height="4" rx="0.8" fill="currentColor" opacity="0.15" stroke="currentColor" stroke-width="1"/>
-        </svg>
-      </div>
+<!-- 3. Полка -->
+<div class="card">
+  <div class="sizes">
+    <div>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="color:#059669">
+        <rect x="2" y="11" width="20" height="2.5" rx="1" fill="currentColor" opacity=".2" stroke="currentColor" stroke-width="1.5"/>
+        <path d="M4 13.5v6M20 13.5v6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        <rect x="6" y="5.5" width="4.5" height="5.5" rx="1" stroke="currentColor" stroke-width="1.5"/>
+        <rect x="13" y="7" width="4" height="4" rx="1" stroke="currentColor" stroke-width="1.5"/>
+        <line x1="6" y1="8.5" x2="10.5" y2="8.5" stroke="currentColor" stroke-width=".8" opacity=".3"/>
+      </svg>
+      <span class="sz">16</span>
     </div>
-    <div class="name">ShelfIcon</div>
-    <div class="desc">Полка</div>
+    <div>
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" style="color:#059669">
+        <rect x="2" y="11" width="20" height="2.5" rx="1" fill="currentColor" opacity=".2" stroke="currentColor" stroke-width="1.5"/>
+        <path d="M4 13.5v6M20 13.5v6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        <rect x="6" y="5.5" width="4.5" height="5.5" rx="1" stroke="currentColor" stroke-width="1.5"/>
+        <rect x="13" y="7" width="4" height="4" rx="1" stroke="currentColor" stroke-width="1.5"/>
+        <line x1="6" y1="8.5" x2="10.5" y2="8.5" stroke="currentColor" stroke-width=".8" opacity=".3"/>
+      </svg>
+      <span class="sz">28</span>
+    </div>
+    <div>
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" style="color:#059669">
+        <rect x="2" y="11" width="20" height="2.5" rx="1" fill="currentColor" opacity=".2" stroke="currentColor" stroke-width="1.5"/>
+        <path d="M4 13.5v6M20 13.5v6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        <rect x="6" y="5.5" width="4.5" height="5.5" rx="1" stroke="currentColor" stroke-width="1.5"/>
+        <rect x="13" y="7" width="4" height="4" rx="1" stroke="currentColor" stroke-width="1.5"/>
+        <line x1="6" y1="8.5" x2="10.5" y2="8.5" stroke="currentColor" stroke-width=".8" opacity=".3"/>
+      </svg>
+      <span class="sz">40</span>
+    </div>
   </div>
+  <div class="colors">
+    <div class="dot" style="background:#d1fae5"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="color:#059669"><rect x="2" y="11" width="20" height="2.5" rx="1" fill="currentColor" opacity=".2" stroke="currentColor" stroke-width="1.5"/><path d="M4 13.5v6M20 13.5v6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><rect x="6" y="5.5" width="4.5" height="5.5" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="13" y="7" width="4" height="4" rx="1" stroke="currentColor" stroke-width="1.5"/><line x1="6" y1="8.5" x2="10.5" y2="8.5" stroke="currentColor" stroke-width=".8" opacity=".3"/></svg></div>
+    <div class="dot" style="background:#eef2ff"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="color:#6366f1"><rect x="2" y="11" width="20" height="2.5" rx="1" fill="currentColor" opacity=".2" stroke="currentColor" stroke-width="1.5"/><path d="M4 13.5v6M20 13.5v6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><rect x="6" y="5.5" width="4.5" height="5.5" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="13" y="7" width="4" height="4" rx="1" stroke="currentColor" stroke-width="1.5"/><line x1="6" y1="8.5" x2="10.5" y2="8.5" stroke="currentColor" stroke-width=".8" opacity=".3"/></svg></div>
+    <div class="dot" style="background:#fee2e2"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="color:#dc2626"><rect x="2" y="11" width="20" height="2.5" rx="1" fill="currentColor" opacity=".2" stroke="currentColor" stroke-width="1.5"/><path d="M4 13.5v6M20 13.5v6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><rect x="6" y="5.5" width="4.5" height="5.5" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="13" y="7" width="4" height="4" rx="1" stroke="currentColor" stroke-width="1.5"/><line x1="6" y1="8.5" x2="10.5" y2="8.5" stroke="currentColor" stroke-width=".8" opacity=".3"/></svg></div>
+    <div class="dot" style="background:#1e293b"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="color:white"><rect x="2" y="11" width="20" height="2.5" rx="1" fill="currentColor" opacity=".2" stroke="currentColor" stroke-width="1.5"/><path d="M4 13.5v6M20 13.5v6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><rect x="6" y="5.5" width="4.5" height="5.5" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="13" y="7" width="4" height="4" rx="1" stroke="currentColor" stroke-width="1.5"/><line x1="6" y1="8.5" x2="10.5" y2="8.5" stroke="currentColor" stroke-width=".8" opacity=".3"/></svg></div>
+  </div>
+  <div class="name">Полка</div>
+  <div class="desc">Shelf</div>
+</div>
 
-  <div class="card">
-    <div class="icon-row">
-      <div class="icon-box" style="background:#fef3c7">
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" style="color:#d97706">
-          <rect x="3" y="17" width="18" height="3" rx="1" stroke="currentColor" stroke-width="1.8"/>
-          <line x1="7" y1="20" x2="7" y2="22" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-          <line x1="17" y1="20" x2="17" y2="22" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-          <line x1="12" y1="17" x2="12" y2="20" stroke="currentColor" stroke-width="1.2" opacity="0.4"/>
-          <rect x="5" y="10" width="14" height="7" rx="1" stroke="currentColor" stroke-width="1.5" fill="currentColor" fill-opacity="0.08"/>
-          <rect x="7" y="4" width="10" height="6" rx="1" stroke="currentColor" stroke-width="1.3" fill="currentColor" fill-opacity="0.05"/>
-        </svg>
-      </div>
-      <div class="icon-box" style="background:#1e293b">
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" style="color:white">
-          <rect x="3" y="17" width="18" height="3" rx="1" stroke="currentColor" stroke-width="1.8"/>
-          <line x1="7" y1="20" x2="7" y2="22" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-          <line x1="17" y1="20" x2="17" y2="22" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-          <line x1="12" y1="17" x2="12" y2="20" stroke="currentColor" stroke-width="1.2" opacity="0.4"/>
-          <rect x="5" y="10" width="14" height="7" rx="1" stroke="currentColor" stroke-width="1.5" fill="currentColor" fill-opacity="0.08"/>
-          <rect x="7" y="4" width="10" height="6" rx="1" stroke="currentColor" stroke-width="1.3" fill="currentColor" fill-opacity="0.05"/>
-        </svg>
-      </div>
+<!-- 4. Ряд -->
+<div class="card">
+  <div class="sizes">
+    <div>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="color:#0891b2">
+        <rect x="1" y="15" width="5" height="6" rx=".8" stroke="currentColor" stroke-width="1.5"/>
+        <rect x="7.5" y="13" width="5" height="8" rx=".8" stroke="currentColor" stroke-width="1.5"/>
+        <rect x="14" y="15" width="5" height="6" rx=".8" stroke="currentColor" stroke-width="1.5"/>
+        <rect x="19.5" y="14" width="3.5" height="7" rx=".8" stroke="currentColor" stroke-width="1.2" opacity=".4"/>
+        <path d="M3.5 13v-2M10 11V8M16.5 13v-2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        <path d="M3.5 11h13" stroke="currentColor" stroke-width=".8" opacity=".25" stroke-dasharray="2 1.5"/>
+      </svg>
+      <span class="sz">16</span>
     </div>
-    <div class="name">PalletIcon</div>
-    <div class="desc">Паллет</div>
+    <div>
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" style="color:#0891b2">
+        <rect x="1" y="15" width="5" height="6" rx=".8" stroke="currentColor" stroke-width="1.5"/>
+        <rect x="7.5" y="13" width="5" height="8" rx=".8" stroke="currentColor" stroke-width="1.5"/>
+        <rect x="14" y="15" width="5" height="6" rx=".8" stroke="currentColor" stroke-width="1.5"/>
+        <rect x="19.5" y="14" width="3.5" height="7" rx=".8" stroke="currentColor" stroke-width="1.2" opacity=".4"/>
+        <path d="M3.5 13v-2M10 11V8M16.5 13v-2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        <path d="M3.5 11h13" stroke="currentColor" stroke-width=".8" opacity=".25" stroke-dasharray="2 1.5"/>
+      </svg>
+      <span class="sz">28</span>
+    </div>
+    <div>
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" style="color:#0891b2">
+        <rect x="1" y="15" width="5" height="6" rx=".8" stroke="currentColor" stroke-width="1.5"/>
+        <rect x="7.5" y="13" width="5" height="8" rx=".8" stroke="currentColor" stroke-width="1.5"/>
+        <rect x="14" y="15" width="5" height="6" rx=".8" stroke="currentColor" stroke-width="1.5"/>
+        <rect x="19.5" y="14" width="3.5" height="7" rx=".8" stroke="currentColor" stroke-width="1.2" opacity=".4"/>
+        <path d="M3.5 13v-2M10 11V8M16.5 13v-2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        <path d="M3.5 11h13" stroke="currentColor" stroke-width=".8" opacity=".25" stroke-dasharray="2 1.5"/>
+      </svg>
+      <span class="sz">40</span>
+    </div>
   </div>
+  <div class="colors">
+    <div class="dot" style="background:#cffafe"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="color:#0891b2"><rect x="1" y="15" width="5" height="6" rx=".8" stroke="currentColor" stroke-width="1.5"/><rect x="7.5" y="13" width="5" height="8" rx=".8" stroke="currentColor" stroke-width="1.5"/><rect x="14" y="15" width="5" height="6" rx=".8" stroke="currentColor" stroke-width="1.5"/><rect x="19.5" y="14" width="3.5" height="7" rx=".8" stroke="currentColor" stroke-width="1.2" opacity=".4"/><path d="M3.5 13v-2M10 11V8M16.5 13v-2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M3.5 11h13" stroke="currentColor" stroke-width=".8" opacity=".25" stroke-dasharray="2 1.5"/></svg></div>
+    <div class="dot" style="background:#eef2ff"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="color:#6366f1"><rect x="1" y="15" width="5" height="6" rx=".8" stroke="currentColor" stroke-width="1.5"/><rect x="7.5" y="13" width="5" height="8" rx=".8" stroke="currentColor" stroke-width="1.5"/><rect x="14" y="15" width="5" height="6" rx=".8" stroke="currentColor" stroke-width="1.5"/><rect x="19.5" y="14" width="3.5" height="7" rx=".8" stroke="currentColor" stroke-width="1.2" opacity=".4"/><path d="M3.5 13v-2M10 11V8M16.5 13v-2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M3.5 11h13" stroke="currentColor" stroke-width=".8" opacity=".25" stroke-dasharray="2 1.5"/></svg></div>
+    <div class="dot" style="background:#fef3c7"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="color:#d97706"><rect x="1" y="15" width="5" height="6" rx=".8" stroke="currentColor" stroke-width="1.5"/><rect x="7.5" y="13" width="5" height="8" rx=".8" stroke="currentColor" stroke-width="1.5"/><rect x="14" y="15" width="5" height="6" rx=".8" stroke="currentColor" stroke-width="1.5"/><rect x="19.5" y="14" width="3.5" height="7" rx=".8" stroke="currentColor" stroke-width="1.2" opacity=".4"/><path d="M3.5 13v-2M10 11V8M16.5 13v-2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M3.5 11h13" stroke="currentColor" stroke-width=".8" opacity=".25" stroke-dasharray="2 1.5"/></svg></div>
+    <div class="dot" style="background:#1e293b"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="color:white"><rect x="1" y="15" width="5" height="6" rx=".8" stroke="currentColor" stroke-width="1.5"/><rect x="7.5" y="13" width="5" height="8" rx=".8" stroke="currentColor" stroke-width="1.5"/><rect x="14" y="15" width="5" height="6" rx=".8" stroke="currentColor" stroke-width="1.5"/><rect x="19.5" y="14" width="3.5" height="7" rx=".8" stroke="currentColor" stroke-width="1.2" opacity=".4"/><path d="M3.5 13v-2M10 11V8M16.5 13v-2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M3.5 11h13" stroke="currentColor" stroke-width=".8" opacity=".25" stroke-dasharray="2 1.5"/></svg></div>
+  </div>
+  <div class="name">Ряд</div>
+  <div class="desc">Row</div>
+</div>
 
-  <div class="card">
-    <div class="icon-row">
-      <div class="icon-box" style="background:#cffafe">
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" style="color:#0891b2">
-          <rect x="2" y="14" width="6" height="7" rx="1" stroke="currentColor" stroke-width="1.5"/>
-          <rect x="9" y="14" width="6" height="7" rx="1" stroke="currentColor" stroke-width="1.5"/>
-          <rect x="16" y="14" width="6" height="7" rx="1" stroke="currentColor" stroke-width="1.5"/>
-          <path d="M2 12h20" stroke="currentColor" stroke-width="1.2" opacity="0.3" stroke-dasharray="2 2"/>
-          <path d="M5 11V8M12 11V6M19 11V8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
-        </svg>
-      </div>
-      <div class="icon-box" style="background:#1e293b">
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" style="color:white">
-          <rect x="2" y="14" width="6" height="7" rx="1" stroke="currentColor" stroke-width="1.5"/>
-          <rect x="9" y="14" width="6" height="7" rx="1" stroke="currentColor" stroke-width="1.5"/>
-          <rect x="16" y="14" width="6" height="7" rx="1" stroke="currentColor" stroke-width="1.5"/>
-          <path d="M2 12h20" stroke="currentColor" stroke-width="1.2" opacity="0.3" stroke-dasharray="2 2"/>
-          <path d="M5 11V8M12 11V6M19 11V8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
-        </svg>
-      </div>
+<!-- 5. Паллет -->
+<div class="card">
+  <div class="sizes">
+    <div>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="color:#d97706">
+        <rect x="3" y="18" width="18" height="2.5" rx=".8" stroke="currentColor" stroke-width="1.8"/>
+        <path d="M6 20.5V22M12 20.5V22M18 20.5V22" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        <rect x="5" y="12" width="14" height="6" rx="1" stroke="currentColor" stroke-width="1.5" fill="currentColor" fill-opacity=".06"/>
+        <rect x="7.5" y="6" width="9" height="6" rx="1" stroke="currentColor" stroke-width="1.3" fill="currentColor" fill-opacity=".04"/>
+        <rect x="10" y="3" width="4" height="3" rx=".6" stroke="currentColor" stroke-width="1" fill="currentColor" fill-opacity=".03"/>
+      </svg>
+      <span class="sz">16</span>
     </div>
-    <div class="name">RowIcon</div>
-    <div class="desc">Ряд паллетов</div>
+    <div>
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" style="color:#d97706">
+        <rect x="3" y="18" width="18" height="2.5" rx=".8" stroke="currentColor" stroke-width="1.8"/>
+        <path d="M6 20.5V22M12 20.5V22M18 20.5V22" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        <rect x="5" y="12" width="14" height="6" rx="1" stroke="currentColor" stroke-width="1.5" fill="currentColor" fill-opacity=".06"/>
+        <rect x="7.5" y="6" width="9" height="6" rx="1" stroke="currentColor" stroke-width="1.3" fill="currentColor" fill-opacity=".04"/>
+        <rect x="10" y="3" width="4" height="3" rx=".6" stroke="currentColor" stroke-width="1" fill="currentColor" fill-opacity=".03"/>
+      </svg>
+      <span class="sz">28</span>
+    </div>
+    <div>
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" style="color:#d97706">
+        <rect x="3" y="18" width="18" height="2.5" rx=".8" stroke="currentColor" stroke-width="1.8"/>
+        <path d="M6 20.5V22M12 20.5V22M18 20.5V22" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        <rect x="5" y="12" width="14" height="6" rx="1" stroke="currentColor" stroke-width="1.5" fill="currentColor" fill-opacity=".06"/>
+        <rect x="7.5" y="6" width="9" height="6" rx="1" stroke="currentColor" stroke-width="1.3" fill="currentColor" fill-opacity=".04"/>
+        <rect x="10" y="3" width="4" height="3" rx=".6" stroke="currentColor" stroke-width="1" fill="currentColor" fill-opacity=".03"/>
+      </svg>
+      <span class="sz">40</span>
+    </div>
   </div>
+  <div class="colors">
+    <div class="dot" style="background:#fef3c7"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="color:#d97706"><rect x="3" y="18" width="18" height="2.5" rx=".8" stroke="currentColor" stroke-width="1.8"/><path d="M6 20.5V22M12 20.5V22M18 20.5V22" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><rect x="5" y="12" width="14" height="6" rx="1" stroke="currentColor" stroke-width="1.5" fill="currentColor" fill-opacity=".06"/><rect x="7.5" y="6" width="9" height="6" rx="1" stroke="currentColor" stroke-width="1.3" fill="currentColor" fill-opacity=".04"/><rect x="10" y="3" width="4" height="3" rx=".6" stroke="currentColor" stroke-width="1" fill="currentColor" fill-opacity=".03"/></svg></div>
+    <div class="dot" style="background:#dbeafe"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="color:#2563eb"><rect x="3" y="18" width="18" height="2.5" rx=".8" stroke="currentColor" stroke-width="1.8"/><path d="M6 20.5V22M12 20.5V22M18 20.5V22" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><rect x="5" y="12" width="14" height="6" rx="1" stroke="currentColor" stroke-width="1.5" fill="currentColor" fill-opacity=".06"/><rect x="7.5" y="6" width="9" height="6" rx="1" stroke="currentColor" stroke-width="1.3" fill="currentColor" fill-opacity=".04"/><rect x="10" y="3" width="4" height="3" rx=".6" stroke="currentColor" stroke-width="1" fill="currentColor" fill-opacity=".03"/></svg></div>
+    <div class="dot" style="background:#dcfce7"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="color:#16a34a"><rect x="3" y="18" width="18" height="2.5" rx=".8" stroke="currentColor" stroke-width="1.8"/><path d="M6 20.5V22M12 20.5V22M18 20.5V22" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><rect x="5" y="12" width="14" height="6" rx="1" stroke="currentColor" stroke-width="1.5" fill="currentColor" fill-opacity=".06"/><rect x="7.5" y="6" width="9" height="6" rx="1" stroke="currentColor" stroke-width="1.3" fill="currentColor" fill-opacity=".04"/><rect x="10" y="3" width="4" height="3" rx=".6" stroke="currentColor" stroke-width="1" fill="currentColor" fill-opacity=".03"/></svg></div>
+    <div class="dot" style="background:#1e293b"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="color:white"><rect x="3" y="18" width="18" height="2.5" rx=".8" stroke="currentColor" stroke-width="1.8"/><path d="M6 20.5V22M12 20.5V22M18 20.5V22" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><rect x="5" y="12" width="14" height="6" rx="1" stroke="currentColor" stroke-width="1.5" fill="currentColor" fill-opacity=".06"/><rect x="7.5" y="6" width="9" height="6" rx="1" stroke="currentColor" stroke-width="1.3" fill="currentColor" fill-opacity=".04"/><rect x="10" y="3" width="4" height="3" rx=".6" stroke="currentColor" stroke-width="1" fill="currentColor" fill-opacity=".03"/></svg></div>
+  </div>
+  <div class="name">Паллет</div>
+  <div class="desc">Pallet</div>
+</div>
 
-  <div class="card">
-    <div class="icon-row">
-      <div class="icon-box" style="background:#fee2e2">
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" style="color:#dc2626">
-          <path d="M12 3L3 8v8l9 5 9-5V8l-9-5z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
-          <path d="M12 13l9-5M12 13v8M12 13L3 8" stroke="currentColor" stroke-width="1.3" opacity="0.4"/>
-          <circle cx="12" cy="8" r="1.2" fill="currentColor" opacity="0.5"/>
-        </svg>
-      </div>
-      <div class="icon-box" style="background:#1e293b">
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" style="color:white">
-          <path d="M12 3L3 8v8l9 5 9-5V8l-9-5z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
-          <path d="M12 13l9-5M12 13v8M12 13L3 8" stroke="currentColor" stroke-width="1.3" opacity="0.4"/>
-          <circle cx="12" cy="8" r="1.2" fill="currentColor" opacity="0.5"/>
-        </svg>
-      </div>
+<!-- 6. Коробка -->
+<div class="card">
+  <div class="sizes">
+    <div>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="color:#dc2626">
+        <path d="M12 2L3 7v10l9 5 9-5V7l-9-5z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+        <path d="M12 12l9-5M12 12v10M12 12L3 7" stroke="currentColor" stroke-width="1.2" opacity=".3"/>
+        <path d="M7.5 4.5L16.5 9.5" stroke="currentColor" stroke-width="1" opacity=".2"/>
+      </svg>
+      <span class="sz">16</span>
     </div>
-    <div class="name">BoxIcon</div>
-    <div class="desc">Коробка (на паллете)</div>
+    <div>
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" style="color:#dc2626">
+        <path d="M12 2L3 7v10l9 5 9-5V7l-9-5z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+        <path d="M12 12l9-5M12 12v10M12 12L3 7" stroke="currentColor" stroke-width="1.2" opacity=".3"/>
+        <path d="M7.5 4.5L16.5 9.5" stroke="currentColor" stroke-width="1" opacity=".2"/>
+      </svg>
+      <span class="sz">28</span>
+    </div>
+    <div>
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" style="color:#dc2626">
+        <path d="M12 2L3 7v10l9 5 9-5V7l-9-5z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+        <path d="M12 12l9-5M12 12v10M12 12L3 7" stroke="currentColor" stroke-width="1.2" opacity=".3"/>
+        <path d="M7.5 4.5L16.5 9.5" stroke="currentColor" stroke-width="1" opacity=".2"/>
+      </svg>
+      <span class="sz">40</span>
+    </div>
   </div>
+  <div class="colors">
+    <div class="dot" style="background:#fee2e2"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="color:#dc2626"><path d="M12 2L3 7v10l9 5 9-5V7l-9-5z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 12l9-5M12 12v10M12 12L3 7" stroke="currentColor" stroke-width="1.2" opacity=".3"/><path d="M7.5 4.5L16.5 9.5" stroke="currentColor" stroke-width="1" opacity=".2"/></svg></div>
+    <div class="dot" style="background:#fef3c7"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="color:#d97706"><path d="M12 2L3 7v10l9 5 9-5V7l-9-5z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 12l9-5M12 12v10M12 12L3 7" stroke="currentColor" stroke-width="1.2" opacity=".3"/><path d="M7.5 4.5L16.5 9.5" stroke="currentColor" stroke-width="1" opacity=".2"/></svg></div>
+    <div class="dot" style="background:#eef2ff"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="color:#6366f1"><path d="M12 2L3 7v10l9 5 9-5V7l-9-5z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 12l9-5M12 12v10M12 12L3 7" stroke="currentColor" stroke-width="1.2" opacity=".3"/><path d="M7.5 4.5L16.5 9.5" stroke="currentColor" stroke-width="1" opacity=".2"/></svg></div>
+    <div class="dot" style="background:#1e293b"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="color:white"><path d="M12 2L3 7v10l9 5 9-5V7l-9-5z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 12l9-5M12 12v10M12 12L3 7" stroke="currentColor" stroke-width="1.2" opacity=".3"/><path d="M7.5 4.5L16.5 9.5" stroke="currentColor" stroke-width="1" opacity=".2"/></svg></div>
+  </div>
+  <div class="name">Коробка</div>
+  <div class="desc">Box</div>
+</div>
 
-  <div class="card">
-    <div class="icon-row">
-      <div class="icon-box" style="background:#fce7f3">
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" style="color:#db2777">
-          <rect x="4" y="6" width="16" height="12" rx="2" stroke="currentColor" stroke-width="1.8"/>
-          <path d="M4 10h16" stroke="currentColor" stroke-width="1.3"/>
-          <path d="M10 10v8M14 10v8" stroke="currentColor" stroke-width="1" opacity="0.3"/>
-          <path d="M9 6v4M15 6v4" stroke="currentColor" stroke-width="1.2" opacity="0.4"/>
-          <circle cx="12" cy="14" r="1.5" stroke="currentColor" stroke-width="1.2" fill="currentColor" fill-opacity="0.15"/>
-        </svg>
-      </div>
-      <div class="icon-box" style="background:#1e293b">
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" style="color:white">
-          <rect x="4" y="6" width="16" height="12" rx="2" stroke="currentColor" stroke-width="1.8"/>
-          <path d="M4 10h16" stroke="currentColor" stroke-width="1.3"/>
-          <path d="M10 10v8M14 10v8" stroke="currentColor" stroke-width="1" opacity="0.3"/>
-          <path d="M9 6v4M15 6v4" stroke="currentColor" stroke-width="1.2" opacity="0.4"/>
-          <circle cx="12" cy="14" r="1.5" stroke="currentColor" stroke-width="1.2" fill="currentColor" fill-opacity="0.15"/>
-        </svg>
-      </div>
+<!-- 7. Сотрудник -->
+<div class="card">
+  <div class="sizes">
+    <div>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="color:#7c3aed">
+        <circle cx="12" cy="7.5" r="4" stroke="currentColor" stroke-width="1.8"/>
+        <path d="M4 21c0-3.5 3.6-6.5 8-6.5s8 3 8 6.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        <path d="M15 5l1.5 1.5L20 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity=".4"/>
+      </svg>
+      <span class="sz">16</span>
     </div>
-    <div class="name">ShelfBoxIcon</div>
-    <div class="desc">Коробка (на полке)</div>
+    <div>
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" style="color:#7c3aed">
+        <circle cx="12" cy="7.5" r="4" stroke="currentColor" stroke-width="1.8"/>
+        <path d="M4 21c0-3.5 3.6-6.5 8-6.5s8 3 8 6.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        <path d="M15 5l1.5 1.5L20 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity=".4"/>
+      </svg>
+      <span class="sz">28</span>
+    </div>
+    <div>
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" style="color:#7c3aed">
+        <circle cx="12" cy="7.5" r="4" stroke="currentColor" stroke-width="1.8"/>
+        <path d="M4 21c0-3.5 3.6-6.5 8-6.5s8 3 8 6.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        <path d="M15 5l1.5 1.5L20 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity=".4"/>
+      </svg>
+      <span class="sz">40</span>
+    </div>
   </div>
+  <div class="colors">
+    <div class="dot" style="background:#ede9fe"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="color:#7c3aed"><circle cx="12" cy="7.5" r="4" stroke="currentColor" stroke-width="1.8"/><path d="M4 21c0-3.5 3.6-6.5 8-6.5s8 3 8 6.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M15 5l1.5 1.5L20 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity=".4"/></svg></div>
+    <div class="dot" style="background:#dcfce7"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="color:#16a34a"><circle cx="12" cy="7.5" r="4" stroke="currentColor" stroke-width="1.8"/><path d="M4 21c0-3.5 3.6-6.5 8-6.5s8 3 8 6.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M15 5l1.5 1.5L20 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity=".4"/></svg></div>
+    <div class="dot" style="background:#fee2e2"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="color:#dc2626"><circle cx="12" cy="7.5" r="4" stroke="currentColor" stroke-width="1.8"/><path d="M4 21c0-3.5 3.6-6.5 8-6.5s8 3 8 6.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M15 5l1.5 1.5L20 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity=".4"/></svg></div>
+    <div class="dot" style="background:#1e293b"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="color:white"><circle cx="12" cy="7.5" r="4" stroke="currentColor" stroke-width="1.8"/><path d="M4 21c0-3.5 3.6-6.5 8-6.5s8 3 8 6.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M15 5l1.5 1.5L20 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity=".4"/></svg></div>
+  </div>
+  <div class="name">Сотрудник</div>
+  <div class="desc">Employee</div>
+</div>
 
-  <div class="card">
-    <div class="icon-row">
-      <div class="icon-box" style="background:#e0e7ff">
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" style="color:#4f46e5">
-          <path d="M4 7V4h3M20 7V4h-3M4 17v3h3M20 17v3h-3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-          <line x1="7" y1="9" x2="7" y2="15" stroke="currentColor" stroke-width="1.5"/>
-          <line x1="9.5" y1="8" x2="9.5" y2="16" stroke="currentColor" stroke-width="2"/>
-          <line x1="12" y1="9" x2="12" y2="15" stroke="currentColor" stroke-width="1"/>
-          <line x1="14.5" y1="8" x2="14.5" y2="16" stroke="currentColor" stroke-width="2"/>
-          <line x1="17" y1="9" x2="17" y2="15" stroke="currentColor" stroke-width="1.5"/>
-        </svg>
-      </div>
-      <div class="icon-box" style="background:#1e293b">
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" style="color:white">
-          <path d="M4 7V4h3M20 7V4h-3M4 17v3h3M20 17v3h-3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-          <line x1="7" y1="9" x2="7" y2="15" stroke="currentColor" stroke-width="1.5"/>
-          <line x1="9.5" y1="8" x2="9.5" y2="16" stroke="currentColor" stroke-width="2"/>
-          <line x1="12" y1="9" x2="12" y2="15" stroke="currentColor" stroke-width="1"/>
-          <line x1="14.5" y1="8" x2="14.5" y2="16" stroke="currentColor" stroke-width="2"/>
-          <line x1="17" y1="9" x2="17" y2="15" stroke="currentColor" stroke-width="1.5"/>
-        </svg>
-      </div>
+<!-- 8. Товар -->
+<div class="card">
+  <div class="sizes">
+    <div>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="color:#e11d48">
+        <rect x="6" y="2" width="12" height="20" rx="3" stroke="currentColor" stroke-width="1.8"/>
+        <path d="M6 6h12" stroke="currentColor" stroke-width="1.2" opacity=".3"/>
+        <path d="M6 18h12" stroke="currentColor" stroke-width="1.2" opacity=".3"/>
+        <rect x="9" y="9" width="6" height="6" rx="1.5" stroke="currentColor" stroke-width="1.3" fill="currentColor" fill-opacity=".08"/>
+        <circle cx="12" cy="12" r="1.2" fill="currentColor" opacity=".3"/>
+      </svg>
+      <span class="sz">16</span>
     </div>
-    <div class="name">ScanIcon</div>
-    <div class="desc">Сканирование</div>
+    <div>
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" style="color:#e11d48">
+        <rect x="6" y="2" width="12" height="20" rx="3" stroke="currentColor" stroke-width="1.8"/>
+        <path d="M6 6h12" stroke="currentColor" stroke-width="1.2" opacity=".3"/>
+        <path d="M6 18h12" stroke="currentColor" stroke-width="1.2" opacity=".3"/>
+        <rect x="9" y="9" width="6" height="6" rx="1.5" stroke="currentColor" stroke-width="1.3" fill="currentColor" fill-opacity=".08"/>
+        <circle cx="12" cy="12" r="1.2" fill="currentColor" opacity=".3"/>
+      </svg>
+      <span class="sz">28</span>
+    </div>
+    <div>
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" style="color:#e11d48">
+        <rect x="6" y="2" width="12" height="20" rx="3" stroke="currentColor" stroke-width="1.8"/>
+        <path d="M6 6h12" stroke="currentColor" stroke-width="1.2" opacity=".3"/>
+        <path d="M6 18h12" stroke="currentColor" stroke-width="1.2" opacity=".3"/>
+        <rect x="9" y="9" width="6" height="6" rx="1.5" stroke="currentColor" stroke-width="1.3" fill="currentColor" fill-opacity=".08"/>
+        <circle cx="12" cy="12" r="1.2" fill="currentColor" opacity=".3"/>
+      </svg>
+      <span class="sz">40</span>
+    </div>
   </div>
+  <div class="colors">
+    <div class="dot" style="background:#ffe4e6"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="color:#e11d48"><rect x="6" y="2" width="12" height="20" rx="3" stroke="currentColor" stroke-width="1.8"/><path d="M6 6h12" stroke="currentColor" stroke-width="1.2" opacity=".3"/><path d="M6 18h12" stroke="currentColor" stroke-width="1.2" opacity=".3"/><rect x="9" y="9" width="6" height="6" rx="1.5" stroke="currentColor" stroke-width="1.3" fill="currentColor" fill-opacity=".08"/><circle cx="12" cy="12" r="1.2" fill="currentColor" opacity=".3"/></svg></div>
+    <div class="dot" style="background:#eef2ff"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="color:#6366f1"><rect x="6" y="2" width="12" height="20" rx="3" stroke="currentColor" stroke-width="1.8"/><path d="M6 6h12" stroke="currentColor" stroke-width="1.2" opacity=".3"/><path d="M6 18h12" stroke="currentColor" stroke-width="1.2" opacity=".3"/><rect x="9" y="9" width="6" height="6" rx="1.5" stroke="currentColor" stroke-width="1.3" fill="currentColor" fill-opacity=".08"/><circle cx="12" cy="12" r="1.2" fill="currentColor" opacity=".3"/></svg></div>
+    <div class="dot" style="background:#dcfce7"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="color:#16a34a"><rect x="6" y="2" width="12" height="20" rx="3" stroke="currentColor" stroke-width="1.8"/><path d="M6 6h12" stroke="currentColor" stroke-width="1.2" opacity=".3"/><path d="M6 18h12" stroke="currentColor" stroke-width="1.2" opacity=".3"/><rect x="9" y="9" width="6" height="6" rx="1.5" stroke="currentColor" stroke-width="1.3" fill="currentColor" fill-opacity=".08"/><circle cx="12" cy="12" r="1.2" fill="currentColor" opacity=".3"/></svg></div>
+    <div class="dot" style="background:#1e293b"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="color:white"><rect x="6" y="2" width="12" height="20" rx="3" stroke="currentColor" stroke-width="1.8"/><path d="M6 6h12" stroke="currentColor" stroke-width="1.2" opacity=".3"/><path d="M6 18h12" stroke="currentColor" stroke-width="1.2" opacity=".3"/><rect x="9" y="9" width="6" height="6" rx="1.5" stroke="currentColor" stroke-width="1.3" fill="currentColor" fill-opacity=".08"/><circle cx="12" cy="12" r="1.2" fill="currentColor" opacity=".3"/></svg></div>
+  </div>
+  <div class="name">Товар</div>
+  <div class="desc">Product</div>
+</div>
 
-  <div class="card">
-    <div class="icon-row">
-      <div class="icon-box" style="background:#f0fdf4">
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" style="color:#16a34a">
-          <circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="1.8"/>
-          <path d="M4 20c0-3.3 3.6-6 8-6s8 2.7 8 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-          <path d="M14.5 7.5l1.5 1.5 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"/>
-        </svg>
-      </div>
-      <div class="icon-box" style="background:#1e293b">
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" style="color:white">
-          <circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="1.8"/>
-          <path d="M4 20c0-3.3 3.6-6 8-6s8 2.7 8 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-          <path d="M14.5 7.5l1.5 1.5 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"/>
-        </svg>
-      </div>
+<!-- 9. Сканирование -->
+<div class="card">
+  <div class="sizes">
+    <div>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="color:#4f46e5">
+        <path d="M3 7V3h4M21 7V3h-4M3 17v4h4M21 17v4h-4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+        <line x1="8" y1="8" x2="8" y2="16" stroke="currentColor" stroke-width="1.8"/>
+        <line x1="11" y1="7" x2="11" y2="17" stroke="currentColor" stroke-width="2.5"/>
+        <line x1="14" y1="9" x2="14" y2="15" stroke="currentColor" stroke-width="1.2"/>
+        <line x1="17" y1="7" x2="17" y2="17" stroke="currentColor" stroke-width="2"/>
+      </svg>
+      <span class="sz">16</span>
     </div>
-    <div class="name">EmployeeIcon</div>
-    <div class="desc">Сотрудник</div>
+    <div>
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" style="color:#4f46e5">
+        <path d="M3 7V3h4M21 7V3h-4M3 17v4h4M21 17v4h-4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+        <line x1="8" y1="8" x2="8" y2="16" stroke="currentColor" stroke-width="1.8"/>
+        <line x1="11" y1="7" x2="11" y2="17" stroke="currentColor" stroke-width="2.5"/>
+        <line x1="14" y1="9" x2="14" y2="15" stroke="currentColor" stroke-width="1.2"/>
+        <line x1="17" y1="7" x2="17" y2="17" stroke="currentColor" stroke-width="2"/>
+      </svg>
+      <span class="sz">28</span>
+    </div>
+    <div>
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" style="color:#4f46e5">
+        <path d="M3 7V3h4M21 7V3h-4M3 17v4h4M21 17v4h-4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+        <line x1="8" y1="8" x2="8" y2="16" stroke="currentColor" stroke-width="1.8"/>
+        <line x1="11" y1="7" x2="11" y2="17" stroke="currentColor" stroke-width="2.5"/>
+        <line x1="14" y1="9" x2="14" y2="15" stroke="currentColor" stroke-width="1.2"/>
+        <line x1="17" y1="7" x2="17" y2="17" stroke="currentColor" stroke-width="2"/>
+      </svg>
+      <span class="sz">40</span>
+    </div>
   </div>
+  <div class="colors">
+    <div class="dot" style="background:#eef2ff"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="color:#4f46e5"><path d="M3 7V3h4M21 7V3h-4M3 17v4h4M21 17v4h-4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><line x1="8" y1="8" x2="8" y2="16" stroke="currentColor" stroke-width="1.8"/><line x1="11" y1="7" x2="11" y2="17" stroke="currentColor" stroke-width="2.5"/><line x1="14" y1="9" x2="14" y2="15" stroke="currentColor" stroke-width="1.2"/><line x1="17" y1="7" x2="17" y2="17" stroke="currentColor" stroke-width="2"/></svg></div>
+    <div class="dot" style="background:#dcfce7"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="color:#16a34a"><path d="M3 7V3h4M21 7V3h-4M3 17v4h4M21 17v4h-4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><line x1="8" y1="8" x2="8" y2="16" stroke="currentColor" stroke-width="1.8"/><line x1="11" y1="7" x2="11" y2="17" stroke="currentColor" stroke-width="2.5"/><line x1="14" y1="9" x2="14" y2="15" stroke="currentColor" stroke-width="1.2"/><line x1="17" y1="7" x2="17" y2="17" stroke="currentColor" stroke-width="2"/></svg></div>
+    <div class="dot" style="background:#fef3c7"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="color:#d97706"><path d="M3 7V3h4M21 7V3h-4M3 17v4h4M21 17v4h-4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><line x1="8" y1="8" x2="8" y2="16" stroke="currentColor" stroke-width="1.8"/><line x1="11" y1="7" x2="11" y2="17" stroke="currentColor" stroke-width="2.5"/><line x1="14" y1="9" x2="14" y2="15" stroke="currentColor" stroke-width="1.2"/><line x1="17" y1="7" x2="17" y2="17" stroke="currentColor" stroke-width="2"/></svg></div>
+    <div class="dot" style="background:#1e293b"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="color:white"><path d="M3 7V3h4M21 7V3h-4M3 17v4h4M21 17v4h-4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><line x1="8" y1="8" x2="8" y2="16" stroke="currentColor" stroke-width="1.8"/><line x1="11" y1="7" x2="11" y2="17" stroke="currentColor" stroke-width="2.5"/><line x1="14" y1="9" x2="14" y2="15" stroke="currentColor" stroke-width="1.2"/><line x1="17" y1="7" x2="17" y2="17" stroke="currentColor" stroke-width="2"/></svg></div>
+  </div>
+  <div class="name">Сканирование</div>
+  <div class="desc">Scan</div>
+</div>
 
 </div>
 </body>
