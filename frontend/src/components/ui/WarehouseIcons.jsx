@@ -59,16 +59,14 @@ export function ShelfIcon({ size = 20, className = '', style }) {
 export function PalletIcon({ size = 20, className = '', style }) {
   return (
     <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className} style={style}>
-      <rect x="8" y="40" width="4" height="4" rx=".5" fill="#8b6914" stroke="#6b4d0e" strokeWidth=".5"/>
-      <rect x="22" y="40" width="4" height="4" rx=".5" fill="#8b6914" stroke="#6b4d0e" strokeWidth=".5"/>
-      <rect x="36" y="40" width="4" height="4" rx=".5" fill="#8b6914" stroke="#6b4d0e" strokeWidth=".5"/>
-      <rect x="4" y="36" width="40" height="4" rx="1" fill="#c49a40" stroke="#a07820" strokeWidth="1"/>
-      <rect x="6" y="22" width="17" height="14" rx="1.5" fill="#d4a76a" stroke="#b8884a" strokeWidth="1"/>
-      <rect x="25" y="22" width="17" height="14" rx="1.5" fill="#c49558" stroke="#a87a3e" strokeWidth="1"/>
-      <rect x="8" y="8" width="14" height="14" rx="1.5" fill="#d4a76a" stroke="#b8884a" strokeWidth="1"/>
-      <rect x="26" y="8" width="14" height="14" rx="1.5" fill="#c49558" stroke="#a87a3e" strokeWidth="1"/>
-      <line x1="14.5" y1="22" x2="14.5" y2="36" stroke="#b8884a" strokeWidth=".7" opacity=".4"/>
-      <line x1="33.5" y1="22" x2="33.5" y2="36" stroke="#a87a3e" strokeWidth=".7" opacity=".4"/>
+      {/* верхняя доска */}
+      <rect x="3" y="12" width="42" height="4" rx="1" fill="#d4b05a" stroke="#a88520" strokeWidth="1"/>
+      {/* ножки с дырками */}
+      <rect x="6" y="16" width="5" height="10" rx="1" fill="#a07820" stroke="#8a7020" strokeWidth=".6"/>
+      <rect x="21.5" y="16" width="5" height="10" rx="1" fill="#a07820" stroke="#8a7020" strokeWidth=".6"/>
+      <rect x="37" y="16" width="5" height="10" rx="1" fill="#a07820" stroke="#8a7020" strokeWidth=".6"/>
+      {/* нижняя доска */}
+      <rect x="3" y="26" width="42" height="4" rx="1" fill="#d4b05a" stroke="#a88520" strokeWidth="1"/>
     </svg>
   );
 }
@@ -108,14 +106,27 @@ export function BoxIcon({ size = 20, className = '', style }) {
 export function ProductIcon({ size = 20, className = '', style }) {
   return (
     <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className} style={style}>
-      <rect x="14" y="6" width="20" height="36" rx="5" fill="#2da854" stroke="#1e8a42" strokeWidth="1.3"/>
-      <rect x="16" y="4" width="16" height="5" rx="2.5" fill="#1e8a42" stroke="#166632" strokeWidth="1"/>
-      <rect x="16" y="38" width="16" height="4" rx="2" fill="#1e8a42" stroke="#166632" strokeWidth="1"/>
-      <rect x="16" y="14" width="16" height="16" rx="1.5" fill="white" opacity=".85"/>
-      <rect x="18" y="16" width="12" height="2" rx=".5" fill="#1e8a42" opacity=".6"/>
-      <rect x="18" y="20" width="8" height="1.5" rx=".5" fill="#1e8a42" opacity=".3"/>
-      <rect x="18" y="23" width="10" height="1.5" rx=".5" fill="#1e8a42" opacity=".3"/>
-      <path d="M30 10v28" stroke="white" strokeWidth="1.5" opacity=".2" strokeLinecap="round"/>
+      {/* Банка — белый корпус */}
+      <rect x="13" y="7" width="22" height="35" rx="5" fill="#f8f8f6" stroke="#d4d0c8" strokeWidth="1.3"/>
+      {/* Крышка — золотая */}
+      <rect x="15" y="4" width="18" height="6" rx="3" fill="#c9a94e" stroke="#b08d30" strokeWidth="1"/>
+      <rect x="17" y="5.5" width="14" height="2.5" rx="1" fill="#dfc065" opacity=".6"/>
+      {/* Дно — золотое */}
+      <rect x="15" y="39" width="18" height="4" rx="2" fill="#c9a94e" stroke="#b08d30" strokeWidth="1"/>
+      {/* Этикетка */}
+      <rect x="15" y="15" width="18" height="18" rx="1.5" fill="white" stroke="#e8e0c8" strokeWidth=".8"/>
+      {/* Золотая полоска сверху этикетки */}
+      <rect x="15" y="15" width="18" height="3.5" rx="1" fill="#c9a94e" opacity=".8"/>
+      {/* Текст GRA */}
+      <text x="24" y="17.5" textAnchor="middle" fill="white" fontSize="3" fontWeight="800" fontFamily="sans-serif">GRAFLab</text>
+      {/* Текст на этикетке */}
+      <rect x="17" y="21" width="14" height="1.5" rx=".4" fill="#b08d30" opacity=".35"/>
+      <rect x="17" y="24" width="10" height="1.2" rx=".4" fill="#c9a94e" opacity=".25"/>
+      <rect x="17" y="26.5" width="12" height="1.2" rx=".4" fill="#c9a94e" opacity=".2"/>
+      <rect x="17" y="29" width="8" height="1.2" rx=".4" fill="#d4d0c8" opacity=".3"/>
+      {/* Блик на банке */}
+      <path d="M31 10v28" stroke="white" strokeWidth="2" opacity=".35" strokeLinecap="round"/>
+      <path d="M29 12v24" stroke="white" strokeWidth=".8" opacity=".15" strokeLinecap="round"/>
     </svg>
   );
 }

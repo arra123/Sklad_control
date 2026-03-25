@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Паллет — под углом 45°</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', system-ui, sans-serif; background: #f1f5f9; padding: 40px; }
+  h1 { text-align: center; color: #0f172a; font-size: 22px; margin-bottom: 32px; }
+  .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; max-width: 700px; margin: 0 auto; }
+  .card { background: white; border-radius: 16px; padding: 28px 20px 20px; border: 1px solid #e2e8f0; text-align: center; }
+  .card:hover { box-shadow: 0 8px 30px rgba(0,0,0,0.07); }
+  .row { display: flex; justify-content: center; gap: 24px; margin-bottom: 14px; align-items: flex-end; }
+  .bg { width: 80px; height: 80px; border-radius: 18px; display: flex; align-items: center; justify-content: center; }
+  .bg.sm { width: 48px; height: 48px; border-radius: 14px; }
+  .name { font-weight: 700; color: #1e293b; font-size: 14px; margin-bottom: 2px; }
+  .desc { color: #94a3b8; font-size: 11px; }
+</style>
+</head>
+<body>
+<h1>Паллет — изометрия 45° с дырками</h1>
+
+<div class="grid">
+
+<!-- Вариант 1 -->
+<div class="card">
+  <div class="row">
+    <div>
+      <div class="bg" style="background:#f5efe5">
+        <svg width="56" height="56" viewBox="0 0 48 48" fill="none">
+          <!-- верхние доски (3 горизонтальных) -->
+          <path d="M4 14l20-10 20 10" fill="none"/>
+          <!-- верхняя доска 1 -->
+          <path d="M4 12l20-10 20 10v3L24 5 4 15v-3z" fill="#d4b05a" stroke="#a88520" stroke-width=".8" stroke-linejoin="round"/>
+          <!-- верхняя доска 2 -->
+          <path d="M4 19l20-10 20 10v3L24 12 4 22v-3z" fill="#c9a44a" stroke="#a88520" stroke-width=".8" stroke-linejoin="round"/>
+          <!-- верхняя доска 3 -->
+          <path d="M4 26l20-10 20 10v3L24 19 4 29v-3z" fill="#d4b05a" stroke="#a88520" stroke-width=".8" stroke-linejoin="round"/>
+
+          <!-- ножки-кубики (3 штуки, видны в дырках) -->
+          <!-- левая ножка -->
+          <path d="M10 24v8l4-2v-8z" fill="#b89530" stroke="#8a7020" stroke-width=".5"/>
+          <path d="M10 24l4-2 4 2-4 2z" fill="#c9a44a" stroke="#8a7020" stroke-width=".3"/>
+          <!-- центральная ножка -->
+          <path d="M22 18v8l4-2v-8z" fill="#b89530" stroke="#8a7020" stroke-width=".5"/>
+          <path d="M22 18l4-2 4 2-4 2z" fill="#c9a44a" stroke="#8a7020" stroke-width=".3"/>
+          <!-- правая ножка -->
+          <path d="M34 24v8l4-2v-8z" fill="#b89530" stroke="#8a7020" stroke-width=".5"/>
+          <path d="M34 24l4-2 4 2-4 2z" fill="#c9a44a" stroke="#8a7020" stroke-width=".3"/>
+
+          <!-- нижние доски (3 горизонтальных) -->
+          <path d="M4 33l20-10 20 10v3L24 26 4 36v-3z" fill="#c9a44a" stroke="#a88520" stroke-width=".8" stroke-linejoin="round"/>
+          <path d="M4 38l20-10 20 10v3L24 31 4 41v-3z" fill="#d4b05a" stroke="#a88520" stroke-width=".8" stroke-linejoin="round"/>
+          <path d="M4 43l20-10 20 10v2L24 35 4 45v-2z" fill="#c9a44a" stroke="#a88520" stroke-width=".8" stroke-linejoin="round"/>
+        </svg>
+      </div>
+    </div>
+    <div>
+      <div class="bg sm" style="background:#f5efe5">
+        <svg width="32" height="32" viewBox="0 0 48 48" fill="none">
+          <path d="M4 12l20-10 20 10v3L24 5 4 15v-3z" fill="#d4b05a" stroke="#a88520" stroke-width=".8" stroke-linejoin="round"/>
+          <path d="M4 19l20-10 20 10v3L24 12 4 22v-3z" fill="#c9a44a" stroke="#a88520" stroke-width=".8" stroke-linejoin="round"/>
+          <path d="M4 26l20-10 20 10v3L24 19 4 29v-3z" fill="#d4b05a" stroke="#a88520" stroke-width=".8" stroke-linejoin="round"/>
+          <path d="M10 24v8l4-2v-8z" fill="#b89530"/><path d="M22 18v8l4-2v-8z" fill="#b89530"/><path d="M34 24v8l4-2v-8z" fill="#b89530"/>
+          <path d="M4 33l20-10 20 10v3L24 26 4 36v-3z" fill="#c9a44a" stroke="#a88520" stroke-width=".8" stroke-linejoin="round"/>
+          <path d="M4 38l20-10 20 10v3L24 31 4 41v-3z" fill="#d4b05a" stroke="#a88520" stroke-width=".8" stroke-linejoin="round"/>
+          <path d="M4 43l20-10 20 10v2L24 35 4 45v-2z" fill="#c9a44a" stroke="#a88520" stroke-width=".8" stroke-linejoin="round"/>
+        </svg>
+      </div>
+    </div>
+  </div>
+  <div class="name">Вариант 1</div>
+  <div class="desc">Изометрия: верхние доски, ножки в дырках, нижние доски</div>
+</div>
+
+<!-- Вариант 2: Проще -->
+<div class="card">
+  <div class="row">
+    <div>
+      <div class="bg" style="background:#f5efe5">
+        <svg width="56" height="56" viewBox="0 0 48 48" fill="none">
+          <!-- верхняя плоскость — 5 досок -->
+          <path d="M24 4L4 14v2l20-10 20 10v-2L24 4z" fill="#d4b05a" stroke="#a88520" stroke-width=".7" stroke-linejoin="round"/>
+          <path d="M24 7L4 17v2l20-10 20 10v-2L24 7z" fill="#c9a44a" stroke="#a88520" stroke-width=".7" stroke-linejoin="round"/>
+          <path d="M24 10L4 20v2l20-10 20 10v-2L24 10z" fill="#d4b05a" stroke="#a88520" stroke-width=".7" stroke-linejoin="round"/>
+          <path d="M24 13L4 23v2l20-10 20 10v-2L24 13z" fill="#c9a44a" stroke="#a88520" stroke-width=".7" stroke-linejoin="round"/>
+          <path d="M24 16L4 26v2l20-10 20 10v-2L24 16z" fill="#d4b05a" stroke="#a88520" stroke-width=".7" stroke-linejoin="round"/>
+
+          <!-- боковая стенка (правая) — видна толщина -->
+          <path d="M44 16v14l-20 10v-14z" fill="#b89530" stroke="#8a7020" stroke-width=".6" stroke-linejoin="round"/>
+
+          <!-- нижние доски (видны через дырки) -->
+          <path d="M24 34L4 44v-2l20-10 20 10v2L24 34z" fill="#c9a44a" stroke="#a88520" stroke-width=".6" stroke-linejoin="round"/>
+          <path d="M24 37L4 47v-2l20-10 20 10v2L24 37z" fill="#d4b05a" stroke="#a88520" stroke-width=".6" stroke-linejoin="round"/>
+
+          <!-- ножки (3 кубика видны сбоку) -->
+          <rect x="38" y="24" width="4" height="8" rx=".5" fill="#a88520" stroke="#8a7020" stroke-width=".5"/>
+          <rect x="30" y="28" width="4" height="8" rx=".5" fill="#a88520" stroke="#8a7020" stroke-width=".5"/>
+          <rect x="22" y="32" width="4" height="8" rx=".5" fill="#a88520" stroke="#8a7020" stroke-width=".5"/>
+
+          <!-- дырки/просветы между верхом и низом -->
+          <path d="M24 28l-18 9" stroke="#f5efe5" stroke-width="3" opacity=".4"/>
+          <path d="M30 25l-18 9" stroke="#f5efe5" stroke-width="2" opacity=".3"/>
+        </svg>
+      </div>
+    </div>
+    <div>
+      <div class="bg sm" style="background:#f5efe5">
+        <svg width="32" height="32" viewBox="0 0 48 48" fill="none">
+          <path d="M24 4L4 14v2l20-10 20 10v-2L24 4z" fill="#d4b05a" stroke="#a88520" stroke-width=".7" stroke-linejoin="round"/>
+          <path d="M24 7L4 17v2l20-10 20 10v-2L24 7z" fill="#c9a44a" stroke="#a88520" stroke-width=".7" stroke-linejoin="round"/>
+          <path d="M24 10L4 20v2l20-10 20 10v-2L24 10z" fill="#d4b05a" stroke="#a88520" stroke-width=".7" stroke-linejoin="round"/>
+          <path d="M24 13L4 23v2l20-10 20 10v-2L24 13z" fill="#c9a44a" stroke="#a88520" stroke-width=".7" stroke-linejoin="round"/>
+          <path d="M24 16L4 26v2l20-10 20 10v-2L24 16z" fill="#d4b05a" stroke="#a88520" stroke-width=".7" stroke-linejoin="round"/>
+          <path d="M44 16v14l-20 10v-14z" fill="#b89530" stroke="#8a7020" stroke-width=".6" stroke-linejoin="round"/>
+          <rect x="38" y="24" width="4" height="8" rx=".5" fill="#a88520"/><rect x="30" y="28" width="4" height="8" rx=".5" fill="#a88520"/><rect x="22" y="32" width="4" height="8" rx=".5" fill="#a88520"/>
+        </svg>
+      </div>
+    </div>
+  </div>
+  <div class="name">Вариант 2</div>
+  <div class="desc">Изометрия с видимой толщиной и ножками сбоку</div>
+</div>
+
+</div>
+</body>
+</html>

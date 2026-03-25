@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Полка и Паллет — новые варианты</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', system-ui, sans-serif; background: #f1f5f9; padding: 40px; }
+  h1 { text-align: center; color: #0f172a; font-size: 22px; margin-bottom: 8px; }
+  .sub { text-align: center; color: #94a3b8; font-size: 13px; margin-bottom: 32px; }
+  .section { margin-bottom: 40px; }
+  .section h2 { color: #475569; font-size: 16px; margin-bottom: 16px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; max-width: 900px; margin: 0 auto; }
+  .card { background: white; border-radius: 16px; padding: 24px 16px 16px; border: 1px solid #e2e8f0; text-align: center; }
+  .card:hover { box-shadow: 0 8px 30px rgba(0,0,0,0.07); }
+  .row { display: flex; justify-content: center; gap: 20px; margin-bottom: 14px; align-items: flex-end; }
+  .bg { width: 64px; height: 64px; border-radius: 16px; display: flex; align-items: center; justify-content: center; }
+  .bg.sm { width: 44px; height: 44px; border-radius: 12px; }
+  .name { font-weight: 700; color: #1e293b; font-size: 14px; margin-bottom: 2px; }
+  .desc { color: #94a3b8; font-size: 11px; }
+  .old { opacity: .4; }
+</style>
+</head>
+<body>
+<h1>Полка и Паллет — переработка</h1>
+<p class="sub">Новые варианты + старые для сравнения</p>
+
+<!-- ПОЛКА -->
+<div class="section">
+<h2>Полка (Shelf)</h2>
+<div class="grid">
+
+<!-- Старая -->
+<div class="card old">
+  <div class="row">
+    <div>
+      <div class="bg" style="background:#e8f0e8">
+        <svg width="40" height="40" viewBox="0 0 48 48" fill="none">
+          <rect x="3" y="26" width="42" height="3.5" rx="1" fill="#a0a0a0" stroke="#7a7a7a" stroke-width="1"/>
+          <path d="M7 29.5V44M41 29.5V44" stroke="#8a8a8a" stroke-width="2.5" stroke-linecap="round"/>
+          <rect x="5.5" y="43" width="3" height="2" rx=".5" fill="#6b6b6b"/>
+          <rect x="39.5" y="43" width="3" height="2" rx=".5" fill="#6b6b6b"/>
+          <rect x="6" y="12" width="7" height="14" rx="2.5" fill="#5b9bd5" stroke="#4080b8" stroke-width=".8"/>
+          <rect x="15" y="14" width="6" height="12" rx="2" fill="#e87070" stroke="#c44" stroke-width=".8"/>
+          <rect x="23" y="10" width="9" height="16" rx="1.5" fill="#d4a76a" stroke="#b8884a" stroke-width=".8"/>
+          <rect x="34" y="16" width="6" height="10" rx="1.5" fill="#7bc47b" stroke="#5a9a5a" stroke-width=".8"/>
+        </svg>
+      </div>
+    </div>
+  </div>
+  <div class="name">Старая полка</div>
+  <div class="desc">Разноцветные предметы</div>
+</div>
+
+<!-- Новая 1: Горизонтальная полка с одноцветными коробками -->
+<div class="card">
+  <div class="row">
+    <div>
+      <div class="bg" style="background:#eef0f5">
+        <svg width="40" height="40" viewBox="0 0 48 48" fill="none">
+          <!-- полка доска -->
+          <rect x="2" y="24" width="44" height="3" rx=".8" fill="#9a9a9a" stroke="#7a7a7a" stroke-width="1"/>
+          <!-- блик на полке -->
+          <rect x="2" y="24" width="44" height="1.2" rx=".5" fill="#b5b5b5" opacity=".5"/>
+          <!-- кронштейны -->
+          <path d="M6 27v4l-2 2" stroke="#7a7a7a" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M42 27v4l2 2" stroke="#7a7a7a" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <!-- стена (пунктир) -->
+          <line x1="2" y1="8" x2="2" y2="36" stroke="#d0d0d0" stroke-width="1" stroke-dasharray="2 2"/>
+          <line x1="46" y1="8" x2="46" y2="36" stroke="#d0d0d0" stroke-width="1" stroke-dasharray="2 2"/>
+          <!-- коробки на полке (все одного цвета — картонные) -->
+          <rect x="5" y="10" width="9" height="14" rx="1.5" fill="#d4a76a" stroke="#b8884a" stroke-width=".8"/>
+          <line x1="9.5" y1="10" x2="9.5" y2="24" stroke="#b8884a" stroke-width=".5" opacity=".3"/>
+          <rect x="16" y="13" width="7" height="11" rx="1.2" fill="#c9985a" stroke="#a87a3e" stroke-width=".8"/>
+          <line x1="19.5" y1="13" x2="19.5" y2="24" stroke="#a87a3e" stroke-width=".5" opacity=".3"/>
+          <rect x="25" y="8" width="10" height="16" rx="1.5" fill="#d4a76a" stroke="#b8884a" stroke-width=".8"/>
+          <line x1="30" y1="8" x2="30" y2="24" stroke="#b8884a" stroke-width=".5" opacity=".3"/>
+          <rect x="37" y="15" width="6" height="9" rx="1" fill="#c9985a" stroke="#a87a3e" stroke-width=".8"/>
+        </svg>
+      </div>
+    </div>
+    <div>
+      <div class="bg sm" style="background:#eef0f5">
+        <svg width="28" height="28" viewBox="0 0 48 48" fill="none">
+          <rect x="2" y="24" width="44" height="3" rx=".8" fill="#9a9a9a" stroke="#7a7a7a" stroke-width="1"/>
+          <path d="M6 27v4l-2 2" stroke="#7a7a7a" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M42 27v4l2 2" stroke="#7a7a7a" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <rect x="5" y="10" width="9" height="14" rx="1.5" fill="#d4a76a" stroke="#b8884a" stroke-width=".8"/>
+          <rect x="16" y="13" width="7" height="11" rx="1.2" fill="#c9985a" stroke="#a87a3e" stroke-width=".8"/>
+          <rect x="25" y="8" width="10" height="16" rx="1.5" fill="#d4a76a" stroke="#b8884a" stroke-width=".8"/>
+          <rect x="37" y="15" width="6" height="9" rx="1" fill="#c9985a" stroke="#a87a3e" stroke-width=".8"/>
+        </svg>
+      </div>
+    </div>
+  </div>
+  <div class="name">Полка v2</div>
+  <div class="desc">Металлическая полка + картонные коробки одного цвета</div>
+</div>
+
+<!-- Новая 2: Полка с банками GRAFLab -->
+<div class="card">
+  <div class="row">
+    <div>
+      <div class="bg" style="background:#eef0f5">
+        <svg width="40" height="40" viewBox="0 0 48 48" fill="none">
+          <!-- полка -->
+          <rect x="2" y="26" width="44" height="3" rx=".8" fill="#9a9a9a" stroke="#7a7a7a" stroke-width="1"/>
+          <rect x="2" y="26" width="44" height="1.2" rx=".5" fill="#b5b5b5" opacity=".5"/>
+          <!-- кронштейны -->
+          <path d="M6 29v5l-2 2" stroke="#7a7a7a" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M42 29v5l2 2" stroke="#7a7a7a" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <!-- банка 1 -->
+          <rect x="5" y="10" width="10" height="16" rx="3" fill="#f8f8f6" stroke="#d4d0c8" stroke-width=".8"/>
+          <rect x="6.5" y="8" width="7" height="3" rx="1.5" fill="#c9a94e" stroke="#b08d30" stroke-width=".6"/>
+          <rect x="6.5" y="14" width="7" height="7" rx=".8" fill="white" stroke="#e8e0c8" stroke-width=".5"/>
+          <rect x="6.5" y="14" width="7" height="1.8" rx=".4" fill="#c9a94e" opacity=".7"/>
+          <!-- банка 2 -->
+          <rect x="17" y="12" width="8" height="14" rx="2.5" fill="#f8f8f6" stroke="#d4d0c8" stroke-width=".8"/>
+          <rect x="18.5" y="10" width="5" height="3" rx="1.2" fill="#c9a94e" stroke="#b08d30" stroke-width=".6"/>
+          <rect x="18.5" y="16" width="5" height="5" rx=".6" fill="white" stroke="#e8e0c8" stroke-width=".5"/>
+          <rect x="18.5" y="16" width="5" height="1.5" rx=".4" fill="#c9a94e" opacity=".7"/>
+          <!-- банка 3 (большая) -->
+          <rect x="27" y="8" width="11" height="18" rx="3" fill="#f8f8f6" stroke="#d4d0c8" stroke-width=".8"/>
+          <rect x="28.5" y="6" width="8" height="3.5" rx="1.5" fill="#c9a94e" stroke="#b08d30" stroke-width=".6"/>
+          <rect x="28.5" y="13" width="8" height="8" rx=".8" fill="white" stroke="#e8e0c8" stroke-width=".5"/>
+          <rect x="28.5" y="13" width="8" height="2" rx=".4" fill="#c9a94e" opacity=".7"/>
+          <!-- банка 4 (маленькая) -->
+          <rect x="40" y="16" width="5" height="10" rx="1.5" fill="#f8f8f6" stroke="#d4d0c8" stroke-width=".8"/>
+          <rect x="40.5" y="14.5" width="4" height="2.5" rx="1" fill="#c9a94e" stroke="#b08d30" stroke-width=".5"/>
+        </svg>
+      </div>
+    </div>
+    <div>
+      <div class="bg sm" style="background:#eef0f5">
+        <svg width="28" height="28" viewBox="0 0 48 48" fill="none">
+          <rect x="2" y="26" width="44" height="3" rx=".8" fill="#9a9a9a" stroke="#7a7a7a" stroke-width="1"/>
+          <path d="M6 29v5l-2 2" stroke="#7a7a7a" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M42 29v5l2 2" stroke="#7a7a7a" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <rect x="5" y="10" width="10" height="16" rx="3" fill="#f8f8f6" stroke="#d4d0c8" stroke-width=".8"/>
+          <rect x="6.5" y="8" width="7" height="3" rx="1.5" fill="#c9a94e"/>
+          <rect x="17" y="12" width="8" height="14" rx="2.5" fill="#f8f8f6" stroke="#d4d0c8" stroke-width=".8"/>
+          <rect x="18.5" y="10" width="5" height="3" rx="1.2" fill="#c9a94e"/>
+          <rect x="27" y="8" width="11" height="18" rx="3" fill="#f8f8f6" stroke="#d4d0c8" stroke-width=".8"/>
+          <rect x="28.5" y="6" width="8" height="3.5" rx="1.5" fill="#c9a94e"/>
+          <rect x="40" y="16" width="5" height="10" rx="1.5" fill="#f8f8f6" stroke="#d4d0c8" stroke-width=".8"/>
+          <rect x="40.5" y="14.5" width="4" height="2.5" rx="1" fill="#c9a94e"/>
+        </svg>
+      </div>
+    </div>
+  </div>
+  <div class="name">Полка v3</div>
+  <div class="desc">Металлическая полка с банками GRAFLab</div>
+</div>
+
+</div>
+</div>
+
+<!-- ПАЛЛЕТ -->
+<div class="section">
+<h2>Паллет (Pallet)</h2>
+<div class="grid">
+
+<!-- Старый -->
+<div class="card old">
+  <div class="row">
+    <div>
+      <div class="bg" style="background:#f5efe5">
+        <svg width="40" height="40" viewBox="0 0 48 48" fill="none">
+          <rect x="8" y="40" width="4" height="4" rx=".5" fill="#8b6914" stroke="#6b4d0e" stroke-width=".5"/>
+          <rect x="22" y="40" width="4" height="4" rx=".5" fill="#8b6914" stroke="#6b4d0e" stroke-width=".5"/>
+          <rect x="36" y="40" width="4" height="4" rx=".5" fill="#8b6914" stroke="#6b4d0e" stroke-width=".5"/>
+          <rect x="4" y="36" width="40" height="4" rx="1" fill="#c49a40" stroke="#a07820" stroke-width="1"/>
+          <rect x="6" y="22" width="17" height="14" rx="1.5" fill="#d4a76a" stroke="#b8884a" stroke-width="1"/>
+          <rect x="25" y="22" width="17" height="14" rx="1.5" fill="#c49558" stroke="#a87a3e" stroke-width="1"/>
+          <rect x="8" y="8" width="14" height="14" rx="1.5" fill="#d4a76a" stroke="#b8884a" stroke-width="1"/>
+          <rect x="26" y="8" width="14" height="14" rx="1.5" fill="#c49558" stroke="#a87a3e" stroke-width="1"/>
+        </svg>
+      </div>
+    </div>
+  </div>
+  <div class="name">Старый паллет</div>
+  <div class="desc">Похож на ряд</div>
+</div>
+
+<!-- Новый 1: Вид сверху-сбоку (изометрия) -->
+<div class="card">
+  <div class="row">
+    <div>
+      <div class="bg" style="background:#f5efe5">
+        <svg width="40" height="40" viewBox="0 0 48 48" fill="none">
+          <!-- поддон вид сбоку -->
+          <rect x="4" y="38" width="40" height="4" rx="1" fill="#c49a40" stroke="#a07820" stroke-width="1.2"/>
+          <!-- доски поддона -->
+          <line x1="4" y1="39.5" x2="44" y2="39.5" stroke="#a07820" stroke-width=".5" opacity=".3"/>
+          <!-- ножки -->
+          <rect x="8" y="42" width="5" height="3.5" rx=".8" fill="#a07820" stroke="#8b6914" stroke-width=".6"/>
+          <rect x="21.5" y="42" width="5" height="3.5" rx=".8" fill="#a07820" stroke="#8b6914" stroke-width=".6"/>
+          <rect x="35" y="42" width="5" height="3.5" rx=".8" fill="#a07820" stroke="#8b6914" stroke-width=".6"/>
+          <!-- одна большая коробка на поддоне -->
+          <rect x="6" y="12" width="36" height="26" rx="2" fill="#d4a76a" stroke="#b8884a" stroke-width="1.3"/>
+          <!-- створки коробки сверху -->
+          <path d="M6 12l18-6 18 6" fill="#e0be80" stroke="#b8884a" stroke-width="1" stroke-linejoin="round"/>
+          <!-- центральный шов -->
+          <line x1="24" y1="6" x2="24" y2="12" stroke="#b8884a" stroke-width="1"/>
+          <!-- скотч -->
+          <line x1="24" y1="12" x2="24" y2="30" stroke="#e8d8a0" stroke-width="2.5" opacity=".5"/>
+          <path d="M16 9l8 3 8-3" stroke="#e8d8a0" stroke-width="2" stroke-linecap="round" opacity=".6"/>
+          <!-- этикетка -->
+          <rect x="14" y="20" width="12" height="8" rx=".8" fill="white" opacity=".65"/>
+          <rect x="15.5" y="22" width="9" height="1.2" rx=".3" fill="#b8884a" opacity=".3"/>
+          <rect x="15.5" y="24.5" width="6" height="1" rx=".3" fill="#b8884a" opacity=".2"/>
+        </svg>
+      </div>
+    </div>
+    <div>
+      <div class="bg sm" style="background:#f5efe5">
+        <svg width="28" height="28" viewBox="0 0 48 48" fill="none">
+          <rect x="4" y="38" width="40" height="4" rx="1" fill="#c49a40" stroke="#a07820" stroke-width="1.2"/>
+          <rect x="8" y="42" width="5" height="3.5" rx=".8" fill="#a07820"/><rect x="21.5" y="42" width="5" height="3.5" rx=".8" fill="#a07820"/><rect x="35" y="42" width="5" height="3.5" rx=".8" fill="#a07820"/>
+          <rect x="6" y="12" width="36" height="26" rx="2" fill="#d4a76a" stroke="#b8884a" stroke-width="1.3"/>
+          <path d="M6 12l18-6 18 6" fill="#e0be80" stroke="#b8884a" stroke-width="1" stroke-linejoin="round"/>
+          <line x1="24" y1="12" x2="24" y2="30" stroke="#e8d8a0" stroke-width="2.5" opacity=".5"/>
+          <path d="M16 9l8 3 8-3" stroke="#e8d8a0" stroke-width="2" stroke-linecap="round" opacity=".6"/>
+        </svg>
+      </div>
+    </div>
+  </div>
+  <div class="name">Паллет v2</div>
+  <div class="desc">Деревянный поддон + одна большая коробка со скотчем</div>
+</div>
+
+<!-- Новый 2: Обёрнутый стрейчем -->
+<div class="card">
+  <div class="row">
+    <div>
+      <div class="bg" style="background:#f5efe5">
+        <svg width="40" height="40" viewBox="0 0 48 48" fill="none">
+          <!-- поддон -->
+          <rect x="4" y="38" width="40" height="4" rx="1" fill="#c49a40" stroke="#a07820" stroke-width="1.2"/>
+          <rect x="8" y="42" width="5" height="3.5" rx=".8" fill="#a07820" stroke="#8b6914" stroke-width=".6"/>
+          <rect x="21.5" y="42" width="5" height="3.5" rx=".8" fill="#a07820" stroke="#8b6914" stroke-width=".6"/>
+          <rect x="35" y="42" width="5" height="3.5" rx=".8" fill="#a07820" stroke="#8b6914" stroke-width=".6"/>
+          <!-- коробки (виднеются сквозь плёнку) -->
+          <rect x="7" y="20" width="16" height="18" rx="1" fill="#d4a76a" opacity=".5" stroke="#b8884a" stroke-width=".6"/>
+          <rect x="25" y="20" width="16" height="18" rx="1" fill="#c49558" opacity=".5" stroke="#a87a3e" stroke-width=".6"/>
+          <rect x="9" y="6" width="13" height="14" rx="1" fill="#d4a76a" opacity=".5" stroke="#b8884a" stroke-width=".6"/>
+          <rect x="26" y="6" width="13" height="14" rx="1" fill="#c49558" opacity=".5" stroke="#a87a3e" stroke-width=".6"/>
+          <!-- стрейч-плёнка (полупрозрачные горизонтальные полосы) -->
+          <rect x="5" y="8" width="38" height="30" rx="2" fill="none" stroke="#88b8e8" stroke-width="1.5" opacity=".35"/>
+          <line x1="5" y1="14" x2="43" y2="14" stroke="#88b8e8" stroke-width="2" opacity=".2"/>
+          <line x1="5" y1="22" x2="43" y2="22" stroke="#88b8e8" stroke-width="2" opacity=".25"/>
+          <line x1="5" y1="30" x2="43" y2="30" stroke="#88b8e8" stroke-width="2" opacity=".2"/>
+          <!-- блик плёнки -->
+          <path d="M40 10v26" stroke="white" stroke-width="2" opacity=".2" stroke-linecap="round"/>
+        </svg>
+      </div>
+    </div>
+    <div>
+      <div class="bg sm" style="background:#f5efe5">
+        <svg width="28" height="28" viewBox="0 0 48 48" fill="none">
+          <rect x="4" y="38" width="40" height="4" rx="1" fill="#c49a40" stroke="#a07820" stroke-width="1.2"/>
+          <rect x="8" y="42" width="5" height="3.5" rx=".8" fill="#a07820"/><rect x="21.5" y="42" width="5" height="3.5" rx=".8" fill="#a07820"/><rect x="35" y="42" width="5" height="3.5" rx=".8" fill="#a07820"/>
+          <rect x="7" y="20" width="16" height="18" rx="1" fill="#d4a76a" opacity=".5"/><rect x="25" y="20" width="16" height="18" rx="1" fill="#c49558" opacity=".5"/>
+          <rect x="9" y="6" width="13" height="14" rx="1" fill="#d4a76a" opacity=".5"/><rect x="26" y="6" width="13" height="14" rx="1" fill="#c49558" opacity=".5"/>
+          <rect x="5" y="8" width="38" height="30" rx="2" fill="none" stroke="#88b8e8" stroke-width="1.5" opacity=".35"/>
+          <line x1="5" y1="14" x2="43" y2="14" stroke="#88b8e8" stroke-width="2" opacity=".2"/>
+          <line x1="5" y1="22" x2="43" y2="22" stroke="#88b8e8" stroke-width="2" opacity=".25"/>
+          <line x1="5" y1="30" x2="43" y2="30" stroke="#88b8e8" stroke-width="2" opacity=".2"/>
+        </svg>
+      </div>
+    </div>
+  </div>
+  <div class="name">Паллет v3</div>
+  <div class="desc">Поддон + коробки 2x2 обёрнутые стрейч-плёнкой</div>
+</div>
+
+</div>
+</div>
+
+</body>
+</html>
