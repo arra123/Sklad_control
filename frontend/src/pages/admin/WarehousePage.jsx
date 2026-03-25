@@ -6,7 +6,7 @@ import {
   Warehouse, Plus, Pencil, Trash2, Layers, Package, Search,
   ChevronRight, ChevronLeft, ArrowLeft, Copy, Check, X, Printer, Box, ArrowUp, ArrowDown
 } from 'lucide-react';
-import { WarehouseIcon, RackIcon, ShelfIcon, PalletIcon, RowIcon, BoxIcon, ProductIcon } from '../../components/ui/WarehouseIcons';
+import { WarehouseIcon, RackIcon, ShelfIcon, PalletIcon, RowIcon, BoxIcon, ProductIcon, RackBadge, RowBadge } from '../../components/ui/WarehouseIcons';
 import api from '../../api/client';
 import FBSVisualView from '../../components/visual/FBSVisualView';
 import FBOVisualView from '../../components/visual/FBOVisualView';
@@ -2368,10 +2368,7 @@ function PalletCardsView({ rows, onDrillRow, onDrillPallet }) {
             style={{ borderTop: `3px solid ${c.dot}` }}>
             <div className="p-4 pb-3 cursor-pointer" onClick={() => onDrillRow(row)}>
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                  style={{ background: c.bg }}>
-                  <span className="text-white font-black text-base">{row.number}</span>
-                </div>
+                <RowBadge number={row.number} size={40} color={c.bg} />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="font-bold text-gray-900 dark:text-white">{row.name}</span>
@@ -2563,10 +2560,7 @@ function FBORowListView({ warehouse, initialRowId, initialPalletId, initialBoxId
                   onClick={() => handleDrillRow(row)}>
                   <div className="p-4">
                     <div className="flex items-start gap-3">
-                      <div className="flex-shrink-0 w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm"
-                        style={{ background: c.bg }}>
-                        <span className="text-white font-black text-lg leading-none">{row.number}</span>
-                      </div>
+                      <RowBadge number={row.number} size={48} color={c.bg} />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <span className="text-base font-bold text-gray-900 dark:text-white">{row.name}</span>
@@ -3229,10 +3223,7 @@ function ShelfCardsView({ warehouse, racks, onDrillRack, onDrillShelf }) {
               {/* Header */}
               <div className="p-4 pb-3 cursor-pointer" onClick={() => onDrillRack(rack)}>
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                    style={{ background: c.bg }}>
-                    <span className="text-white font-black text-base">{num}</span>
-                  </div>
+                  <RackBadge number={num} size={40} color={c.bg} />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="font-bold text-gray-900 dark:text-white">{rack.name}</span>
@@ -3539,10 +3530,7 @@ function WarehouseContent({ warehouse, initialRackId, initialShelfId, initialRow
                       onClick={() => handleDrillRack(rack)}>
                       <div className="p-4">
                         <div className="flex items-start gap-3">
-                          <div className="flex-shrink-0 w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm"
-                            style={{ background: c.bg }}>
-                            <span className="text-white font-black text-lg leading-none">{num}</span>
-                          </div>
+                          <RackBadge number={num} size={48} color={c.bg} />
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
                               <span className="text-base font-bold text-gray-900 dark:text-white">{rack.name}</span>

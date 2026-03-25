@@ -37,21 +37,20 @@ export function RackIcon({ size = 20, className = '', style }) {
 export function ShelfIcon({ size = 20, className = '', style }) {
   return (
     <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className} style={style}>
-      {/* полка */}
-      <rect x="3" y="26" width="42" height="3.5" rx="1" fill="#a0a0a0" stroke="#7a7a7a" strokeWidth="1"/>
-      {/* ножки */}
-      <path d="M7 29.5V44M41 29.5V44" stroke="#8a8a8a" strokeWidth="2.5" strokeLinecap="round"/>
-      <rect x="5.5" y="43" width="3" height="2" rx=".5" fill="#6b6b6b"/>
-      <rect x="39.5" y="43" width="3" height="2" rx=".5" fill="#6b6b6b"/>
-      {/* товары на полке */}
-      <rect x="6" y="12" width="7" height="14" rx="2.5" fill="#5b9bd5" stroke="#4080b8" strokeWidth=".8"/>
-      <rect x="7.5" y="16" width="4" height="4" rx=".5" fill="white" opacity=".6"/>
-      <rect x="15" y="14" width="6" height="12" rx="2" fill="#e87070" stroke="#c44" strokeWidth=".8"/>
-      <rect x="16.2" y="17" width="3.5" height="3.5" rx=".5" fill="white" opacity=".6"/>
-      <rect x="23" y="10" width="9" height="16" rx="1.5" fill="#d4a76a" stroke="#b8884a" strokeWidth=".8"/>
-      <line x1="27.5" y1="10" x2="27.5" y2="26" stroke="#b8884a" strokeWidth=".6" opacity=".4"/>
-      <rect x="34" y="16" width="6" height="10" rx="1.5" fill="#7bc47b" stroke="#5a9a5a" strokeWidth=".8"/>
-      <rect x="35.2" y="18.5" width="3.5" height="3" rx=".5" fill="white" opacity=".5"/>
+      {/* полка доска */}
+      <rect x="2" y="24" width="44" height="3" rx=".8" fill="#9a9a9a" stroke="#7a7a7a" strokeWidth="1"/>
+      <rect x="2" y="24" width="44" height="1.2" rx=".5" fill="#b5b5b5" opacity=".5"/>
+      {/* кронштейны */}
+      <path d="M6 27v4l-2 2" stroke="#7a7a7a" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M42 27v4l2 2" stroke="#7a7a7a" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+      {/* коробки на полке — одного цвета */}
+      <rect x="5" y="10" width="9" height="14" rx="1.5" fill="#d4a76a" stroke="#b8884a" strokeWidth=".8"/>
+      <line x1="9.5" y1="10" x2="9.5" y2="24" stroke="#b8884a" strokeWidth=".5" opacity=".3"/>
+      <rect x="16" y="13" width="7" height="11" rx="1.2" fill="#c9985a" stroke="#a87a3e" strokeWidth=".8"/>
+      <line x1="19.5" y1="13" x2="19.5" y2="24" stroke="#a87a3e" strokeWidth=".5" opacity=".3"/>
+      <rect x="25" y="8" width="10" height="16" rx="1.5" fill="#d4a76a" stroke="#b8884a" strokeWidth=".8"/>
+      <line x1="30" y1="8" x2="30" y2="24" stroke="#b8884a" strokeWidth=".5" opacity=".3"/>
+      <rect x="37" y="15" width="6" height="9" rx="1" fill="#c9985a" stroke="#a87a3e" strokeWidth=".8"/>
     </svg>
   );
 }
@@ -194,6 +193,37 @@ export function BundleIcon({ size = 20, className = '', style }) {
       <circle cx="42" cy="8" r="6" fill="#c9a94e" stroke="#b08d30" strokeWidth=".8"/>
       <text x="42" y="10" textAnchor="middle" fill="white" fontSize="6" fontWeight="800" fontFamily="sans-serif">3</text>
     </svg>
+  );
+}
+
+// Numbered icon badge — icon with number overlay
+export function RackBadge({ number, size = 40, color = '#6366f1' }) {
+  return (
+    <div style={{ width: size, height: size, position: 'relative', flexShrink: 0 }}>
+      <RackIcon size={size} />
+      <div style={{
+        position: 'absolute', bottom: -2, right: -2,
+        width: size * 0.45, height: size * 0.45, borderRadius: '50%',
+        background: color, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: size * 0.25, fontWeight: 800, color: 'white', lineHeight: 1,
+        border: '2px solid white',
+      }}>{number}</div>
+    </div>
+  );
+}
+
+export function RowBadge({ number, size = 40, color = '#0891b2' }) {
+  return (
+    <div style={{ width: size, height: size, position: 'relative', flexShrink: 0 }}>
+      <RowIcon size={size} />
+      <div style={{
+        position: 'absolute', bottom: -2, right: -2,
+        width: size * 0.45, height: size * 0.45, borderRadius: '50%',
+        background: color, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: size * 0.25, fontWeight: 800, color: 'white', lineHeight: 1,
+        border: '2px solid white',
+      }}>{number}</div>
+    </div>
   );
 }
 
