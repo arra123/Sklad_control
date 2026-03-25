@@ -49,7 +49,7 @@ function StatCard({ icon: Icon, label, value, hint, tone = 'primary' }) {
       </div>
       <div className="min-w-0">
         <p className="text-xs text-gray-400">{label}</p>
-        <p className="text-xl font-bold text-gray-900 mt-0.5 break-words">{value}</p>
+        <p className="text-lg font-bold text-gray-900 mt-0.5 whitespace-nowrap">{value}</p>
         {hint ? <p className="text-xs text-gray-400 mt-0.5">{hint}</p> : null}
       </div>
     </div>
@@ -423,7 +423,7 @@ export default function EarningsPage() {
               </div>
             ) : (
               <>
-                <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-5">
+                <div className="grid grid-cols-1 2xl:grid-cols-[minmax(0,1fr)_320px] gap-5">
                   <div className="card p-5">
                     {employeeLoading && !employeeDetails ? (
                       <div className="flex items-center justify-center h-32"><Spinner size="md" /></div>
@@ -437,7 +437,7 @@ export default function EarningsPage() {
                           <Button onClick={() => setAdjustModalOpen(true)}>Изменить баланс</Button>
                         </div>
 
-                        <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+                        <div className="grid grid-cols-2 gap-3">
                           <StatCard icon={BarChart3} label="Текущий баланс" value={`${fmtGra(employeeDetails?.employee?.current_balance ?? selectedEmployee.current_balance)} GRA`} tone="primary" />
                           <StatCard icon={ScanLine} label="Оплаченных сканов" value={fmtGra(employeeDetails?.employee?.rewarded_scans || 0)} tone="green" />
                           <StatCard icon={ClipboardList} label="Заработано всего" value={`${fmtGra(employeeDetails?.employee?.total_awarded || 0)} GRA`} tone="blue" />
@@ -474,7 +474,7 @@ export default function EarningsPage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-5">
+                <div className="grid grid-cols-1 2xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-5">
                   <div className="card overflow-hidden">
                     <div className="px-5 py-4 border-b border-gray-50">
                       <h3 className="font-semibold text-gray-900">Задачи сотрудника</h3>
