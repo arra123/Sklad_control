@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { BarChart3, ChevronRight, Clock, CheckCircle2, AlertTriangle, Search } from 'lucide-react';
-import { WarehouseIcon, RackIcon, ShelfIcon, PalletIcon, RowIcon, BoxIcon, ProductIcon } from '../../components/ui/WarehouseIcons';
+import { WarehouseIcon, RackIcon, ShelfIcon, PalletIcon, RowIcon, BoxIcon, ProductIcon, EmployeeIcon } from '../../components/ui/WarehouseIcons';
 import api from '../../api/client';
 import Spinner from '../../components/ui/Spinner';
 import Badge from '../../components/ui/Badge';
@@ -87,6 +87,14 @@ function nodeId(node, type) {
 }
 
 function getNodeLabel(node) {
+  // For rows: show "Ряд X" instead of just "РX"
+  if (node.kind === 'row' || node._type === 'row') {
+    return node.name || `Ряд ${node.number || ''}`;
+  }
+  // For pallets: show "Паллет X" or full label
+  if (node.kind === 'pallet' || node._type === 'pallet') {
+    return node.name || node.label || `Паллет ${node.number || ''}`;
+  }
   return node.label || node.name || node.code || '—';
 }
 
@@ -409,12 +417,13 @@ function OverviewPanel({ data, settings }) {
       {/* Hero card */}
       <div className="rounded-2xl p-6 mb-6 text-white" style={{ background: 'linear-gradient(135deg, #7c3aed, #a78bfa)' }}>
         <p className="text-lg font-bold mb-1">
-          Всего {fmtQty(totalQty)} позиций | {coverage}% покрытие
+          Всего {fmtQty(totalQty)} позиций на складах
         </p>
-        <div className="flex items-center gap-6 text-sm opacity-90 mt-2">
-          <span className="flex items-center gap-1.5"><WarehouseIcon size={16} /> {warehouses.length} складов</span>
-          <span className="flex items-center gap-1.5"><CheckCircle2 size={16} /> {freshCount} свежих</span>
-          <span className="flex items-center gap-1.5"><AlertTriangle size={16} /> {staleCount} устарелых</span>
+        <p className="text-sm opacity-80 mb-3">{coverage}% локаций проинвентаризировано</p>
+        <div className="flex items-center gap-6 text-sm opacity-90">
+          <span className="flex items-center gap-1.5"><WarehouseIcon size={16} /> {warehouses.length} {warehouses.length === 1 ? 'склад' : 'складов'}</span>
+          <span className="flex items-center gap-1.5"><CheckCircle2 size={16} /> {freshCount} проверено недавно</span>
+          <span className="flex items-center gap-1.5"><AlertTriangle size={16} /> {notInventoried} не проверено</span>
         </div>
       </div>
 
@@ -425,7 +434,7 @@ function OverviewPanel({ data, settings }) {
           iconBg="#dcfce7"
           iconColor="#16a34a"
           value={freshCount}
-          label={`Свежих (<${freshH}ч)`}
+          label={`Проверено за последние ${freshH}ч`}
           bar={allNodes.length > 0 ? (freshCount / allNodes.length) * 100 : 0}
           barColor="#16a34a"
         />
@@ -434,7 +443,7 @@ function OverviewPanel({ data, settings }) {
           iconBg="#fee2e2"
           iconColor="#dc2626"
           value={staleCount}
-          label={`Устарелых (>${staleH}ч)`}
+          label={`Давно не проверялись (>${staleH}ч)`}
           bar={allNodes.length > 0 ? (staleCount / allNodes.length) * 100 : 0}
           barColor="#dc2626"
         />
@@ -443,7 +452,7 @@ function OverviewPanel({ data, settings }) {
           iconBg="#fef3c7"
           iconColor="#d97706"
           value={notInventoried}
-          label="Без инвентаризации"
+          label="Ни разу не инвентаризировались"
           bar={allNodes.length > 0 ? (notInventoried / allNodes.length) * 100 : 0}
           barColor="#d97706"
         />
@@ -452,14 +461,14 @@ function OverviewPanel({ data, settings }) {
           iconBg="#ede9fe"
           iconColor="#7c3aed"
           value={avgSpeed ? `${avgSpeed}с` : '—'}
-          label="Ср. скорость / шт"
+          label="Среднее время на 1 товар"
         />
         <MetricTile
-          icon={<ProductIcon size={20} />}
+          icon={<EmployeeIcon size={20} />}
           iconBg="#dbeafe"
           iconColor="#2563eb"
           value={bestEmployee ? bestEmployee[0] : '—'}
-          label={bestEmployee ? `${bestEmployee[1]} проверок` : 'Лучший сотрудник'}
+          label={bestEmployee ? `${bestEmployee[1]} проверок выполнено` : 'Лучший сотрудник'}
           small
         />
         <MetricTile
@@ -467,7 +476,7 @@ function OverviewPanel({ data, settings }) {
           iconBg="#f0fdf4"
           iconColor="#16a34a"
           value={lastCheck ? timeAgo(lastCheck.toISOString()) : '—'}
-          label="Последняя проверка"
+          label="Когда была последняя проверка"
         />
       </div>
     </div>
@@ -513,46 +522,64 @@ function RackRowDetail({ node, type, settings }) {
           {getNodeIcon(type, 24)}
           <h3 className="text-lg font-bold">{getNodeLabel(node)}</h3>
         </div>
-        <div className="flex items-center gap-6 text-sm opacity-90">
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-sm opacity-90">
           <span>{items.length} {childrenData?.label?.toLowerCase() || 'элементов'}</span>
           <span>{fmtQty(totalQty)} позиций</span>
-          <span>{coverage}% покрытие</span>
+          {node.last_inventory_duration_seconds > 0 && <span>Время: {fmtDuration(node.last_inventory_duration_seconds)}</span>}
+          {invQty > 0 && Number(node.last_inventory_duration_seconds || 0) > 0 && (
+            <span>{(Number(node.last_inventory_duration_seconds) / invQty).toFixed(1)}с/шт</span>
+          )}
+          {node.last_inventory_by && <span>{node.last_inventory_by}</span>}
         </div>
       </div>
 
-      {/* Child comparison cards */}
+      {/* Child cards */}
       <div className="space-y-3">
         {items.map((child, i) => {
           const cst = statusColor(child, settings);
           const cInv = Number(child.last_inventory_qty || 0);
           const cCur = Number(child.current_qty || 0);
-          const maxBar = Math.max(cInv, cCur, 1);
+          const cDelta = cInv - cCur;
+          const cDur = Number(child.last_inventory_duration_seconds || 0);
+          const cAvgPick = cInv > 0 && cDur > 0 ? (cDur / cInv).toFixed(1) : null;
           return (
-            <div key={child.id || i} className="bg-white rounded-xl border border-gray-100 p-4" style={{ borderLeft: `4px solid ${cst.text}` }}>
+            <div key={child.id || i} className="bg-white rounded-xl border border-gray-100 p-4 hover:shadow-md transition-shadow" style={{ borderLeft: `4px solid ${cst.text}` }}>
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
-                  {getNodeIcon(getChildType(child), 16)}
-                  <span className="font-semibold text-gray-900 text-sm">{getNodeLabel(child)}</span>
+                  {getNodeIcon(getChildType(child), 18)}
+                  <span className="font-semibold text-gray-900">{getNodeLabel(child)}</span>
                 </div>
                 <span className="text-[11px] font-semibold px-2 py-0.5 rounded-lg" style={{ background: cst.bg, color: cst.text }}>{cst.label}</span>
               </div>
-              <div className="flex items-center gap-4 text-xs text-gray-500 mb-2">
-                <span>Инвент: <strong className="text-gray-900">{fmtQty(cInv)}</strong></span>
-                <span>Сейчас: <strong className="text-gray-900">{fmtQty(cCur)}</strong></span>
-                {child.last_inventory_at && <span className="text-gray-400">{timeAgo(child.last_inventory_at)}</span>}
-              </div>
-              {/* Mini comparison bar */}
-              <div className="flex items-center gap-2">
-                <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden flex">
-                  <div className="h-full bg-purple-400 rounded-l-full" style={{ width: `${(cInv / maxBar) * 100}%` }} />
+              <div className="grid grid-cols-3 gap-3 text-center bg-gray-50 rounded-lg p-2 mb-2">
+                <div>
+                  <p className="text-sm font-black text-gray-900">{fmtQty(cInv)}</p>
+                  <p className="text-[10px] text-gray-400">по инвенту</p>
                 </div>
-                <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden flex">
-                  <div className="h-full bg-blue-400 rounded-l-full" style={{ width: `${(cCur / maxBar) * 100}%` }} />
+                <div>
+                  <p className="text-sm font-black text-gray-900">{fmtQty(cCur)}</p>
+                  <p className="text-[10px] text-gray-400">сейчас</p>
+                </div>
+                <div>
+                  <p className={cn('text-sm font-black', cDelta > 0 ? 'text-green-600' : cDelta < 0 ? 'text-red-600' : 'text-gray-400')}>
+                    {cDelta > 0 ? '+' : ''}{cDelta}
+                  </p>
+                  <p className="text-[10px] text-gray-400">разница</p>
                 </div>
               </div>
-              <div className="flex items-center gap-4 mt-1 text-[10px] text-gray-400">
-                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-purple-400 inline-block" />Инвент</span>
-                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-400 inline-block" />Текущее</span>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-gray-400">
+                {child.last_inventory_at && (
+                  <span className="flex items-center gap-1"><Clock size={10} />{timeAgo(child.last_inventory_at)}</span>
+                )}
+                {cDur > 0 && (
+                  <span className="flex items-center gap-1">Время: <strong className="text-gray-600">{fmtDuration(cDur)}</strong></span>
+                )}
+                {cAvgPick && (
+                  <span className="text-purple-500 font-semibold">{cAvgPick}с/шт</span>
+                )}
+                {child.last_inventory_by && (
+                  <span className="flex items-center gap-1"><EmployeeIcon size={10} />{child.last_inventory_by}</span>
+                )}
               </div>
             </div>
           );
@@ -582,15 +609,16 @@ function ShelfPalletDetail({ node, type, settings }) {
           <div className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: st.bg }}>
             {getNodeIcon(type, 24)}
           </div>
-          <div>
+          <div className="flex-1">
             <h3 className="text-lg font-bold text-gray-900">{getNodeLabel(node)}</h3>
             <div className="flex items-center gap-2 mt-0.5">
               <span className="text-xs font-semibold px-2 py-0.5 rounded-lg" style={{ background: st.bg, color: st.text }}>{st.label}</span>
               {node.last_inventory_at && <span className="text-xs text-gray-400">{timeAgo(node.last_inventory_at)}</span>}
+              {node.last_inventory_by && <span className="text-xs text-gray-400 flex items-center gap-1"><EmployeeIcon size={11} />{node.last_inventory_by}</span>}
             </div>
           </div>
         </div>
-        <div className="grid grid-cols-3 gap-3 text-center">
+        <div className="grid grid-cols-3 sm:grid-cols-5 gap-3 text-center">
           <div className="bg-gray-50 rounded-lg p-2">
             <p className="text-lg font-black text-gray-900">{fmtQty(invQty)}</p>
             <p className="text-[10px] text-gray-400 uppercase">По инвенту</p>
@@ -605,8 +633,20 @@ function ShelfPalletDetail({ node, type, settings }) {
             </p>
             <p className="text-[10px] text-gray-400 uppercase">Разница</p>
           </div>
+          {Number(node.last_inventory_duration_seconds || 0) > 0 && (
+            <div className="bg-gray-50 rounded-lg p-2">
+              <p className="text-lg font-black text-gray-900">{fmtDuration(node.last_inventory_duration_seconds)}</p>
+              <p className="text-[10px] text-gray-400 uppercase">Время</p>
+            </div>
+          )}
+          {invQty > 0 && Number(node.last_inventory_duration_seconds || 0) > 0 && (
+            <div className="bg-purple-50 rounded-lg p-2">
+              <p className="text-lg font-black text-purple-600">{(Number(node.last_inventory_duration_seconds) / invQty).toFixed(1)}с</p>
+              <p className="text-[10px] text-gray-400 uppercase">На 1 товар</p>
+            </div>
+          )}
+          </div>
         </div>
-      </div>
 
       {/* Boxes tile grid */}
       {hasBoxes && (
@@ -616,17 +656,21 @@ function ShelfPalletDetail({ node, type, settings }) {
             {childrenData.items.map((box, i) => {
               const bst = statusColor(box, settings);
               const bQty = Number(box.last_inventory_qty || box.current_qty || 0);
+              const bDur = Number(box.last_inventory_duration_seconds || 0);
+              const bAvg = bQty > 0 && bDur > 0 ? (bDur / bQty).toFixed(1) : null;
               return (
-                <div key={box.id || i} className="bg-white rounded-xl border border-gray-100 p-4 hover:shadow-md transition-shadow" style={{ borderBottom: `4px solid ${bst.text}` }}>
-                  <div className="flex items-center gap-2 mb-2">
-                    <BoxIcon size={16} />
-                    <span className="font-semibold text-sm text-gray-900 truncate">{getNodeLabel(box)}</span>
+                <div key={box.id || i} className="bg-white rounded-xl border border-gray-100 p-3 hover:shadow-md transition-shadow" style={{ borderBottom: `3px solid ${bst.text}` }}>
+                  <div className="flex items-center gap-2 mb-1">
+                    <BoxIcon size={14} />
+                    <span className="font-semibold text-sm text-gray-900 truncate flex-1">{getNodeLabel(box)}</span>
+                    <span className="text-xs font-black text-gray-900">{fmtQty(bQty)}<span className="text-[10px] text-gray-400 ml-0.5">шт</span></span>
                   </div>
-                  <p className="text-3xl font-black text-gray-900">{fmtQty(bQty)}</p>
-                  <p className="text-[10px] text-gray-400 mt-1">штук</p>
-                  {box.last_inventory_at && (
-                    <p className="text-[10px] text-gray-400 mt-2 flex items-center gap-1"><Clock size={10} />{timeAgo(box.last_inventory_at)}</p>
-                  )}
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[10px] text-gray-400">
+                    {bDur > 0 && <span>Время: <strong className="text-gray-600">{fmtDuration(bDur)}</strong></span>}
+                    {bAvg && <span className="text-purple-500 font-semibold">{bAvg}с/шт</span>}
+                    {box.last_inventory_at && <span>{timeAgo(box.last_inventory_at)}</span>}
+                    {box.last_inventory_by && <span>{box.last_inventory_by}</span>}
+                  </div>
                 </div>
               );
             })}
