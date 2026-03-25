@@ -10,17 +10,17 @@ import { cn } from '../../utils/cn';
 /* ═══════════════════ Helpers ═══════════════════ */
 
 function fmtDate(iso) {
-  if (!iso) return '\u2014';
+  if (!iso) return '—';
   return new Date(iso).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
 }
 
 function fmtDuration(seconds) {
-  if (!seconds) return '\u2014';
+  if (!seconds) return '—';
   const s = Math.round(Number(seconds));
   const m = Math.floor(s / 60);
   const remainder = s % 60;
-  if (m === 0) return `${remainder}\u0441`;
-  return `${m}\u043C ${remainder}\u0441`;
+  if (m === 0) return `${remainder}с`;
+  return `${m}м ${remainder}с`;
 }
 
 function timeAgo(iso) {
@@ -28,9 +28,9 @@ function timeAgo(iso) {
   const diff = Date.now() - new Date(iso).getTime();
   const hours = Math.floor(diff / 3600000);
   const days = Math.floor(hours / 24);
-  if (days > 0) return `${days}\u0434 \u043D\u0430\u0437\u0430\u0434`;
-  if (hours > 0) return `${hours}\u0447 \u043D\u0430\u0437\u0430\u0434`;
-  return '\u0442\u043E\u043B\u044C\u043A\u043E \u0447\u0442\u043E';
+  if (days > 0) return `${days}д назад`;
+  if (hours > 0) return `${hours}ч назад`;
+  return 'только что';
 }
 
 function fmtQty(val) {
@@ -38,7 +38,7 @@ function fmtQty(val) {
 }
 
 function fmtTime(iso) {
-  if (!iso) return '\u2014';
+  if (!iso) return '—';
   return new Date(iso).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 }
 
@@ -54,20 +54,20 @@ function statusColor(node, settings = {}) {
   const cStale = settings.inventory_color_stale || '#b91c1c';
   const cNone = settings.inventory_color_none || '#b91c1c';
 
-  if (!node.last_inventory_at) return { ...hexToBgBorder(cNone), label: '\u041D\u0435 \u0431\u044B\u043B\u043E' };
+  if (!node.last_inventory_at) return { ...hexToBgBorder(cNone), label: 'Не было' };
   const hours = (Date.now() - new Date(node.last_inventory_at).getTime()) / 3600000;
-  if (hours < freshH) return { ...hexToBgBorder(cFresh), label: '\u0421\u0432\u0435\u0436\u0438\u0439' };
-  if (hours < staleH) return { ...hexToBgBorder(cWarn), label: '\u0414\u0430\u0432\u043D\u043E' };
-  return { ...hexToBgBorder(cStale), label: '\u0423\u0441\u0442\u0430\u0440\u0435\u043B' };
+  if (hours < freshH) return { ...hexToBgBorder(cFresh), label: 'Свежий' };
+  if (hours < staleH) return { ...hexToBgBorder(cWarn), label: 'Давно' };
+  return { ...hexToBgBorder(cStale), label: 'Устарел' };
 }
 
 function getChildren(node) {
-  if (node.racks?.length) return { items: node.racks.map(r => ({ ...r, _type: 'rack' })), label: '\u0421\u0442\u0435\u043B\u043B\u0430\u0436\u0438' };
-  if (node.rows?.length) return { items: node.rows.map(r => ({ ...r, _type: 'row' })), label: '\u0420\u044F\u0434\u044B' };
-  if (node.shelves?.length) return { items: node.shelves.map(s => ({ ...s, _type: 'shelf' })), label: '\u041F\u043E\u043B\u043A\u0438' };
-  if (node.pallets?.length) return { items: node.pallets.map(p => ({ ...p, _type: 'pallet' })), label: '\u041F\u0430\u043B\u043B\u0435\u0442\u044B' };
-  if (node.boxes?.length) return { items: node.boxes.map(b => ({ ...b, _type: 'pallet_box' })), label: '\u041A\u043E\u0440\u043E\u0431\u043A\u0438' };
-  if (node.children?.length) return { items: node.children, label: '\u042D\u043B\u0435\u043C\u0435\u043D\u0442\u044B' };
+  if (node.racks?.length) return { items: node.racks.map(r => ({ ...r, _type: 'rack' })), label: 'Стеллажи' };
+  if (node.rows?.length) return { items: node.rows.map(r => ({ ...r, _type: 'row' })), label: 'Ряды' };
+  if (node.shelves?.length) return { items: node.shelves.map(s => ({ ...s, _type: 'shelf' })), label: 'Полки' };
+  if (node.pallets?.length) return { items: node.pallets.map(p => ({ ...p, _type: 'pallet' })), label: 'Паллеты' };
+  if (node.boxes?.length) return { items: node.boxes.map(b => ({ ...b, _type: 'pallet_box' })), label: 'Коробки' };
+  if (node.children?.length) return { items: node.children, label: 'Элементы' };
   return null;
 }
 
@@ -87,7 +87,7 @@ function nodeId(node, type) {
 }
 
 function getNodeLabel(node) {
-  return node.label || node.name || node.code || '\u2014';
+  return node.label || node.name || node.code || '—';
 }
 
 function getNodeIcon(type, size = 18) {
@@ -242,7 +242,7 @@ function TaskScansPanel({ taskId, boxId, boxType }) {
   }, [taskId, boxId, boxType]);
 
   if (loading) return <div className="py-3 text-center"><Spinner size="sm" /></div>;
-  if (!scans?.length) return <p className="py-3 text-center text-xs text-gray-300">\u041D\u0435\u0442 \u0441\u043A\u0430\u043D\u043E\u0432</p>;
+  if (!scans?.length) return <p className="py-3 text-center text-xs text-gray-300">Нет сканов</p>;
 
   const gaps = scans.slice(1).map(s => Number(s.seconds_since_prev)).filter(s => !isNaN(s) && s > 0);
   const avgSec = gaps.length > 0 ? (gaps.reduce((a, b) => a + b, 0) / gaps.length).toFixed(1) : null;
@@ -250,9 +250,9 @@ function TaskScansPanel({ taskId, boxId, boxType }) {
   return (
     <div>
       <div className="flex items-center gap-4 px-3 py-2 text-[11px] text-gray-400 border-b border-gray-100">
-        <span>{scans.length} \u0441\u043A\u0430\u043D\u043E\u0432</span>
-        {avgSec && <span>\u0421\u0440. \u0432\u0440\u0435\u043C\u044F: {avgSec}\u0441</span>}
-        {gaps.length > 0 && <span>\u041C\u0438\u043D: {Math.min(...gaps)}\u0441 / \u041C\u0430\u043A\u0441: {Math.max(...gaps)}\u0441</span>}
+        <span>{scans.length} сканов</span>
+        {avgSec && <span>Ср. время: {avgSec}с</span>}
+        {gaps.length > 0 && <span>Мин: {Math.min(...gaps)}с / Макс: {Math.max(...gaps)}с</span>}
       </div>
       <div className="divide-y divide-gray-50 max-h-[400px] overflow-y-auto">
         {scans.map((sc, i) => {
@@ -264,15 +264,15 @@ function TaskScansPanel({ taskId, boxId, boxType }) {
             <div key={sc.id} className="flex items-center gap-2.5 px-3 py-1.5">
               <span className="text-[11px] font-mono text-gray-300 w-5 text-right flex-shrink-0">{i + 1}</span>
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium text-gray-800 truncate">{sc.product_name || '\u041D\u0435\u0438\u0437\u0432\u0435\u0441\u0442\u043D\u044B\u0439'}</p>
+                <p className="text-xs font-medium text-gray-800 truncate">{sc.product_name || 'Неизвестный'}</p>
                 {sc.product_code && <p className="text-[10px] text-gray-400">{sc.product_code}</p>}
               </div>
               <div className="text-right flex-shrink-0">
                 <p className="text-[11px] font-mono text-gray-600">{fmtTime(sc.created_at)}</p>
                 {sc.seconds_since_prev != null ? (
-                  <p className={`text-[10px] ${speedClass}`}>+{sc.seconds_since_prev}\u0441</p>
+                  <p className={`text-[10px] ${speedClass}`}>+{sc.seconds_since_prev}с</p>
                 ) : (
-                  <p className="text-[10px] text-purple-400">\u0441\u0442\u0430\u0440\u0442</p>
+                  <p className="text-[10px] text-purple-400">старт</p>
                 )}
               </div>
             </div>
@@ -301,7 +301,7 @@ function InventoryHistorySection({ node }) {
   }, [node.id, locationType]);
 
   if (loading) return <div className="py-6 text-center"><Spinner size="sm" /></div>;
-  if (!history?.length) return <p className="text-sm text-gray-400 italic py-4">\u041D\u0435\u0442 \u0437\u0430\u0432\u0435\u0440\u0448\u0451\u043D\u043D\u044B\u0445 \u0438\u043D\u0432\u0435\u043D\u0442\u0430\u0440\u0438\u0437\u0430\u0446\u0438\u0439</p>;
+  if (!history?.length) return <p className="text-sm text-gray-400 italic py-4">Нет завершённых инвентаризаций</p>;
 
   return (
     <div className="space-y-3">
@@ -323,8 +323,8 @@ function InventoryHistorySection({ node }) {
                   <svg className={cn('w-3 h-3 text-gray-400 flex-shrink-0 transition-transform', isExpanded && 'rotate-90')} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 18l6-6-6-6"/></svg>
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-gray-900 truncate">
-                      {ev.task_title || `\u0417\u0430\u0434\u0430\u0447\u0430 #${ev.task_id}`}
-                      {isLatest && <span className="ml-2 text-[10px] text-purple-500 font-medium">\u043F\u043E\u0441\u043B\u0435\u0434\u043D\u044F\u044F</span>}
+                      {ev.task_title || `Задача #${ev.task_id}`}
+                      {isLatest && <span className="ml-2 text-[10px] text-purple-500 font-medium">последняя</span>}
                     </p>
                     <div className="flex items-center gap-3 text-[11px] text-gray-400 mt-0.5">
                       <span>{fmtDate(ev.completed_at)}</span>
@@ -334,10 +334,10 @@ function InventoryHistorySection({ node }) {
                   </div>
                 </div>
                 <div className="text-right flex-shrink-0">
-                  <p className="text-lg font-black text-gray-900">{counted}<span className="text-xs font-medium text-gray-400 ml-0.5">\u0448\u0442</span></p>
+                  <p className="text-lg font-black text-gray-900">{counted}<span className="text-xs font-medium text-gray-400 ml-0.5">шт</span></p>
                   <div className="flex items-center gap-2 justify-end">
-                    {avgPick && <span className="text-[10px] text-purple-500 font-semibold">{avgPick}\u0441/\u0448\u0442</span>}
-                    {picksPerMin && <span className="text-[10px] text-gray-400">{picksPerMin}/\u043C\u0438\u043D</span>}
+                    {avgPick && <span className="text-[10px] text-purple-500 font-semibold">{avgPick}с/шт</span>}
+                    {picksPerMin && <span className="text-[10px] text-gray-400">{picksPerMin}/мин</span>}
                   </div>
                 </div>
               </div>
@@ -403,12 +403,12 @@ function OverviewPanel({ data, settings }) {
       {/* Hero card */}
       <div className="rounded-2xl p-6 mb-6 text-white" style={{ background: 'linear-gradient(135deg, #7c3aed, #a78bfa)' }}>
         <p className="text-lg font-bold mb-1">
-          \u0412\u0441\u0435\u0433\u043E {fmtQty(totalQty)} \u043F\u043E\u0437\u0438\u0446\u0438\u0439 | {coverage}% \u043F\u043E\u043A\u0440\u044B\u0442\u0438\u0435
+          Всего {fmtQty(totalQty)} позиций | {coverage}% покрытие
         </p>
         <div className="flex items-center gap-6 text-sm opacity-90 mt-2">
-          <span className="flex items-center gap-1.5"><WarehouseIcon size={16} /> {warehouses.length} \u0441\u043A\u043B\u0430\u0434\u043E\u0432</span>
-          <span className="flex items-center gap-1.5"><CheckCircle2 size={16} /> {freshCount} \u0441\u0432\u0435\u0436\u0438\u0445</span>
-          <span className="flex items-center gap-1.5"><AlertTriangle size={16} /> {staleCount} \u0443\u0441\u0442\u0430\u0440\u0435\u043B\u044B\u0445</span>
+          <span className="flex items-center gap-1.5"><WarehouseIcon size={16} /> {warehouses.length} складов</span>
+          <span className="flex items-center gap-1.5"><CheckCircle2 size={16} /> {freshCount} свежих</span>
+          <span className="flex items-center gap-1.5"><AlertTriangle size={16} /> {staleCount} устарелых</span>
         </div>
       </div>
 
@@ -419,7 +419,7 @@ function OverviewPanel({ data, settings }) {
           iconBg="#dcfce7"
           iconColor="#16a34a"
           value={freshCount}
-          label={`\u0421\u0432\u0435\u0436\u0438\u0445 (<${freshH}\u0447)`}
+          label={`Свежих (<${freshH}ч)`}
           bar={allNodes.length > 0 ? (freshCount / allNodes.length) * 100 : 0}
           barColor="#16a34a"
         />
@@ -428,7 +428,7 @@ function OverviewPanel({ data, settings }) {
           iconBg="#fee2e2"
           iconColor="#dc2626"
           value={staleCount}
-          label={`\u0423\u0441\u0442\u0430\u0440\u0435\u043B\u044B\u0445 (>${staleH}\u0447)`}
+          label={`Устарелых (>${staleH}ч)`}
           bar={allNodes.length > 0 ? (staleCount / allNodes.length) * 100 : 0}
           barColor="#dc2626"
         />
@@ -437,7 +437,7 @@ function OverviewPanel({ data, settings }) {
           iconBg="#fef3c7"
           iconColor="#d97706"
           value={notInventoried}
-          label="\u0411\u0435\u0437 \u0438\u043D\u0432\u0435\u043D\u0442\u0430\u0440\u0438\u0437\u0430\u0446\u0438\u0438"
+          label="Без инвентаризации"
           bar={allNodes.length > 0 ? (notInventoried / allNodes.length) * 100 : 0}
           barColor="#d97706"
         />
@@ -445,23 +445,23 @@ function OverviewPanel({ data, settings }) {
           icon={<BarChart3 size={20} />}
           iconBg="#ede9fe"
           iconColor="#7c3aed"
-          value={avgSpeed ? `${avgSpeed}\u0441` : '\u2014'}
-          label="\u0421\u0440. \u0441\u043A\u043E\u0440\u043E\u0441\u0442\u044C / \u0448\u0442"
+          value={avgSpeed ? `${avgSpeed}с` : '—'}
+          label="Ср. скорость / шт"
         />
         <MetricTile
           icon={<ProductIcon size={20} />}
           iconBg="#dbeafe"
           iconColor="#2563eb"
-          value={bestEmployee ? bestEmployee[0] : '\u2014'}
-          label={bestEmployee ? `${bestEmployee[1]} \u043F\u0440\u043E\u0432\u0435\u0440\u043E\u043A` : '\u041B\u0443\u0447\u0448\u0438\u0439 \u0441\u043E\u0442\u0440\u0443\u0434\u043D\u0438\u043A'}
+          value={bestEmployee ? bestEmployee[0] : '—'}
+          label={bestEmployee ? `${bestEmployee[1]} проверок` : 'Лучший сотрудник'}
           small
         />
         <MetricTile
           icon={<Clock size={20} />}
           iconBg="#f0fdf4"
           iconColor="#16a34a"
-          value={lastCheck ? timeAgo(lastCheck.toISOString()) : '\u2014'}
-          label="\u041F\u043E\u0441\u043B\u0435\u0434\u043D\u044F\u044F \u043F\u0440\u043E\u0432\u0435\u0440\u043A\u0430"
+          value={lastCheck ? timeAgo(lastCheck.toISOString()) : '—'}
+          label="Последняя проверка"
         />
       </div>
     </div>
@@ -508,9 +508,9 @@ function RackRowDetail({ node, type, settings }) {
           <h3 className="text-lg font-bold">{getNodeLabel(node)}</h3>
         </div>
         <div className="flex items-center gap-6 text-sm opacity-90">
-          <span>{items.length} {childrenData?.label?.toLowerCase() || '\u044D\u043B\u0435\u043C\u0435\u043D\u0442\u043E\u0432'}</span>
-          <span>{fmtQty(totalQty)} \u043F\u043E\u0437\u0438\u0446\u0438\u0439</span>
-          <span>{coverage}% \u043F\u043E\u043A\u0440\u044B\u0442\u0438\u0435</span>
+          <span>{items.length} {childrenData?.label?.toLowerCase() || 'элементов'}</span>
+          <span>{fmtQty(totalQty)} позиций</span>
+          <span>{coverage}% покрытие</span>
         </div>
       </div>
 
@@ -531,8 +531,8 @@ function RackRowDetail({ node, type, settings }) {
                 <span className="text-[11px] font-semibold px-2 py-0.5 rounded-lg" style={{ background: cst.bg, color: cst.text }}>{cst.label}</span>
               </div>
               <div className="flex items-center gap-4 text-xs text-gray-500 mb-2">
-                <span>\u0418\u043D\u0432\u0435\u043D\u0442: <strong className="text-gray-900">{fmtQty(cInv)}</strong></span>
-                <span>\u0421\u0435\u0439\u0447\u0430\u0441: <strong className="text-gray-900">{fmtQty(cCur)}</strong></span>
+                <span>Инвент: <strong className="text-gray-900">{fmtQty(cInv)}</strong></span>
+                <span>Сейчас: <strong className="text-gray-900">{fmtQty(cCur)}</strong></span>
                 {child.last_inventory_at && <span className="text-gray-400">{timeAgo(child.last_inventory_at)}</span>}
               </div>
               {/* Mini comparison bar */}
@@ -545,8 +545,8 @@ function RackRowDetail({ node, type, settings }) {
                 </div>
               </div>
               <div className="flex items-center gap-4 mt-1 text-[10px] text-gray-400">
-                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-purple-400 inline-block" />\u0418\u043D\u0432\u0435\u043D\u0442</span>
-                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-400 inline-block" />\u0422\u0435\u043A\u0443\u0449\u0435\u0435</span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-purple-400 inline-block" />Инвент</span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-400 inline-block" />Текущее</span>
               </div>
             </div>
           );
@@ -587,17 +587,17 @@ function ShelfPalletDetail({ node, type, settings }) {
         <div className="grid grid-cols-3 gap-3 text-center">
           <div className="bg-gray-50 rounded-lg p-2">
             <p className="text-lg font-black text-gray-900">{fmtQty(invQty)}</p>
-            <p className="text-[10px] text-gray-400 uppercase">\u041F\u043E \u0438\u043D\u0432\u0435\u043D\u0442\u0443</p>
+            <p className="text-[10px] text-gray-400 uppercase">По инвенту</p>
           </div>
           <div className="bg-gray-50 rounded-lg p-2">
             <p className="text-lg font-black text-gray-900">{fmtQty(curQty)}</p>
-            <p className="text-[10px] text-gray-400 uppercase">\u0421\u0435\u0439\u0447\u0430\u0441</p>
+            <p className="text-[10px] text-gray-400 uppercase">Сейчас</p>
           </div>
           <div className="bg-gray-50 rounded-lg p-2">
             <p className={cn('text-lg font-black', (invQty - curQty) > 0 ? 'text-green-600' : (invQty - curQty) < 0 ? 'text-red-600' : 'text-gray-400')}>
               {(invQty - curQty) > 0 ? '+' : ''}{invQty - curQty}
             </p>
-            <p className="text-[10px] text-gray-400 uppercase">\u0420\u0430\u0437\u043D\u0438\u0446\u0430</p>
+            <p className="text-[10px] text-gray-400 uppercase">Разница</p>
           </div>
         </div>
       </div>
@@ -617,7 +617,7 @@ function ShelfPalletDetail({ node, type, settings }) {
                     <span className="font-semibold text-sm text-gray-900 truncate">{getNodeLabel(box)}</span>
                   </div>
                   <p className="text-3xl font-black text-gray-900">{fmtQty(bQty)}</p>
-                  <p className="text-[10px] text-gray-400 mt-1">\u0448\u0442\u0443\u043A</p>
+                  <p className="text-[10px] text-gray-400 mt-1">штук</p>
                   {box.last_inventory_at && (
                     <p className="text-[10px] text-gray-400 mt-2 flex items-center gap-1"><Clock size={10} />{timeAgo(box.last_inventory_at)}</p>
                   )}
@@ -634,7 +634,7 @@ function ShelfPalletDetail({ node, type, settings }) {
           {/* Product distribution bar */}
           {products.length > 0 && (
             <div className="mb-5">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">\u0420\u0430\u0441\u043F\u0440\u0435\u0434\u0435\u043B\u0435\u043D\u0438\u0435 \u0442\u043E\u0432\u0430\u0440\u043E\u0432</p>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Распределение товаров</p>
               <div className="bg-white rounded-xl border border-gray-100 p-4">
                 <div className="h-6 rounded-full overflow-hidden flex">
                   {products.map((p, idx) => {
@@ -669,7 +669,7 @@ function ShelfPalletDetail({ node, type, settings }) {
 
           {node.last_inventory_at && (
             <div>
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">\u0418\u0441\u0442\u043E\u0440\u0438\u044F \u0438\u043D\u0432\u0435\u043D\u0442\u0430\u0440\u0438\u0437\u0430\u0446\u0438\u0439</p>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">История инвентаризаций</p>
               <InventoryHistorySection node={node} />
             </div>
           )}
@@ -700,10 +700,10 @@ function BoxDetail({ node, type, settings }) {
             {node.barcode_value && <p className="text-sm opacity-80 font-mono">{node.barcode_value}</p>}
           </div>
         </div>
-        <p className="text-4xl font-black">{fmtQty(invQty)} <span className="text-base font-medium opacity-80">\u0448\u0442</span></p>
+        <p className="text-4xl font-black">{fmtQty(invQty)} <span className="text-base font-medium opacity-80">шт</span></p>
         <div className="flex items-center gap-4 mt-2 text-sm opacity-90">
-          <span>\u0422\u0435\u043A\u0443\u0449\u0435\u0435: {fmtQty(curQty)}</span>
-          <span className={delta !== 0 ? 'font-bold' : ''}>\u0414\u0435\u043B\u044C\u0442\u0430: {delta > 0 ? '+' : ''}{delta}</span>
+          <span>Текущее: {fmtQty(curQty)}</span>
+          <span className={delta !== 0 ? 'font-bold' : ''}>Дельта: {delta > 0 ? '+' : ''}{delta}</span>
           {node.last_inventory_at && <span>{timeAgo(node.last_inventory_at)}</span>}
         </div>
       </div>
@@ -715,14 +715,14 @@ function BoxDetail({ node, type, settings }) {
           className={cn('flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all',
             activeTab === 'products' ? 'bg-white text-purple-700 shadow-sm' : 'text-gray-500 hover:text-gray-700')}
         >
-          \u0422\u043E\u0432\u0430\u0440\u044B
+          Товары
         </button>
         <button
           onClick={() => setActiveTab('history')}
           className={cn('flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all',
             activeTab === 'history' ? 'bg-white text-purple-700 shadow-sm' : 'text-gray-500 hover:text-gray-700')}
         >
-          \u0418\u0441\u0442\u043E\u0440\u0438\u044F
+          История
         </button>
       </div>
 
@@ -730,16 +730,16 @@ function BoxDetail({ node, type, settings }) {
       {activeTab === 'products' && (
         <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
           {products.length === 0 ? (
-            <p className="text-center text-sm text-gray-400 py-8">\u041D\u0435\u0442 \u0434\u0430\u043D\u043D\u044B\u0445 \u043E \u0442\u043E\u0432\u0430\u0440\u0430\u0445</p>
+            <p className="text-center text-sm text-gray-400 py-8">Нет данных о товарах</p>
           ) : (
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100 text-left">
-                  <th className="px-4 py-3 text-xs font-semibold text-gray-400 uppercase">\u0422\u043E\u0432\u0430\u0440</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-gray-400 uppercase">\u041A\u043E\u0434</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-gray-400 uppercase text-right">\u0418\u043D\u0432\u0435\u043D\u0442</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-gray-400 uppercase text-right">\u0422\u0435\u043A\u0443\u0449\u0435\u0435</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-gray-400 uppercase text-right">\u0414\u0435\u043B\u044C\u0442\u0430</th>
+                  <th className="px-4 py-3 text-xs font-semibold text-gray-400 uppercase">Товар</th>
+                  <th className="px-4 py-3 text-xs font-semibold text-gray-400 uppercase">Код</th>
+                  <th className="px-4 py-3 text-xs font-semibold text-gray-400 uppercase text-right">Инвент</th>
+                  <th className="px-4 py-3 text-xs font-semibold text-gray-400 uppercase text-right">Текущее</th>
+                  <th className="px-4 py-3 text-xs font-semibold text-gray-400 uppercase text-right">Дельта</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
@@ -752,10 +752,10 @@ function BoxDetail({ node, type, settings }) {
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           <ProductIcon size={16} />
-                          <span className="font-medium text-gray-900">{p.name || p.product_name || '\u2014'}</span>
+                          <span className="font-medium text-gray-900">{p.name || p.product_name || '—'}</span>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-gray-500 font-mono text-xs">{p.code || p.product_code || '\u2014'}</td>
+                      <td className="px-4 py-3 text-gray-500 font-mono text-xs">{p.code || p.product_code || '—'}</td>
                       <td className="px-4 py-3 text-right font-semibold text-gray-900">{fmtQty(pInv)}</td>
                       <td className="px-4 py-3 text-right text-gray-600">{fmtQty(pCur)}</td>
                       <td className={cn('px-4 py-3 text-right font-bold', pDelta > 0 ? 'text-green-600' : pDelta < 0 ? 'text-red-600' : 'text-gray-400')}>
@@ -913,7 +913,7 @@ export default function InventoryAnalyticsV2() {
   }
 
   if (!data) {
-    return <p className="text-center text-gray-400 py-12">\u041D\u0435\u0442 \u0434\u0430\u043D\u043D\u044B\u0445</p>;
+    return <p className="text-center text-gray-400 py-12">Нет данных</p>;
   }
 
   const warehouses = data.warehouses || data || [];
@@ -942,15 +942,15 @@ export default function InventoryAnalyticsV2() {
               <BarChart3 size={18} className="text-purple-600" />
             </div>
             <div>
-              <h2 className="text-sm font-bold text-gray-900">GRA\u0441\u043A\u043B\u0430\u0434</h2>
-              <p className="text-[10px] text-gray-400">\u0410\u043D\u0430\u043B\u0438\u0442\u0438\u043A\u0430 \u0438\u043D\u0432\u0435\u043D\u0442\u0430\u0440\u0438\u0437\u0430\u0446\u0438\u0438</p>
+              <h2 className="text-sm font-bold text-gray-900">GRAсклад</h2>
+              <p className="text-[10px] text-gray-400">Аналитика инвентаризации</p>
             </div>
           </div>
         </div>
 
         {/* Section label */}
         <div className="px-4 pt-4 pb-2">
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">\u0418\u0415\u0420\u0410\u0420\u0425\u0418\u042F \u0421\u041A\u041B\u0410\u0414\u0410</p>
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">ИЕРАРХИЯ СКЛАДА</p>
         </div>
 
         {/* Tree */}
@@ -971,7 +971,7 @@ export default function InventoryAnalyticsV2() {
             )}
           >
             <BarChart3 size={14} className="flex-shrink-0" />
-            <span>\u041E\u0431\u0437\u043E\u0440</span>
+            <span>Обзор</span>
           </button>
 
           {/* Warehouse nodes */}
@@ -1006,7 +1006,7 @@ export default function InventoryAnalyticsV2() {
             onClick={() => handleBreadcrumbClick(-1)}
             className={cn('text-sm font-medium', selectedPath.length > 0 ? 'text-purple-500 hover:text-purple-700' : 'text-gray-900')}
           >
-            \u041E\u0431\u0437\u043E\u0440
+            Обзор
           </button>
           {selectedPath.map((crumb, i) => (
             <span key={i} className="flex items-center gap-1.5">
