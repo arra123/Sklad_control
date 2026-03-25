@@ -159,16 +159,38 @@ function getChildType(child) {
 }
 
 // ═══ Inventory Task Scans (expandable per task) ═══
-function TaskScansPanel({ taskId }) {
+// boxId: if provided, filter scans to only this box (pallet_box or shelf_box)
+// boxType: 'pallet_box' | 'shelf_box' — determines which field to match
+function TaskScansPanel({ taskId, boxId, boxType }) {
   const [scans, setScans] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     api.get(`/tasks/${taskId}/analytics`)
-      .then(r => setScans(r.data?.scans || []))
+      .then(r => {
+        let allScans = r.data?.scans || [];
+        // If we have a boxId, filter scans to only show those for this specific box
+        if (boxId && allScans.length > 0) {
+          const taskBoxes = r.data?.task_boxes || [];
+          // Find the task_box entry that matches our box
+          const matchField = boxType === 'shelf_box' ? 'shelf_box_id' : 'box_id';
+          const taskBox = taskBoxes.find(tb => String(tb[matchField]) === String(boxId));
+          if (taskBox) {
+            allScans = allScans.filter(sc => String(sc.task_box_id) === String(taskBox.id));
+            // Recompute seconds_since_prev for filtered scans
+            allScans = allScans.map((sc, i) => ({
+              ...sc,
+              seconds_since_prev: i > 0
+                ? ((new Date(sc.created_at).getTime() - new Date(allScans[i - 1].created_at).getTime()) / 1000).toFixed(1)
+                : null,
+            }));
+          }
+        }
+        setScans(allScans);
+      })
       .catch(() => setScans([]))
       .finally(() => setLoading(false));
-  }, [taskId]);
+  }, [taskId, boxId, boxType]);
 
   if (loading) return <div className="py-3 text-center"><Spinner size="sm" /></div>;
   if (!scans?.length) return <p className="py-3 text-center text-xs text-gray-300">Нет сканов</p>;
@@ -218,7 +240,7 @@ function InventoryHistorySection({ node }) {
   const [loading, setLoading] = useState(true);
   const [expandedTask, setExpandedTask] = useState(null);
 
-  const kind = node.kind;
+  const kind = node.kind || node._type;
   const locationType = kind === 'shelf_box' ? 'shelf_box' : kind === 'pallet_box' ? 'pallet_box' : kind;
 
   useEffect(() => {
@@ -270,7 +292,7 @@ function InventoryHistorySection({ node }) {
                 </div>
               </div>
             </button>
-            {isExpanded && <TaskScansPanel taskId={ev.task_id} />}
+            {isExpanded && <TaskScansPanel taskId={ev.task_id} boxId={node.id} boxType={locationType} />}
           </div>
         );
       })}

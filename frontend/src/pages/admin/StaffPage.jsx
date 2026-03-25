@@ -240,7 +240,23 @@ function EditUserModal({ open, onClose, user, onSuccess, employees }) {
               <button type="button" onClick={() => setShowPass(v => !v)} className="text-gray-400 hover:text-gray-600">
                 {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
-              <button type="button" onClick={() => { navigator.clipboard.writeText(user.password_plain); toast.success('Пароль скопирован'); }}
+              <button type="button" onClick={() => {
+                try {
+                  const textarea = document.createElement('textarea');
+                  textarea.value = user.password_plain;
+                  textarea.style.position = 'fixed';
+                  textarea.style.opacity = '0';
+                  document.body.appendChild(textarea);
+                  textarea.select();
+                  document.execCommand('copy');
+                  document.body.removeChild(textarea);
+                  toast.success('Пароль скопирован');
+                } catch {
+                  navigator.clipboard.writeText(user.password_plain)
+                    .then(() => toast.success('Пароль скопирован'))
+                    .catch(() => toast.error('Не удалось скопировать'));
+                }
+              }}
                 className="text-gray-400 hover:text-primary-500">
                 <Copy size={16} />
               </button>
