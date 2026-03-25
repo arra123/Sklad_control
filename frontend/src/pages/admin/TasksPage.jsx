@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import api from '../../api/client';
 import { qty } from '../../utils/fmt';
+import { ShelfIcon, PalletIcon, BoxIcon } from '../../components/ui/WarehouseIcons';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
 import Modal from '../../components/ui/Modal';
@@ -1036,12 +1037,12 @@ function TaskCard({ task, onClick }) {
               <span className="font-semibold text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded-lg">Оприходование</span>
             )}
             {task.employee_name && <span>{task.employee_name}</span>}
-            {task.shelf_code && <span>{task.rack_name} · {task.shelf_name}</span>}
-            {!task.shelf_code && task.pallet_name && <span>{task.pallet_row_name || 'Ряд'} · {task.pallet_name}</span>}
+            {task.shelf_code && <span className="inline-flex items-center gap-1"><ShelfIcon size={12} />{task.rack_name} · {task.shelf_name}</span>}
+            {!task.shelf_code && task.pallet_name && <span className="inline-flex items-center gap-1"><PalletIcon size={12} />{task.pallet_row_name || 'Ряд'} · {task.pallet_name}</span>}
+            {task.box_barcode && <span className="inline-flex items-center gap-1"><BoxIcon size={12} />Коробка {task.box_barcode}</span>}
             {Number(task.task_boxes_total || 0) > 0 && (
               <span>Коробки {Number(task.task_boxes_completed || 0)} / {Number(task.task_boxes_total || 0)}</span>
             )}
-            {task.box_barcode && <span>Коробка {task.box_barcode}</span>}
             {Number(task.scans_count) > 0 && <span>{task.scans_count} сканов</span>}
             <span className="text-gray-300">{new Date(task.created_at).toLocaleDateString('ru-RU')}</span>
           </div>
@@ -1063,30 +1064,47 @@ function TaskCard({ task, onClick }) {
 export default function TasksPage() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
+
+  // Inline filters (client-side)
+  const [searchText, setSearchText] = useState('');
+  const [filterEmployee, setFilterEmployee] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
+  const [filterLocation, setFilterLocation] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.get('/tasks', {
-        params: { status: statusFilter || undefined, limit: 100 },
-      });
+      const res = await api.get('/tasks', { params: { limit: 100 } });
       setItems(res.data.items);
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
     }
-  }, [statusFilter]);
+  }, []);
 
   useEffect(() => { load(); }, [load]);
 
-  const statusCounts = items.reduce((acc, t) => {
-    acc[t.status] = (acc[t.status] || 0) + 1;
-    return acc;
-  }, {});
+  // Derive unique employees, statuses, locations for dropdown options
+  const uniqueEmployees = [...new Set(items.map(t => t.employee_name).filter(Boolean))].sort();
+  const uniqueLocations = [...new Set(items.flatMap(t => [t.rack_name, t.pallet_row_name].filter(Boolean)))].sort();
+
+  // Client-side filtering
+  const filtered = items.filter(task => {
+    if (searchText) {
+      const q = searchText.toLowerCase();
+      if (!(task.title || '').toLowerCase().includes(q)) return false;
+    }
+    if (filterEmployee && task.employee_name !== filterEmployee) return false;
+    if (filterStatus && task.status !== filterStatus) return false;
+    if (filterLocation) {
+      const loc = task.rack_name || task.pallet_row_name || '';
+      if (loc !== filterLocation) return false;
+    }
+    return true;
+  });
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
@@ -1100,42 +1118,58 @@ export default function TasksPage() {
         </Button>
       </div>
 
-      {/* Status tabs */}
-      <div className="flex gap-2 mb-4 flex-wrap">
-        {[
-          { value: '', label: 'Все' },
-          { value: 'new', label: 'Новые' },
-          { value: 'in_progress', label: 'В работе' },
-          { value: 'completed', label: 'Выполненные' },
-          { value: 'cancelled', label: 'Отменённые' },
-        ].map(({ value, label }) => (
-          <button
-            key={value}
-            onClick={() => setStatusFilter(value)}
-            className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-              statusFilter === value
-                ? 'bg-primary-600 text-white shadow-sm'
-                : 'bg-white border border-gray-200 text-gray-600 hover:border-primary-300'
-            }`}
-          >
-            {label}
-            {value && statusCounts[value] ? (
-              <span className="ml-1.5 text-xs opacity-70">{statusCounts[value]}</span>
-            ) : null}
-          </button>
-        ))}
+      {/* Inline filters */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+        <input
+          type="text"
+          placeholder="Поиск по названию..."
+          value={searchText}
+          onChange={e => setSearchText(e.target.value)}
+          className="px-3 py-2 text-sm rounded-xl border border-gray-200 bg-white focus:outline-none focus:border-primary-400 focus:ring-1 focus:ring-primary-200 transition-colors"
+        />
+        <select
+          value={filterEmployee}
+          onChange={e => setFilterEmployee(e.target.value)}
+          className="px-3 py-2 text-sm rounded-xl border border-gray-200 bg-white focus:outline-none focus:border-primary-400 focus:ring-1 focus:ring-primary-200 transition-colors text-gray-600"
+        >
+          <option value="">Все сотрудники</option>
+          {uniqueEmployees.map(name => (
+            <option key={name} value={name}>{name}</option>
+          ))}
+        </select>
+        <select
+          value={filterStatus}
+          onChange={e => setFilterStatus(e.target.value)}
+          className="px-3 py-2 text-sm rounded-xl border border-gray-200 bg-white focus:outline-none focus:border-primary-400 focus:ring-1 focus:ring-primary-200 transition-colors text-gray-600"
+        >
+          <option value="">Все статусы</option>
+          <option value="new">Новые</option>
+          <option value="in_progress">В работе</option>
+          <option value="completed">Выполненные</option>
+          <option value="cancelled">Отменённые</option>
+        </select>
+        <select
+          value={filterLocation}
+          onChange={e => setFilterLocation(e.target.value)}
+          className="px-3 py-2 text-sm rounded-xl border border-gray-200 bg-white focus:outline-none focus:border-primary-400 focus:ring-1 focus:ring-primary-200 transition-colors text-gray-600"
+        >
+          <option value="">Все локации</option>
+          {uniqueLocations.map(loc => (
+            <option key={loc} value={loc}>{loc}</option>
+          ))}
+        </select>
       </div>
 
       {loading ? (
         <div className="flex items-center justify-center h-48"><Spinner size="lg" /></div>
-      ) : items.length === 0 ? (
+      ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-48 text-gray-400">
           <ClipboardList size={40} className="mb-2 opacity-30" />
-          <p className="text-sm">Нет задач</p>
+          <p className="text-sm">{items.length === 0 ? 'Нет задач' : 'Ничего не найдено'}</p>
         </div>
       ) : (
         <div className="space-y-3">
-          {items.map(task => (
+          {filtered.map(task => (
             <TaskCard key={task.id} task={task} onClick={setSelectedTask} />
           ))}
         </div>
