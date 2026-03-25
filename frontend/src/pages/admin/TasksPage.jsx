@@ -666,27 +666,31 @@ function CreateTaskModal({ open, onClose, onSuccess }) {
     try {
       // Shelf with boxes
       if (inventoryUsesBoxes && !inventoryUsesPallets && selectedShelfBoxIds.length > 0) {
+        const freeShelfBoxIds = selectedShelfBoxIds.filter(id => !busyTargets.shelf_boxes[id]);
+        if (freeShelfBoxIds.length === 0) { toast.error('Все выбранные коробки уже в работе'); setLoading(false); return; }
         await api.post('/tasks', {
           ...form,
           employee_id: form.employee_id || null,
           shelf_id: parseInt(form.shelf_id, 10),
           target_pallet_id: null,
           target_box_ids: [],
-          target_shelf_box_ids: selectedShelfBoxIds,
+          target_shelf_box_ids: freeShelfBoxIds,
         });
-        toast.success(`Задача создана на ${selectedShelfBoxIds.length} коробок`);
+        toast.success(`Задача создана на ${freeShelfBoxIds.length} коробок`);
       }
       // Pallet with specific boxes selected
       else if (inventoryUsesPallets && inventoryUsesBoxes && selectedBoxIds.length > 0) {
+        const freeBoxIds = selectedBoxIds.filter(id => !busyTargets.pallet_boxes[id]);
+        if (freeBoxIds.length === 0) { toast.error('Все выбранные коробки уже в работе'); setLoading(false); return; }
         await api.post('/tasks', {
           ...form,
           employee_id: form.employee_id || null,
           shelf_id: null,
           target_pallet_id: parseInt(form.target_pallet_id, 10),
-          target_box_ids: selectedBoxIds,
+          target_box_ids: freeBoxIds,
           target_shelf_box_ids: [],
         });
-        toast.success(`Задача создана на ${selectedBoxIds.length} коробок`);
+        toast.success(`Задача создана на ${freeBoxIds.length} коробок`);
       }
       // Pallet — all boxes (employee scans them)
       else {
@@ -852,7 +856,7 @@ function CreateTaskModal({ open, onClose, onSuccess }) {
                   <span className="text-sm font-medium text-gray-700">Все коробки</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="radio" name="boxMode" checked={selectedBoxIds.length > 0} onChange={() => setSelectedBoxIds(inventoryPalletDetails.boxes?.map(b => b.id) || [])}
+                  <input type="radio" name="boxMode" checked={selectedBoxIds.length > 0} onChange={() => setSelectedBoxIds(inventoryPalletDetails.boxes?.filter(b => !busyTargets.pallet_boxes[b.id]).map(b => b.id) || [])}
                     className="w-4 h-4 text-primary-600" />
                   <span className="text-sm font-medium text-gray-700">Выбрать конкретные</span>
                 </label>
