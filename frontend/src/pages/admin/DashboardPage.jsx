@@ -333,7 +333,7 @@ export default function DashboardPage() {
           {(Number(whStats?.pallet_rows_count) > 0 || Number(whStats?.pallets_count) > 0) && (
             <div className="grid grid-cols-3 gap-2 pt-2 border-t border-gray-100">
               {[
-                { label: 'Рядов (FBO)', value: whStats?.pallet_rows_count },
+                { label: 'Рядов (паллетный)', value: whStats?.pallet_rows_count },
                 { label: 'Паллетов', value: whStats?.pallets_count },
                 { label: 'Коробок', value: whStats?.boxes_count },
               ].map(({ label, value }) => (
@@ -480,7 +480,7 @@ export default function DashboardPage() {
                     </div>
                     <div>
                       <h3 className="font-semibold text-gray-900 dark:text-white text-sm">{wh.name}</h3>
-                      <span className={`text-xs font-medium ${isFbo ? 'text-blue-500' : 'text-gray-400'}`}>{isFbo ? 'FBO' : 'FBS'}</span>
+                      <span className={`text-xs font-medium ${isFbo ? 'text-blue-500' : 'text-gray-400'}`}>{isFbo ? 'Паллетный' : 'Стеллажный'}</span>
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-2 mb-3">

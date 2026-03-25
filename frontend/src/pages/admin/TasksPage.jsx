@@ -980,7 +980,7 @@ function CreateTaskModal({ open, onClose, onSuccess }) {
           </div>
           <Input label="Штук в коробке" type="number" min="1" max="1000"
             value={packForm.box_size} onChange={e => setPackForm(f => ({ ...f, box_size: e.target.value }))} required />
-          <SearchSelect label="FBO склад" value={selectedFboWarehouse} placeholder="Поиск FBO склада..."
+          <SearchSelect label="Паллетный склад" value={selectedFboWarehouse} placeholder="Поиск паллетного склада..."
             onChange={v => setSelectedFboWarehouse(v)}
             options={fboWarehouses.map(w => ({ value: String(w.id), label: w.name }))}
           />

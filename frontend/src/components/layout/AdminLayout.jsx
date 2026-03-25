@@ -22,7 +22,7 @@ function buildCrumbs(pathname) {
   if (pathname.startsWith('/admin/errors'))     return [{ label: 'Ошибки' }];
   if (pathname.startsWith('/admin/staff'))      return [{ label: 'Сотрудники' }];
   if (pathname.startsWith('/admin/settings'))   return [{ label: 'Настройки' }];
-  if (pathname.startsWith('/admin/fbo'))        return [{ label: 'FBO Склад' }];
+  if (pathname.startsWith('/admin/fbo'))        return [{ label: 'Паллетный склад' }];
   return [];
 }
 
@@ -216,7 +216,7 @@ export default function AdminLayout({ children }) {
             <LogOut className="w-4 h-4" />
             Выйти
           </button>
-          <p className="text-[10px] text-gray-300 dark:text-gray-600 mt-2 text-center">v1.6.5</p>
+          <p className="text-[10px] text-gray-300 dark:text-gray-600 mt-2 text-center">v1.7.0</p>
         </div>
       </aside>
 

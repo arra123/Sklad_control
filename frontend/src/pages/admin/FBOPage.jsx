@@ -39,7 +39,7 @@ function FBOWarehouseModal({ open, onClose, onSuccess }) {
     setLoading(true);
     try {
       await api.post('/fbo/warehouses', form);
-      toast.success('FBO склад создан');
+      toast.success('Паллетный склад создан');
       onSuccess();
       onClose();
     } catch (err) {
@@ -53,7 +53,7 @@ function FBOWarehouseModal({ open, onClose, onSuccess }) {
     <Modal
       open={open}
       onClose={onClose}
-      title="Создать FBO склад"
+      title="Создать паллетный склад"
       footer={<>
         <Button variant="ghost" onClick={onClose}>Отмена</Button>
         <Button form="fbo-wh-form" type="submit" loading={loading}>Создать</Button>
@@ -62,7 +62,7 @@ function FBOWarehouseModal({ open, onClose, onSuccess }) {
       <form id="fbo-wh-form" onSubmit={handleSubmit} className="space-y-4">
         <Input
           label="Название склада"
-          placeholder="FBO Ижевск"
+          placeholder="Паллетный Ижевск"
           value={form.name}
           onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
           required
@@ -957,7 +957,7 @@ export default function FBOPage() {
       {/* Page header */}
       <div className="flex items-center justify-between mb-5">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">FBO склад</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Паллетный склад</h1>
           <p className="text-gray-500 text-sm mt-0.5">Управление рядами, паллетами и коробками</p>
         </div>
         <Button
@@ -965,7 +965,7 @@ export default function FBOPage() {
           icon={<Plus size={16} />}
           onClick={() => setShowCreate(true)}
         >
-          Создать FBO склад
+          Создать паллетный склад
         </Button>
       </div>
 
@@ -1002,7 +1002,7 @@ export default function FBOPage() {
           {warehouses.length === 0 && (
             <div className="flex flex-col items-center justify-center h-48 text-gray-400 card">
               <Warehouse size={40} className="mb-3 opacity-30" />
-              <p className="text-sm font-medium">Нет FBO складов</p>
+              <p className="text-sm font-medium">Нет паллетных складов</p>
               <p className="text-xs mt-1">Создайте первый склад, чтобы начать</p>
             </div>
           )}

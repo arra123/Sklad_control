@@ -1,8 +1,9 @@
 # GRAсклад — Складская система (WMS)
 
-**Версия:** 1.27.0
-**Дата:** 24.03.2026
+**Версия:** 1.7.0
+**Дата:** 25.03.2026
 **Компания:** GRaflab — производство БАДов
+**Сайт:** http://147.45.97.155/sklad
 
 ---
 
@@ -17,7 +18,7 @@ cd ../frontend && npm install
 
 ### 2. Настройка .env
 
-Файл `backend/.env` уже содержит конфигурацию:
+Файл `backend/.env` содержит конфигурацию:
 - **БД:** 5.42.100.180:5432, база `bd2`, таблицы с суффиксом `_s`
 - **Порт:** 3017
 - **JWT:** настроен
@@ -35,14 +36,20 @@ cd frontend && VITE_API_PROXY_TARGET=http://localhost:3017 npx vite --mode sklad
 
 Сайт будет доступен: **http://localhost:5173/sklad/**
 
-### 4. Сборка и деплой на сервер
+### 4. Деплой
 
+Автоматический через GitHub Actions при пуше в `main`.
+- Билд фронтенда на CI
+- Загрузка backend + frontend/dist на сервер через SCP
+- Перезапуск PM2 через SSH
+
+Ручной перезапуск на сервере:
 ```bash
-cd frontend && npx vite build --mode sklad
-cd .. && node deploy.js
+ssh root@147.45.97.155
+cd /var/www/bem-dev.ru/sklad/backend
+pm2 delete c-site; fuser -k 3017/tcp; sleep 2
+pm2 start src/server.js --name c-site && pm2 save
 ```
-
-Сервер: **147.45.97.155**, путь: `/var/www/bem-dev.ru/sklad`
 
 ---
 
@@ -50,80 +57,99 @@ cd .. && node deploy.js
 
 | Компонент | Технология |
 |-----------|-----------|
-| Frontend | React 18 + Vite + Tailwind CSS |
+| Frontend | React 18 + Vite + Tailwind CSS + Lucide icons |
 | Backend | Node.js + Express.js |
 | БД | PostgreSQL (5.42.100.180:5432, bd2) |
-| Деплой | PM2 (процесс: sklad-app) |
+| Деплой | GitHub Actions → SSH → PM2 (процесс: `c-site`, порт 3017) |
+| Сервер | 147.45.97.155, путь: `/var/www/bem-dev.ru/sklad` |
+| Репозиторий | github.com/arra123/Sklad_control |
 
 ---
 
 ## Структура проекта
 
 ```
-sklad_obshiy/
+sclad/
+├── .github/workflows/deploy.yml   # CI/CD — автодеплой на push в main
 ├── backend/
-│   ├── .env                    # Конфигурация БД, JWT, порт
+│   ├── .env                        # Конфигурация БД, JWT, порт
 │   ├── package.json
 │   └── src/
-│       ├── server.js           # Точка входа
-│       ├── app.js              # Express, все роуты
-│       ├── config.js           # Конфиг из .env
+│       ├── server.js               # Точка входа
+│       ├── app.js                  # Express, все роуты
+│       ├── config.js               # Конфиг из .env
 │       ├── db/
-│       │   ├── pool.js         # PostgreSQL pool
-│       │   ├── externalPool.js # Pool к БД сотрудников (o_site)
-│       │   ├── schema.js       # CREATE TABLE (автомиграция)
-│       │   └── seed.js         # Seed admin
+│       │   ├── pool.js             # PostgreSQL pool
+│       │   ├── externalPool.js     # Pool к внешней БД сотрудников
+│       │   ├── schema.js           # CREATE TABLE (автомиграция при старте)
+│       │   └── seed.js             # Seed admin + default settings
 │       ├── middleware/
-│       │   └── auth.js         # JWT, requireAuth, requireAdmin
+│       │   └── auth.js             # JWT, requireAuth, requireAdmin
 │       ├── routes/
-│       │   ├── auth.js         # Логин, пароль
-│       │   ├── staff.js        # Сотрудники, роли
-│       │   ├── products.js     # Товары, штрих-коды, импорт
-│       │   ├── warehouse.js    # FBS: склады, стеллажи, полки, shelf-boxes
-│       │   ├── fbo.js          # FBO: ряды, паллеты, коробки
-│       │   ├── tasks.js        # Задачи, инвентаризация, аналитика
-│       │   ├── packing.js      # Упаковка
-│       │   ├── movements.js    # Перемещения
-│       │   ├── settings.js     # Настройки
-│       │   └── syserrors.js    # Логирование ошибок
+│       │   ├── auth.js             # Логин, /me, смена пароля (+gra_balance)
+│       │   ├── staff.js            # Сотрудники, пользователи, роли, пароли
+│       │   ├── products.js         # Товары, штрих-коды, импорт из МойСклад
+│       │   ├── warehouse.js        # Стеллажные склады: стеллажи, полки, коробки
+│       │   ├── fbo.js              # Паллетные склады: ряды, паллеты, коробки
+│       │   ├── tasks.js            # Задачи, сканирование, busy-targets, награды
+│       │   ├── earnings.js         # Заработок GRAcoin: сводка, история, баланс
+│       │   ├── packing.js          # Упаковка
+│       │   ├── movements.js        # Перемещения товаров
+│       │   ├── settings.js         # Настройки системы
+│       │   └── syserrors.js        # Логирование ошибок фронтенда
 │       └── utils/
-│           ├── jwt.js, password.js
-│           ├── catalogImport.js
-│           ├── syncFromOsite.js # Синхр. сотрудников из o_site
-│           └── logMovement.js
+│           ├── jwt.js              # Подпись/проверка JWT
+│           ├── password.js         # bcrypt хеширование
+│           ├── catalogImport.js    # Импорт каталога
+│           ├── syncFromOsite.js    # Синхр. сотрудников из внешней БД
+│           └── logMovement.js      # Запись перемещений
 ├── frontend/
-│   ├── .env.sklad              # VITE_APP_BASE_PATH=/sklad
+│   ├── .env.sklad                  # VITE_APP_BASE_PATH=/sklad
 │   ├── vite.config.js
 │   ├── tailwind.config.js
 │   ├── index.html
-│   ├── package.json
+│   ├── package.json                # version = текущая версия на сайте
 │   └── src/
-│       ├── App.jsx             # Роутинг (admin + employee)
-│       ├── api/client.js       # Axios с JWT
-│       ├── context/            # Auth, Theme, AppSettings
+│       ├── App.jsx                 # Роутинг (admin + employee)
+│       ├── index.css               # Глобальные стили + GRA balance widget
+│       ├── api/client.js           # Axios с JWT и basePath
+│       ├── context/
+│       │   ├── AuthContext.jsx     # user, login, logout, rewardFx, registerGraReward
+│       │   ├── ThemeContext.jsx    # Тёмная/светлая тема
+│       │   └── AppSettingsContext.jsx
 │       ├── components/
-│       │   ├── layout/         # AdminLayout, EmployeeLayout
-│       │   ├── ui/             # Button, Modal, Input, CopyBadge, Toast...
-│       │   └── visual/         # FBSVisualView, FBOVisualView, PalletWarehouseView
+│       │   ├── layout/
+│       │   │   ├── AdminLayout.jsx     # Сайдбар, навигация, хлебные крошки, версия
+│       │   │   └── EmployeeLayout.jsx  # Шапка с GRA балансом, нижняя навигация
+│       │   ├── ui/                     # Button, Modal, Input, Select, SearchSelect,
+│       │   │                           # Badge, Spinner, CopyBadge, Toast, SortTh
+│       │   └── visual/                 # FBSVisualView, FBOVisualView, PalletWarehouseView
 │       ├── pages/admin/
-│       │   ├── DashboardPage.jsx
-│       │   ├── ProductsPage.jsx
-│       │   ├── ProductStockPage.jsx
-│       │   ├── WarehousePage.jsx     # Склады, стеллажи, полки, коробки
-│       │   ├── TasksPage.jsx
-│       │   ├── AnalyticsPage.jsx
-│       │   ├── InventoryAnalyticsView.jsx
-│       │   ├── MovementsPage.jsx
-│       │   ├── StaffPage.jsx
-│       │   ├── SettingsPage.jsx
-│       │   ├── ErrorsPage.jsx
-│       │   └── FBOPage.jsx
-│       └── pages/employee/
-│           ├── MyTasksPage.jsx
-│           ├── TaskScanPage.jsx      # Инвентаризация + сканирование
-│           ├── PackagingPage.jsx
-│           ├── MovePage.jsx
-│           └── MyInventoryPage.jsx
+│       │   ├── DashboardPage.jsx           # KPI, топ сотрудников, статусы складов
+│       │   ├── ProductsPage.jsx            # Карточки товаров
+│       │   ├── ProductStockPage.jsx        # Остатки по складам
+│       │   ├── WarehousePage.jsx           # Склады: стеллажи, полки, паллеты, коробки
+│       │   ├── TasksPage.jsx              # Задачи + создание с SearchSelect + busy
+│       │   ├── AnalyticsPage.jsx           # Аналитика: сводка + инвентаризация
+│       │   ├── InventoryAnalyticsView.jsx  # Детальная аналитика инвентаризации
+│       │   ├── EarningsPage.jsx            # Заработок GRAcoin: сводка, история, ставка
+│       │   ├── MovementsPage.jsx           # Перемещения товаров
+│       │   ├── StaffPage.jsx              # Сотрудники, пользователи, пароли, роли
+│       │   ├── SettingsPage.jsx            # Настройки + история версий
+│       │   ├── ErrorsPage.jsx              # Ошибки сканирования
+│       │   └── FBOPage.jsx                 # Управление паллетными складами
+│       ├── pages/employee/
+│       │   ├── MyTasksPage.jsx             # Список задач сотрудника
+│       │   ├── TaskScanPage.jsx            # Сканирование + GRA награды
+│       │   ├── PackagingPage.jsx           # Оприходование
+│       │   ├── MovePage.jsx                # Взять/сдать/переместить товар
+│       │   └── MyInventoryPage.jsx         # Товар на руках
+│       ├── hooks/
+│       │   └── useSort.js                  # Хук сортировки таблиц
+│       └── utils/
+│           ├── cn.js                       # classnames утилита
+│           ├── fmt.js                      # Форматирование чисел
+│           └── errorReporter.js            # Глобальный перехват ошибок
 └── README.md
 ```
 
@@ -133,47 +159,69 @@ sklad_obshiy/
 
 | Таблица | Назначение |
 |---------|-----------|
-| employees_s | Сотрудники |
-| users_s | Учётные записи |
-| roles_s | Роли с permissions |
-| products_s | Товары |
-| warehouses_s | Склады |
-| racks_s | Стеллажи (FBS) |
-| shelves_s | Полки |
-| shelf_items_s | Товар на полке |
-| shelf_boxes_s | Коробки на полке (FBS) |
-| shelf_box_items_s | Содержимое коробок на полке |
-| pallet_rows_s | Ряды (FBO) |
-| pallets_s | Паллеты |
-| boxes_s | Коробки на паллетах (FBO) |
-| box_items_s | Содержимое коробок на паллетах |
-| pallet_items_s | Товар напрямую на паллете |
-| inventory_tasks_s | Задачи инвентаризации |
-| inventory_task_scans_s | Сканы |
-| inventory_task_boxes_s | Коробки в задаче |
-| scan_errors_s | Ошибки сканирования |
-| movements_s | Перемещения |
-| employee_inventory_s | Товар на руках у сотрудника |
-| settings_s | Настройки |
+| **employees_s** | Сотрудники (full_name, phone, gra_balance) |
+| **users_s** | Учётные записи (username, password_hash, password_plain, role, role_id) |
+| **roles_s** | Роли с permissions (JSON массив прав) |
+| **products_s** | Товары (name, code, article, barcode_list, marketplace_barcodes_json) |
+| **product_folders_s** | Папки товаров из МойСклад |
+| **bundle_components_s** | Состав комплектов |
+| **import_runs_s** | Логи импорта каталога |
+| **warehouses_s** | Склады (warehouse_type: fbs/fbo/both/visual/visual_pallet) |
+| **racks_s** | Стеллажи (привязаны к складу) |
+| **shelves_s** | Полки (привязаны к стеллажу, uses_boxes) |
+| **shelf_items_s** | Товар на полке (shelf_id + product_id + quantity) |
+| **shelf_boxes_s** | Коробки на полке (barcode, position, status) |
+| **shelf_box_items_s** | Содержимое коробок на полке |
+| **pallet_rows_s** | Ряды паллетного склада |
+| **pallets_s** | Паллеты (barcode, uses_boxes) |
+| **pallet_items_s** | Товар напрямую на паллете |
+| **boxes_s** | Коробки на паллетах (barcode, status, confirmed) |
+| **box_items_s** | Содержимое коробок на паллетах |
+| **inventory_tasks_s** | Задачи (task_type: inventory/packaging/production_transfer) |
+| **inventory_task_scans_s** | Сканы товаров в задачах |
+| **inventory_task_boxes_s** | Коробки привязанные к задаче (sort_order, status) |
+| **scan_errors_s** | Ошибки сканирования (resolved_at, resolved_by) |
+| **employee_earnings_s** | Начисления GRAcoin (event_type: inventory_scan/manual_adjustment) |
+| **movements_s** | Универсальный лог перемещений |
+| **shelf_movements_s** | Лог изменений на полках |
+| **employee_inventory_s** | Товар на руках у сотрудника |
+| **settings_s** | Настройки (key-value, напр. gra_inventory_scan_rate) |
+| **system_errors_s** | Ошибки фронтенда |
 
 ---
 
-## Роли
+## Роли и права
 
-| Роль | Доступ |
-|------|--------|
-| admin | Полный доступ |
-| manager | Склады, задачи, аналитика |
-| employee | Свои задачи, сканирование, перемещение |
+| Роль | Описание | Доступ |
+|------|----------|--------|
+| **admin** | Администратор | Полный доступ ко всем модулям |
+| **manager** | Менеджер | Склады, задачи, аналитика, товары (без настроек и ролей) |
+| **employee** | Сотрудник | Свои задачи, сканирование, перемещение товаров |
+
+Права управляются через таблицу `roles_s` → поле `permissions` (JSON массив строк).
+Редактирование ролей и паролей: Сотрудники → вкладка Пользователи → карандаш.
+
+---
+
+## Типы складов
+
+| Тип (warehouse_type) | Название в UI | Структура |
+|---------------------|---------------|-----------|
+| `fbs` | Стеллажный склад | Стеллажи → Полки → Товары/Коробки |
+| `fbo` | Паллетный склад | Ряды → Паллеты → Коробки/Товары |
+| `both` | Стеллажи и паллеты | Оба типа адресации в одном складе |
+| `visual` | Визуальный | Экспериментальный режим |
+| `visual_pallet` | Визуальный паллетный | Экспериментальный режим |
 
 ---
 
 ## Ключевые фичи
 
 ### Склады
-- **FBS** (стеллажное хранение): Стеллажи → Полки → Товары/Коробки
-- **FBO** (паллетное хранение): Ряды → Паллеты → Коробки/Товары
-- 3 режима отображения: Список / Визуально (3D) / Карточки
+- **Стеллажный** (стеллажи → полки → товары/коробки)
+- **Паллетный** (ряды → паллеты → коробки/товары)
+- **Комбинированный** (оба типа в одном складе)
+- 3 режима отображения: Список / Визуально / Карточки
 - Цветовая палитра стеллажей для быстрой навигации
 - Поиск товара на складе с отображением ячеек
 - URL-параметры для шаринга (?view=cards, ?wh=20)
@@ -184,12 +232,24 @@ sklad_obshiy/
 - Режим "Товар в коробках" на полках и паллетах
 - Массовая печать и PDF этикеток
 
-### Инвентаризация
+### Задачи и инвентаризация
+- Типы задач: инвентаризация, оприходование, перенос с производства
 - Задача на паллет: скан паллета → скан коробок по очереди
 - Задача на полку: прямое сканирование товаров
+- **Защита от дублей:** занятые полки/коробки серые и некликабельные при создании
+- SearchSelect — поисковые выпадающие списки с фильтрацией
+- GET `/api/tasks/busy-targets` — возвращает все цели в активных задачах
 - Выход из коробки без потери данных
 - Предупреждение при >50 шт. в коробке
 - Покинуть задачу с возможностью вернуться
+
+### Заработок (GRAcoin)
+- Автоначисление за каждый успешный скан в инвентаризации
+- Настраиваемая ставка (settings: `gra_inventory_scan_rate`, по умолчанию 10)
+- Виджет баланса в шапке сотрудника с анимацией +X GRA
+- Админская страница "Заработок": сводка, лидеры, история по сотрудникам и задачам
+- Ручная корректировка баланса с аудит-логом
+- Таблица `employee_earnings_s` — полный аудит всех начислений
 
 ### Аналитика
 - Сводка: задачи, сканы, ошибки, рейтинг сотрудников
@@ -203,63 +263,62 @@ sklad_obshiy/
 - Виды: все логи / по сотрудникам / по типу
 - URL-параметры для фильтров
 
----
-
-## CLI Tools (тестирование)
-
-Для тестирования используется Playwright. Инструменты лежат в отдельной папке:
-
-```bash
-# Установка
-cd C:\ARRA\Work\CLI-Tools
-npm install playwright
-
-# Запуск тестов
-node audit-deep.js    # Полный аудит всех страниц
-node e2e-inventory.js # E2E тест инвентаризации
-```
-
-### Установленные CLI инструменты (C:\ARRA\Work\CLI-Tools):
-- **Playwright** — E2E тестирование
-- **Supabase CLI** — supabase.exe
-- **Vercel CLI** — глобально
-- **Railway CLI** — глобально
+### Управление пользователями
+- Пароли видны в таблице пользователей (password_plain)
+- Смена пароля прямо из админки (без знания текущего)
+- Назначение ролей через модалку редактирования
+- Привязка пользователя к сотруднику
 
 ---
 
 ## API эндпоинты
 
 ### Auth
-- `POST /api/auth/login` — логин
-- `GET /api/auth/me` — текущий пользователь
+- `POST /api/auth/login` — логин (возвращает token + user с gra_balance)
+- `GET /api/auth/me` — текущий пользователь (с gra_balance)
+- `POST /api/auth/change-password` — смена пароля
 
 ### Products
-- `GET /api/products` — список (search, warehouse_id, placed_only)
-- `GET /api/products/:id` — детали с расположением
+- `GET /api/products` — список (search, warehouse_id, placed_only, limit)
+- `GET /api/products/:id` — детали с расположением на складах
 - `POST/PUT/DELETE /api/products`
 
-### Warehouse (FBS)
-- `GET /api/warehouse/warehouses` — список складов
+### Warehouse (стеллажные склады)
+- `GET /api/warehouse/warehouses` — список всех складов
 - `CRUD /api/warehouse/racks` — стеллажи
 - `CRUD /api/warehouse/shelves` — полки
 - `CRUD /api/warehouse/shelf-boxes` — коробки на полках
 - `GET /api/warehouse/visual-fbs/:id` — визуальное представление
+- `POST /api/warehouse/visual-fbs/move` — визуальное перемещение
 
-### FBO
-- `GET /api/fbo/warehouses` — FBO склады
+### FBO (паллетные склады)
+- `GET /api/fbo/warehouses` — паллетные склады
 - `CRUD /api/fbo/rows` — ряды
 - `CRUD /api/fbo/pallets` — паллеты
-- `POST /api/fbo/pallets/:id/box` — создать коробку
+- `POST /api/fbo/pallets/:id/box` — создать коробку на паллете
+- `POST /api/fbo/pallets/:id/item` — добавить товар напрямую
+- `GET /api/fbo/pallets-list` — список паллетов для select
 - `GET /api/fbo/visual/:id` — визуальное представление
+- `POST /api/fbo/visual/move` — визуальное перемещение
 
 ### Tasks
-- `GET /api/tasks` — список задач
-- `POST /api/tasks` — создать задачу
+- `GET /api/tasks` — список задач (status, limit)
+- `GET /api/tasks/busy-targets` — занятые цели (полки, паллеты, коробки)
+- `POST /api/tasks` — создать задачу (с проверкой занятости)
 - `POST /api/tasks/:id/start` — начать (скан полки/паллета/коробки)
-- `POST /api/tasks/:id/scan` — скан товара
+- `POST /api/tasks/:id/scan` — скан товара (+ reward)
 - `POST /api/tasks/:id/complete` — завершить
 - `POST /api/tasks/:id/abandon-box` — выйти из коробки
-- `GET /api/tasks/analytics/inventory-overview` — аналитика инвентаризации
+- `POST /api/tasks/:id/next-shelf` — следующая полка
+- `GET /api/tasks/:id/analytics` — аналитика задачи
+- `GET /api/tasks/analytics/inventory-overview` — общая аналитика
+
+### Earnings (заработок)
+- `GET /api/earnings/summary` — сводка (лидеры, баланс, ставка)
+- `GET /api/earnings/employees` — сотрудники с заработком
+- `GET /api/earnings/employees/:id` — история сотрудника
+- `GET /api/earnings/tasks/:id` — разбивка заработка по задаче
+- `POST /api/earnings/employees/:id/set-balance` — ручная корректировка
 
 ### Movements
 - `GET /api/movements/history` — история перемещений
@@ -268,20 +327,68 @@ node e2e-inventory.js # E2E тест инвентаризации
 - `POST /api/movements/move` — переместить товар
 
 ### Staff
-- `GET /api/staff/employees` — сотрудники
+- `GET /api/staff/employees` — сотрудники (с user info, password_plain)
+- `GET /api/staff/users` — пользователи (с password_plain)
+- `POST /api/staff/users` — создать пользователя
+- `PUT /api/staff/users/:id` — обновить (логин, пароль, роль, привязка)
+- `DELETE /api/staff/users/:id` — удалить
 - `GET /api/staff/roles` — роли
+- `GET /api/staff/external-employees` — сотрудники из внешней БД
+
+### Settings
+- `GET /api/settings` — все настройки
+- `PUT /api/settings` — обновить настройки
+
+### Errors
+- `GET /api/errors` — список ошибок фронтенда
+- `POST /api/errors` — записать ошибку
+
+---
+
+## Деплой и инфраструктура
+
+### GitHub Actions (.github/workflows/deploy.yml)
+При пуше в `main`:
+1. Checkout + Setup Node 20
+2. `cd frontend && npm ci && npx vite build --mode sklad`
+3. Очистка старых assets через SSH
+4. SCP: backend/src + backend/package.json → сервер
+5. SCP: frontend/dist → сервер
+6. SSH: `npm install --production && pm2 restart`
+
+### Сервер
+- **IP:** 147.45.97.155
+- **SSH:** root (пароль в памяти)
+- **PM2:** процесс `c-site`, порт 3017
+- **Путь:** `/var/www/bem-dev.ru/sklad/`
+- **nginx:** проксирует `/sklad` → `localhost:3017/sklad`
+
+### Версионирование
+- Версия хранится в `frontend/package.json` → `version`
+- Отображается в левом нижнем углу сайдбара админки
+- **Обновлять при каждом деплое** (patch для фиксов, minor для фич)
+
+---
+
+## Правила работы с Claude Code
+
+При каждом ответе обязательно выводить:
+1. **Версию** — текущую версию после деплоя (например v1.7.0)
+2. **URL сайта** — http://147.45.97.155/sklad
+3. При деплое — бампить версию в `frontend/package.json` и `AdminLayout.jsx`
 
 ---
 
 ## История версий
 
-Полная история доступна в Настройки → История на сайте.
+| Версия | Дата | Изменения |
+|--------|------|-----------|
+| **v1.7.0** | 25.03.2026 | Переименование FBS/FBO → Стеллажный/Паллетный в UI |
+| **v1.6.x** | 25.03.2026 | Заработок GRAcoin, защита задач от дублей, SearchSelect, пароли в таблице |
+| **v1.5.0** | 24.03.2026 | Ozon ИП Е., переименование Ozon_1, URL-табы |
+| **v1.27.0** | ранее | Полный флоу инвентаризации паллетов |
+| **v1.26.0** | ранее | Аналитика инвентаризации |
+| **v1.24.0** | ранее | Поиск товара на складе |
+| **v1.23.0** | ранее | Единые переключатели видов складов |
 
-Ключевые версии:
-- **v1.27.0** — Полный флоу инвентаризации паллетов, выход из коробки, покинуть задачу
-- **v1.26.0** — Аналитика инвентаризации с нуля, модалка задач, duplicate key
-- **v1.24.0** — Поиск товара на складе, редактирование штрих-кодов
-- **v1.23.0** — Единые переключатели видов FBS/FBO
-- **v1.20.0** — Режим "Карточки" с полками внутри
-- **v1.19.0** — Цветные карточки стеллажей/рядов
-- **v1.18.0** — Исправление 10 багов из аудита
+Полная история доступна в Настройки → История на сайте.
