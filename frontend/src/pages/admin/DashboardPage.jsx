@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Package, Warehouse, ClipboardList, TrendingUp, Layers, BoxesIcon,
   LayoutGrid, Rows3, PanelTop, BarChart3, Clock, ScanLine,
-  AlertTriangle, Users, ChevronRight, ArrowLeft, CheckCircle2
+  AlertTriangle, Users, ChevronRight, ArrowLeft, CheckCircle2, ArrowRight,
+  Briefcase, PieChart
 } from 'lucide-react';
 import api from '../../api/client';
 import { qty } from '../../utils/fmt';
@@ -239,6 +241,12 @@ function TaskAnalytics({ taskId, onBack }) {
 
 // ─── Main Dashboard ──────────────────────────────────────────────────────────
 export default function DashboardPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const variant = Number(searchParams.get('v')) || 1;
+  const setVariant = (v) => setSearchParams(prev => { const p = new URLSearchParams(prev); p.set('v', String(v)); return p; }, { replace: true });
+  const activeReport = searchParams.get('report') || null;
+  const setActiveReport = (r) => setSearchParams(prev => { const p = new URLSearchParams(prev); if (r) p.set('report', r); else p.delete('report'); return p; }, { replace: true });
+
   const [stats, setStats] = useState(null);
   const [taskStats, setTaskStats] = useState(null);
   const [whStats, setWhStats] = useState(null);
@@ -282,10 +290,95 @@ export default function DashboardPage() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Дашборд</h1>
-        <p className="text-gray-500 text-sm mt-1">Общая сводка по складу и аналитика</p>
+      <div className="flex items-end justify-between mb-6">
+        <div className="flex items-center gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Дашборд</h1>
+            <p className="text-gray-500 text-sm mt-1">Общая сводка по складу и аналитика</p>
+          </div>
+          <div className="flex rounded-lg border border-gray-300 dark:border-gray-600 overflow-hidden ml-4">
+            <button onClick={() => setVariant(1)}
+              className={`px-3 py-1.5 text-xs font-medium transition-colors ${variant === 1 ? 'bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300' : 'bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
+            >Обзор</button>
+            <button onClick={() => setVariant(2)}
+              className={`px-3 py-1.5 text-xs font-medium transition-colors border-l border-gray-300 dark:border-gray-600 ${variant === 2 ? 'bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300' : 'bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
+            >Отчёты</button>
+          </div>
+        </div>
       </div>
+
+      {variant === 2 ? (
+        /* ══════════════ VARIANT 2: REPORTS ══════════════ */
+        <div className="space-y-4">
+          {/* Report cards */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Card 1: Warehouse fill by warehouse */}
+            <div className="card p-0 overflow-hidden hover:shadow-lg hover:border-primary-300 dark:hover:border-primary-700 transition-all cursor-pointer group"
+              onClick={() => setActiveReport('warehouse-fill')}
+            >
+              <div className="flex items-center gap-3 px-4 pt-4 pb-2">
+                <Warehouse size={16} className="text-primary-500" />
+                <p className="text-sm font-bold text-gray-900 dark:text-white flex-1">Заполненность складов</p>
+                <ArrowRight size={14} className="text-gray-300 group-hover:text-primary-500 transition-colors" />
+              </div>
+              <div className="px-4 pb-3">
+                {whStats?.warehouses?.slice(0, 3).map(wh => {
+                  const fill = Number(wh.shelves_count) > 0 ? Math.round((Number(wh.occupied_shelves) / Number(wh.shelves_count)) * 100) : 0;
+                  return (
+                    <div key={wh.id} className="flex items-center gap-2 py-1">
+                      <span className="text-[11px] text-gray-600 w-24 truncate">{wh.name}</span>
+                      <div className="flex-1 h-3 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                        <div className={`h-full rounded-full ${fill > 80 ? 'bg-red-400' : fill > 50 ? 'bg-amber-400' : 'bg-green-400'}`} style={{ width: `${fill}%` }} />
+                      </div>
+                      <span className="text-[10px] text-gray-500 w-8 text-right">{fill}%</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Card 2: Task analytics */}
+            <div className="card p-0 overflow-hidden hover:shadow-lg hover:border-primary-300 dark:hover:border-primary-700 transition-all cursor-pointer group"
+              onClick={() => setActiveReport('task-stats')}
+            >
+              <div className="flex items-center gap-3 px-4 pt-4 pb-2">
+                <ClipboardList size={16} className="text-amber-500" />
+                <p className="text-sm font-bold text-gray-900 dark:text-white flex-1">Аналитика задач</p>
+                <ArrowRight size={14} className="text-gray-300 group-hover:text-primary-500 transition-colors" />
+              </div>
+              <div className="px-4 pb-3 grid grid-cols-3 gap-2">
+                {[
+                  { label: 'Выполнено', val: taskStats?.completed_count || 0, color: 'text-green-600' },
+                  { label: 'В работе', val: taskStats?.in_progress_count || 0, color: 'text-amber-600' },
+                  { label: 'Новые', val: taskStats?.new_count || 0, color: 'text-gray-500' },
+                ].map(s => (
+                  <div key={s.label} className="text-center">
+                    <p className={`text-lg font-bold ${s.color}`}>{s.val}</p>
+                    <p className="text-[10px] text-gray-400">{s.label}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Placeholder cards */}
+            {[{ title: 'Отчёт 3', icon: PieChart }, { title: 'Отчёт 4', icon: TrendingUp }].map((r, i) => (
+              <div key={i} className="card p-5 opacity-40">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+                    <r.icon size={20} className="text-gray-400" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-gray-500">{r.title}</p>
+                    <p className="text-[11px] text-gray-400">Скоро</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+      <>
+      {/* ══════════════ VARIANT 1: OVERVIEW ══════════════ */}
 
       {/* ── Row 1: Key stats ───────────────────────────────────────────── */}
       <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3 mb-6">
@@ -523,6 +616,8 @@ export default function DashboardPage() {
             })}
           </div>
         </div>
+      )}
+      </>
       )}
     </div>
   );
