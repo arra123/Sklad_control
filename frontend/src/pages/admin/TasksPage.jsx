@@ -291,21 +291,10 @@ function TaskDetailPanel({ task, onClose, onReload }) {
                             </div>
                             <div className="flex items-center gap-2 flex-shrink-0">
                               {boxAvgPick && <span className="text-[10px] text-primary-500 font-semibold">{boxAvgPick}с/шт</span>}
-                              <span className="text-xs font-semibold text-gray-600">{boxScans.length}{box.box_size ? `/${box.box_size}` : ''}</span>
+                              <span className="text-xs text-gray-400">{boxScans.length}</span>
                               <Badge variant={statusBadge}>{statusLabel}</Badge>
                             </div>
                           </button>
-                          {/* Box progress bar */}
-                          {box.box_size > 0 && (
-                            <div className="px-3 pb-2">
-                              <div className="h-1.5 bg-gray-200/50 rounded-full overflow-hidden">
-                                <div className="h-full rounded-full transition-all" style={{
-                                  width: `${Math.min(100, Math.round((boxScans.length / box.box_size) * 100))}%`,
-                                  background: box.status === 'completed' ? '#22c55e' : boxScans.length >= box.box_size ? '#f59e0b' : '#6366f1',
-                                }} />
-                              </div>
-                            </div>
-                          )}
                           {/* Box scans — collapsible */}
                           {isOpen && (
                             boxScans.length === 0 ? (

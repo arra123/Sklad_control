@@ -2430,7 +2430,7 @@ function FBORowListView({ warehouse, initialRowId, initialPalletId, initialBoxId
   const [editRow, setEditRow] = useState(null);
   const [drillRow, setDrillRow] = useState(null);
   const [quickPalletId, setQuickPalletId] = useState(null);
-  const vm = extViewMode || 'list';
+  const vm = extViewMode || 'cards';
 
   useEffect(() => { setDrillRow(null); setQuickPalletId(null); }, [warehouse?.id]);
 
@@ -3298,7 +3298,7 @@ function ShelfCardsView({ warehouse, racks, onDrillRack, onDrillShelf }) {
 // ─── Warehouse Content (FBS / FBO / Both) ────────────────────────────────────
 function WarehouseContent({ warehouse, initialRackId, initialShelfId, initialRowId, initialPalletId, initialBoxId, initialBoxType }) {
   const [searchParams, setSearchParams] = useSearchParams();
-  const viewMode = searchParams.get('view') || 'list';
+  const viewMode = searchParams.get('view') || 'cards';
   const setViewMode = (mode) => {
     setSearchParams(prev => {
       const p = new URLSearchParams(prev);
