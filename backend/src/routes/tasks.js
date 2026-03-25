@@ -1755,6 +1755,124 @@ router.post('/', requireAuth, requireAdminOrManager, async (req, res) => {
 
     await client.query('BEGIN');
 
+    // ─── Check: target not already in active task ──────────────────
+    const activeStatuses = ['new', 'in_progress'];
+    const allShelfIds = shelf_ids?.length ? shelf_ids.map(Number).filter(Boolean) : (shelf_id ? [Number(shelf_id)] : []);
+
+    if (allShelfIds.length > 0) {
+      const busyShelf = await client.query(
+        `SELECT t.id, t.title, t.status, s.name as shelf_name, r.name as rack_name
+         FROM inventory_tasks_s t
+         LEFT JOIN shelves_s s ON s.id = t.shelf_id
+         LEFT JOIN racks_s r ON r.id = s.rack_id
+         WHERE t.shelf_id = ANY($1)
+           AND t.status = ANY($2)
+         LIMIT 1`,
+        [allShelfIds, activeStatuses]
+      );
+      if (busyShelf.rows.length) {
+        const b = busyShelf.rows[0];
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          error: `Полка "${b.rack_name ? b.rack_name + ' · ' : ''}${b.shelf_name}" уже в задаче #${b.id} "${b.title}" (${b.status === 'new' ? 'новая' : 'в работе'})`,
+        });
+      }
+    }
+
+    if (target_pallet_id) {
+      const busyPallet = await client.query(
+        `SELECT t.id, t.title, t.status
+         FROM inventory_tasks_s t
+         WHERE t.target_pallet_id = $1
+           AND t.status = ANY($2)
+         LIMIT 1`,
+        [target_pallet_id, activeStatuses]
+      );
+      if (busyPallet.rows.length) {
+        const b = busyPallet.rows[0];
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          error: `Паллет уже в задаче #${b.id} "${b.title}" (${b.status === 'new' ? 'новая' : 'в работе'})`,
+        });
+      }
+    }
+
+    if (palletBoxIds.length > 0) {
+      const busyBox = await client.query(
+        `SELECT itb.task_id, t.title, t.status, b.barcode_value
+         FROM inventory_task_boxes_s itb
+         JOIN inventory_tasks_s t ON t.id = itb.task_id
+         LEFT JOIN boxes_s b ON b.id = itb.box_id
+         WHERE itb.box_id = ANY($1)
+           AND t.status = ANY($2)
+         LIMIT 1`,
+        [palletBoxIds, activeStatuses]
+      );
+      if (busyBox.rows.length) {
+        const b = busyBox.rows[0];
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          error: `Коробка ${b.barcode_value || ''} уже в задаче #${b.task_id} "${b.title}" (${b.status === 'new' ? 'новая' : 'в работе'})`,
+        });
+      }
+    }
+
+    if (shelfBoxIds.length > 0) {
+      const busyShelfBox = await client.query(
+        `SELECT itb.task_id, t.title, t.status, sb.barcode_value
+         FROM inventory_task_boxes_s itb
+         JOIN inventory_tasks_s t ON t.id = itb.task_id
+         LEFT JOIN shelf_boxes_s sb ON sb.id = itb.shelf_box_id
+         WHERE itb.shelf_box_id = ANY($1)
+           AND t.status = ANY($2)
+         LIMIT 1`,
+        [shelfBoxIds, activeStatuses]
+      );
+      if (busyShelfBox.rows.length) {
+        const b = busyShelfBox.rows[0];
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          error: `Коробка ${b.barcode_value || ''} уже в задаче #${b.task_id} "${b.title}" (${b.status === 'new' ? 'новая' : 'в работе'})`,
+        });
+      }
+    }
+
+    if (target_box_id) {
+      const busyTargetBox = await client.query(
+        `SELECT t.id, t.title, t.status
+         FROM inventory_tasks_s t
+         WHERE t.target_box_id = $1
+           AND t.status = ANY($2)
+         LIMIT 1`,
+        [target_box_id, activeStatuses]
+      );
+      if (busyTargetBox.rows.length) {
+        const b = busyTargetBox.rows[0];
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          error: `Коробка уже в задаче #${b.id} "${b.title}" (${b.status === 'new' ? 'новая' : 'в работе'})`,
+        });
+      }
+    }
+
+    if (target_shelf_box_id) {
+      const busyTargetShelfBox = await client.query(
+        `SELECT t.id, t.title, t.status
+         FROM inventory_tasks_s t
+         WHERE t.target_shelf_box_id = $1
+           AND t.status = ANY($2)
+         LIMIT 1`,
+        [target_shelf_box_id, activeStatuses]
+      );
+      if (busyTargetShelfBox.rows.length) {
+        const b = busyTargetShelfBox.rows[0];
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          error: `Коробка на полке уже в задаче #${b.id} "${b.title}" (${b.status === 'new' ? 'новая' : 'в работе'})`,
+        });
+      }
+    }
+
     // If shelf_ids provided, use first as shelf_id and store full list
     let effectiveShelfId = shelf_ids?.length ? shelf_ids[0] : (shelf_id || null);
     const effectiveShelfIds = shelf_ids?.length ? JSON.stringify(shelf_ids) : null;
