@@ -227,5 +227,35 @@ export function RowBadge({ number, size = 40, color = '#0891b2' }) {
   );
 }
 
+export function ShelfBadge({ number, size = 40, color = '#059669' }) {
+  return (
+    <div style={{ width: size, height: size, position: 'relative', flexShrink: 0 }}>
+      <ShelfIcon size={size} />
+      <div style={{
+        position: 'absolute', bottom: -2, right: -2,
+        width: size * 0.45, height: size * 0.45, borderRadius: '50%',
+        background: color, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: size * 0.25, fontWeight: 800, color: 'white', lineHeight: 1,
+        border: '2px solid white',
+      }}>{number}</div>
+    </div>
+  );
+}
+
+export function PalletBadge({ number, size = 40, color = '#d97706' }) {
+  return (
+    <div style={{ width: size, height: size, position: 'relative', flexShrink: 0 }}>
+      <PalletIcon size={size} />
+      <div style={{
+        position: 'absolute', bottom: -2, right: -2,
+        width: size * 0.45, height: size * 0.45, borderRadius: '50%',
+        background: color, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: size * 0.25, fontWeight: 800, color: 'white', lineHeight: 1,
+        border: '2px solid white',
+      }}>{number}</div>
+    </div>
+  );
+}
+
 // Aliases for backward compatibility
 export const ShelfBoxIcon = BoxIcon;

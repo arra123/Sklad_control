@@ -6,7 +6,7 @@ import {
   Warehouse, Plus, Pencil, Trash2, Layers, Package, Search,
   ChevronRight, ChevronLeft, ArrowLeft, Copy, Check, X, Printer, Box, ArrowUp, ArrowDown
 } from 'lucide-react';
-import { WarehouseIcon, RackIcon, ShelfIcon, PalletIcon, RowIcon, BoxIcon, ProductIcon, RackBadge, RowBadge } from '../../components/ui/WarehouseIcons';
+import { WarehouseIcon, RackIcon, ShelfIcon, PalletIcon, RowIcon, BoxIcon, ProductIcon, RackBadge, RowBadge, ShelfBadge, PalletBadge } from '../../components/ui/WarehouseIcons';
 import api from '../../api/client';
 import FBSVisualView from '../../components/visual/FBSVisualView';
 import FBOVisualView from '../../components/visual/FBOVisualView';
@@ -1381,6 +1381,7 @@ function ShelfDetailView({ shelfId, rackId, onClose, initialBoxId }) {
           className="p-2 rounded-xl text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
           <ArrowLeft size={18} />
         </button>
+        <ShelfBadge number={shelf.code?.replace(/\D/g, '').slice(-1) || '?'} size={48} color="#059669" />
         <div className="flex-1">
           <div className="flex items-center gap-2">
             <h2 className="text-xl font-bold text-gray-900 dark:text-white">{shelf.name}</h2>
@@ -1621,10 +1622,7 @@ function RackDetailView({ rack, onBack, onReload, initialShelfId, initialBoxId, 
             className="p-2 rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
             <ArrowLeft size={18} />
           </button>
-          <div className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-sm"
-            style={{ background: 'linear-gradient(135deg, #7c3aed, #6d28d9)' }}>
-            <span className="text-white font-black text-xl">{rackNum}</span>
-          </div>
+          <RackBadge number={rackNum} size={56} color="#7c3aed" />
           <div className="flex-1">
             <div className="flex items-center gap-2">
               <h2 className="text-xl font-bold text-gray-900 dark:text-white">{rack.name}</h2>
@@ -1663,10 +1661,7 @@ function RackDetailView({ rack, onBack, onReload, initialShelfId, initialBoxId, 
                 onClick={() => handleDrillShelf(shelf.id)}>
                 <div className="p-4">
                   <div className="flex items-start gap-3">
-                    <div className="flex-shrink-0 w-11 h-11 rounded-xl flex items-center justify-center"
-                      style={{ background: c.light }}>
-                      <span className="font-black text-base" style={{ color: c.text }}>{shelfNum}</span>
-                    </div>
+                    <ShelfBadge number={shelfNum} size={44} color={c.bg} />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="text-base font-bold text-gray-900 dark:text-white">{shelf.name}</span>
@@ -1877,10 +1872,7 @@ function PalletDetailView({ pallet, onClose, initialBoxId }) {
           className="p-2 rounded-xl text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
           <ArrowLeft size={18} />
         </button>
-        <div className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-sm"
-          style={{ background: 'linear-gradient(135deg, #7c3aed, #6d28d9)' }}>
-          <span className="text-white font-black text-xl">{pallet.number}</span>
-        </div>
+        <PalletBadge number={pallet.number} size={56} color="#7c3aed" />
         <div className="flex-1">
           <div className="flex items-center gap-2">
             <h2 className="text-xl font-bold text-gray-900 dark:text-white">{pallet.name}</h2>
@@ -2198,10 +2190,7 @@ function RowDetailView({ row, onBack, initialPalletId, initialBoxId, initialBoxT
             className="p-2 rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
             <ArrowLeft size={18} />
           </button>
-          <div className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-sm"
-            style={{ background: 'linear-gradient(135deg, #7c3aed, #6d28d9)' }}>
-            <span className="text-white font-black text-xl">{row.number}</span>
-          </div>
+          <RowBadge number={row.number} size={56} color="#7c3aed" />
           <div className="flex-1">
             <div className="flex items-center gap-2">
               <h2 className="text-xl font-bold text-gray-900 dark:text-white">{row.name}</h2>
@@ -2236,10 +2225,7 @@ function RowDetailView({ row, onBack, initialPalletId, initialBoxId, initialBoxT
                 onClick={() => handleDrillPallet(p)}>
                 <div className="p-4">
                   <div className="flex items-start gap-3">
-                    <div className="flex-shrink-0 w-11 h-11 rounded-xl flex items-center justify-center"
-                      style={{ background: c.light }}>
-                      <span className="font-black text-base" style={{ color: c.text }}>{p.number}</span>
-                    </div>
+                    <PalletBadge number={p.number} size={44} color={c.bg} />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="text-base font-bold text-gray-900 dark:text-white">{p.name}</span>
