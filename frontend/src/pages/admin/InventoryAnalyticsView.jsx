@@ -82,14 +82,14 @@ function InventoryCard({ node, type, onDrill, settings }) {
     >
       <div className="flex items-start gap-3">
         <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: st.bg }}>
-          {type === 'warehouse' ? <WarehouseIcon size={18} className="" style={{ color: st.text }} /> :
-           type === 'rack' ? <RackIcon size={18} style={{ color: st.text }} /> :
-           type === 'shelf' ? <ShelfIcon size={18} style={{ color: st.text }} /> :
-           type === 'pallet' ? <PalletIcon size={18} style={{ color: st.text }} /> :
-           type === 'row' ? <RowIcon size={18} style={{ color: st.text }} /> :
-           type === 'pallet_box' ? <BoxIcon size={18} style={{ color: st.text }} /> :
-           type === 'shelf_box' ? <ShelfBoxIcon size={18} style={{ color: st.text }} /> :
-           <ShelfIcon size={18} style={{ color: st.text }} />}
+          {type === 'warehouse' ? <WarehouseIcon size={24} /> :
+           type === 'rack' ? <RackIcon size={24} /> :
+           type === 'shelf' ? <ShelfIcon size={24} /> :
+           type === 'pallet' ? <PalletIcon size={24} /> :
+           type === 'row' ? <RowIcon size={24} /> :
+           type === 'pallet_box' ? <BoxIcon size={24} /> :
+           type === 'shelf_box' ? <BoxIcon size={24} /> :
+           <ShelfIcon size={24} />}
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
@@ -722,21 +722,41 @@ export default function InventoryAnalyticsView() {
       {activeTab === 'inventory' && <>
       {/* Stats row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-        <div className="card p-4 text-center">
-          <p className="text-3xl font-black text-gray-900 dark:text-white">{selectedWarehouse ? 1 : warehouses.length}</p>
-          <p className="text-xs text-gray-400 mt-1 uppercase font-semibold">{selectedWarehouse ? 'Склад' : 'Складов'}</p>
+        <div className="card p-4 flex items-center gap-3">
+          <div className="w-12 h-12 rounded-2xl bg-primary-50 flex items-center justify-center flex-shrink-0">
+            <WarehouseIcon size={28} />
+          </div>
+          <div>
+            <p className="text-2xl font-black text-gray-900 dark:text-white">{selectedWarehouse ? 1 : warehouses.length}</p>
+            <p className="text-xs text-gray-400 uppercase font-semibold">{selectedWarehouse ? 'Склад' : 'Складов'}</p>
+          </div>
         </div>
-        <div className="card p-4 text-center">
-          <p className="text-3xl font-black" style={{ color: s.inventory_color_fresh || '#047857' }}>{freshCount}</p>
-          <p className="text-xs text-gray-400 mt-1 uppercase font-semibold">Свежих ({freshH}ч)</p>
+        <div className="card p-4 flex items-center gap-3">
+          <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: (s.inventory_color_fresh || '#047857') + '18' }}>
+            <CheckCircle2 size={22} style={{ color: s.inventory_color_fresh || '#047857' }} />
+          </div>
+          <div>
+            <p className="text-2xl font-black" style={{ color: s.inventory_color_fresh || '#047857' }}>{freshCount}</p>
+            <p className="text-xs text-gray-400 uppercase font-semibold">Свежих ({freshH}ч)</p>
+          </div>
         </div>
-        <div className="card p-4 text-center">
-          <p className="text-3xl font-black" style={{ color: s.inventory_color_stale || '#b91c1c' }}>{notInventoried}</p>
-          <p className="text-xs text-gray-400 mt-1 uppercase font-semibold">Без инвента</p>
+        <div className="card p-4 flex items-center gap-3">
+          <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: (s.inventory_color_stale || '#b91c1c') + '18' }}>
+            <AlertTriangle size={22} style={{ color: s.inventory_color_stale || '#b91c1c' }} />
+          </div>
+          <div>
+            <p className="text-2xl font-black" style={{ color: s.inventory_color_stale || '#b91c1c' }}>{notInventoried}</p>
+            <p className="text-xs text-gray-400 uppercase font-semibold">Без инвента</p>
+          </div>
         </div>
-        <div className="card p-4 text-center">
-          <p className="text-3xl font-black" style={{ color: s.inventory_color_warn || '#a16207' }}>{staleCount}</p>
-          <p className="text-xs text-gray-400 mt-1 uppercase font-semibold">Устарели ({staleH}ч+)</p>
+        <div className="card p-4 flex items-center gap-3">
+          <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: (s.inventory_color_warn || '#a16207') + '18' }}>
+            <Clock size={22} style={{ color: s.inventory_color_warn || '#a16207' }} />
+          </div>
+          <div>
+            <p className="text-2xl font-black" style={{ color: s.inventory_color_warn || '#a16207' }}>{staleCount}</p>
+            <p className="text-xs text-gray-400 uppercase font-semibold">Устарели ({staleH}ч+)</p>
+          </div>
         </div>
       </div>
 
