@@ -252,6 +252,7 @@ async function getTaskBoxRows(client, taskId) {
               ELSE NULL
             END) as box_name,
             COALESCE(sbx.quantity, bx.quantity) as box_quantity,
+            COALESCE(sbx.box_size, bx.box_size) as box_size,
             COALESCE(sbx.product_id, bx.product_id) as summary_product_id,
             COALESCE(sbp.name, bp.name) as summary_product_name,
             COALESCE(sbp.code, bp.code) as summary_product_code,
