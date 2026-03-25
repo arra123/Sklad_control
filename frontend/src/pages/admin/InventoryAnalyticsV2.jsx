@@ -517,12 +517,12 @@ function RackRowDetail({ node, type, settings }) {
         </div>
         <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-sm opacity-90">
           <span>{items.length} {childrenData?.label?.toLowerCase() || 'элементов'}</span>
-          <span>{fmtQty(totalQty)} позиций</span>
-          {node.last_inventory_duration_seconds > 0 && <span>Время: {fmtDuration(node.last_inventory_duration_seconds)}</span>}
+          <span>{fmtQty(totalQty)} позиций на складе</span>
+          {node.last_inventory_duration_seconds > 0 && <span>Инвентаризация заняла: {fmtDuration(node.last_inventory_duration_seconds)}</span>}
           {invQty > 0 && Number(node.last_inventory_duration_seconds || 0) > 0 && (
-            <span>{(Number(node.last_inventory_duration_seconds) / invQty).toFixed(1)}с/шт</span>
+            <span>Скорость: {(Number(node.last_inventory_duration_seconds) / invQty).toFixed(1)}с на товар</span>
           )}
-          {node.last_inventory_by && <span>{node.last_inventory_by}</span>}
+          {node.last_inventory_by && <span>Проверял: {node.last_inventory_by}</span>}
         </div>
       </div>
 
@@ -584,7 +584,7 @@ function RackRowDetail({ node, type, settings }) {
 
 /* ═══════════════════ Shelf / Pallet Detail ═══════════════════ */
 
-function ShelfPalletDetail({ node, type, settings }) {
+function ShelfPalletDetail({ node, type, settings, onSelectNode }) {
   const childrenData = getChildren(node);
   const hasBoxes = !!childrenData && childrenData.items.length > 0;
   const st = statusColor(node, settings);
@@ -611,31 +611,49 @@ function ShelfPalletDetail({ node, type, settings }) {
             </div>
           </div>
         </div>
-        <div className="grid grid-cols-3 sm:grid-cols-5 gap-3 text-center">
-          <div className="bg-gray-50 rounded-lg p-2">
-            <p className="text-lg font-black text-gray-900">{fmtQty(invQty)}</p>
-            <p className="text-[10px] text-gray-400 uppercase">По инвенту</p>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+          <div className="bg-gray-50 rounded-lg p-3">
+            <p className="text-xl font-black text-gray-900">{fmtQty(invQty)}</p>
+            <p className="text-[10px] text-gray-500">Насчитано при инвентаризации</p>
           </div>
-          <div className="bg-gray-50 rounded-lg p-2">
-            <p className="text-lg font-black text-gray-900">{fmtQty(curQty)}</p>
-            <p className="text-[10px] text-gray-400 uppercase">Сейчас</p>
+          <div className="bg-gray-50 rounded-lg p-3">
+            <p className="text-xl font-black text-gray-900">{fmtQty(curQty)}</p>
+            <p className="text-[10px] text-gray-500">Текущий остаток на складе</p>
           </div>
-          <div className="bg-gray-50 rounded-lg p-2">
-            <p className={cn('text-lg font-black', (invQty - curQty) > 0 ? 'text-green-600' : (invQty - curQty) < 0 ? 'text-red-600' : 'text-gray-400')}>
+          <div className="bg-gray-50 rounded-lg p-3">
+            <p className={cn('text-xl font-black', (invQty - curQty) > 0 ? 'text-green-600' : (invQty - curQty) < 0 ? 'text-red-600' : 'text-gray-400')}>
               {(invQty - curQty) > 0 ? '+' : ''}{invQty - curQty}
             </p>
-            <p className="text-[10px] text-gray-400 uppercase">Разница</p>
+            <p className="text-[10px] text-gray-500">Расхождение инвент. vs остаток</p>
           </div>
           {Number(node.last_inventory_duration_seconds || 0) > 0 && (
-            <div className="bg-gray-50 rounded-lg p-2">
-              <p className="text-lg font-black text-gray-900">{fmtDuration(node.last_inventory_duration_seconds)}</p>
-              <p className="text-[10px] text-gray-400 uppercase">Время</p>
+            <div className="bg-blue-50 rounded-lg p-3">
+              <p className="text-xl font-black text-blue-700">{fmtDuration(node.last_inventory_duration_seconds)}</p>
+              <p className="text-[10px] text-gray-500">Потрачено на инвентаризацию</p>
             </div>
           )}
           {invQty > 0 && Number(node.last_inventory_duration_seconds || 0) > 0 && (
-            <div className="bg-purple-50 rounded-lg p-2">
-              <p className="text-lg font-black text-purple-600">{(Number(node.last_inventory_duration_seconds) / invQty).toFixed(1)}с</p>
-              <p className="text-[10px] text-gray-400 uppercase">На 1 товар</p>
+            <div className="bg-purple-50 rounded-lg p-3">
+              <p className="text-xl font-black text-purple-600">{(Number(node.last_inventory_duration_seconds) / invQty).toFixed(1)}с</p>
+              <p className="text-[10px] text-gray-500">Среднее время на 1 товар</p>
+            </div>
+          )}
+          {invQty > 0 && Number(node.last_inventory_duration_seconds || 0) > 0 && (
+            <div className="bg-amber-50 rounded-lg p-3">
+              <p className="text-xl font-black text-amber-700">{(invQty / (Number(node.last_inventory_duration_seconds) / 60)).toFixed(1)}</p>
+              <p className="text-[10px] text-gray-500">Товаров в минуту (скорость)</p>
+            </div>
+          )}
+          {node.last_inventory_at && (
+            <div className="bg-gray-50 rounded-lg p-3">
+              <p className="text-sm font-bold text-gray-900">{fmtDate(node.last_inventory_at)}</p>
+              <p className="text-[10px] text-gray-500">Дата последней инвентаризации</p>
+            </div>
+          )}
+          {node.last_inventory_by && (
+            <div className="bg-gray-50 rounded-lg p-3">
+              <p className="text-sm font-bold text-gray-900">{node.last_inventory_by}</p>
+              <p className="text-[10px] text-gray-500">Кто проводил инвентаризацию</p>
             </div>
           )}
           </div>
@@ -652,7 +670,7 @@ function ShelfPalletDetail({ node, type, settings }) {
               const bDur = Number(box.last_inventory_duration_seconds || 0);
               const bAvg = bQty > 0 && bDur > 0 ? (bDur / bQty).toFixed(1) : null;
               return (
-                <div key={box.id || i} className="bg-white rounded-xl border border-gray-100 p-3 hover:shadow-md transition-shadow" style={{ borderBottom: `3px solid ${bst.text}` }}>
+                <button key={box.id || i} onClick={() => onSelectNode?.(box, getChildType(box), nodeId(box, getChildType(box)))} className="bg-white rounded-xl border border-gray-100 p-3 hover:shadow-md hover:-translate-y-0.5 transition-all text-left w-full cursor-pointer" style={{ borderBottom: `3px solid ${bst.text}` }}>
                   <div className="flex items-center gap-2 mb-1">
                     <BoxIcon size={14} />
                     <span className="font-semibold text-sm text-gray-900 truncate flex-1">{getNodeLabel(box)}</span>
@@ -664,7 +682,7 @@ function ShelfPalletDetail({ node, type, settings }) {
                     {box.last_inventory_at && <span>{timeAgo(box.last_inventory_at)}</span>}
                     {box.last_inventory_by && <span>{box.last_inventory_by}</span>}
                   </div>
-                </div>
+                </button>
               );
             })}
           </div>
@@ -760,7 +778,7 @@ function BoxDetail({ node, type, settings }) {
 
 /* ═══════════════════ Right Panel Content Router ═══════════════════ */
 
-function RightPanelContent({ selectedNode, selectedType, data, settings }) {
+function RightPanelContent({ selectedNode, selectedType, data, settings, onSelectNode }) {
   if (!selectedNode) {
     return <OverviewPanel data={data} settings={settings} />;
   }
@@ -774,7 +792,7 @@ function RightPanelContent({ selectedNode, selectedType, data, settings }) {
   }
 
   if (selectedType === 'shelf' || selectedType === 'pallet') {
-    return <ShelfPalletDetail node={selectedNode} type={selectedType} settings={settings} />;
+    return <ShelfPalletDetail node={selectedNode} type={selectedType} settings={settings} onSelectNode={onSelectNode} />;
   }
 
   if (selectedType === 'pallet_box' || selectedType === 'shelf_box' || selectedType === 'box') {
@@ -782,7 +800,7 @@ function RightPanelContent({ selectedNode, selectedType, data, settings }) {
   }
 
   // Fallback: treat as shelf
-  return <ShelfPalletDetail node={selectedNode} type={selectedType} settings={settings} />;
+  return <ShelfPalletDetail node={selectedNode} type={selectedType} settings={settings} onSelectNode={onSelectNode} />;
 }
 
 /* ═══════════════════ Main Component ═══════════════════ */
@@ -857,12 +875,22 @@ export default function InventoryAnalyticsV2() {
   const handleSelect = useCallback((node, type, nid) => {
     setSelectedNode(node);
     setSelectedType(type);
-    setSelectedNodeId(nid);
+    setSelectedNodeId(nid || nodeId(node, type));
 
     if (data) {
       const warehouses = data.warehouses || data || [];
       const path = buildPath(node, type, warehouses);
       setSelectedPath(path);
+
+      // Auto-expand all ancestors in tree
+      setExpandedNodes(prev => {
+        const next = new Set(prev);
+        path.forEach(p => {
+          const pid = nodeId(p.node, p.type);
+          if (pid) next.add(pid);
+        });
+        return next;
+      });
     }
   }, [data, buildPath]);
 
@@ -1009,6 +1037,7 @@ export default function InventoryAnalyticsV2() {
           selectedType={selectedType}
           data={data}
           settings={s}
+          onSelectNode={handleSelect}
         />
       </main>
     </div>
