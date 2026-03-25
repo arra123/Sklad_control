@@ -5,6 +5,7 @@ import {
   Copy, Check, ArrowRight, Plus, Pencil, Trash2, X, MapPin,
   ArrowUp, ArrowDown, Settings2, GripVertical
 } from 'lucide-react';
+import { ProductIcon, BundleIcon } from '../../components/ui/WarehouseIcons';
 import api from '../../api/client';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
@@ -194,7 +195,7 @@ function SearchWithSuggestions({ value, onChange, onSearch, entityType }) {
               onMouseDown={() => handleSelect(item.name)}
             >
               <div className={`w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0 ${item.entity_type === 'bundle' ? 'bg-purple-50' : 'bg-primary-50'}`}>
-                {item.entity_type === 'bundle' ? <Boxes size={12} className="text-purple-500" /> : <Package size={12} className="text-primary-500" />}
+                {item.entity_type === 'bundle' ? <BundleIcon size={18} /> : <ProductIcon size={18} />}
               </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate font-medium">{item.name}</p>
@@ -688,7 +689,7 @@ export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
                     {product.components.map(c => (
                       <div key={c.bc_id || c.id} className="flex items-center gap-3 px-3 py-2.5 bg-primary-50 border border-primary-100 rounded-xl group">
                         <div className="w-7 h-7 rounded-lg bg-white flex items-center justify-center flex-shrink-0 border border-primary-100">
-                          <Package size={13} className="text-primary-500" />
+                          <ProductIcon size={18} />
                         </div>
                         <button
                           className="flex-1 min-w-0 text-left"
@@ -936,7 +937,7 @@ function ProductTable({ entityType, onSelect, onEdit }) {
           <div className="flex items-center justify-center h-48"><Spinner size="lg" /></div>
         ) : items.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-48 text-gray-400">
-            <Package size={40} className="mb-2 opacity-30" />
+            <ProductIcon size={48} className="mb-2 opacity-50" />
             <p className="text-sm">Товары не найдены</p>
           </div>
         ) : (
@@ -960,7 +961,7 @@ function ProductTable({ entityType, onSelect, onEdit }) {
                         <td key="name">
                           <div className="flex items-center gap-2.5">
                             <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${item.entity_type === 'bundle' ? 'bg-purple-50' : 'bg-primary-50'}`}>
-                              {item.entity_type === 'bundle' ? <Boxes size={14} className="text-purple-500" /> : <Package size={14} className="text-primary-500" />}
+                              {item.entity_type === 'bundle' ? <BundleIcon size={20} /> : <ProductIcon size={20} />}
                             </div>
                             <div className="min-w-0">
                               <p className="font-medium text-gray-900 dark:text-white text-sm leading-tight">{item.name}</p>

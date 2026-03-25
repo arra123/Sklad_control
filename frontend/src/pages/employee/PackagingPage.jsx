@@ -4,6 +4,7 @@ import {
   ArrowLeft, Package, Box, CheckCircle2, Printer,
   RefreshCw, ScanLine, AlertCircle, ChevronRight
 } from 'lucide-react';
+import { ProductIcon } from '../../components/ui/WarehouseIcons';
 import { printBarcode } from '../../utils/printBarcode';
 import api from '../../api/client';
 import { qty } from '../../utils/fmt';
@@ -82,7 +83,7 @@ function StepScanPallet({ task, onSuccess }) {
       <div className="card p-5 space-y-4">
         <div className="flex items-center gap-3">
           <div className="w-11 h-11 rounded-2xl bg-primary-50 flex items-center justify-center flex-shrink-0">
-            <Package size={22} className="text-primary-600" />
+            <ProductIcon size={24} />
           </div>
           <div>
             <p className="text-xs text-gray-400 font-medium">Задание</p>
@@ -649,7 +650,7 @@ function StepRemainderInfo({ task, box, onConfirmShelf, onBack }) {
           className="w-full card p-4 flex items-center gap-3 bg-primary-50 border-primary-200 hover:bg-primary-100 active:scale-[0.99] transition-all text-left"
         >
           <div className="w-10 h-10 rounded-xl bg-primary-100 flex items-center justify-center flex-shrink-0">
-            <Package size={18} className="text-primary-600" />
+            <ProductIcon size={20} />
           </div>
           <div className="flex-1">
             <p className="text-xs text-primary-500 font-medium">Рекомендуемая полка — нажмите для быстрого подтверждения</p>

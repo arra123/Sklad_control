@@ -164,5 +164,38 @@ export function EmployeeIcon({ size = 20, className = '', style }) {
   );
 }
 
+export function BundleIcon({ size = 20, className = '', style }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className} style={style}>
+      {/* банка левая наклон */}
+      <g transform="rotate(-8 14 24)">
+        <rect x="4" y="10" width="16" height="28" rx="3.5" fill="#f0efe8" stroke="#d4d0c8" strokeWidth="1"/>
+        <rect x="6" y="8" width="12" height="4" rx="2" fill="#c9a94e" stroke="#b08d30" strokeWidth=".7"/>
+        <rect x="6" y="35" width="12" height="3" rx="1.5" fill="#c9a94e"/>
+        <rect x="6" y="16" width="12" height="12" rx="1" fill="white" stroke="#e8e0c8" strokeWidth=".5"/>
+        <rect x="6" y="16" width="12" height="2.5" rx=".6" fill="#c9a94e" opacity=".7"/>
+      </g>
+      {/* банка центральная */}
+      <rect x="14" y="6" width="20" height="34" rx="4.5" fill="#f8f8f6" stroke="#d4d0c8" strokeWidth="1.3"/>
+      <rect x="16" y="3.5" width="16" height="5.5" rx="2.8" fill="#c9a94e" stroke="#b08d30" strokeWidth="1"/>
+      <rect x="16" y="37" width="16" height="4" rx="2" fill="#c9a94e" stroke="#b08d30" strokeWidth="1"/>
+      <rect x="16" y="14" width="16" height="16" rx="1.2" fill="white" stroke="#e8e0c8" strokeWidth=".7"/>
+      <rect x="16" y="14" width="16" height="3.2" rx=".8" fill="#c9a94e" opacity=".8"/>
+      <path d="M30 9v28" stroke="white" strokeWidth="1.5" opacity=".3" strokeLinecap="round"/>
+      {/* банка правая наклон */}
+      <g transform="rotate(8 34 24)">
+        <rect x="28" y="10" width="16" height="28" rx="3.5" fill="#f0efe8" stroke="#d4d0c8" strokeWidth="1"/>
+        <rect x="30" y="8" width="12" height="4" rx="2" fill="#c9a94e" stroke="#b08d30" strokeWidth=".7"/>
+        <rect x="30" y="35" width="12" height="3" rx="1.5" fill="#c9a94e"/>
+        <rect x="30" y="16" width="12" height="12" rx="1" fill="white" stroke="#e8e0c8" strokeWidth=".5"/>
+        <rect x="30" y="16" width="12" height="2.5" rx=".6" fill="#c9a94e" opacity=".7"/>
+      </g>
+      {/* бейдж */}
+      <circle cx="42" cy="8" r="6" fill="#c9a94e" stroke="#b08d30" strokeWidth=".8"/>
+      <text x="42" y="10" textAnchor="middle" fill="white" fontSize="6" fontWeight="800" fontFamily="sans-serif">3</text>
+    </svg>
+  );
+}
+
 // Aliases for backward compatibility
 export const ShelfBoxIcon = BoxIcon;

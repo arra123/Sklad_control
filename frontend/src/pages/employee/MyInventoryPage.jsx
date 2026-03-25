@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Package, ArrowRightLeft } from 'lucide-react';
+import { ProductIcon } from '../../components/ui/WarehouseIcons';
 import { useNavigate } from 'react-router-dom';
 import api from '../../api/client';
 import { qty } from '../../utils/fmt';
@@ -24,7 +25,7 @@ export default function MyInventoryPage() {
     <div className="p-4 max-w-lg mx-auto">
       <div className="flex items-center gap-3 mb-5">
         <div className="w-10 h-10 rounded-2xl bg-primary-100 flex items-center justify-center">
-          <Package size={20} className="text-primary-600" />
+          <ProductIcon size={24} />
         </div>
         <div>
           <h1 className="text-lg font-bold text-gray-900">Мой товар</h1>
@@ -36,7 +37,7 @@ export default function MyInventoryPage() {
         <div className="flex items-center justify-center py-16"><Spinner size="lg" /></div>
       ) : items.length === 0 ? (
         <div className="text-center py-16">
-          <Package size={48} className="mx-auto mb-3 text-gray-200" />
+          <ProductIcon size={48} className="mx-auto mb-3 opacity-40" />
           <p className="text-gray-400 font-medium">У вас нет товаров</p>
           <p className="text-xs text-gray-300 mt-1">Используйте «Переместить» → «Взять себе»</p>
         </div>
@@ -45,7 +46,7 @@ export default function MyInventoryPage() {
           {items.map(item => (
             <div key={item.id} className="flex items-center gap-3 p-4 bg-white rounded-2xl border border-gray-100">
               <div className="w-10 h-10 rounded-xl bg-primary-50 flex items-center justify-center flex-shrink-0">
-                <Package size={18} className="text-primary-500" />
+                <ProductIcon size={20} />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-gray-800 truncate">{item.product_name}</p>

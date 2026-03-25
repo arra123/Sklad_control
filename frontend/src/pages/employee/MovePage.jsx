@@ -5,6 +5,7 @@ import {
   ChevronRight, ShoppingCart, Send, Layers, Scan
 } from 'lucide-react';
 import api from '../../api/client';
+import { ProductIcon } from '../../components/ui/WarehouseIcons';
 import { qty } from '../../utils/fmt';
 import Spinner from '../../components/ui/Spinner';
 import { useAuth } from '../../context/AuthContext';
@@ -338,7 +339,7 @@ export default function MovePage() {
                             inCart ? 'bg-green-50 border-green-200' : 'bg-white border-gray-100 hover:border-primary-300'
                           }`}>
                           <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${inCart ? 'bg-green-200' : 'bg-gray-100'}`}>
-                            {inCart ? <Check size={16} className="text-green-700" /> : <Package size={16} className="text-gray-400" />}
+                            {inCart ? <Check size={16} className="text-green-700" /> : <ProductIcon size={18} />}
                           </div>
                           <div className="flex-1 min-w-0 text-left">
                             <p className="text-sm font-medium text-gray-800 truncate">{item.product_name}</p>
@@ -401,7 +402,7 @@ export default function MovePage() {
           <div className="bg-primary-50 rounded-2xl p-4 border border-primary-100">
             <div className="flex items-center gap-3 mb-3">
               <div className="w-10 h-10 rounded-xl bg-primary-200 flex items-center justify-center flex-shrink-0">
-                <Package size={18} className="text-primary-700" />
+                <ProductIcon size={20} />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-bold text-gray-900 truncate">{scanningProduct.product_name}</p>
@@ -445,7 +446,7 @@ export default function MovePage() {
             <p className="text-xs font-bold text-green-700 uppercase tracking-wider mb-1">Набрано</p>
             {cart.map((item, idx) => (
               <div key={idx} className="flex items-center gap-2 py-1">
-                <Package size={12} className="text-green-500" />
+                <ProductIcon size={16} />
                 <span className="text-xs text-gray-700 flex-1 truncate">{item.product_name}</span>
                 <span className="text-xs font-bold text-green-700">{item.quantity}</span>
               </div>
@@ -478,7 +479,7 @@ export default function MovePage() {
             <p className="text-xs font-bold text-green-700 uppercase tracking-wider mb-3">Перемещается</p>
             {cart.map((item, idx) => (
               <div key={idx} className="flex items-center gap-3 py-2 border-b border-green-100 last:border-0">
-                <Package size={14} className="text-green-500 flex-shrink-0" />
+                <ProductIcon size={18} />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm text-gray-800 truncate">{item.product_name}</p>
                   <p className="text-xs text-gray-400">{item.source_name}</p>

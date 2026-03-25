@@ -3,6 +3,7 @@ import {
   Package, Boxes, ChevronLeft, ChevronRight,
   MapPin, ArrowUp, ArrowDown, Warehouse, Search, X, Pencil, Users, ArrowLeft, Clock
 } from 'lucide-react';
+import { ProductIcon, BundleIcon } from '../../components/ui/WarehouseIcons';
 import { useSearchParams } from 'react-router-dom';
 import api from '../../api/client';
 import Button from '../../components/ui/Button';
@@ -77,7 +78,7 @@ function EmployeeInventoryView({ onBack }) {
             <div className="card overflow-hidden divide-y divide-gray-50">
               {drillEmployee.items.map((item, i) => (
                 <div key={i} className="flex items-center gap-3 px-4 py-3">
-                  <Package size={16} className="text-primary-500 flex-shrink-0" />
+                  <ProductIcon size={20} className="flex-shrink-0" />
                   <p className="text-sm font-medium text-gray-800 flex-1 truncate">{item.product_name}</p>
                   <span className="text-sm font-bold text-primary-600">{fmtQ(item.quantity)} шт.</span>
                 </div>
@@ -381,7 +382,7 @@ function InventoryHistoryList({ node, history, loading }) {
               <div className="space-y-1.5">
                 {event.products.map(product => (
                   <div key={`${event.event_key}-${product.product_id}`} className="flex items-center gap-3 rounded-xl bg-primary-50/60 px-3 py-2">
-                    <Package size={14} className="text-primary-500 flex-shrink-0" />
+                    <ProductIcon size={18} className="flex-shrink-0" />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-900 truncate">{product.product_name || 'Товар'}</p>
                       {product.product_code && <p className="text-xs text-gray-500">{product.product_code}</p>}
@@ -810,7 +811,7 @@ export default function ProductStockPage() {
               <div className="flex items-center justify-center h-48"><Spinner size="lg" /></div>
             ) : items.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-48 text-gray-400">
-                <Package size={40} className="mb-2 opacity-30" />
+                <ProductIcon size={48} className="mb-2 opacity-50" />
                 <p className="text-sm">
                   {selectedWarehouse
                     ? 'На этом складе нет товаров'
@@ -835,8 +836,8 @@ export default function ProductStockPage() {
                           <div className="flex items-center gap-2.5">
                             <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${item.entity_type === 'bundle' ? 'bg-purple-50' : 'bg-primary-50'}`}>
                               {item.entity_type === 'bundle'
-                                ? <Boxes size={14} className="text-purple-500" />
-                                : <Package size={14} className="text-primary-500" />}
+                                ? <BundleIcon size={18} />
+                                : <ProductIcon size={18} />}
                             </div>
                             <div className="min-w-0">
                               <p className="font-medium text-gray-900 text-sm leading-tight">{item.name}</p>

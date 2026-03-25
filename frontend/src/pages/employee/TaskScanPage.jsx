@@ -8,6 +8,7 @@ import { useAuth } from '../../context/AuthContext';
 import api from '../../api/client';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
+import { ProductIcon } from '../../components/ui/WarehouseIcons';
 import Spinner from '../../components/ui/Spinner';
 import { useToast } from '../../components/ui/Toast';
 
@@ -460,7 +461,7 @@ function ScanStep({ task, onComplete }) {
 
       {/* Верхняя полоса */}
       <div className="mx-4 mt-2 px-4 py-2.5 bg-primary-50 rounded-2xl flex items-center gap-3">
-        <Package size={15} className="text-primary-500 flex-shrink-0" />
+        <ProductIcon size={18} />
         <div className="flex-1 min-w-0">
           {hasTaskBoxQueue ? (
             <>
