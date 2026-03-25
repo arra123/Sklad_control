@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { CheckCircle2, AlertTriangle, Clock, ChevronRight, ChevronDown, Search, Warehouse, Package, Box, ArrowLeft, Users, Activity, Zap, BarChart3, FileText } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, Clock, ChevronRight, ChevronDown, Search, ArrowLeft, Users, Activity, Zap, BarChart3, FileText } from 'lucide-react';
+import { WarehouseIcon, RackIcon, ShelfIcon, PalletIcon, RowIcon, BoxIcon, ShelfBoxIcon, EmployeeIcon } from '../../components/ui/WarehouseIcons';
 import api from '../../api/client';
 import Spinner from '../../components/ui/Spinner';
 import Badge from '../../components/ui/Badge';
@@ -81,9 +82,14 @@ function InventoryCard({ node, type, onDrill, settings }) {
     >
       <div className="flex items-start gap-3">
         <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: st.bg }}>
-          {type === 'warehouse' ? <Warehouse size={18} style={{ color: st.text }} /> :
-           type === 'box' ? <Box size={18} style={{ color: st.text }} /> :
-           <Package size={18} style={{ color: st.text }} />}
+          {type === 'warehouse' ? <WarehouseIcon size={18} className="" style={{ color: st.text }} /> :
+           type === 'rack' ? <RackIcon size={18} style={{ color: st.text }} /> :
+           type === 'shelf' ? <ShelfIcon size={18} style={{ color: st.text }} /> :
+           type === 'pallet' ? <PalletIcon size={18} style={{ color: st.text }} /> :
+           type === 'row' ? <RowIcon size={18} style={{ color: st.text }} /> :
+           type === 'pallet_box' ? <BoxIcon size={18} style={{ color: st.text }} /> :
+           type === 'shelf_box' ? <ShelfBoxIcon size={18} style={{ color: st.text }} /> :
+           <ShelfIcon size={18} style={{ color: st.text }} />}
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
@@ -406,7 +412,7 @@ function AuditBoxRow({ box }) {
   const colorCls = statusColors[box.status] || statusColors.pending;
   return (
     <div className="flex items-center gap-3 px-4 py-2 text-xs">
-      <Box size={14} className="text-gray-300 flex-shrink-0" />
+      <BoxIcon size={14} className="text-gray-300 flex-shrink-0" />
       <div className="flex-1 min-w-0">
         <p className="font-medium text-gray-700 dark:text-gray-200 truncate">{box.box_name || '—'}</p>
         {box.box_barcode && <p className="text-[10px] text-gray-400 font-mono">{box.box_barcode}</p>}
@@ -443,28 +449,16 @@ function AuditTaskRow({ task }) {
           <p className="text-sm font-medium text-gray-800 dark:text-gray-100 truncate">{task.title || `Задача #${task.task_id}`}</p>
           <p className="text-[11px] text-gray-400 mt-0.5">{location} · {fmtDate(task.completed_at)}</p>
         </div>
-        <div className="flex items-center gap-4 flex-shrink-0 text-xs">
-          <div className="text-center">
-            <p className="font-bold text-gray-800 dark:text-white">{task.scans_count}</p>
-            <p className="text-[10px] text-gray-400">сканов</p>
-          </div>
+        <div className="flex items-center gap-3 flex-shrink-0 flex-nowrap text-xs">
+          <span className="font-bold text-gray-800 dark:text-white whitespace-nowrap">{task.scans_count} скан.</span>
           {task.duration_seconds > 0 && (
-            <div className="text-center">
-              <p className="font-bold text-gray-800 dark:text-white">{fmtDuration(task.duration_seconds)}</p>
-              <p className="text-[10px] text-gray-400">время</p>
-            </div>
+            <span className="text-gray-500 whitespace-nowrap">{fmtDuration(task.duration_seconds)}</span>
           )}
           {task.avg_scan_gap != null && (
-            <div className="text-center">
-              <p className="font-bold text-primary-600">{task.avg_scan_gap}с</p>
-              <p className="text-[10px] text-gray-400">ср. скан</p>
-            </div>
+            <span className="font-bold text-primary-600 whitespace-nowrap">{task.avg_scan_gap}с</span>
           )}
           {task.errors_count > 0 && (
-            <div className="text-center">
-              <p className="font-bold text-red-500">{task.errors_count}</p>
-              <p className="text-[10px] text-gray-400">ошибок</p>
-            </div>
+            <span className="font-bold text-red-500 whitespace-nowrap">{task.errors_count} ош.</span>
           )}
         </div>
       </button>
@@ -487,7 +481,7 @@ function AuditEmployeeRow({ emp }) {
         className="w-full text-left px-5 py-4 flex items-center gap-4 hover:bg-gray-50/50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer"
       >
         <div className="w-10 h-10 rounded-xl bg-primary-50 dark:bg-primary-900/30 flex items-center justify-center flex-shrink-0">
-          <Users size={18} className="text-primary-500" />
+          <EmployeeIcon size={20} className="text-primary-500" />
         </div>
         <div className="flex-1 min-w-0">
           <p className="font-bold text-gray-900 dark:text-white truncate">{emp.full_name}</p>
@@ -495,28 +489,16 @@ function AuditEmployeeRow({ emp }) {
             Последняя задача: {emp.last_task_at ? fmtDate(emp.last_task_at) : '—'}
           </p>
         </div>
-        <div className="flex items-center gap-5 flex-shrink-0 text-xs">
-          <div className="text-center">
-            <p className="font-bold text-gray-800 dark:text-white text-base">{emp.tasks_count}</p>
-            <p className="text-[10px] text-gray-400">задач</p>
-          </div>
-          <div className="text-center">
-            <p className="font-bold text-gray-800 dark:text-white text-base">{emp.total_scans}</p>
-            <p className="text-[10px] text-gray-400">сканов</p>
-          </div>
+        <div className="flex items-center gap-3 sm:gap-5 flex-shrink-0 flex-nowrap text-xs">
+          <span className="font-bold text-gray-800 dark:text-white whitespace-nowrap">{emp.tasks_count} <span className="font-normal text-gray-400">зад.</span></span>
+          <span className="font-bold text-gray-800 dark:text-white whitespace-nowrap">{emp.total_scans} <span className="font-normal text-gray-400">скан.</span></span>
           {emp.total_errors > 0 && (
-            <div className="text-center">
-              <p className="font-bold text-red-500 text-base">{emp.total_errors}</p>
-              <p className="text-[10px] text-gray-400">ошибок</p>
-            </div>
+            <span className="font-bold text-red-500 whitespace-nowrap">{emp.total_errors} <span className="font-normal text-gray-400">ош.</span></span>
           )}
           {emp.avg_scan_gap != null && (
-            <div className="text-center">
-              <p className="font-bold text-primary-600 text-base">{emp.avg_scan_gap}с</p>
-              <p className="text-[10px] text-gray-400">ср. скан</p>
-            </div>
+            <span className="font-bold text-primary-600 whitespace-nowrap">{emp.avg_scan_gap}с</span>
           )}
-          <svg className={`w-4 h-4 text-gray-300 transition-transform duration-200 ${expanded ? 'rotate-90' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 18l6-6-6-6"/></svg>
+          <svg className={`w-4 h-4 text-gray-300 transition-transform duration-200 flex-shrink-0 ${expanded ? 'rotate-90' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 18l6-6-6-6"/></svg>
         </div>
       </button>
       {expanded && (
