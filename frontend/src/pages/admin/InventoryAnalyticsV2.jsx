@@ -146,16 +146,19 @@ function TreeNode({ node, type, depth = 0, expandedNodes, selectedNodeId, onTogg
   const isRackOrRow = type === 'rack' || type === 'row';
   const isBox = type === 'pallet_box' || type === 'shelf_box' || type === 'box';
 
+  // Warehouse colors — each warehouse gets a unique accent
+  const warehouseColors = ['#7c3aed', '#2563eb', '#059669', '#dc2626', '#d97706', '#0891b2', '#7c3aed'];
+  const whIdx = type === 'warehouse' ? (node.id || 0) % warehouseColors.length : 0;
+
   const getFolderIcon = () => {
     if (isBox) return <BoxIcon size={16} />;
-    if (!hasChildren) return <FileIcon color="#a78bfa" size={16} />;
-    if (isWarehouse) {
-      return isExpanded ? <FolderOpenIcon color="#7c3aed" size={16} /> : <FolderClosedIcon color="#7c3aed" size={16} />;
-    }
-    if (isRackOrRow) {
-      return isExpanded ? <FolderOpenIcon color="#a78bfa" size={16} /> : <FolderClosedIcon color="#a78bfa" size={16} />;
-    }
-    return <FileIcon color="#a78bfa" size={16} />;
+    if (type === 'warehouse') return <WarehouseIcon size={18} />;
+    if (type === 'rack') return <RackIcon size={16} />;
+    if (type === 'row') return <RowIcon size={16} />;
+    if (type === 'shelf') return <ShelfIcon size={16} />;
+    if (type === 'pallet') return <PalletIcon size={16} />;
+    if (!hasChildren) return <ShelfIcon size={16} />;
+    return <ShelfIcon size={16} />;
   };
 
   return (
@@ -182,6 +185,9 @@ function TreeNode({ node, type, depth = 0, expandedNodes, selectedNodeId, onTogg
         {!hasChildren && <span className="w-3 flex-shrink-0" />}
         <span className="flex-shrink-0">{getFolderIcon()}</span>
         <span className="truncate flex-1">{getNodeLabel(node)}</span>
+        {type === 'warehouse' && (
+          <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: warehouseColors[whIdx] }} />
+        )}
         {hasChildren && childCount > 0 && (
           <span className="text-[10px] bg-gray-100 text-gray-500 rounded-full px-1.5 py-0.5 flex-shrink-0 font-medium">
             {childCount}
@@ -682,12 +688,10 @@ function ShelfPalletDetail({ node, type, settings }) {
 /* ═══════════════════ Box Detail (leaf) ═══════════════════ */
 
 function BoxDetail({ node, type, settings }) {
-  const [activeTab, setActiveTab] = useState('products');
   const st = statusColor(node, settings);
   const invQty = Number(node.last_inventory_qty || 0);
   const curQty = Number(node.current_qty || 0);
   const delta = invQty - curQty;
-  const products = node.products || [];
 
   return (
     <div className="animate-fade-up">
@@ -708,70 +712,9 @@ function BoxDetail({ node, type, settings }) {
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-5">
-        <button
-          onClick={() => setActiveTab('products')}
-          className={cn('flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all',
-            activeTab === 'products' ? 'bg-white text-purple-700 shadow-sm' : 'text-gray-500 hover:text-gray-700')}
-        >
-          Товары
-        </button>
-        <button
-          onClick={() => setActiveTab('history')}
-          className={cn('flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all',
-            activeTab === 'history' ? 'bg-white text-purple-700 shadow-sm' : 'text-gray-500 hover:text-gray-700')}
-        >
-          История
-        </button>
-      </div>
-
-      {/* Products tab */}
-      {activeTab === 'products' && (
-        <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
-          {products.length === 0 ? (
-            <p className="text-center text-sm text-gray-400 py-8">Нет данных о товарах</p>
-          ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-100 text-left">
-                  <th className="px-4 py-3 text-xs font-semibold text-gray-400 uppercase">Товар</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-gray-400 uppercase">Код</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-gray-400 uppercase text-right">Инвент</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-gray-400 uppercase text-right">Текущее</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-gray-400 uppercase text-right">Дельта</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {products.map((p, i) => {
-                  const pInv = Number(p.inventory_qty || p.qty || 0);
-                  const pCur = Number(p.current_qty || 0);
-                  const pDelta = pInv - pCur;
-                  return (
-                    <tr key={i} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <ProductIcon size={16} />
-                          <span className="font-medium text-gray-900">{p.name || p.product_name || '—'}</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-gray-500 font-mono text-xs">{p.code || p.product_code || '—'}</td>
-                      <td className="px-4 py-3 text-right font-semibold text-gray-900">{fmtQty(pInv)}</td>
-                      <td className="px-4 py-3 text-right text-gray-600">{fmtQty(pCur)}</td>
-                      <td className={cn('px-4 py-3 text-right font-bold', pDelta > 0 ? 'text-green-600' : pDelta < 0 ? 'text-red-600' : 'text-gray-400')}>
-                        {pDelta > 0 ? '+' : ''}{pDelta}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
-        </div>
-      )}
-
-      {/* History tab */}
-      {activeTab === 'history' && (
+      {/* History section — no tabs, history only */}
+      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">История инвентаризаций</p>
+      {(
         <InventoryHistorySection node={node} />
       )}
     </div>
