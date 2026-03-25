@@ -34,7 +34,7 @@ cd backend && node src/server.js
 cd frontend && VITE_API_PROXY_TARGET=http://localhost:3017 npx vite --mode sklad --host 0.0.0.0 --port 5173
 ```
 
-Сайт будет доступен: **http://localhost:5173/sklad/**
+Сайт будет доступен: **http://147.45.97.155/sklad**
 
 ### 4. Деплой
 

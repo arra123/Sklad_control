@@ -92,7 +92,7 @@ export default function AdminLayout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [productsOpen, setProductsOpen] = useState(location.pathname.startsWith('/admin/products'));
   const userPerms = user?.permissions || [];
-  const navItems = ALL_NAV.filter(item => item.roles.includes(user?.role || 'admin') || userPerms.includes(item.perm));
+  const navItems = ALL_NAV.filter(item => item.to !== '/admin' && (item.roles.includes(user?.role || 'admin') || userPerms.includes(item.perm)));
   const isProductsActive = location.pathname.startsWith('/admin/products');
 
   const handleLogout = () => {
@@ -216,7 +216,7 @@ export default function AdminLayout({ children }) {
             <LogOut className="w-4 h-4" />
             Выйти
           </button>
-          <p className="text-[10px] text-gray-300 dark:text-gray-600 mt-2 text-center">v1.7.1</p>
+          <p className="text-[10px] text-gray-300 dark:text-gray-600 mt-2 text-center">v1.7.2</p>
         </div>
       </aside>
 
