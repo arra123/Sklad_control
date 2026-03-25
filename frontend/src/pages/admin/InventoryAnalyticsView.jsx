@@ -138,19 +138,24 @@ function InventoryCard({ node, type, onDrill, settings }) {
 
 // ═══ Children list for drill-down ═══
 function getChildren(node) {
-  if (node.racks?.length) return { items: node.racks, label: 'Стеллажи' };
-  if (node.rows?.length) return { items: node.rows, label: 'Ряды' };
-  if (node.shelves?.length) return { items: node.shelves, label: 'Полки' };
-  if (node.pallets?.length) return { items: node.pallets, label: 'Паллеты' };
-  if (node.boxes?.length) return { items: node.boxes, label: 'Коробки' };
+  if (node.racks?.length) return { items: node.racks.map(r => ({ ...r, _type: 'rack' })), label: 'Стеллажи' };
+  if (node.rows?.length) return { items: node.rows.map(r => ({ ...r, _type: 'row' })), label: 'Ряды' };
+  if (node.shelves?.length) return { items: node.shelves.map(s => ({ ...s, _type: 'shelf' })), label: 'Полки' };
+  if (node.pallets?.length) return { items: node.pallets.map(p => ({ ...p, _type: 'pallet' })), label: 'Паллеты' };
+  if (node.boxes?.length) return { items: node.boxes.map(b => ({ ...b, _type: 'pallet_box' })), label: 'Коробки' };
   if (node.children?.length) return { items: node.children, label: 'Элементы' };
   return null;
 }
 
 function getChildType(child) {
-  if (child.kind === 'shelf_box' || child.kind === 'pallet_box') return 'box';
-  if (child.shelves || child.pallets || child.boxes || child.children) return 'group';
-  return 'box';
+  if (child._type) return child._type;
+  if (child.kind === 'shelf_box') return 'shelf_box';
+  if (child.kind === 'pallet_box') return 'pallet_box';
+  if (child.racks) return 'warehouse';
+  if (child.shelves) return 'rack';
+  if (child.pallets) return 'row';
+  if (child.boxes) return 'pallet';
+  return 'shelf';
 }
 
 // ═══ Inventory Task Scans (expandable per task) ═══
@@ -304,7 +309,12 @@ function DetailPanel({ node, breadcrumbs, onDrill, onBack, settings }) {
       <div className="card p-5 mb-4">
         <div className="flex items-center gap-3 mb-4">
           <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: st.bg }}>
-            <Package size={22} style={{ color: st.text }} />
+            {node._type === 'rack' ? <RackIcon size={28} /> :
+             node._type === 'row' ? <RowIcon size={28} /> :
+             node._type === 'shelf' ? <ShelfIcon size={28} /> :
+             node._type === 'pallet' ? <PalletIcon size={28} /> :
+             node._type === 'pallet_box' || node._type === 'shelf_box' ? <BoxIcon size={28} /> :
+             <ShelfIcon size={28} />}
           </div>
           <div className="flex-1 min-w-0">
             <h3 className="text-lg font-bold text-gray-900 dark:text-white">{node.label || node.name || node.code || '—'}</h3>
