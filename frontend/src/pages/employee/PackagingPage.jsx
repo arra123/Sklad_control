@@ -4,7 +4,7 @@ import {
   ArrowLeft, Package, Box, CheckCircle2, Printer,
   RefreshCw, ScanLine, AlertCircle, ChevronRight
 } from 'lucide-react';
-import { ProductIcon } from '../../components/ui/WarehouseIcons';
+import { ProductIcon, PalletIcon, BoxIcon, ScanIcon, ShelfIcon } from '../../components/ui/WarehouseIcons';
 import { printBarcode } from '../../utils/printBarcode';
 import api from '../../api/client';
 import { qty } from '../../utils/fmt';
@@ -82,8 +82,8 @@ function StepScanPallet({ task, onSuccess }) {
       {/* Инструкция */}
       <div className="card p-5 space-y-4">
         <div className="flex items-center gap-3">
-          <div className="w-11 h-11 rounded-2xl bg-primary-50 flex items-center justify-center flex-shrink-0">
-            <ProductIcon size={24} />
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary-50 to-primary-100 flex items-center justify-center flex-shrink-0 shadow-sm">
+            <PalletIcon size={28} />
           </div>
           <div>
             <p className="text-xs text-gray-400 font-medium">Задание</p>
@@ -154,14 +154,14 @@ function StepOpenBox({ task, stats, onOpen }) {
   return (
     <div className="space-y-5">
       {stats && parseInt(stats.closed_boxes) > 0 && (
-        <div className="card p-4 flex items-center gap-4">
-          <div className="text-center">
-            <p className="text-2xl font-bold text-green-600">{stats.closed_boxes}</p>
-            <p className="text-xs text-gray-400">коробок</p>
+        <div className="card p-4 grid grid-cols-2 gap-3">
+          <div className="bg-green-50 rounded-xl p-3 text-center border border-green-100">
+            <p className="text-[10px] text-green-500 font-bold uppercase tracking-wider">Коробок</p>
+            <p className="text-2xl font-black text-green-600">{stats.closed_boxes}</p>
           </div>
-          <div className="text-center">
-            <p className="text-2xl font-bold text-primary-600">{stats.closed_qty}</p>
-            <p className="text-xs text-gray-400">штук</p>
+          <div className="bg-primary-50 rounded-xl p-3 text-center border border-primary-100">
+            <p className="text-[10px] text-primary-500 font-bold uppercase tracking-wider">Штук</p>
+            <p className="text-2xl font-black text-primary-600">{stats.closed_qty}</p>
           </div>
         </div>
       )}
@@ -649,8 +649,8 @@ function StepRemainderInfo({ task, box, onConfirmShelf, onBack }) {
           disabled={scanning}
           className="w-full card p-4 flex items-center gap-3 bg-primary-50 border-primary-200 hover:bg-primary-100 active:scale-[0.99] transition-all text-left"
         >
-          <div className="w-10 h-10 rounded-xl bg-primary-100 flex items-center justify-center flex-shrink-0">
-            <ProductIcon size={20} />
+          <div className="w-11 h-11 rounded-xl bg-white/60 flex items-center justify-center flex-shrink-0 shadow-sm">
+            <ShelfIcon size={26} />
           </div>
           <div className="flex-1">
             <p className="text-xs text-primary-500 font-medium">Рекомендуемая полка — нажмите для быстрого подтверждения</p>
@@ -746,7 +746,7 @@ function StepCompleted({ task, stats, onBack }) {
   return (
     <div className="space-y-6 text-center">
       <div className="flex flex-col items-center gap-4 py-8">
-        <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center">
+        <div className="w-20 h-20 rounded-full bg-gradient-to-br from-green-100 to-green-200 flex items-center justify-center shadow-lg shadow-green-100">
           <CheckCircle2 size={40} className="text-green-500" />
         </div>
         <div>
@@ -855,6 +855,9 @@ export default function PackagingPage() {
           className="p-2 rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-all">
           <ArrowLeft size={20} />
         </button>
+        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-purple-100 to-purple-200 flex items-center justify-center flex-shrink-0">
+          <BoxIcon size={22} />
+        </div>
         <div className="flex-1 min-w-0">
           <h1 className="text-base font-bold text-gray-900 truncate">
             {task?.title || 'Оприходование'}

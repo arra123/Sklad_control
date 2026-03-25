@@ -5,7 +5,7 @@ import {
   ChevronRight, ShoppingCart, Send, Layers, Scan
 } from 'lucide-react';
 import api from '../../api/client';
-import { ProductIcon } from '../../components/ui/WarehouseIcons';
+import { ProductIcon, PalletIcon, ShelfIcon, BoxIcon, EmployeeIcon, RackIcon } from '../../components/ui/WarehouseIcons';
 import { qty } from '../../utils/fmt';
 import Spinner from '../../components/ui/Spinner';
 import { useAuth } from '../../context/AuthContext';
@@ -29,34 +29,34 @@ import { useNavigate } from 'react-router-dom';
 const STEP = { MODE: 0, COLLECT: 1, SCAN_PRODUCT: 1.5, DELIVER: 2, SCAN_DEST: 2.5, DONE: 3 };
 
 const MODE_OPTIONS = [
-  { key: 'take', label: 'Взять себе', desc: 'Забрать товар с полки/паллета', icon: ShoppingCart, color: 'bg-blue-500' },
-  { key: 'return', label: 'Сдать обратно', desc: 'Вернуть товар на место', icon: Send, color: 'bg-green-500' },
-  { key: 'location', label: 'Между местами', desc: 'С нескольких мест на несколько мест', icon: ArrowRightLeft, color: 'bg-purple-500' },
+  { key: 'take', label: 'Взять себе', desc: 'Забрать товар с полки/паллета', icon: ShoppingCart, color: 'bg-gradient-to-br from-blue-500 to-blue-600', shadow: 'shadow-blue-200' },
+  { key: 'return', label: 'Сдать обратно', desc: 'Вернуть товар на место', icon: Send, color: 'bg-gradient-to-br from-emerald-500 to-emerald-600', shadow: 'shadow-emerald-200' },
+  { key: 'location', label: 'Между местами', desc: 'С нескольких мест на несколько мест', icon: ArrowRightLeft, color: 'bg-gradient-to-br from-purple-500 to-purple-600', shadow: 'shadow-purple-200' },
 ];
 
-const TYPE_ICON = { pallet: Layers, shelf: MapPin, box: Box, product: Package, employee: User };
 const TYPE_LABEL = { pallet: 'Паллет', shelf: 'Полка', box: 'Коробка', product: 'Товар', employee: 'Сотрудник' };
 const TYPE_COLOR = {
-  pallet: 'bg-amber-50 text-amber-600 border-amber-200',
-  shelf: 'bg-blue-50 text-blue-600 border-blue-200',
-  box: 'bg-purple-50 text-purple-600 border-purple-200',
-  product: 'bg-green-50 text-green-600 border-green-200',
-  employee: 'bg-primary-50 text-primary-600 border-primary-200',
+  pallet: 'bg-amber-50 text-amber-700 border-amber-200',
+  shelf: 'bg-blue-50 text-blue-700 border-blue-200',
+  box: 'bg-purple-50 text-purple-700 border-purple-200',
+  product: 'bg-green-50 text-green-700 border-green-200',
+  employee: 'bg-primary-50 text-primary-700 border-primary-200',
 };
+const TYPE_SVG_ICON = { pallet: PalletIcon, shelf: ShelfIcon, box: BoxIcon, product: ProductIcon, employee: EmployeeIcon };
 
 function LocationCard({ data }) {
   if (!data) return null;
-  const Icon = TYPE_ICON[data.type] || Package;
+  const SvgIcon = TYPE_SVG_ICON[data.type];
   const colorCls = TYPE_COLOR[data.type] || 'bg-gray-50 text-gray-600 border-gray-200';
   return (
-    <div className={`rounded-2xl border p-3 ${colorCls}`}>
+    <div className={`rounded-2xl border p-3.5 ${colorCls}`}>
       <div className="flex items-center gap-3">
-        <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${colorCls}`}>
-          <Icon size={18} />
+        <div className="w-11 h-11 rounded-xl bg-white/60 flex items-center justify-center flex-shrink-0 shadow-sm">
+          {SvgIcon ? <SvgIcon size={28} /> : <Package size={20} />}
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-xs font-bold uppercase tracking-wider opacity-60">{TYPE_LABEL[data.type]}</p>
-          <p className="text-sm font-bold text-gray-900">{data.name}</p>
+          <p className="text-[10px] font-bold uppercase tracking-wider opacity-60">{TYPE_LABEL[data.type]}</p>
+          <p className="text-base font-bold text-gray-900">{data.name}</p>
         </div>
       </div>
     </div>
@@ -262,8 +262,8 @@ export default function MovePage() {
         <button onClick={goBack} className="p-2 rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-all">
           <ArrowLeft size={20} />
         </button>
-        <div className="w-10 h-10 rounded-2xl bg-primary-100 flex items-center justify-center">
-          <ArrowRightLeft size={20} className="text-primary-600" />
+        <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center shadow-lg shadow-purple-200">
+          <ArrowRightLeft size={20} className="text-white" />
         </div>
         <div className="flex-1">
           <h1 className="text-lg font-bold text-gray-900">Перемещение</h1>
@@ -282,7 +282,7 @@ export default function MovePage() {
           {MODE_OPTIONS.map(m => (
             <button key={m.key} onClick={() => handleSelectMode(m.key)}
               className="w-full flex items-center gap-4 p-4 bg-white rounded-2xl border border-gray-100 hover:border-primary-300 hover:shadow-md transition-all active:scale-[0.98]">
-              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white ${m.color}`}>
+              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg ${m.color} ${m.shadow}`}>
                 <m.icon size={22} />
               </div>
               <div className="text-left flex-1">

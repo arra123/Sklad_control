@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import api from '../../api/client';
 import { qty } from '../../utils/fmt';
-import { ShelfIcon, PalletIcon, BoxIcon } from '../../components/ui/WarehouseIcons';
+import { ShelfIcon, PalletIcon, BoxIcon, InventoryIcon, PackagingIcon, TransferIcon } from '../../components/ui/WarehouseIcons';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
 import Modal from '../../components/ui/Modal';
@@ -21,6 +21,12 @@ const STATUS_MAP = {
   in_progress: { label: 'В работе', variant: 'warning', icon: Clock },
   completed: { label: 'Выполнена', variant: 'success', icon: CheckCircle2 },
   cancelled: { label: 'Отменена', variant: 'danger', icon: XCircle },
+};
+
+const TASK_TYPE_ICON = {
+  inventory: { Icon: InventoryIcon, bg: 'bg-blue-50', border: 'border-blue-100' },
+  packaging: { Icon: PackagingIcon, bg: 'bg-purple-50', border: 'border-purple-100' },
+  production_transfer: { Icon: TransferIcon, bg: 'bg-amber-50', border: 'border-amber-100' },
 };
 
 function fmtTime(iso) {
@@ -105,6 +111,15 @@ function TaskDetailPanel({ task, onClose, onReload }) {
       <div className="fixed inset-y-0 right-0 z-40 w-full max-w-md bg-white dark:bg-gray-900 flex flex-col shadow-2xl">
         {/* Header */}
         <div className="flex items-start gap-3 px-5 pt-5 pb-4 border-b border-gray-100 dark:border-gray-800">
+          {/* Task type icon */}
+          {(() => {
+            const ti = TASK_TYPE_ICON[task.task_type] || TASK_TYPE_ICON.inventory;
+            return (
+              <div className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 border ${ti.bg} ${ti.border}`}>
+                <ti.Icon size={28} />
+              </div>
+            );
+          })()}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
               <Badge variant={status.variant}>{status.label}</Badge>
@@ -1006,7 +1021,8 @@ function CreateTaskModal({ open, onClose, onSuccess }) {
 // ─── Task Card ─────────────────────────────────────────────────────────────────
 function TaskCard({ task, onClick }) {
   const status = STATUS_MAP[task.status] || STATUS_MAP.new;
-  const StatusIcon = status.icon;
+  const typeInfo = TASK_TYPE_ICON[task.task_type] || TASK_TYPE_ICON.inventory;
+  const TypeIcon = typeInfo.Icon;
 
   return (
     <button
@@ -1014,16 +1030,8 @@ function TaskCard({ task, onClick }) {
       className="w-full text-left card p-4 hover:shadow-md hover:border-primary-200 transition-all group"
     >
       <div className="flex items-start gap-3">
-        <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${
-          task.status === 'completed' ? 'bg-green-50' :
-          task.status === 'in_progress' ? 'bg-amber-50' :
-          task.status === 'cancelled' ? 'bg-red-50' : 'bg-gray-100'
-        }`}>
-          <StatusIcon size={16} className={
-            task.status === 'completed' ? 'text-green-500' :
-            task.status === 'in_progress' ? 'text-amber-500' :
-            task.status === 'cancelled' ? 'text-red-400' : 'text-gray-500'
-          } />
+        <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 border ${typeInfo.bg} ${typeInfo.border}`}>
+          <TypeIcon size={26} />
         </div>
 
         <div className="flex-1 min-w-0">
@@ -1033,8 +1041,14 @@ function TaskCard({ task, onClick }) {
           </div>
 
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-xs text-gray-500">
-            {(task.task_type === 'packaging' || task.task_type === 'production_transfer') && (
+            {task.task_type === 'packaging' && (
               <span className="font-semibold text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded-lg">Оприходование</span>
+            )}
+            {task.task_type === 'production_transfer' && (
+              <span className="font-semibold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-lg">Перенос</span>
+            )}
+            {task.task_type === 'inventory' && (
+              <span className="font-semibold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-lg">Инвентаризация</span>
             )}
             {task.employee_name && <span>{task.employee_name}</span>}
             {task.shelf_code && <span className="inline-flex items-center gap-1"><ShelfIcon size={12} />{task.rack_name} · {task.shelf_name}</span>}

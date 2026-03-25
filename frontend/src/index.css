@@ -312,6 +312,11 @@ body {
   }
 }
 
+/* ─── Employee Bottom Nav ───────────────────────────────────────── */
+.employee-nav-item {
+  min-width: 72px;
+}
+
 @media (max-width: 640px) {
   .gra-balance-widget {
     gap: 8px;

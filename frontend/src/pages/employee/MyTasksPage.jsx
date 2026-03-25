@@ -1,15 +1,27 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ClipboardList, Clock, CheckCircle2, ChevronRight, RefreshCw, Box } from 'lucide-react';
+import {
+  ClipboardList, Clock, CheckCircle2, ChevronRight, RefreshCw,
+  Box, ScanLine, Package, ArrowRight, Layers, AlertCircle
+} from 'lucide-react';
 import api from '../../api/client';
+import { InventoryIcon, PackagingIcon, TransferIcon } from '../../components/ui/WarehouseIcons';
 import Spinner from '../../components/ui/Spinner';
 import Badge from '../../components/ui/Badge';
+import { cn } from '../../utils/cn';
 
 const STATUS_MAP = {
-  new: { label: 'Новая', variant: 'default' },
-  in_progress: { label: 'В работе', variant: 'warning' },
-  completed: { label: 'Выполнена', variant: 'success' },
-  cancelled: { label: 'Отменена', variant: 'danger' },
+  new: { label: 'Новая', variant: 'default', color: 'bg-blue-50 text-blue-600 border-blue-200', icon: Clock },
+  in_progress: { label: 'В работе', variant: 'warning', color: 'bg-amber-50 text-amber-600 border-amber-200', icon: ScanLine },
+  completed: { label: 'Выполнена', variant: 'success', color: 'bg-green-50 text-green-600 border-green-200', icon: CheckCircle2 },
+  cancelled: { label: 'Отменена', variant: 'danger', color: 'bg-red-50 text-red-500 border-red-200', icon: AlertCircle },
+};
+
+const TASK_TYPE_STYLE = {
+  inventory: { SvgIcon: InventoryIcon, label: 'Инвентаризация', bg: 'bg-blue-50', text: 'text-blue-600', border: 'border-blue-200' },
+  packaging: { SvgIcon: PackagingIcon, label: 'Оприходование', bg: 'bg-purple-50', text: 'text-purple-600', border: 'border-purple-200' },
+  production_transfer: { SvgIcon: TransferIcon, label: 'Перенос', bg: 'bg-amber-50', text: 'text-amber-600', border: 'border-amber-200' },
+  default: { SvgIcon: InventoryIcon, label: 'Задача', bg: 'bg-primary-50', text: 'text-primary-600', border: 'border-primary-200' },
 };
 
 export default function MyTasksPage() {
@@ -42,30 +54,44 @@ export default function MyTasksPage() {
 
   return (
     <div className="p-4 max-w-lg mx-auto">
-      <div className="flex items-center justify-between mb-5">
-        <h1 className="text-xl font-bold text-gray-900">Мои задачи</h1>
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-5">
+        <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg shadow-blue-200">
+          <ClipboardList size={22} className="text-white" />
+        </div>
+        <div className="flex-1">
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white">Мои задачи</h1>
+          <p className="text-xs text-gray-400">
+            {activeTasks.length > 0 ? `${activeTasks.length} активных` : 'Нет активных задач'}
+          </p>
+        </div>
         <button
           onClick={load}
-          className="p-2 rounded-xl text-gray-400 hover:text-primary-500 hover:bg-primary-50 transition-all"
+          className="p-2.5 rounded-xl text-gray-400 hover:text-blue-500 hover:bg-blue-50 transition-all active:scale-95"
         >
           <RefreshCw size={18} />
         </button>
       </div>
 
       {tasks.length === 0 ? (
-        <div className="flex flex-col items-center justify-center h-64 text-gray-400">
-          <ClipboardList size={48} className="mb-3 opacity-30" />
-          <p className="font-medium">Нет задач</p>
-          <p className="text-sm mt-1">Задачи появятся здесь когда будут назначены</p>
+        <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+          <div className="w-16 h-16 rounded-3xl bg-gray-100 flex items-center justify-center mb-4">
+            <ClipboardList size={32} className="opacity-40" />
+          </div>
+          <p className="font-semibold text-gray-500">Нет задач</p>
+          <p className="text-sm mt-1 text-gray-400">Задачи появятся здесь когда будут назначены</p>
         </div>
       ) : (
         <>
           {/* Active tasks */}
           {activeTasks.length > 0 && (
-            <div className="mb-5">
-              <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
-                Активные ({activeTasks.length})
-              </h2>
+            <div className="mb-6">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                <h2 className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                  Активные ({activeTasks.length})
+                </h2>
+              </div>
               <div className="space-y-2.5">
                 {activeTasks.map(task => (
                   <TaskCard
@@ -81,10 +107,13 @@ export default function MyTasksPage() {
           {/* Done tasks */}
           {doneTasks.length > 0 && (
             <div>
-              <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
-                Завершённые ({doneTasks.length})
-              </h2>
-              <div className="space-y-2.5">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-2 h-2 rounded-full bg-green-400" />
+                <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                  Завершённые ({doneTasks.length})
+                </h2>
+              </div>
+              <div className="space-y-2">
                 {doneTasks.slice(0, 5).map(task => (
                   <TaskCard
                     key={task.id}
@@ -104,65 +133,108 @@ export default function MyTasksPage() {
 
 function TaskCard({ task, onClick, muted }) {
   const status = STATUS_MAP[task.status] || STATUS_MAP.new;
+  const StatusIcon = status.icon;
+  const typeStyle = TASK_TYPE_STYLE[task.task_type] || TASK_TYPE_STYLE.default;
+  const TypeSvgIcon = typeStyle.SvgIcon;
 
   return (
     <button
       onClick={onClick}
-      className={`w-full text-left p-4 rounded-2xl border transition-all active:scale-[0.98] ${
+      className={cn(
+        'w-full text-left p-4 rounded-2xl border transition-all active:scale-[0.98]',
         muted
-          ? 'bg-white border-gray-100 opacity-60'
+          ? 'bg-white dark:bg-gray-900 border-gray-100 dark:border-gray-800 opacity-55'
           : task.status === 'in_progress'
-          ? 'bg-amber-50 border-amber-200 shadow-sm'
-          : 'bg-white border-gray-100 shadow-sm hover:shadow-md hover:border-primary-200'
-      }`}
+          ? 'bg-gradient-to-r from-amber-50 to-white border-amber-200 shadow-sm shadow-amber-100'
+          : 'bg-white dark:bg-gray-900 border-gray-100 dark:border-gray-800 shadow-sm hover:shadow-md hover:border-primary-200'
+      )}
     >
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex items-start gap-3">
+        {/* Task type icon */}
+        <div className={cn(
+          'w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5 border',
+          muted ? 'bg-gray-100 border-gray-200' : `${typeStyle.bg} ${typeStyle.border}`
+        )}>
+          <TypeSvgIcon size={26} />
+        </div>
+
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5 mb-0.5">
-            {(task.task_type === 'packaging' || task.task_type === 'production_transfer') && (
-              <span className="inline-flex items-center gap-1 text-xs font-semibold text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded-lg">
-                <Box size={10} />
-                Оприходование
+          {/* Task type badge */}
+          {(task.task_type === 'packaging' || task.task_type === 'production_transfer') && !muted && (
+            <span className={cn(
+              'inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-lg mb-1',
+              typeStyle.bg, typeStyle.text
+            )}>
+              {typeStyle.label}
+            </span>
+          )}
+
+          {/* Title */}
+          <p className={cn(
+            'font-semibold leading-tight',
+            muted ? 'text-gray-500' : 'text-gray-900 dark:text-white'
+          )}>
+            {task.title}
+          </p>
+
+          {/* Location info */}
+          <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1.5">
+            {(task.rack_name || task.shelf_name) && (
+              <span className="inline-flex items-center gap-1 text-xs text-gray-500">
+                <Package size={11} className="text-gray-400" />
+                {task.rack_name}{task.shelf_name ? ` · ${task.shelf_name}` : ''}
+              </span>
+            )}
+            {!task.shelf_name && task.pallet_name && (
+              <span className="inline-flex items-center gap-1 text-xs text-gray-500">
+                <Layers size={11} className="text-gray-400" />
+                {task.pallet_row_name || 'Ряд'} · {task.pallet_name}
+              </span>
+            )}
+            {Number(task.task_boxes_total || 0) > 0 && (
+              <span className="inline-flex items-center gap-1 text-xs text-gray-500">
+                <Box size={11} className="text-gray-400" />
+                Коробки {Number(task.task_boxes_completed || 0)}/{Number(task.task_boxes_total || 0)}
+              </span>
+            )}
+            {task.box_barcode && (
+              <span className="inline-flex items-center gap-1 text-xs text-gray-500">
+                <Box size={11} className="text-gray-400" />
+                {task.box_barcode}
               </span>
             )}
           </div>
-          <p className="font-semibold text-gray-900 leading-tight">{task.title}</p>
-          {(task.rack_name || task.shelf_name) && (
-            <p className="text-sm text-gray-500 mt-1">
-              📦 {task.rack_name}{task.shelf_name ? ` · ${task.shelf_name}` : ''}
-            </p>
-          )}
-          {!task.shelf_name && task.pallet_name && (
-            <p className="text-sm text-gray-500 mt-1">
-              📦 {task.pallet_row_name || 'Ряд'} · {task.pallet_name}
-            </p>
-          )}
-          {Number(task.task_boxes_total || 0) > 0 && (
-            <p className="text-sm text-gray-500 mt-1">
-              📦 Коробки {Number(task.task_boxes_completed || 0)} / {Number(task.task_boxes_total || 0)}
-            </p>
-          )}
-          {task.box_barcode && (
-            <p className="text-sm text-gray-500 mt-1">
-              📦 Коробка {task.box_barcode}
-            </p>
-          )}
+
           {task.notes && (
-            <p className="text-xs text-gray-400 mt-1 line-clamp-1">{task.notes}</p>
+            <p className="text-xs text-gray-400 mt-1.5 line-clamp-1 italic">{task.notes}</p>
           )}
         </div>
+
+        {/* Right side: status + arrow */}
         <div className="flex flex-col items-end gap-2 flex-shrink-0">
           <Badge variant={status.variant}>{status.label}</Badge>
           {task.scans_count > 0 && (
-            <span className="text-xs text-gray-400">{task.scans_count} сканирований</span>
+            <span className="inline-flex items-center gap-1 text-[10px] text-gray-400 font-medium">
+              <ScanLine size={10} />
+              {task.scans_count}
+            </span>
           )}
         </div>
       </div>
-      <div className="flex items-center justify-between mt-3">
-        <span className="text-xs text-gray-400">
+
+      {/* Footer */}
+      <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-gray-50 dark:border-gray-800">
+        <span className="inline-flex items-center gap-1.5 text-xs text-gray-400">
+          <Clock size={11} />
           {new Date(task.created_at).toLocaleDateString('ru-RU')}
         </span>
-        <ChevronRight size={16} className="text-gray-300" />
+        <div className={cn(
+          'flex items-center gap-1 text-xs font-medium',
+          muted ? 'text-gray-300' : 'text-primary-500'
+        )}>
+          {muted ? '' : 'Открыть'}
+          <ChevronRight size={14} />
+        </div>
       </div>
     </button>
   );

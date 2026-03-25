@@ -8,7 +8,7 @@ import { useAuth } from '../../context/AuthContext';
 import api from '../../api/client';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
-import { ProductIcon } from '../../components/ui/WarehouseIcons';
+import { ProductIcon, ShelfIcon, PalletIcon, BoxIcon, ScanIcon } from '../../components/ui/WarehouseIcons';
 import Spinner from '../../components/ui/Spinner';
 import { useToast } from '../../components/ui/Toast';
 
@@ -82,8 +82,8 @@ function StartStep({ task, onStart }) {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] p-6 text-center">
-      <div className="w-20 h-20 rounded-3xl bg-primary-100 flex items-center justify-center mb-4">
-        <ScanLine size={36} className="text-primary-600" />
+      <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-primary-100 to-primary-200 flex items-center justify-center mb-4 shadow-lg shadow-primary-100">
+        <ScanIcon size={44} />
       </div>
       <h2 className="text-xl font-bold text-gray-900 mb-1">
         {task.task_type === 'production_transfer' ? 'Перенос с производства' : 'Инвентаризация'}
@@ -460,8 +460,10 @@ function ScanStep({ task, onComplete }) {
       )}
 
       {/* Верхняя полоса */}
-      <div className="mx-4 mt-2 px-4 py-2.5 bg-primary-50 rounded-2xl flex items-center gap-3">
-        <ProductIcon size={18} />
+      <div className="mx-4 mt-2 px-4 py-3 bg-gradient-to-r from-primary-50 to-white rounded-2xl border border-primary-100 flex items-center gap-3">
+        <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center flex-shrink-0 shadow-sm">
+          {hasTaskBoxQueue ? <BoxIcon size={24} /> : taskState.target_pallet_id ? <PalletIcon size={24} /> : <ShelfIcon size={24} />}
+        </div>
         <div className="flex-1 min-w-0">
           {hasTaskBoxQueue ? (
             <>
@@ -627,17 +629,17 @@ function ScanStep({ task, onComplete }) {
       ) : (
         <>
           <div className="mx-4 mt-2 grid grid-cols-3 gap-2">
-            <div className="bg-gray-50 rounded-xl px-3 py-2 text-center">
-              <p className="text-xs text-gray-400">Сканов</p>
-              <p className="text-base font-bold text-gray-900">{scans.length}</p>
+            <div className="bg-blue-50 rounded-xl px-3 py-2.5 text-center border border-blue-100">
+              <p className="text-[10px] text-blue-500 font-semibold uppercase tracking-wider">Сканов</p>
+              <p className="text-lg font-black text-blue-700">{scans.length}</p>
             </div>
-            <div className="bg-gray-50 rounded-xl px-3 py-2 text-center">
-              <p className="text-xs text-gray-400">Ошибок</p>
-              <p className={`text-base font-bold ${errors.length > 0 ? 'text-red-500' : 'text-gray-900'}`}>{errors.length}</p>
+            <div className={`rounded-xl px-3 py-2.5 text-center border ${errors.length > 0 ? 'bg-red-50 border-red-100' : 'bg-gray-50 border-gray-100'}`}>
+              <p className={`text-[10px] font-semibold uppercase tracking-wider ${errors.length > 0 ? 'text-red-400' : 'text-gray-400'}`}>Ошибок</p>
+              <p className={`text-lg font-black ${errors.length > 0 ? 'text-red-500' : 'text-gray-400'}`}>{errors.length}</p>
             </div>
-            <div className="bg-gray-50 rounded-xl px-3 py-2 text-center">
-              <p className="text-xs text-gray-400">Ср. время</p>
-              <p className="text-base font-bold text-gray-900">{avgSeconds ? `${avgSeconds}с` : '—'}</p>
+            <div className="bg-amber-50 rounded-xl px-3 py-2.5 text-center border border-amber-100">
+              <p className="text-[10px] text-amber-500 font-semibold uppercase tracking-wider">Ср. время</p>
+              <p className="text-lg font-black text-amber-700">{avgSeconds ? `${avgSeconds}с` : '—'}</p>
             </div>
           </div>
 
@@ -745,8 +747,8 @@ function CompletedView({ task, scans }) {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] p-6 text-center">
-      <div className="w-20 h-20 rounded-3xl bg-green-100 flex items-center justify-center mb-5">
-        <CheckCircle2 size={36} className="text-green-500" />
+      <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-green-100 to-green-200 flex items-center justify-center mb-5 shadow-lg shadow-green-100">
+        <CheckCircle2 size={40} className="text-green-500" />
       </div>
       <h2 className="text-xl font-bold text-gray-900 mb-2">Готово!</h2>
       <p className="text-gray-500 text-sm mb-5">{task.title}</p>
