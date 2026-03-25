@@ -485,7 +485,7 @@ function CreateTaskModal({ open, onClose, onSuccess }) {
       api.get('/staff/employees'),
       api.get('/warehouse/warehouses'),
       api.get('/fbo/warehouses'),
-      api.get('/tasks/busy-targets'),
+      api.get('/tasks/busy-targets').catch(() => ({ data: { shelves: {}, pallets: {}, pallet_boxes: {}, shelf_boxes: {} } })),
     ]).then(([emp, wh, fbo, busy]) => {
       setEmployees(emp.data);
       setWarehouses(wh.data);
