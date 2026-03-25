@@ -1719,6 +1719,56 @@ router.get('/:id/analytics', requireAuth, async (req, res) => {
   }
 });
 
+// GET /api/tasks/busy-targets — which shelves/pallets/boxes are in active tasks
+router.get('/busy-targets', requireAuth, requireAdminOrManager, async (_req, res) => {
+  try {
+    const activeStatuses = ['new', 'in_progress'];
+    const [shelvesResult, palletsResult, palletBoxesResult, shelfBoxesResult] = await Promise.all([
+      pool.query(
+        `SELECT t.shelf_id as id, t.id as task_id, t.title, t.status
+         FROM inventory_tasks_s t
+         WHERE t.shelf_id IS NOT NULL AND t.status = ANY($1)`,
+        [activeStatuses]
+      ),
+      pool.query(
+        `SELECT t.target_pallet_id as id, t.id as task_id, t.title, t.status
+         FROM inventory_tasks_s t
+         WHERE t.target_pallet_id IS NOT NULL AND t.status = ANY($1)`,
+        [activeStatuses]
+      ),
+      pool.query(
+        `SELECT itb.box_id as id, t.id as task_id, t.title, t.status
+         FROM inventory_task_boxes_s itb
+         JOIN inventory_tasks_s t ON t.id = itb.task_id
+         WHERE itb.box_id IS NOT NULL AND t.status = ANY($1)`,
+        [activeStatuses]
+      ),
+      pool.query(
+        `SELECT itb.shelf_box_id as id, t.id as task_id, t.title, t.status
+         FROM inventory_task_boxes_s itb
+         JOIN inventory_tasks_s t ON t.id = itb.task_id
+         WHERE itb.shelf_box_id IS NOT NULL AND t.status = ANY($1)`,
+        [activeStatuses]
+      ),
+    ]);
+    const toMap = (rows) => {
+      const map = {};
+      for (const r of rows) {
+        map[r.id] = { task_id: r.task_id, title: r.title, status: r.status };
+      }
+      return map;
+    };
+    res.json({
+      shelves: toMap(shelvesResult.rows),
+      pallets: toMap(palletsResult.rows),
+      pallet_boxes: toMap(palletBoxesResult.rows),
+      shelf_boxes: toMap(shelfBoxesResult.rows),
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // POST /api/tasks
 router.post('/', requireAuth, requireAdminOrManager, async (req, res) => {
   const {

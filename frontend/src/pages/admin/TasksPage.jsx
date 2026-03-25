@@ -466,6 +466,7 @@ function CreateTaskModal({ open, onClose, onSuccess }) {
   const [selectedFboWarehouse, setSelectedFboWarehouse] = useState('');
   const [packForm, setPackForm] = useState({ employee_id: '', box_size: '50', target_pallet_id: '', notes: '' });
   const [loading, setLoading] = useState(false);
+  const [busyTargets, setBusyTargets] = useState({ shelves: {}, pallets: {}, pallet_boxes: {}, shelf_boxes: {} });
   const selectedWarehouseData = warehouses.find(w => String(w.id) === String(selectedWarehouse));
   const selectedInventoryShelf = shelves.find(s => String(s.id) === String(form.shelf_id));
   const selectedInventoryRow = inventoryRows.find(row => String(row.id) === String(selectedRow));
@@ -483,10 +484,12 @@ function CreateTaskModal({ open, onClose, onSuccess }) {
       api.get('/staff/employees'),
       api.get('/warehouse/warehouses'),
       api.get('/fbo/warehouses'),
-    ]).then(([emp, wh, fbo]) => {
+      api.get('/tasks/busy-targets'),
+    ]).then(([emp, wh, fbo, busy]) => {
       setEmployees(emp.data);
       setWarehouses(wh.data);
       setFboWarehouses(fbo.data);
+      setBusyTargets(busy.data || { shelves: {}, pallets: {}, pallet_boxes: {}, shelf_boxes: {} });
     }).catch(console.error);
   }, [open]);
 
@@ -771,10 +774,29 @@ function CreateTaskModal({ open, onClose, onSuccess }) {
             </Select>
           )}
           {selectedRack && !inventoryUsesPallets && (
-            <Select label="Полка" value={form.shelf_id} onChange={e => setForm(f => ({ ...f, shelf_id: e.target.value }))}>
-              <option value="">Выберите полку</option>
-              {shelves.map(s => <option key={s.id} value={s.id}>{s.name} ({s.code}){s.uses_boxes ? ' · коробки' : ''}</option>)}
-            </Select>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Полка</label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-48 overflow-y-auto rounded-xl border border-gray-200 bg-gray-50 p-2">
+                {shelves.map(s => {
+                  const busy = busyTargets.shelves[s.id];
+                  const selected = String(form.shelf_id) === String(s.id);
+                  return (
+                    <button key={s.id} type="button" disabled={!!busy}
+                      onClick={() => setForm(f => ({ ...f, shelf_id: String(s.id) }))}
+                      className={`text-left rounded-xl border px-3 py-2 text-sm transition-all ${
+                        busy ? 'opacity-40 cursor-not-allowed border-gray-200 bg-gray-100' :
+                        selected ? 'border-primary-400 bg-primary-50 ring-1 ring-primary-200' :
+                        'border-gray-200 bg-white hover:border-primary-300 cursor-pointer'
+                      }`}
+                    >
+                      <p className="font-medium text-gray-900 truncate">{s.name}</p>
+                      <p className="text-xs text-gray-400 truncate">{s.code}{s.uses_boxes ? ' · коробки' : ''}</p>
+                      {busy && <p className="text-[10px] text-red-400 mt-0.5 truncate">В задаче #{busy.task_id}</p>}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           )}
           {!inventoryUsesPallets && selectedInventoryShelf && (
             <div className={`rounded-xl border px-3 py-3 text-sm ${selectedInventoryShelf.uses_boxes ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-green-200 bg-green-50 text-green-800'}`}>
@@ -790,10 +812,29 @@ function CreateTaskModal({ open, onClose, onSuccess }) {
             </Select>
           )}
           {selectedRow && inventoryUsesPallets && (
-            <Select label="Паллет" value={form.target_pallet_id} onChange={e => setForm(f => ({ ...f, target_pallet_id: e.target.value }))}>
-              <option value="">Выберите паллет</option>
-              {inventoryPallets.map(p => <option key={p.id} value={p.id}>Р{selectedInventoryRow?.number ?? ''}П{p.number} — {p.name}</option>)}
-            </Select>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Паллет</label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-48 overflow-y-auto rounded-xl border border-gray-200 bg-gray-50 p-2">
+                {inventoryPallets.map(p => {
+                  const busy = busyTargets.pallets[p.id];
+                  const selected = String(form.target_pallet_id) === String(p.id);
+                  return (
+                    <button key={p.id} type="button" disabled={!!busy}
+                      onClick={() => setForm(f => ({ ...f, target_pallet_id: String(p.id) }))}
+                      className={`text-left rounded-xl border px-3 py-2 text-sm transition-all ${
+                        busy ? 'opacity-40 cursor-not-allowed border-gray-200 bg-gray-100' :
+                        selected ? 'border-primary-400 bg-primary-50 ring-1 ring-primary-200' :
+                        'border-gray-200 bg-white hover:border-primary-300 cursor-pointer'
+                      }`}
+                    >
+                      <p className="font-medium text-gray-900">Р{selectedInventoryRow?.number ?? ''}П{p.number}</p>
+                      <p className="text-xs text-gray-400 truncate">{p.name}</p>
+                      {busy && <p className="text-[10px] text-red-400 mt-0.5 truncate">В задаче #{busy.task_id}</p>}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           )}
           {inventoryUsesPallets && selectedInventoryPallet && !selectedInventoryPallet.uses_boxes && (
             <div className="rounded-xl border border-green-200 bg-green-50 px-3 py-3 text-sm text-green-800">
@@ -818,16 +859,24 @@ function CreateTaskModal({ open, onClose, onSuccess }) {
                 </label>
               </div>
               {selectedBoxIds.length > 0 && inventoryPalletDetails.boxes?.length > 0 && (
-                <div className="max-h-40 overflow-y-auto space-y-1.5 rounded-xl border border-gray-200 bg-gray-50 p-2">
+                <div className="max-h-56 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-2 rounded-xl border border-gray-200 bg-gray-50 p-2">
                   {inventoryPalletDetails.boxes.map(box => {
-                    const checked = selectedBoxIds.includes(box.id);
+                    const busy = busyTargets.pallet_boxes[box.id];
+                    const checked = !busy && selectedBoxIds.includes(box.id);
                     return (
-                      <label key={box.id} className={`flex items-center gap-2.5 rounded-lg px-3 py-2 cursor-pointer transition-all text-sm ${checked ? 'bg-white border border-primary-200' : 'hover:bg-white'}`}>
-                        <input type="checkbox" checked={checked}
-                          onChange={() => setSelectedBoxIds(prev => checked ? prev.filter(id => id !== box.id) : [...prev, box.id])}
-                          className="w-4 h-4 rounded text-primary-600" />
-                        <span className="font-medium text-gray-800">{box.product_name || 'Пустая коробка'}</span>
-                        <span className="text-xs text-gray-400 ml-auto">{box.barcode_value} · {Number(box.quantity || 0)} шт.</span>
+                      <label key={box.id} className={`flex items-start gap-2.5 rounded-xl border px-3 py-2 text-sm transition-all ${
+                        busy ? 'opacity-40 cursor-not-allowed border-gray-200 bg-gray-100' :
+                        checked ? 'bg-white border-primary-200 cursor-pointer' :
+                        'border-transparent hover:bg-white cursor-pointer'
+                      }`}>
+                        <input type="checkbox" checked={checked} disabled={!!busy}
+                          onChange={() => !busy && setSelectedBoxIds(prev => checked ? prev.filter(id => id !== box.id) : [...prev, box.id])}
+                          className="w-4 h-4 rounded text-primary-600 mt-0.5" />
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium text-gray-800 truncate">{box.product_name || 'Пустая коробка'}</p>
+                          <p className="text-xs text-gray-400">{box.barcode_value} · {Number(box.quantity || 0)} шт.</p>
+                          {busy && <p className="text-[10px] text-red-400 mt-0.5">В задаче #{busy.task_id}</p>}
+                        </div>
                       </label>
                     );
                   })}
@@ -842,36 +891,42 @@ function CreateTaskModal({ open, onClose, onSuccess }) {
                 {inventoryShelfDetails.boxes?.length > 0 && (
                   <button
                     type="button"
-                    onClick={() => setSelectedShelfBoxIds(
-                      selectedShelfBoxIds.length === inventoryShelfDetails.boxes.length
-                        ? []
-                        : inventoryShelfDetails.boxes.map(box => box.id)
-                    )}
+                    onClick={() => {
+                      const available = inventoryShelfDetails.boxes.filter(b => !busyTargets.shelf_boxes[b.id]).map(b => b.id);
+                      setSelectedShelfBoxIds(selectedShelfBoxIds.length === available.length ? [] : available);
+                    }}
                     className="text-xs text-primary-600 hover:text-primary-700 font-medium"
                   >
-                    {selectedShelfBoxIds.length === inventoryShelfDetails.boxes.length ? 'Снять выбор' : 'Выбрать все'}
+                    {selectedShelfBoxIds.length === inventoryShelfDetails.boxes.filter(b => !busyTargets.shelf_boxes[b.id]).length ? 'Снять выбор' : 'Выбрать все'}
                   </button>
                 )}
               </div>
               {inventoryShelfDetails.boxes?.length > 0 ? (
-                <div className="max-h-56 overflow-y-auto space-y-2 rounded-xl border border-gray-200 bg-gray-50 p-2">
+                <div className="max-h-56 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-2 rounded-xl border border-gray-200 bg-gray-50 p-2">
                   {inventoryShelfDetails.boxes.map(box => {
-                    const checked = selectedShelfBoxIds.includes(box.id);
+                    const busy = busyTargets.shelf_boxes[box.id];
+                    const checked = !busy && selectedShelfBoxIds.includes(box.id);
                     return (
-                      <label key={box.id} className={`flex items-start gap-3 rounded-xl border px-3 py-2 cursor-pointer transition-all ${checked ? 'border-primary-300 bg-white' : 'border-transparent bg-transparent hover:bg-white'}`}>
+                      <label key={box.id} className={`flex items-start gap-3 rounded-xl border px-3 py-2 text-sm transition-all ${
+                        busy ? 'opacity-40 cursor-not-allowed border-gray-200 bg-gray-100' :
+                        checked ? 'border-primary-300 bg-white cursor-pointer' :
+                        'border-transparent bg-transparent hover:bg-white cursor-pointer'
+                      }`}>
                         <input
                           type="checkbox"
                           checked={checked}
-                          onChange={() => setSelectedShelfBoxIds(prev => checked ? prev.filter(id => id !== box.id) : [...prev, box.id])}
+                          disabled={!!busy}
+                          onChange={() => !busy && setSelectedShelfBoxIds(prev => checked ? prev.filter(id => id !== box.id) : [...prev, box.id])}
                           className="mt-1"
                         />
                         <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium text-gray-900 truncate">
+                          <p className="font-medium text-gray-900 truncate">
                             {box.name || 'Коробка'}
                           </p>
                           <p className="text-xs text-gray-500">
                             {box.barcode_value} · {Number(box.quantity || 0)} шт. · {Number(box.products_count || 0) > 1 ? `${Number(box.products_count)} товара` : (box.product_name || 'Пустая коробка')}
                           </p>
+                          {busy && <p className="text-[10px] text-red-400 mt-0.5">В задаче #{busy.task_id}</p>}
                         </div>
                       </label>
                     );
