@@ -608,7 +608,7 @@ export default function InventoryAnalyticsView() {
           </div>
         );
       })}
-      </>}
+      </>
     </div>
   );
 }
