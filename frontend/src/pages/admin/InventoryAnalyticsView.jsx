@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { CheckCircle2, AlertTriangle, Clock, ChevronRight, ChevronDown, Search, ArrowLeft, Users, Activity, Zap, BarChart3, FileText } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, Clock, ChevronRight, ChevronDown, Search, Warehouse, Package, Box, ArrowLeft, Users, Activity, Zap, BarChart3, FileText } from 'lucide-react';
 import { WarehouseIcon, RackIcon, ShelfIcon, PalletIcon, RowIcon, BoxIcon, ShelfBoxIcon, EmployeeIcon } from '../../components/ui/WarehouseIcons';
 import api from '../../api/client';
 import Spinner from '../../components/ui/Spinner';
