@@ -6,6 +6,7 @@ import {
   Warehouse, Plus, Pencil, Trash2, Layers, Package, Search,
   ChevronRight, ChevronLeft, ArrowLeft, Copy, Check, X, Printer, Box, ArrowUp, ArrowDown
 } from 'lucide-react';
+import { WarehouseIcon, RackIcon, ShelfIcon, PalletIcon, RowIcon, BoxIcon, ProductIcon } from '../../components/ui/WarehouseIcons';
 import api from '../../api/client';
 import FBSVisualView from '../../components/visual/FBSVisualView';
 import FBOVisualView from '../../components/visual/FBOVisualView';
@@ -281,7 +282,7 @@ function ShelfItemRow({ item, shelfId, onUpdate }) {
   return (
     <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
       <div className="w-7 h-7 rounded-lg bg-white flex items-center justify-center flex-shrink-0 border border-gray-100">
-        <Package size={13} className="text-gray-400" />
+        <ProductIcon size={16} />
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-gray-800 truncate">{item.product_name}</p>
@@ -343,7 +344,7 @@ function PalletItemRow({ item, palletId, onUpdate }) {
   return (
     <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
       <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center flex-shrink-0 border border-gray-100">
-        <Package size={14} className="text-primary-500" />
+        <ProductIcon size={18} />
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-gray-800 truncate">{item.product_name}</p>
@@ -451,7 +452,7 @@ function AddProductToShelfModal({ open, onClose, shelfId, onSuccess }) {
         ) : (
           <>
             <div className="flex items-center gap-3 p-3 bg-primary-50 rounded-xl">
-              <Package size={16} className="text-primary-500 flex-shrink-0" />
+              <ProductIcon size={20} className="flex-shrink-0" />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{selected.name}</p>
                 <p className="text-xs text-gray-400">{selected.code}</p>
@@ -940,7 +941,7 @@ function BoxEditorModal({ open, onClose, box, title, onSave, loading }) {
         ) : (
           <div className="space-y-3">
             <div className="flex items-center gap-3 p-3 bg-primary-50 dark:bg-primary-900/20 rounded-xl">
-              <Package size={16} className="text-primary-500 flex-shrink-0" />
+              <ProductIcon size={20} className="flex-shrink-0" />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{selected.name}</p>
                 <p className="text-xs text-gray-400">{selected.code}</p>
@@ -1183,7 +1184,7 @@ function BoxDetailView({ boxId, boxType, onClose, onChanged }) {
             {box.items.map(item => (
               <div key={item.product_id} className="rounded-xl bg-gray-50 dark:bg-gray-800 p-3 flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-white dark:bg-gray-700 flex items-center justify-center flex-shrink-0 border border-gray-100 dark:border-gray-600">
-                  <Package size={16} className="text-primary-500" />
+                  <ProductIcon size={18} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{item.product_name}</p>
@@ -1198,7 +1199,7 @@ function BoxDetailView({ boxId, boxType, onClose, onChanged }) {
           </div>
         ) : (
           <div className="text-center py-8 text-gray-300 bg-gray-50 dark:bg-gray-800 rounded-xl">
-            <Box size={28} className="mx-auto mb-2 opacity-50" />
+            <BoxIcon size={36} className="mx-auto mb-2 opacity-40" />
             <p className="text-sm">Коробка пустая</p>
           </div>
         )}
@@ -1460,7 +1461,7 @@ function ShelfDetailView({ shelfId, rackId, onClose, initialBoxId }) {
                   className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-xl group cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                 >
                   <div className="w-8 h-8 rounded-lg bg-white dark:bg-gray-700 flex items-center justify-center flex-shrink-0 border border-gray-100 dark:border-gray-600">
-                    <Box size={14} className="text-gray-400" />
+                    <BoxIcon size={18} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{getShelfBoxLabel(box, shelf)}</p>
@@ -1492,7 +1493,7 @@ function ShelfDetailView({ shelfId, rackId, onClose, initialBoxId }) {
             </div>
           ) : (
             <div className="text-center py-6 text-gray-300 bg-gray-50 dark:bg-gray-800 rounded-xl">
-              <Box size={28} className="mx-auto mb-1.5 opacity-50" />
+              <BoxIcon size={36} className="mx-auto mb-1.5 opacity-40" />
               <p className="text-sm">На полке пока нет коробок</p>
             </div>
           )
@@ -1504,7 +1505,7 @@ function ShelfDetailView({ shelfId, rackId, onClose, initialBoxId }) {
           </div>
         ) : (
           <div className="text-center py-6 text-gray-300 bg-gray-50 dark:bg-gray-800 rounded-xl">
-            <Package size={28} className="mx-auto mb-1.5 opacity-50" />
+            <ProductIcon size={36} className="mx-auto mb-1.5 opacity-40" />
             <p className="text-sm">Полка пустая</p>
           </div>
         )}
@@ -1964,7 +1965,7 @@ function PalletDetailView({ pallet, onClose, initialBoxId }) {
                 className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-xl group cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
               >
                 <div className="w-8 h-8 rounded-lg bg-white dark:bg-gray-700 flex items-center justify-center flex-shrink-0 border border-gray-100 dark:border-gray-600">
-                  <Box size={14} className="text-gray-400" />
+                  <BoxIcon size={18} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">{getPalletBoxLabel(box, data || pallet)}</p>
@@ -1998,7 +1999,7 @@ function PalletDetailView({ pallet, onClose, initialBoxId }) {
           </div>
         ) : (
           <div className="text-center py-8 text-gray-300 bg-gray-50 dark:bg-gray-800 rounded-xl">
-            <Box size={28} className="mx-auto mb-2 opacity-50" />
+            <BoxIcon size={36} className="mx-auto mb-2 opacity-40" />
             <p className="text-sm">Нет коробок</p>
           </div>
         )}
@@ -2017,7 +2018,7 @@ function PalletDetailView({ pallet, onClose, initialBoxId }) {
                   {addResults.map(p => (
                     <button key={p.id} onClick={() => setAddSelected(p)}
                       className="w-full text-left px-3 py-2 rounded-lg hover:bg-primary-50 dark:hover:bg-primary-900/30 transition-colors flex items-center gap-2">
-                      <Package size={14} className="text-gray-400 flex-shrink-0" />
+                      <ProductIcon size={18} className="flex-shrink-0" />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">{p.name}</p>
                         {p.code && <p className="text-xs text-gray-400">{p.code}</p>}
@@ -2035,7 +2036,7 @@ function PalletDetailView({ pallet, onClose, initialBoxId }) {
           ) : (
             <div className="space-y-3">
               <div className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-gray-800 rounded-xl">
-                <Package size={14} className="text-primary-500 flex-shrink-0" />
+                <ProductIcon size={18} className="flex-shrink-0" />
                 <p className="text-sm font-medium text-gray-800 dark:text-gray-200 flex-1 truncate">{addSelected.name}</p>
                 <button onClick={() => setAddSelected(null)} className="text-gray-400 hover:text-gray-600">
                   <X size={14} />
@@ -2074,7 +2075,7 @@ function PalletDetailView({ pallet, onClose, initialBoxId }) {
           </div>
           {data?.items?.length === 0 && !isBoxMode && (
             <div className="text-center py-8 text-gray-300 bg-gray-50 dark:bg-gray-800 rounded-xl">
-              <Package size={28} className="mx-auto mb-2 opacity-50" />
+              <ProductIcon size={36} className="mx-auto mb-2 opacity-40" />
               <p className="text-sm">Нет товаров на паллете</p>
             </div>
           )}
@@ -2533,7 +2534,7 @@ function FBORowListView({ warehouse, initialRowId, initialPalletId, initialBoxId
       )}
       {vm === 'list' && !loading && rows.length === 0 && (
         <div className="flex flex-col items-center justify-center h-40 text-gray-400 card">
-          <Package size={36} className="mb-2 opacity-30" />
+          <RowIcon size={44} className="mb-2 opacity-40" />
           <p className="text-sm">Нет рядов</p>
         </div>
       )}
@@ -3014,7 +3015,7 @@ function VisualWarehouseView({ warehouse }) {
               <div className="flex items-start justify-between p-5 pb-4 border-b border-gray-100">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center flex-shrink-0">
-                    <Box size={18} className="text-amber-600" />
+                    <BoxIcon size={22} />
                   </div>
                   <div>
                     <p className="font-bold text-gray-900 dark:text-white text-base">{prod.name}</p>
@@ -3143,7 +3144,7 @@ function WarehouseListView({ warehouses, selectedId, onSelect, onReload }) {
                   : 'bg-white border border-gray-200 text-gray-600 hover:border-primary-300'
               )}
             >
-              <Warehouse size={14} />
+              <WarehouseIcon size={18} />
               {wh.name}
               <span className={cn(
                 'text-xs px-1.5 py-0.5 rounded-md',
@@ -3505,7 +3506,7 @@ function WarehouseContent({ warehouse, initialRackId, initialShelfId, initialRow
           )}
           {viewMode === 'list' && !loading && racks.length === 0 && (
             <div className="flex flex-col items-center justify-center h-40 text-gray-400 card">
-              <Warehouse size={36} className="mb-2 opacity-30" />
+              <WarehouseIcon size={44} className="mb-2 opacity-40" />
               <p className="text-sm">Нет стеллажей</p>
             </div>
           )}
