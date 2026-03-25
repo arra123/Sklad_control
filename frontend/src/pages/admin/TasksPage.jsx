@@ -10,6 +10,7 @@ import Badge from '../../components/ui/Badge';
 import Modal from '../../components/ui/Modal';
 import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
+import SearchSelect from '../../components/ui/SearchSelect';
 import Spinner from '../../components/ui/Spinner';
 import CopyBadge from '../../components/ui/CopyBadge';
 import { useToast } from '../../components/ui/Toast';
@@ -753,25 +754,25 @@ function CreateTaskModal({ open, onClose, onSuccess }) {
         <form id="task-form" onSubmit={handleSubmitInventory} className="space-y-4">
           <Input label="Название задачи" placeholder="Инвентаризация стеллажа С5"
             value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} required />
-          <Select label="Сотрудник" value={form.employee_id} onChange={e => setForm(f => ({ ...f, employee_id: e.target.value }))}>
-            <option value="">Не назначен</option>
-            {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.full_name}</option>)}
-          </Select>
-          <Select label="Склад" value={selectedWarehouse} onChange={e => setSelectedWarehouse(e.target.value)}>
-            <option value="">Выберите склад</option>
-            {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
-          </Select>
+          <SearchSelect label="Сотрудник" value={form.employee_id} placeholder="Поиск сотрудника..."
+            onChange={v => setForm(f => ({ ...f, employee_id: v }))}
+            options={[{ value: '', label: 'Не назначен' }, ...employees.map(emp => ({ value: String(emp.id), label: emp.full_name }))]}
+          />
+          <SearchSelect label="Склад" value={selectedWarehouse} placeholder="Поиск склада..."
+            onChange={v => setSelectedWarehouse(v)}
+            options={warehouses.map(w => ({ value: String(w.id), label: w.name }))}
+          />
           {isInventoryBoth && (
-            <Select label="Тип адресации" value={inventoryMode} onChange={e => setInventoryMode(e.target.value)}>
-              <option value="shelf">Стеллажи и полки</option>
-              <option value="pallet">Ряды и паллеты</option>
-            </Select>
+            <SearchSelect label="Тип адресации" value={inventoryMode}
+              onChange={v => setInventoryMode(v)}
+              options={[{ value: 'shelf', label: 'Стеллажи и полки' }, { value: 'pallet', label: 'Ряды и паллеты' }]}
+            />
           )}
           {selectedWarehouse && !inventoryUsesPallets && (
-            <Select label="Стеллаж" value={selectedRack} onChange={e => setSelectedRack(e.target.value)}>
-              <option value="">Выберите стеллаж</option>
-              {racks.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-            </Select>
+            <SearchSelect label="Стеллаж" value={selectedRack} placeholder="Поиск стеллажа..."
+              onChange={v => setSelectedRack(v)}
+              options={racks.map(r => ({ value: String(r.id), label: r.name }))}
+            />
           )}
           {selectedRack && !inventoryUsesPallets && (
             <div>
@@ -806,10 +807,10 @@ function CreateTaskModal({ open, onClose, onSuccess }) {
             </div>
           )}
           {selectedWarehouse && inventoryUsesPallets && (
-            <Select label="Ряд" value={selectedRow} onChange={e => setSelectedRow(e.target.value)}>
-              <option value="">Выберите ряд</option>
-              {inventoryRows.map(row => <option key={row.id} value={row.id}>Ряд {row.number} — {row.name}</option>)}
-            </Select>
+            <SearchSelect label="Ряд" value={selectedRow} placeholder="Поиск ряда..."
+              onChange={v => setSelectedRow(v)}
+              options={inventoryRows.map(row => ({ value: String(row.id), label: `Ряд ${row.number} — ${row.name}` }))}
+            />
           )}
           {selectedRow && inventoryUsesPallets && (
             <div>
@@ -977,21 +978,20 @@ function CreateTaskModal({ open, onClose, onSuccess }) {
           </div>
           <Input label="Штук в коробке" type="number" min="1" max="1000"
             value={packForm.box_size} onChange={e => setPackForm(f => ({ ...f, box_size: e.target.value }))} required />
-          <Select label="FBO склад" value={selectedFboWarehouse} onChange={e => setSelectedFboWarehouse(e.target.value)}>
-            <option value="">Выберите FBO склад</option>
-            {fboWarehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
-          </Select>
+          <SearchSelect label="FBO склад" value={selectedFboWarehouse} placeholder="Поиск FBO склада..."
+            onChange={v => setSelectedFboWarehouse(v)}
+            options={fboWarehouses.map(w => ({ value: String(w.id), label: w.name }))}
+          />
           {selectedFboWarehouse && (
-            <Select label="Паллет" value={packForm.target_pallet_id}
-              onChange={e => setPackForm(f => ({ ...f, target_pallet_id: e.target.value }))} required>
-              <option value="">Выберите паллет</option>
-              {pallets.map(p => <option key={p.id} value={p.id}>Р{p.row_number}П{p.number} — {p.name}</option>)}
-            </Select>
+            <SearchSelect label="Паллет" value={packForm.target_pallet_id} placeholder="Поиск паллета..."
+              onChange={v => setPackForm(f => ({ ...f, target_pallet_id: v }))}
+              options={pallets.map(p => ({ value: String(p.id), label: `Р${p.row_number}П${p.number} — ${p.name}` }))}
+            />
           )}
-          <Select label="Сотрудник" value={packForm.employee_id} onChange={e => setPackForm(f => ({ ...f, employee_id: e.target.value }))}>
-            <option value="">Не назначен</option>
-            {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.full_name}</option>)}
-          </Select>
+          <SearchSelect label="Сотрудник" value={packForm.employee_id} placeholder="Поиск сотрудника..."
+            onChange={v => setPackForm(f => ({ ...f, employee_id: v }))}
+            options={[{ value: '', label: 'Не назначен' }, ...employees.map(emp => ({ value: String(emp.id), label: emp.full_name }))]}
+          />
           <Input label="Примечание" placeholder="Дополнительные инструкции..."
             value={packForm.notes} onChange={e => setPackForm(f => ({ ...f, notes: e.target.value }))} />
         </form>
