@@ -98,9 +98,9 @@ function getNodeLabel(node) {
   return node.label || node.name || node.code || '—';
 }
 
-function getNodeIcon(type, size = 18) {
+function getNodeIcon(type, size = 18, colorIndex = 0) {
   switch (type) {
-    case 'warehouse': return <WarehouseIcon size={size} />;
+    case 'warehouse': return <WarehouseIcon size={size} colorIndex={colorIndex} />;
     case 'rack': return <RackIcon size={size} />;
     case 'row': return <RowIcon size={size} />;
     case 'shelf': return <ShelfIcon size={size} />;
@@ -154,13 +154,9 @@ function TreeNode({ node, type, depth = 0, expandedNodes, selectedNodeId, onTogg
   const isRackOrRow = type === 'rack' || type === 'row';
   const isBox = type === 'pallet_box' || type === 'shelf_box' || type === 'box';
 
-  // Warehouse colors — each warehouse gets a unique accent
-  const warehouseColors = ['#7c3aed', '#2563eb', '#059669', '#dc2626', '#d97706', '#0891b2', '#7c3aed'];
-  const whIdx = type === 'warehouse' ? (node.id || 0) % warehouseColors.length : 0;
-
   const getFolderIcon = () => {
     if (isBox) return <BoxIcon size={16} />;
-    if (type === 'warehouse') return <WarehouseIcon size={18} />;
+    if (type === 'warehouse') return <WarehouseIcon size={18} colorIndex={(node.id || 0) % 10} />;
     if (type === 'rack') return <RackIcon size={16} />;
     if (type === 'row') return <RowIcon size={16} />;
     if (type === 'shelf') return <ShelfIcon size={16} />;
@@ -193,9 +189,6 @@ function TreeNode({ node, type, depth = 0, expandedNodes, selectedNodeId, onTogg
         {!hasChildren && <span className="w-3 flex-shrink-0" />}
         <span className="flex-shrink-0">{getFolderIcon()}</span>
         <span className="truncate flex-1">{getNodeLabel(node)}</span>
-        {type === 'warehouse' && (
-          <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: warehouseColors[whIdx] }} />
-        )}
         {hasChildren && childCount > 0 && (
           <span className="text-[10px] bg-gray-100 text-gray-500 rounded-full px-1.5 py-0.5 flex-shrink-0 font-medium">
             {childCount}

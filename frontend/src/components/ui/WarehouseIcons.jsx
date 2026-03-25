@@ -1,15 +1,30 @@
 // Warehouse entity icons v3 — realistic drawn style
 
-export function WarehouseIcon({ size = 20, className = '', style }) {
+// 10 color themes for warehouses — each warehouse gets a unique look
+const WAREHOUSE_THEMES = [
+  { wall: '#c7d2e0', wallStroke: '#8494a7', roof: '#7b8fa8', roofStroke: '#5c6f82', roofLight: '#9bafc4', door: '#5a7089', doorStroke: '#46586b', window: '#a3c4e8', windowStroke: '#7b9ab8' }, // серый (default)
+  { wall: '#c7d0e8', wallStroke: '#7b8ab8', roof: '#6375a8', roofStroke: '#4a5a8a', roofLight: '#8b9fd0', door: '#4a6099', doorStroke: '#3a4e7a', window: '#a3b8e8', windowStroke: '#7090c0' }, // синий
+  { wall: '#c7e8d0', wallStroke: '#6ba87b', roof: '#4a8a5e', roofStroke: '#3a7048', roofLight: '#7bc090', door: '#3a7050', doorStroke: '#2a5a3a', window: '#90d8a8', windowStroke: '#60b880' }, // зелёный
+  { wall: '#e8c7c7', wallStroke: '#b87070', roof: '#a85050', roofStroke: '#883838', roofLight: '#d08080', door: '#904040', doorStroke: '#703030', window: '#e8a0a0', windowStroke: '#c07070' }, // красный
+  { wall: '#e8dcc7', wallStroke: '#b89a60', roof: '#a88040', roofStroke: '#886828', roofLight: '#d0a860', door: '#907030', doorStroke: '#705820', window: '#e8d0a0', windowStroke: '#c0a060' }, // жёлтый/золотой
+  { wall: '#dcc7e8', wallStroke: '#9070b8', roof: '#7850a8', roofStroke: '#603888', roofLight: '#a080d0', door: '#684099', doorStroke: '#503080', window: '#c8a0e8', windowStroke: '#a070c0' }, // фиолетовый
+  { wall: '#c7e0e8', wallStroke: '#60a0b8', roof: '#4088a8', roofStroke: '#287088', roofLight: '#60b0d0', door: '#307090', doorStroke: '#205870', window: '#90d0e8', windowStroke: '#60b0c8' }, // бирюзовый
+  { wall: '#e8d0c7', wallStroke: '#b87850', roof: '#a86038', roofStroke: '#884820', roofLight: '#d09060', door: '#905030', doorStroke: '#703820', window: '#e8b8a0', windowStroke: '#c09070' }, // оранжевый
+  { wall: '#e0c7e8', wallStroke: '#a070b0', roof: '#8850a0', roofStroke: '#703888', roofLight: '#b080c8', door: '#784090', doorStroke: '#603070', window: '#d0a0e0', windowStroke: '#b070c0' }, // розовый
+  { wall: '#c7e8e0', wallStroke: '#60b0a0', roof: '#409888', roofStroke: '#288070', roofLight: '#60c8b0', door: '#308070', doorStroke: '#206858', window: '#90e0d0', windowStroke: '#60c0b0' }, // мятный
+];
+
+export function WarehouseIcon({ size = 20, className = '', style, colorIndex }) {
+  const t = WAREHOUSE_THEMES[(colorIndex ?? 0) % WAREHOUSE_THEMES.length];
   return (
     <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className} style={style}>
-      <rect x="6" y="18" width="36" height="24" rx="2" fill="#c7d2e0" stroke="#8494a7" strokeWidth="1.5"/>
-      <path d="M4 20L24 6l20 14" fill="#7b8fa8" stroke="#5c6f82" strokeWidth="1.5" strokeLinejoin="round"/>
-      <path d="M4 20L24 10l20 10" fill="#9bafc4"/>
-      <rect x="17" y="28" width="14" height="14" rx="1.5" fill="#5a7089" stroke="#46586b" strokeWidth="1"/>
-      <line x1="24" y1="28" x2="24" y2="42" stroke="#46586b" strokeWidth=".8"/>
-      <rect x="9" y="22" width="5" height="4" rx=".8" fill="#a3c4e8" stroke="#7b9ab8" strokeWidth=".8"/>
-      <rect x="34" y="22" width="5" height="4" rx=".8" fill="#a3c4e8" stroke="#7b9ab8" strokeWidth=".8"/>
+      <rect x="6" y="18" width="36" height="24" rx="2" fill={t.wall} stroke={t.wallStroke} strokeWidth="1.5"/>
+      <path d="M4 20L24 6l20 14" fill={t.roof} stroke={t.roofStroke} strokeWidth="1.5" strokeLinejoin="round"/>
+      <path d="M4 20L24 10l20 10" fill={t.roofLight}/>
+      <rect x="17" y="28" width="14" height="14" rx="1.5" fill={t.door} stroke={t.doorStroke} strokeWidth="1"/>
+      <line x1="24" y1="28" x2="24" y2="42" stroke={t.doorStroke} strokeWidth=".8"/>
+      <rect x="9" y="22" width="5" height="4" rx=".8" fill={t.window} stroke={t.windowStroke} strokeWidth=".8"/>
+      <rect x="34" y="22" width="5" height="4" rx=".8" fill={t.window} stroke={t.windowStroke} strokeWidth=".8"/>
     </svg>
   );
 }
