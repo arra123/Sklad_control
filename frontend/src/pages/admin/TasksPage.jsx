@@ -817,20 +817,18 @@ function CreateTaskModal({ open, onClose, onSuccess }) {
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Паллет</label>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-48 overflow-y-auto rounded-xl border border-gray-200 bg-gray-50 p-2">
                 {inventoryPallets.map(p => {
-                  const busy = busyTargets.pallets[p.id];
                   const selected = String(form.target_pallet_id) === String(p.id);
+                  const busyBoxCount = inventoryPalletDetails?.boxes?.filter(b => busyTargets.pallet_boxes[b.id])?.length || 0;
                   return (
-                    <button key={p.id} type="button" disabled={!!busy}
+                    <button key={p.id} type="button"
                       onClick={() => setForm(f => ({ ...f, target_pallet_id: String(p.id) }))}
                       className={`text-left rounded-xl border px-3 py-2 text-sm transition-all ${
-                        busy ? 'opacity-40 cursor-not-allowed border-gray-200 bg-gray-100' :
                         selected ? 'border-primary-400 bg-primary-50 ring-1 ring-primary-200' :
                         'border-gray-200 bg-white hover:border-primary-300 cursor-pointer'
                       }`}
                     >
                       <p className="font-medium text-gray-900">Р{selectedInventoryRow?.number ?? ''}П{p.number}</p>
                       <p className="text-xs text-gray-400 truncate">{p.name}</p>
-                      {busy && <p className="text-[10px] text-red-400 mt-0.5 truncate">В задаче #{busy.task_id}</p>}
                     </button>
                   );
                 })}

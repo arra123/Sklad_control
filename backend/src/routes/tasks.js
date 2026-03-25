@@ -1830,24 +1830,6 @@ router.post('/', requireAuth, requireAdminOrManager, async (req, res) => {
       }
     }
 
-    if (target_pallet_id) {
-      const busyPallet = await client.query(
-        `SELECT t.id, t.title, t.status
-         FROM inventory_tasks_s t
-         WHERE t.target_pallet_id = $1
-           AND t.status = ANY($2)
-         LIMIT 1`,
-        [target_pallet_id, activeStatuses]
-      );
-      if (busyPallet.rows.length) {
-        const b = busyPallet.rows[0];
-        await client.query('ROLLBACK');
-        return res.status(409).json({
-          error: `Паллет уже в задаче #${b.id} "${b.title}" (${b.status === 'new' ? 'новая' : 'в работе'})`,
-        });
-      }
-    }
-
     if (palletBoxIds.length > 0) {
       const busyBox = await client.query(
         `SELECT itb.task_id, t.title, t.status, b.barcode_value
