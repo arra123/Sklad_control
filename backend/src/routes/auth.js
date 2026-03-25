@@ -15,6 +15,7 @@ router.post('/login', async (req, res) => {
     const result = await pool.query(
       `SELECT u.id, u.username, u.password_hash, u.role, u.role_id, u.employee_id, u.active,
               e.full_name as employee_name,
+              COALESCE(e.gra_balance, 0) as gra_balance,
               r.name as role_name, r.permissions as role_permissions
        FROM users_s u
        LEFT JOIN employees_s e ON e.id = u.employee_id
@@ -42,6 +43,7 @@ router.post('/login', async (req, res) => {
         permissions,
         employee_id: user.employee_id,
         employee_name: user.employee_name,
+        gra_balance: Number(user.gra_balance || 0),
       },
     });
   } catch (err) {
@@ -55,6 +57,7 @@ router.get('/me', requireAuth, async (req, res) => {
     const result = await pool.query(
       `SELECT u.id, u.username, u.role, u.role_id, u.employee_id,
               e.full_name as employee_name,
+              COALESCE(e.gra_balance, 0) as gra_balance,
               r.name as role_name, r.permissions as role_permissions
        FROM users_s u
        LEFT JOIN employees_s e ON e.id = u.employee_id
@@ -63,7 +66,7 @@ router.get('/me', requireAuth, async (req, res) => {
       [req.user.id]
     );
     const u = result.rows[0];
-    res.json({ ...u, permissions: u.role_permissions || [] });
+    res.json({ ...u, gra_balance: Number(u.gra_balance || 0), permissions: u.role_permissions || [] });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

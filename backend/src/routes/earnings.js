@@ -1,0 +1,449 @@
+const router = require('express').Router();
+const pool = require('../db/pool');
+const { requireAuth, requireAdmin } = require('../middleware/auth');
+
+function parseNumeric(value, fallback = 0) {
+  const parsed = Number.parseFloat(String(value ?? '').replace(',', '.'));
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function formatScopeLabel(row) {
+  if (row.shelf_box_id) {
+    const shelfCode = row.shelf_code || [row.rack_code || row.rack_name, row.shelf_name].filter(Boolean).join(' · ') || 'Полка';
+    const boxPart = row.shelf_box_position != null ? `К${row.shelf_box_position}` : 'Коробка';
+    return `${shelfCode}${row.shelf_box_position != null ? boxPart : ` · ${boxPart}`}`;
+  }
+
+  if (row.box_id) {
+    const rowNo = row.row_number != null ? row.row_number : '?';
+    const palletNo = row.pallet_number != null ? row.pallet_number : '?';
+    const boxNo = row.task_box_sort_order != null ? row.task_box_sort_order : '?';
+    return `Р${rowNo}П${palletNo}К${boxNo}`;
+  }
+
+  if (row.shelf_id) {
+    return row.shelf_code || [row.rack_code || row.rack_name, row.shelf_name].filter(Boolean).join(' · ') || 'Полка';
+  }
+
+  return 'Задача';
+}
+
+async function getRewardRate(client = pool) {
+  const result = await client.query(
+    `SELECT value
+     FROM settings_s
+     WHERE key = 'gra_inventory_scan_rate'
+     LIMIT 1`
+  );
+  return parseNumeric(result.rows[0]?.value, 10);
+}
+
+router.get('/summary', requireAuth, requireAdmin, async (_req, res) => {
+  try {
+    const [rate, overviewResult, leadersResult, recentAdjustmentsResult] = await Promise.all([
+      getRewardRate(pool),
+      pool.query(`
+        WITH employee_stats AS (
+          SELECT
+            e.id,
+            e.full_name,
+            COALESCE(e.gra_balance, 0) as current_balance,
+            COUNT(ee.id) as events_count,
+            COALESCE(SUM(CASE WHEN ee.event_type = 'inventory_scan' THEN ee.amount_delta ELSE 0 END), 0) as total_awarded,
+            COALESCE(SUM(CASE WHEN ee.event_type = 'manual_adjustment' THEN ee.amount_delta ELSE 0 END), 0) as total_manual_adjustments,
+            COALESCE(SUM(CASE WHEN ee.event_type = 'inventory_scan' THEN ee.reward_units ELSE 0 END), 0) as rewarded_scans
+          FROM employees_s e
+          LEFT JOIN employee_earnings_s ee ON ee.employee_id = e.id
+          GROUP BY e.id, e.full_name, e.gra_balance
+        )
+        SELECT
+          COUNT(*) FILTER (WHERE events_count > 0 OR current_balance <> 0) as employees_with_activity,
+          COUNT(*) FILTER (WHERE current_balance > 0) as employees_with_positive_balance,
+          COALESCE(SUM(current_balance) FILTER (WHERE events_count > 0 OR current_balance <> 0), 0) as total_current_balance,
+          COALESCE(SUM(total_awarded), 0) as total_awarded,
+          COALESCE(SUM(total_manual_adjustments), 0) as total_manual_adjustments,
+          COALESCE(SUM(rewarded_scans), 0) as rewarded_scans
+        FROM employee_stats
+      `),
+      pool.query(`
+        SELECT
+          e.id as employee_id,
+          e.full_name,
+          COALESCE(e.gra_balance, 0) as current_balance,
+          COALESCE(SUM(CASE WHEN ee.event_type = 'inventory_scan' THEN ee.amount_delta ELSE 0 END), 0) as total_awarded,
+          COALESCE(SUM(CASE WHEN ee.event_type = 'inventory_scan' THEN ee.reward_units ELSE 0 END), 0) as rewarded_scans,
+          COUNT(DISTINCT ee.task_id) FILTER (WHERE ee.event_type = 'inventory_scan' AND ee.task_id IS NOT NULL) as rewarded_tasks_count,
+          MAX(ee.created_at) as last_earned_at
+        FROM employees_s e
+        JOIN employee_earnings_s ee ON ee.employee_id = e.id
+        GROUP BY e.id, e.full_name, e.gra_balance
+        HAVING COUNT(ee.id) > 0
+        ORDER BY COALESCE(e.gra_balance, 0) DESC, total_awarded DESC, rewarded_scans DESC
+        LIMIT 12
+      `),
+      pool.query(`
+        SELECT
+          ee.id,
+          ee.employee_id,
+          e.full_name as employee_name,
+          ee.amount_delta,
+          ee.balance_before,
+          ee.balance_after,
+          ee.notes,
+          ee.created_at,
+          u.username as changed_by_username
+        FROM employee_earnings_s ee
+        JOIN employees_s e ON e.id = ee.employee_id
+        LEFT JOIN users_s u ON u.id = ee.created_by_user_id
+        WHERE ee.event_type = 'manual_adjustment'
+        ORDER BY ee.created_at DESC
+        LIMIT 20
+      `),
+    ]);
+
+    res.json({
+      settings: {
+        gra_inventory_scan_rate: rate,
+      },
+      overview: overviewResult.rows[0] || {},
+      leaders: leadersResult.rows,
+      recent_adjustments: recentAdjustmentsResult.rows,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/employees', requireAuth, requireAdmin, async (_req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT
+        e.id as employee_id,
+        e.full_name,
+        COALESCE(e.gra_balance, 0) as current_balance,
+        COALESCE(SUM(CASE WHEN ee.event_type = 'inventory_scan' THEN ee.amount_delta ELSE 0 END), 0) as total_awarded,
+        COALESCE(SUM(CASE WHEN ee.event_type = 'manual_adjustment' THEN ee.amount_delta ELSE 0 END), 0) as total_manual_adjustments,
+        COALESCE(SUM(CASE WHEN ee.event_type = 'inventory_scan' THEN ee.reward_units ELSE 0 END), 0) as rewarded_scans,
+        COUNT(DISTINCT ee.task_id) FILTER (WHERE ee.event_type = 'inventory_scan' AND ee.task_id IS NOT NULL) as rewarded_tasks_count,
+        MAX(ee.created_at) as last_earned_at
+      FROM employees_s e
+      JOIN employee_earnings_s ee ON ee.employee_id = e.id
+      GROUP BY e.id, e.full_name, e.gra_balance
+      HAVING COUNT(ee.id) > 0
+      ORDER BY COALESCE(e.gra_balance, 0) DESC, last_earned_at DESC
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/employees/:employeeId', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const employeeId = Number(req.params.employeeId);
+    if (!Number.isFinite(employeeId)) return res.status(400).json({ error: 'Некорректный employeeId' });
+
+    const [employeeResult, tasksResult, adjustmentsResult] = await Promise.all([
+      pool.query(`
+        SELECT
+          e.id as employee_id,
+          e.full_name,
+          COALESCE(e.gra_balance, 0) as current_balance,
+          COALESCE(SUM(CASE WHEN ee.event_type = 'inventory_scan' THEN ee.amount_delta ELSE 0 END), 0) as total_awarded,
+          COALESCE(SUM(CASE WHEN ee.event_type = 'manual_adjustment' THEN ee.amount_delta ELSE 0 END), 0) as total_manual_adjustments,
+          COALESCE(SUM(CASE WHEN ee.event_type = 'inventory_scan' THEN ee.reward_units ELSE 0 END), 0) as rewarded_scans,
+          COUNT(DISTINCT ee.task_id) FILTER (WHERE ee.event_type = 'inventory_scan' AND ee.task_id IS NOT NULL) as rewarded_tasks_count,
+          MAX(ee.created_at) as last_earned_at
+        FROM employees_s e
+        LEFT JOIN employee_earnings_s ee ON ee.employee_id = e.id
+        WHERE e.id = $1
+        GROUP BY e.id, e.full_name, e.gra_balance
+      `, [employeeId]),
+      pool.query(`
+        SELECT
+          t.id as task_id,
+          t.title,
+          t.status,
+          t.created_at,
+          t.started_at,
+          t.completed_at,
+          t.task_type,
+          s.code as shelf_code,
+          s.name as shelf_name,
+          r.name as rack_name,
+          r.code as rack_code,
+          pa.name as pallet_name,
+          pa.number as pallet_number,
+          pr.name as pallet_row_name,
+          pr.number as pallet_row_number,
+          COALESCE(SUM(ee.amount_delta), 0) as amount_earned,
+          COALESCE(SUM(ee.reward_units), 0) as rewarded_scans,
+          COUNT(ee.id) as earning_events,
+          COUNT(DISTINCT ee.task_box_id) FILTER (WHERE ee.task_box_id IS NOT NULL) as scopes_count,
+          MAX(ee.created_at) as last_earned_at
+        FROM inventory_tasks_s t
+        JOIN employee_earnings_s ee ON ee.task_id = t.id
+        LEFT JOIN shelves_s s ON s.id = t.shelf_id
+        LEFT JOIN racks_s r ON r.id = s.rack_id
+        LEFT JOIN pallets_s pa ON pa.id = t.target_pallet_id
+        LEFT JOIN pallet_rows_s pr ON pr.id = pa.row_id
+        WHERE ee.employee_id = $1
+          AND ee.event_type = 'inventory_scan'
+        GROUP BY
+          t.id, s.code, s.name, r.name, r.code,
+          pa.name, pa.number, pr.name, pr.number
+        ORDER BY last_earned_at DESC, t.id DESC
+      `, [employeeId]),
+      pool.query(`
+        SELECT
+          ee.id,
+          ee.amount_delta,
+          ee.balance_before,
+          ee.balance_after,
+          ee.notes,
+          ee.created_at,
+          u.username as changed_by_username
+        FROM employee_earnings_s ee
+        LEFT JOIN users_s u ON u.id = ee.created_by_user_id
+        WHERE ee.employee_id = $1
+          AND ee.event_type = 'manual_adjustment'
+        ORDER BY ee.created_at DESC
+        LIMIT 50
+      `, [employeeId]),
+    ]);
+
+    if (!employeeResult.rows.length) return res.status(404).json({ error: 'Сотрудник не найден' });
+
+    res.json({
+      employee: employeeResult.rows[0],
+      tasks: tasksResult.rows,
+      adjustments: adjustmentsResult.rows,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/tasks/:taskId', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const taskId = Number(req.params.taskId);
+    if (!Number.isFinite(taskId)) return res.status(400).json({ error: 'Некорректный taskId' });
+
+    const taskResult = await pool.query(`
+      SELECT
+        t.id as task_id,
+        t.title,
+        t.status,
+        t.task_type,
+        t.created_at,
+        t.started_at,
+        t.completed_at,
+        e.id as employee_id,
+        e.full_name as employee_name,
+        COALESCE(e.gra_balance, 0) as current_balance,
+        s.id as shelf_id,
+        s.code as shelf_code,
+        s.name as shelf_name,
+        r.name as rack_name,
+        r.code as rack_code,
+        pa.id as pallet_id,
+        pa.name as pallet_name,
+        pa.number as pallet_number,
+        pr.name as pallet_row_name,
+        pr.number as pallet_row_number,
+        COALESCE(SUM(ee.amount_delta), 0) as total_earned,
+        COALESCE(SUM(ee.reward_units), 0) as rewarded_scans,
+        COUNT(ee.id) as earning_events
+      FROM inventory_tasks_s t
+      LEFT JOIN employees_s e ON e.id = t.employee_id
+      LEFT JOIN shelves_s s ON s.id = t.shelf_id
+      LEFT JOIN racks_s r ON r.id = s.rack_id
+      LEFT JOIN pallets_s pa ON pa.id = t.target_pallet_id
+      LEFT JOIN pallet_rows_s pr ON pr.id = pa.row_id
+      LEFT JOIN employee_earnings_s ee ON ee.task_id = t.id AND ee.event_type = 'inventory_scan'
+      WHERE t.id = $1
+      GROUP BY
+        t.id, e.id, e.full_name, e.gra_balance,
+        s.id, s.code, s.name, r.name, r.code,
+        pa.id, pa.name, pa.number, pr.name, pr.number
+    `, [taskId]);
+
+    if (!taskResult.rows.length) return res.status(404).json({ error: 'Задача не найдена' });
+
+    const task = taskResult.rows[0];
+    const scansResult = await pool.query(`
+      SELECT
+        ee.id as earning_id,
+        ee.amount_delta,
+        ee.reward_units,
+        ee.rate_per_unit,
+        ee.balance_after,
+        ee.created_at as earned_at,
+        ee.task_box_id,
+        ee.box_id,
+        ee.shelf_box_id,
+        ee.shelf_id,
+        sc.id as task_scan_id,
+        sc.scanned_value,
+        sc.created_at as scanned_at,
+        sc.quantity_delta,
+        p.id as product_id,
+        p.name as product_name,
+        p.code as product_code,
+        tb.sort_order as task_box_sort_order,
+        sbx.position as shelf_box_position,
+        sbx.barcode_value as shelf_box_barcode,
+        bx.barcode_value as pallet_box_barcode,
+        s.code as shelf_code,
+        s.name as shelf_name,
+        r.code as rack_code,
+        r.name as rack_name,
+        pa.number as pallet_number,
+        pr.number as row_number
+      FROM employee_earnings_s ee
+      LEFT JOIN inventory_task_scans_s sc ON sc.id = ee.task_scan_id
+      LEFT JOIN products_s p ON p.id = ee.product_id
+      LEFT JOIN inventory_task_boxes_s tb ON tb.id = ee.task_box_id
+      LEFT JOIN shelf_boxes_s sbx ON sbx.id = ee.shelf_box_id
+      LEFT JOIN boxes_s bx ON bx.id = ee.box_id
+      LEFT JOIN shelves_s s ON s.id = COALESCE(ee.shelf_id, sbx.shelf_id)
+      LEFT JOIN racks_s r ON r.id = s.rack_id
+      LEFT JOIN pallets_s pa ON pa.id = bx.pallet_id
+      LEFT JOIN pallet_rows_s pr ON pr.id = pa.row_id
+      WHERE ee.task_id = $1
+        AND ee.event_type = 'inventory_scan'
+      ORDER BY ee.created_at ASC, ee.id ASC
+    `, [taskId]);
+
+    const scopeMap = new Map();
+    const scans = scansResult.rows.map((row) => {
+      const scopeLabel = formatScopeLabel(row);
+      const scopeKey = row.shelf_box_id
+        ? `shelf_box:${row.shelf_box_id}`
+        : row.box_id
+        ? `pallet_box:${row.box_id}`
+        : row.shelf_id
+        ? `shelf:${row.shelf_id}`
+        : `task:${taskId}`;
+
+      if (!scopeMap.has(scopeKey)) {
+        scopeMap.set(scopeKey, {
+          scope_key: scopeKey,
+          scope_type: row.shelf_box_id ? 'shelf_box' : row.box_id ? 'pallet_box' : row.shelf_id ? 'shelf' : 'task',
+          scope_label: scopeLabel,
+          box_barcode: row.shelf_box_barcode || row.pallet_box_barcode || null,
+          amount_earned: 0,
+          rewarded_scans: 0,
+          scans: [],
+        });
+      }
+
+      const group = scopeMap.get(scopeKey);
+      group.amount_earned = Number(group.amount_earned || 0) + Number(row.amount_delta || 0);
+      group.rewarded_scans = Number(group.rewarded_scans || 0) + Number(row.reward_units || 0);
+      group.scans.push({
+        earning_id: row.earning_id,
+        task_scan_id: row.task_scan_id,
+        scanned_value: row.scanned_value,
+        scanned_at: row.scanned_at,
+        product_id: row.product_id,
+        product_name: row.product_name,
+        product_code: row.product_code,
+        quantity_delta: row.quantity_delta,
+        reward_units: row.reward_units,
+        rate_per_unit: row.rate_per_unit,
+        amount_delta: row.amount_delta,
+        balance_after: row.balance_after,
+        scope_label: scopeLabel,
+      });
+      return {
+        earning_id: row.earning_id,
+        task_scan_id: row.task_scan_id,
+        scanned_value: row.scanned_value,
+        scanned_at: row.scanned_at,
+        product_id: row.product_id,
+        product_name: row.product_name,
+        product_code: row.product_code,
+        quantity_delta: row.quantity_delta,
+        reward_units: row.reward_units,
+        rate_per_unit: row.rate_per_unit,
+        amount_delta: row.amount_delta,
+        balance_after: row.balance_after,
+        scope_label: scopeLabel,
+      };
+    });
+
+    res.json({
+      task,
+      scopes: Array.from(scopeMap.values()),
+      scans,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/employees/:employeeId/set-balance', requireAuth, requireAdmin, async (req, res) => {
+  const employeeId = Number(req.params.employeeId);
+  const newBalance = parseNumeric(req.body?.new_balance, NaN);
+  const notes = String(req.body?.notes || '').trim();
+
+  if (!Number.isFinite(employeeId)) return res.status(400).json({ error: 'Некорректный employeeId' });
+  if (!Number.isFinite(newBalance)) return res.status(400).json({ error: 'new_balance обязателен' });
+  if (!notes) return res.status(400).json({ error: 'Укажите причину изменения баланса' });
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const employeeResult = await client.query(
+      'SELECT id, full_name, COALESCE(gra_balance, 0) as gra_balance FROM employees_s WHERE id = $1 FOR UPDATE',
+      [employeeId]
+    );
+    if (!employeeResult.rows.length) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Сотрудник не найден' });
+    }
+
+    const employee = employeeResult.rows[0];
+    const balanceBefore = Number(employee.gra_balance || 0);
+    const balanceAfter = newBalance;
+    const amountDelta = balanceAfter - balanceBefore;
+
+    if (Math.abs(amountDelta) < 0.000001) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Баланс не изменился' });
+    }
+
+    const eventResult = await client.query(
+      `INSERT INTO employee_earnings_s (
+         employee_id, event_type, reward_units, rate_per_unit, amount_delta,
+         balance_before, balance_after, notes, created_by_user_id
+       )
+       VALUES ($1, 'manual_adjustment', 0, 0, $2, $3, $4, $5, $6)
+       RETURNING *`,
+      [employeeId, amountDelta, balanceBefore, balanceAfter, notes, req.user.id]
+    );
+
+    await client.query(
+      'UPDATE employees_s SET gra_balance = $1, updated_at = NOW() WHERE id = $2',
+      [balanceAfter, employeeId]
+    );
+
+    await client.query('COMMIT');
+    res.json({
+      employee: {
+        employee_id: employee.id,
+        full_name: employee.full_name,
+        current_balance: balanceAfter,
+      },
+      event: eventResult.rows[0],
+    });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
+module.exports = router;

@@ -19,6 +19,7 @@ import TasksPage from './pages/admin/TasksPage';
 import StaffPage from './pages/admin/StaffPage';
 import SettingsPage from './pages/admin/SettingsPage';
 import AnalyticsPage from './pages/admin/AnalyticsPage';
+import EarningsPage from './pages/admin/EarningsPage';
 import ErrorsPage from './pages/admin/ErrorsPage';
 import MyTasksPage from './pages/employee/MyTasksPage';
 import TaskScanPage from './pages/employee/TaskScanPage';
@@ -74,6 +75,7 @@ function AppRoutes() {
       <Route path="/admin/staff" element={<AdminRoute><StaffPage /></AdminRoute>} />
       <Route path="/admin/settings" element={<AdminRoute><SettingsPage /></AdminRoute>} />
       <Route path="/admin/analytics" element={<AdminRoute><AnalyticsPage /></AdminRoute>} />
+      <Route path="/admin/earnings" element={<AdminRoute><EarningsPage /></AdminRoute>} />
       <Route path="/admin/errors" element={<AdminRoute><ErrorsPage /></AdminRoute>} />
       <Route path="/admin/fbo" element={<AdminRoute><FBOPage /></AdminRoute>} />
       <Route path="/admin/movements" element={<AdminRoute><MovementsPage /></AdminRoute>} />

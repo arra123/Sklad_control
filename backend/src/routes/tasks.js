@@ -29,6 +29,93 @@ async function ensureInventoryPalletReady(client, palletId) {
   return pallet;
 }
 
+function parseNumeric(value, fallback = 0) {
+  const parsed = Number.parseFloat(String(value ?? '').replace(',', '.'));
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+async function getInventoryScanRewardRate(client) {
+  const result = await client.query(
+    `SELECT value
+     FROM settings_s
+     WHERE key = 'gra_inventory_scan_rate'
+     LIMIT 1`
+  );
+  return parseNumeric(result.rows[0]?.value, 10);
+}
+
+async function awardInventoryScanReward(client, { task, taskScanId, activeTaskBox, productId, quantityDelta, user }) {
+  if (task.task_type !== 'inventory') return null;
+  if (!task.employee_id) return null;
+  if (user.role !== 'employee') return null;
+  if (Number(user.employee_id) !== Number(task.employee_id)) return null;
+
+  const rewardUnits = parseNumeric(quantityDelta, 1);
+  if (!(rewardUnits > 0)) return null;
+
+  const [rate, employeeResult] = await Promise.all([
+    getInventoryScanRewardRate(client),
+    client.query(
+      `SELECT id, COALESCE(gra_balance, 0) as gra_balance
+       FROM employees_s
+       WHERE id = $1
+       FOR UPDATE`,
+      [task.employee_id]
+    ),
+  ]);
+
+  if (!employeeResult.rows.length || !(rate > 0)) return null;
+
+  const duplicateResult = await client.query(
+    `SELECT id
+     FROM employee_earnings_s
+     WHERE task_scan_id = $1
+     LIMIT 1`,
+    [taskScanId]
+  );
+  if (duplicateResult.rows.length) return null;
+
+  const balanceBefore = Number(employeeResult.rows[0].gra_balance || 0);
+  const amountDelta = Number((rate * rewardUnits).toFixed(3));
+  const balanceAfter = Number((balanceBefore + amountDelta).toFixed(3));
+
+  const rewardResult = await client.query(
+    `INSERT INTO employee_earnings_s (
+       employee_id, task_id, task_scan_id, task_box_id, shelf_id,
+       box_id, shelf_box_id, product_id, event_type, reward_units,
+       rate_per_unit, amount_delta, balance_before, balance_after, created_by_user_id
+     )
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'inventory_scan', $9, $10, $11, $12, $13, $14)
+     RETURNING id, amount_delta, rate_per_unit, reward_units, balance_after`,
+    [
+      task.employee_id,
+      task.id,
+      taskScanId,
+      activeTaskBox?.id || null,
+      task.shelf_id || null,
+      activeTaskBox?.box_id || null,
+      activeTaskBox?.shelf_box_id || null,
+      productId,
+      rewardUnits,
+      rate,
+      amountDelta,
+      balanceBefore,
+      balanceAfter,
+      user.id,
+    ]
+  );
+
+  await client.query(
+    `UPDATE employees_s
+     SET gra_balance = $1,
+         updated_at = NOW()
+     WHERE id = $2`,
+    [balanceAfter, task.employee_id]
+  );
+
+  return rewardResult.rows[0];
+}
+
 function rowsToQtyMap(rows) {
   const map = new Map();
   for (const row of rows) {
@@ -2148,14 +2235,24 @@ router.post('/:id/scan', requireAuth, async (req, res) => {
       return res.json({ found: false, scanned_value, error_id: errorResult.rows[0].id });
     }
 
-    await client.query(
+    const scanInsert = await client.query(
       `INSERT INTO inventory_task_scans_s (task_id, task_box_id, product_id, product_external_id, scanned_value, quantity_delta, shelf_id)
-       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+       VALUES ($1,$2,$3,$4,$5,$6,$7)
+       RETURNING id`,
       [taskId, activeTaskBox?.id || null, productRow.id, productRow.external_id || null, scanned_value, parseFloat(quantity_delta), t.shelf_id || null]
     );
 
+    const reward = await awardInventoryScanReward(client, {
+      task: { ...t, id: Number(taskId) },
+      taskScanId: scanInsert.rows[0].id,
+      activeTaskBox,
+      productId: productRow.id,
+      quantityDelta: parseFloat(quantity_delta),
+      user: req.user,
+    });
+
     await client.query('COMMIT');
-    res.json({ found: true, product: productRow, quantity_delta: parseFloat(quantity_delta) });
+    res.json({ found: true, product: productRow, quantity_delta: parseFloat(quantity_delta), reward: reward || undefined });
   } catch (err) {
     await client.query('ROLLBACK');
     res.status(500).json({ error: err.message });

@@ -437,6 +437,35 @@ async function createSchema() {
     await client.query(`ALTER TABLE inventory_task_scans_s ADD COLUMN IF NOT EXISTS task_box_id INTEGER REFERENCES inventory_task_boxes_s(id) ON DELETE SET NULL`);
     await client.query(`ALTER TABLE scan_errors_s ADD COLUMN IF NOT EXISTS task_box_id INTEGER REFERENCES inventory_task_boxes_s(id) ON DELETE SET NULL`);
 
+    // ─── Employee Earnings / GRAcoin ────────────────────────────────
+    await client.query(`ALTER TABLE employees_s ADD COLUMN IF NOT EXISTS gra_balance NUMERIC(18,3) NOT NULL DEFAULT 0`);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS employee_earnings_s (
+        id SERIAL PRIMARY KEY,
+        employee_id INTEGER NOT NULL REFERENCES employees_s(id) ON DELETE CASCADE,
+        task_id INTEGER REFERENCES inventory_tasks_s(id) ON DELETE SET NULL,
+        task_scan_id INTEGER REFERENCES inventory_task_scans_s(id) ON DELETE SET NULL,
+        task_box_id INTEGER REFERENCES inventory_task_boxes_s(id) ON DELETE SET NULL,
+        shelf_id INTEGER REFERENCES shelves_s(id) ON DELETE SET NULL,
+        box_id INTEGER REFERENCES boxes_s(id) ON DELETE SET NULL,
+        shelf_box_id INTEGER REFERENCES shelf_boxes_s(id) ON DELETE SET NULL,
+        product_id INTEGER REFERENCES products_s(id) ON DELETE SET NULL,
+        event_type VARCHAR(30) NOT NULL CHECK (event_type IN ('inventory_scan', 'manual_adjustment')),
+        reward_units NUMERIC(15,3) NOT NULL DEFAULT 1,
+        rate_per_unit NUMERIC(18,3) NOT NULL DEFAULT 0,
+        amount_delta NUMERIC(18,3) NOT NULL,
+        balance_before NUMERIC(18,3) NOT NULL DEFAULT 0,
+        balance_after NUMERIC(18,3) NOT NULL DEFAULT 0,
+        notes TEXT,
+        created_by_user_id INTEGER REFERENCES users_s(id) ON DELETE SET NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_employee_earnings_employee_created ON employee_earnings_s(employee_id, created_at DESC)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_employee_earnings_task ON employee_earnings_s(task_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_employee_earnings_event_type ON employee_earnings_s(event_type)`);
+    await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_employee_earnings_unique_scan ON employee_earnings_s(task_scan_id) WHERE task_scan_id IS NOT NULL`);
+
     // Seed new item tables from legacy one-product boxes
     await client.query(`
       INSERT INTO box_items_s (box_id, product_id, quantity, updated_at)

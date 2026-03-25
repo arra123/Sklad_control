@@ -217,3 +217,126 @@ body {
   padding-bottom: 14px;
   font-size: 0.875rem;
 }
+
+/* ─── GRA Balance Widget ────────────────────────────────────────── */
+.gra-balance-widget {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  max-width: min(100%, 360px);
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(99, 102, 241, 0.18);
+  transition: transform 180ms ease, border-color 180ms ease, background-color 180ms ease;
+}
+
+.gra-balance-widget.is-rewarding {
+  transform: translateY(-1px);
+  border-color: rgba(99, 102, 241, 0.28);
+  background: rgba(238, 242, 255, 0.92);
+}
+
+.gra-balance-coin {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 800;
+  color: rgb(79 70 229);
+  background: rgb(224 231 255);
+  border: 1px solid rgba(99, 102, 241, 0.18);
+  flex-shrink: 0;
+}
+
+.gra-balance-copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.gra-balance-label {
+  font-size: 10px;
+  line-height: 1.1;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgb(129 140 248);
+}
+
+.gra-balance-value {
+  font-size: 15px;
+  line-height: 1.2;
+  font-weight: 800;
+  color: rgb(17 24 39);
+  white-space: nowrap;
+}
+
+.gra-balance-reward {
+  position: absolute;
+  right: 12px;
+  top: -8px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgb(220 252 231);
+  border: 1px solid rgb(187 247 208);
+  color: rgb(22 101 52);
+  font-size: 12px;
+  line-height: 1;
+  font-weight: 800;
+  animation: gra-reward-burst 1.3s ease forwards;
+  pointer-events: none;
+}
+
+@keyframes gra-reward-burst {
+  0% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.9);
+  }
+  18% {
+    opacity: 1;
+    transform: translateY(0) scale(1.02);
+  }
+  55% {
+    opacity: 1;
+    transform: translateY(-8px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-16px) scale(0.96);
+  }
+}
+
+@media (max-width: 640px) {
+  .gra-balance-widget {
+    gap: 8px;
+    padding: 7px 11px;
+    max-width: min(100vw - 120px, 280px);
+  }
+
+  .gra-balance-coin {
+    width: 24px;
+    height: 24px;
+    font-size: 11px;
+  }
+
+  .gra-balance-label {
+    font-size: 9px;
+  }
+
+  .gra-balance-value {
+    font-size: 13px;
+  }
+
+  .gra-balance-reward {
+    right: 8px;
+    top: -9px;
+    font-size: 11px;
+    padding: 3px 7px;
+  }
+}

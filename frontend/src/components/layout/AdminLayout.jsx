@@ -3,7 +3,7 @@ import { NavLink, useNavigate, useLocation, useSearchParams, Link } from 'react-
 import {
   LayoutDashboard, Package, Warehouse, ClipboardList,
   Users, Settings, LogOut, Menu, X, ChevronRight, BarChart3, AlertTriangle, Boxes, ArrowLeftRight,
-  ChevronDown, LayoutGrid, PackageSearch, Home
+  ChevronDown, LayoutGrid, PackageSearch, Home, Coins
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { cn } from '../../utils/cn';
@@ -17,6 +17,7 @@ function buildCrumbs(pathname) {
   if (pathname.startsWith('/admin/warehouse'))  return [{ label: 'Склады' }];
   if (pathname.startsWith('/admin/tasks'))      return [{ label: 'Задачи' }];
   if (pathname.startsWith('/admin/analytics'))  return [{ label: 'Аналитика' }];
+  if (pathname.startsWith('/admin/earnings'))   return [{ label: 'Заработок' }];
   if (pathname.startsWith('/admin/movements'))  return [{ label: 'Перемещения' }];
   if (pathname.startsWith('/admin/errors'))     return [{ label: 'Ошибки' }];
   if (pathname.startsWith('/admin/staff'))      return [{ label: 'Сотрудники' }];
@@ -77,6 +78,7 @@ const ALL_NAV = [
   { to: '/admin/warehouse', icon: Warehouse, label: 'Склады', roles: ['admin', 'manager'], perm: 'warehouse.view' },
   { to: '/admin/tasks', icon: ClipboardList, label: 'Задачи', roles: ['admin', 'manager'], perm: 'tasks.view' },
   { to: '/admin/analytics', icon: BarChart3, label: 'Аналитика', roles: ['admin'], perm: 'analytics' },
+  { to: '/admin/earnings', icon: Coins, label: 'Заработок', roles: ['admin'], perm: 'analytics' },
   { to: '/admin/movements', icon: ArrowLeftRight, label: 'Перемещения', roles: ['admin'], perm: 'movements.view' },
   { to: '/admin/errors', icon: AlertTriangle, label: 'Ошибки', roles: ['admin'], perm: 'errors' },
   { to: '/admin/staff', icon: Users, label: 'Сотрудники', roles: ['admin'], perm: 'staff.view' },

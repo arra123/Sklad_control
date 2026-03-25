@@ -4,6 +4,7 @@ import {
   CheckCircle2, ScanLine, Package, AlertTriangle,
   Check, X, Send, Clock
 } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 import api from '../../api/client';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
@@ -224,6 +225,7 @@ function ErrorReportForm({ taskId, scannedValue, errorId, onClose, onSent }) {
 
 // ─── Step 2: Scanning products ────────────────────────────────────────────────
 function ScanStep({ task, onComplete }) {
+  const { registerGraReward } = useAuth();
   const toast = useToast();
   const inputRef = useRef(null);
   const timerRef = useRef(null);
@@ -362,7 +364,13 @@ function ScanStep({ task, onComplete }) {
           setShowPickTimer(true);
         }
         pickStartRef.current = Date.now();
-        setLastScan({ type: 'found', product: res.data.product });
+        if (res.data.reward?.amount_delta) {
+          registerGraReward({
+            amount: res.data.reward.amount_delta,
+            balanceAfter: res.data.reward.balance_after,
+          });
+        }
+        setLastScan({ type: 'found', product: res.data.product, reward: res.data.reward || null });
         await loadState();
       } else {
         playBeep(false);
