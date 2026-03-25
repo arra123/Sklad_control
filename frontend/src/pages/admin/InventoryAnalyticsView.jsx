@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { CheckCircle2, AlertTriangle, Clock, ChevronRight, ChevronDown, Search, Warehouse, Package, Box, ArrowLeft, Users, Activity, Zap, BarChart3, FileText } from 'lucide-react';
-import { WarehouseIcon, RackIcon, ShelfIcon, PalletIcon, RowIcon, BoxIcon, ShelfBoxIcon, EmployeeIcon } from '../../components/ui/WarehouseIcons';
+import { CheckCircle2, AlertTriangle, Clock, ChevronRight, ChevronDown, Search, Package, ArrowLeft } from 'lucide-react';
+import { WarehouseIcon, RackIcon, ShelfIcon, PalletIcon, RowIcon, BoxIcon, ShelfBoxIcon } from '../../components/ui/WarehouseIcons';
 import api from '../../api/client';
 import Spinner from '../../components/ui/Spinner';
 import Badge from '../../components/ui/Badge';
@@ -391,202 +391,6 @@ function DetailPanel({ node, breadcrumbs, onDrill, onBack, settings }) {
   );
 }
 
-// ═══ Audit Report: Progress Bar ═══
-function ProgressBar({ value, max, className = '' }) {
-  const pct = max > 0 ? Math.min(100, Math.round((value / max) * 100)) : 0;
-  return (
-    <div className={`w-full h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden ${className}`}>
-      <div
-        className="h-full rounded-full transition-all"
-        style={{ width: `${pct}%`, background: pct >= 100 ? '#10b981' : pct > 50 ? '#3b82f6' : '#f59e0b' }}
-      />
-    </div>
-  );
-}
-
-// ═══ Audit Report: Box Row ═══
-function AuditBoxRow({ box }) {
-  const statusLabels = { completed: 'Готово', in_progress: 'В работе', pending: 'Ожидает' };
-  const statusColors = { completed: 'text-green-600 bg-green-50', in_progress: 'text-blue-600 bg-blue-50', pending: 'text-gray-400 bg-gray-50' };
-  const label = statusLabels[box.status] || box.status;
-  const colorCls = statusColors[box.status] || statusColors.pending;
-  return (
-    <div className="flex items-center gap-3 px-4 py-2 text-xs">
-      <BoxIcon size={14} className="text-gray-300 flex-shrink-0" />
-      <div className="flex-1 min-w-0">
-        <p className="font-medium text-gray-700 dark:text-gray-200 truncate">{box.box_name || '—'}</p>
-        {box.box_barcode && <p className="text-[10px] text-gray-400 font-mono">{box.box_barcode}</p>}
-      </div>
-      {box.box_size > 0 && (
-        <div className="w-24 flex items-center gap-1.5">
-          <ProgressBar value={box.scans_count} max={box.box_size} />
-          <span className="text-[10px] text-gray-400 whitespace-nowrap">{box.scans_count}/{box.box_size}</span>
-        </div>
-      )}
-      {!box.box_size && <span className="text-[10px] text-gray-400">{box.scans_count} скан.</span>}
-      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-lg ${colorCls}`}>{label}</span>
-    </div>
-  );
-}
-
-// ═══ Audit Report: Task Row ═══
-function AuditTaskRow({ task }) {
-  const [expanded, setExpanded] = useState(false);
-  const location = [task.rack_name, task.shelf_name, task.pallet_name, task.row_name].filter(Boolean).join(' → ') || '—';
-  const hasBoxes = task.boxes && task.boxes.length > 0;
-
-  return (
-    <div className="border-b border-gray-50 dark:border-gray-700 last:border-b-0">
-      <button
-        onClick={() => hasBoxes && setExpanded(!expanded)}
-        className={`w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-gray-50/50 dark:hover:bg-gray-800/50 transition-colors ${hasBoxes ? 'cursor-pointer' : 'cursor-default'}`}
-      >
-        {hasBoxes && (
-          <svg className={`w-3 h-3 text-gray-300 flex-shrink-0 transition-transform duration-200 ${expanded ? 'rotate-90' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 18l6-6-6-6"/></svg>
-        )}
-        {!hasBoxes && <span className="w-3 flex-shrink-0" />}
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-gray-800 dark:text-gray-100 truncate">{task.title || `Задача #${task.task_id}`}</p>
-          <p className="text-[11px] text-gray-400 mt-0.5">{location} · {fmtDate(task.completed_at)}</p>
-        </div>
-        <div className="flex items-center gap-3 flex-shrink-0 flex-nowrap text-xs">
-          <span className="font-bold text-gray-800 dark:text-white whitespace-nowrap">{task.scans_count} скан.</span>
-          {task.duration_seconds > 0 && (
-            <span className="text-gray-500 whitespace-nowrap">{fmtDuration(task.duration_seconds)}</span>
-          )}
-          {task.avg_scan_gap != null && (
-            <span className="font-bold text-primary-600 whitespace-nowrap">{task.avg_scan_gap}с</span>
-          )}
-          {task.errors_count > 0 && (
-            <span className="font-bold text-red-500 whitespace-nowrap">{task.errors_count} ош.</span>
-          )}
-        </div>
-      </button>
-      {expanded && hasBoxes && (
-        <div className="bg-gray-50/50 dark:bg-gray-800/30 border-t border-gray-100 dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-700">
-          {task.boxes.map(box => <AuditBoxRow key={box.id} box={box} />)}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ═══ Audit Report: Employee Row ═══
-function AuditEmployeeRow({ emp }) {
-  const [expanded, setExpanded] = useState(false);
-  return (
-    <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 overflow-hidden">
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="w-full text-left px-5 py-4 flex items-center gap-4 hover:bg-gray-50/50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer"
-      >
-        <div className="w-10 h-10 rounded-xl bg-primary-50 dark:bg-primary-900/30 flex items-center justify-center flex-shrink-0">
-          <EmployeeIcon size={20} className="text-primary-500" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="font-bold text-gray-900 dark:text-white truncate">{emp.full_name}</p>
-          <p className="text-[11px] text-gray-400 mt-0.5">
-            Последняя задача: {emp.last_task_at ? fmtDate(emp.last_task_at) : '—'}
-          </p>
-        </div>
-        <div className="flex items-center gap-3 sm:gap-5 flex-shrink-0 flex-nowrap text-xs">
-          <span className="font-bold text-gray-800 dark:text-white whitespace-nowrap">{emp.tasks_count} <span className="font-normal text-gray-400">зад.</span></span>
-          <span className="font-bold text-gray-800 dark:text-white whitespace-nowrap">{emp.total_scans} <span className="font-normal text-gray-400">скан.</span></span>
-          {emp.total_errors > 0 && (
-            <span className="font-bold text-red-500 whitespace-nowrap">{emp.total_errors} <span className="font-normal text-gray-400">ош.</span></span>
-          )}
-          {emp.avg_scan_gap != null && (
-            <span className="font-bold text-primary-600 whitespace-nowrap">{emp.avg_scan_gap}с</span>
-          )}
-          <svg className={`w-4 h-4 text-gray-300 transition-transform duration-200 flex-shrink-0 ${expanded ? 'rotate-90' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 18l6-6-6-6"/></svg>
-        </div>
-      </button>
-      {expanded && (
-        <div className="border-t border-gray-100 dark:border-gray-700">
-          {emp.tasks.length === 0 ? (
-            <p className="text-center text-sm text-gray-400 py-4">Нет задач</p>
-          ) : (
-            emp.tasks.map(task => <AuditTaskRow key={task.task_id} task={task} />)
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ═══ Audit Report Section ═══
-function AuditReportSection() {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    api.get('/tasks/analytics/audit-report')
-      .then(res => setData(res.data))
-      .catch(err => setError(err?.response?.data?.error || 'Ошибка загрузки'))
-      .finally(() => setLoading(false));
-  }, []);
-
-  if (loading) return <div className="flex justify-center py-8"><Spinner size="lg" /></div>;
-  if (error) return <p className="text-center text-red-400 py-6">{error}</p>;
-  if (!data) return null;
-
-  const { summary, employees } = data;
-
-  return (
-    <div>
-      {/* Summary cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-        <div className="card p-4 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-green-50 dark:bg-green-900/30 flex items-center justify-center flex-shrink-0">
-            <CheckCircle2 size={18} className="text-green-600" />
-          </div>
-          <div>
-            <p className="text-2xl font-black text-gray-900 dark:text-white">{summary.total_tasks}</p>
-            <p className="text-[11px] text-gray-400 uppercase font-semibold">Задач завершено</p>
-          </div>
-        </div>
-        <div className="card p-4 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0">
-            <Activity size={18} className="text-blue-600" />
-          </div>
-          <div>
-            <p className="text-2xl font-black text-gray-900 dark:text-white">{summary.total_scans.toLocaleString('ru-RU')}</p>
-            <p className="text-[11px] text-gray-400 uppercase font-semibold">Всего сканов</p>
-          </div>
-        </div>
-        <div className="card p-4 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-red-50 dark:bg-red-900/30 flex items-center justify-center flex-shrink-0">
-            <AlertTriangle size={18} className="text-red-500" />
-          </div>
-          <div>
-            <p className="text-2xl font-black text-red-600">{summary.total_errors}</p>
-            <p className="text-[11px] text-gray-400 uppercase font-semibold">Ошибок</p>
-          </div>
-        </div>
-        <div className="card p-4 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-900/30 flex items-center justify-center flex-shrink-0">
-            <Zap size={18} className="text-amber-600" />
-          </div>
-          <div>
-            <p className="text-2xl font-black text-gray-900 dark:text-white">{summary.avg_scan_gap != null ? `${summary.avg_scan_gap}с` : '—'}</p>
-            <p className="text-[11px] text-gray-400 uppercase font-semibold">Ср. скорость</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Employees list */}
-      {employees.length === 0 ? (
-        <p className="text-center text-gray-400 py-6">Нет данных по сотрудникам</p>
-      ) : (
-        <div className="space-y-3">
-          {employees.map(emp => <AuditEmployeeRow key={emp.employee_id} emp={emp} />)}
-        </div>
-      )}
-    </div>
-  );
-}
-
 // ═══ Main Component ═══
 export default function InventoryAnalyticsView() {
   const { settings: s } = useAppSettings();
@@ -596,12 +400,6 @@ export default function InventoryAnalyticsView() {
   const [search, setSearch] = useState('');
   const [selectedWarehouse, setSelectedWarehouse] = useState(null);
   const [drillStack, setDrillStack] = useState([]);
-  const activeTab = searchParams.get('view') || 'inventory';
-  const setActiveTab = (v) => {
-    const next = new URLSearchParams(searchParams);
-    if (v === 'inventory') { next.delete('view'); } else { next.set('view', v); }
-    setSearchParams(next);
-  };
 
   useEffect(() => {
     setLoading(true);
@@ -625,25 +423,10 @@ export default function InventoryAnalyticsView() {
   const warehouses = data.warehouses || data || [];
 
   // Drill-down view (only in inventory tab)
-  if (activeTab === 'inventory' && drillStack.length > 0) {
+  if (drillStack.length > 0) {
     const currentNode = drillStack[drillStack.length - 1];
     return (
       <div>
-        {/* Tab switcher */}
-        <div className="flex items-center gap-2 mb-5">
-          <button
-            onClick={() => { setActiveTab('inventory'); setDrillStack([]); }}
-            className="px-4 py-2 rounded-xl text-sm font-medium transition-all bg-primary-600 text-white flex items-center gap-1.5"
-          >
-            <Package size={14} /> Инвентаризация
-          </button>
-          <button
-            onClick={() => setActiveTab('audit')}
-            className="px-4 py-2 rounded-xl text-sm font-medium transition-all bg-white border border-gray-200 text-gray-600 hover:border-primary-300 flex items-center gap-1.5"
-          >
-            <FileText size={14} /> Аудит-отчёт
-          </button>
-        </div>
         <DetailPanel
           node={currentNode}
           breadcrumbs={drillStack}
@@ -699,27 +482,7 @@ export default function InventoryAnalyticsView() {
 
   return (
     <div>
-      {/* Tab switcher */}
-      <div className="flex items-center gap-2 mb-5">
-        <button
-          onClick={() => setActiveTab('inventory')}
-          className={`px-4 py-2 rounded-xl text-sm font-medium transition-all flex items-center gap-1.5 ${activeTab === 'inventory' ? 'bg-primary-600 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:border-primary-300'}`}
-        >
-          <Package size={14} /> Инвентаризация
-        </button>
-        <button
-          onClick={() => setActiveTab('audit')}
-          className={`px-4 py-2 rounded-xl text-sm font-medium transition-all flex items-center gap-1.5 ${activeTab === 'audit' ? 'bg-primary-600 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:border-primary-300'}`}
-        >
-          <FileText size={14} /> Аудит-отчёт
-        </button>
-      </div>
-
-      {/* Audit report tab */}
-      {activeTab === 'audit' && <AuditReportSection />}
-
-      {/* Inventory tab */}
-      {activeTab === 'inventory' && <>
+      <>
       {/* Stats row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
         <div className="card p-4 flex items-center gap-3">
