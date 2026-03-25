@@ -535,12 +535,6 @@ export default function InventoryAnalyticsView() {
 
       {/* Warehouse filter + search */}
       <div className="flex items-center gap-3 mb-5 flex-wrap">
-        <button
-          onClick={() => setSelectedWarehouse(null)}
-          className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${!selectedWarehouse ? 'bg-primary-600 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:border-primary-300'}`}
-        >
-          Все склады
-        </button>
         {warehouses.map(w => (
           <button key={w.id}
             onClick={() => setSelectedWarehouse(w.id)}
