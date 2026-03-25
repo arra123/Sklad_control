@@ -385,11 +385,12 @@ function StepFillBox({ task, box, onRefresh, onDone, onRemainder }) {
             {scanTimes.map((t, i) => (
               <span
                 key={i}
-                className={`text-xs px-1.5 py-0.5 rounded-md font-mono ${
+                className={`text-xs px-1.5 py-0.5 rounded-md font-mono animate-pop-in ${
                   t < 3 ? 'bg-green-100 text-green-700' :
                   t < 6 ? 'bg-amber-100 text-amber-700' :
                   'bg-red-100 text-red-600'
                 }`}
+                style={{ animationDelay: `${i * 0.04}s` }}
               >
                 {t.toFixed(1)}с
               </span>
@@ -744,29 +745,50 @@ function StepRemainderShelf({ task, box, onSuccess }) {
 // ─── Завершено ────────────────────────────────────────────────────────────────
 function StepCompleted({ task, stats, onBack }) {
   return (
-    <div className="space-y-6 text-center">
+    <div className="space-y-6 text-center relative overflow-hidden">
+      {/* Confetti */}
+      <div className="absolute inset-x-0 top-0 h-48 pointer-events-none overflow-hidden">
+        {[...Array(10)].map((_, i) => (
+          <div key={i} className="absolute rounded-sm" style={{
+            width: 6 + (i % 3) * 3,
+            height: 6 + (i % 3) * 3,
+            background: ['#7c3aed','#22c55e','#f59e0b','#3b82f6','#ef4444','#ec4899','#8b5cf6','#06b6d4','#f97316','#10b981'][i],
+            left: `${8 + i * 9}%`,
+            animation: `confettiFall ${2 + (i % 3) * 0.5}s ease-in ${i * 0.15}s both`,
+          }} />
+        ))}
+      </div>
+
       <div className="flex flex-col items-center gap-4 py-8">
-        <div className="w-20 h-20 rounded-full bg-gradient-to-br from-green-100 to-green-200 flex items-center justify-center shadow-lg shadow-green-100">
-          <CheckCircle2 size={40} className="text-green-500" />
+        <div className="relative animate-scale-in">
+          <div className="w-24 h-24 rounded-full bg-gradient-to-br from-green-100 to-green-200 flex items-center justify-center shadow-lg shadow-green-100 relative z-10">
+            <CheckCircle2 size={48} className="text-green-500" />
+          </div>
+          <div className="absolute inset-0 rounded-full border-2 border-green-300 z-0" style={{ animation: 'ringPulse 2s ease-in-out infinite' }} />
         </div>
         <div>
-          <h2 className="text-xl font-bold text-gray-900">Задание выполнено!</h2>
-          <p className="text-sm text-gray-500 mt-1">{task.title}</p>
+          <h2 className="text-2xl font-extrabold text-gray-900 animate-fade-up" style={{ animationDelay: '0.3s' }}>Задание выполнено!</h2>
+          <p className="text-sm text-gray-500 mt-1 animate-fade-up" style={{ animationDelay: '0.4s' }}>{task.title}</p>
         </div>
       </div>
-      <div className="card p-5 grid grid-cols-2 gap-4 text-left">
-        <div className="bg-green-50 rounded-xl p-3">
-          <p className="text-xs text-gray-400 font-medium mb-0.5">Закрыто коробок</p>
-          <p className="text-2xl font-bold text-green-700">{stats?.closed_boxes ?? 0}</p>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div className="bg-green-50 rounded-2xl p-4 text-center border border-green-100 animate-fade-up" style={{ animationDelay: '0.5s' }}>
+          <p className="text-[10px] text-green-500 font-bold uppercase tracking-wider">Коробок</p>
+          <p className="text-3xl font-black text-green-600 mt-1">{stats?.closed_boxes ?? 0}</p>
         </div>
-        <div className="bg-primary-50 rounded-xl p-3">
-          <p className="text-xs text-gray-400 font-medium mb-0.5">Всего принято</p>
-          <p className="text-2xl font-bold text-primary-700">{stats?.closed_qty ?? 0} шт.</p>
+        <div className="bg-primary-50 rounded-2xl p-4 text-center border border-primary-100 animate-fade-up" style={{ animationDelay: '0.6s' }}>
+          <p className="text-[10px] text-primary-500 font-bold uppercase tracking-wider">Принято</p>
+          <p className="text-3xl font-black text-primary-600 mt-1">{stats?.closed_qty ?? 0}<span className="text-sm ml-0.5">шт</span></p>
         </div>
       </div>
-      <Button variant="outline" size="lg" className="w-full" onClick={onBack}>
-        <ArrowLeft size={16} /> Назад к задачам
-      </Button>
+
+      <button onClick={onBack}
+        className="w-full py-3.5 bg-gradient-to-r from-primary-600 to-primary-700 text-white rounded-2xl font-bold text-sm shadow-lg shadow-primary-200 hover:-translate-y-0.5 hover:shadow-xl transition-all active:scale-[0.98] animate-fade-up"
+        style={{ animationDelay: '0.7s' }}>
+        <ArrowLeft size={16} className="inline mr-2" />
+        Назад к задачам
+      </button>
     </div>
   );
 }

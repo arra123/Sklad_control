@@ -93,10 +93,11 @@ export default function MyTasksPage() {
                 </h2>
               </div>
               <div className="space-y-2.5">
-                {activeTasks.map(task => (
+                {activeTasks.map((task, i) => (
                   <TaskCard
                     key={task.id}
                     task={task}
+                    index={i}
                     onClick={() => navigate(task.task_type === 'packaging' ? `/employee/packaging/${task.id}` : `/employee/tasks/${task.id}`)}
                   />
                 ))}
@@ -114,10 +115,11 @@ export default function MyTasksPage() {
                 </h2>
               </div>
               <div className="space-y-2">
-                {doneTasks.slice(0, 5).map(task => (
+                {doneTasks.slice(0, 5).map((task, i) => (
                   <TaskCard
                     key={task.id}
                     task={task}
+                    index={activeTasks.length + i}
                     onClick={() => navigate(task.task_type === 'packaging' ? `/employee/packaging/${task.id}` : `/employee/tasks/${task.id}`)}
                     muted
                   />
@@ -131,31 +133,31 @@ export default function MyTasksPage() {
   );
 }
 
-function TaskCard({ task, onClick, muted }) {
+function TaskCard({ task, onClick, muted, index = 0 }) {
   const status = STATUS_MAP[task.status] || STATUS_MAP.new;
-  const StatusIcon = status.icon;
   const typeStyle = TASK_TYPE_STYLE[task.task_type] || TASK_TYPE_STYLE.default;
   const TypeSvgIcon = typeStyle.SvgIcon;
 
   return (
     <button
       onClick={onClick}
+      style={{ animationDelay: `${index * 0.07}s` }}
       className={cn(
-        'w-full text-left p-4 rounded-2xl border transition-all active:scale-[0.98]',
+        'w-full text-left p-4 rounded-2xl border transition-all active:scale-[0.98] animate-fade-up',
         muted
           ? 'bg-white dark:bg-gray-900 border-gray-100 dark:border-gray-800 opacity-55'
           : task.status === 'in_progress'
-          ? 'bg-gradient-to-r from-amber-50 to-white border-amber-200 shadow-sm shadow-amber-100'
-          : 'bg-white dark:bg-gray-900 border-gray-100 dark:border-gray-800 shadow-sm hover:shadow-md hover:border-primary-200'
+          ? 'bg-white border-l-[3px] border-l-amber-400 border-amber-200 shadow-sm hover:shadow-md hover:-translate-y-0.5'
+          : 'bg-white dark:bg-gray-900 border-gray-100 dark:border-gray-800 shadow-sm hover:shadow-md hover:-translate-y-0.5 hover:border-primary-200'
       )}
     >
       <div className="flex items-start gap-3">
         {/* Task type icon */}
         <div className={cn(
-          'w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5 border',
+          'w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 border',
           muted ? 'bg-gray-100 border-gray-200' : `${typeStyle.bg} ${typeStyle.border}`
         )}>
-          <TypeSvgIcon size={26} />
+          <TypeSvgIcon size={28} />
         </div>
 
         <div className="flex-1 min-w-0">

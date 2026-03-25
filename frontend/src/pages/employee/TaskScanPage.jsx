@@ -82,82 +82,83 @@ function StartStep({ task, onStart }) {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] p-6 text-center">
-      <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-primary-100 to-primary-200 flex items-center justify-center mb-4 shadow-lg shadow-primary-100">
-        <ScanIcon size={44} />
+      {/* Hero icon with scaleIn + ringPulse */}
+      <div className="relative mb-5 animate-scale-in">
+        <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-primary-100 to-primary-200 flex items-center justify-center shadow-lg shadow-primary-100 relative z-10">
+          <ScanIcon size={44} />
+        </div>
+        <div className="absolute inset-0 rounded-3xl border-2 border-primary-300 z-0" style={{ animation: 'ringPulse 2s ease-in-out infinite' }} />
       </div>
-      <h2 className="text-xl font-bold text-gray-900 mb-1">
+
+      <h2 className="text-xl font-extrabold text-gray-900 mb-1 animate-fade-up" style={{ animationDelay: '0.2s' }}>
         {task.task_type === 'production_transfer' ? 'Перенос с производства' : 'Инвентаризация'}
       </h2>
-      <p className="text-gray-500 text-sm mb-4">{task.title}</p>
+      <p className="text-gray-500 text-sm mb-5 animate-fade-up" style={{ animationDelay: '0.3s' }}>{task.title}</p>
 
       {/* Step-by-step instruction card */}
-      <div className="w-full max-w-sm mb-5">
-        <div className="bg-gray-50 rounded-2xl p-4 text-left space-y-3">
+      <div className="w-full max-w-sm mb-5 animate-fade-up" style={{ animationDelay: '0.4s' }}>
+        <div className="bg-white rounded-2xl p-5 text-left space-y-0 border border-gray-100 shadow-sm">
           {scanTarget === 'pallet' && (
             <>
-              <div className="flex items-start gap-3">
-                <div className="w-7 h-7 rounded-full bg-primary-600 text-white flex items-center justify-center flex-shrink-0 text-xs font-bold">1</div>
-                <div>
-                  <p className="text-sm font-semibold text-gray-900">Подойдите к паллету</p>
-                  <p className="text-xs text-gray-500">{task.pallet_row_name ? task.pallet_row_name + ' → ' : ''}{task.pallet_name || 'Паллет ' + task.pallet_number}</p>
-                  {task.pallet_barcode && <p className="text-xs font-mono text-primary-500 mt-0.5">ШК: {task.pallet_barcode}</p>}
-                </div>
-              </div>
-              <div className="flex items-start gap-3">
-                <div className="w-7 h-7 rounded-full bg-primary-100 text-primary-600 flex items-center justify-center flex-shrink-0 text-xs font-bold">2</div>
-                <p className="text-sm font-medium text-gray-500 pt-1">Отсканируйте штрих-код паллета</p>
-              </div>
-              {hasTaskBoxQueue && (
-                <div className="flex items-start gap-3">
-                  <div className="w-7 h-7 rounded-full bg-gray-200 text-gray-400 flex items-center justify-center flex-shrink-0 text-xs font-bold">3</div>
-                  <p className="text-sm font-medium text-gray-400 pt-1">Затем сканируйте коробки по очереди</p>
-                </div>
-              )}
+              <StepItem num={1} active title="Подойдите к паллету"
+                sub={<>{task.pallet_row_name ? task.pallet_row_name + ' → ' : ''}{task.pallet_name || 'Паллет ' + task.pallet_number}
+                  {task.pallet_barcode && <span className="block text-xs font-mono text-primary-500 mt-0.5">ШК: {task.pallet_barcode}</span>}</>}
+              />
+              <StepItem num={2} title="Отсканируйте штрих-код паллета" />
+              {hasTaskBoxQueue && <StepItem num={3} title="Затем сканируйте коробки по очереди" />}
             </>
           )}
           {scanTarget === 'box' && (
-            <>
-              <div className="flex items-start gap-3">
-                <div className="w-7 h-7 rounded-full bg-primary-600 text-white flex items-center justify-center flex-shrink-0 text-xs font-bold">1</div>
-                <div>
-                  <p className="text-sm font-semibold text-gray-900">Отсканируйте коробку</p>
-                  <p className="text-xs text-gray-500">
-                    {task.shelf_name ? `${task.rack_name} → ${task.shelf_name}` : task.pallet_row_name ? `${task.pallet_row_name} → ${task.pallet_name}` : ''}
-                  </p>
-                </div>
-              </div>
-            </>
+            <StepItem num={1} active title="Отсканируйте коробку"
+              sub={task.shelf_name ? `${task.rack_name} → ${task.shelf_name}` : task.pallet_row_name ? `${task.pallet_row_name} → ${task.pallet_name}` : ''}
+            />
           )}
           {scanTarget === 'shelf' && (
-            <div className="flex items-start gap-3">
-              <div className="w-7 h-7 rounded-full bg-primary-600 text-white flex items-center justify-center flex-shrink-0 text-xs font-bold">1</div>
-              <div>
-                <p className="text-sm font-semibold text-gray-900">Подойдите к полке и отсканируйте</p>
-                <p className="text-xs text-gray-500">{task.rack_name} → {task.shelf_name}</p>
-                <p className="text-xs font-mono text-primary-500 mt-0.5">ШК: {task.shelf_barcode}</p>
-              </div>
-            </div>
+            <StepItem num={1} active title="Подойдите к полке и отсканируйте"
+              sub={<>{task.rack_name} → {task.shelf_name}<span className="block text-xs font-mono text-primary-500 mt-0.5">ШК: {task.shelf_barcode}</span></>}
+            />
           )}
         </div>
       </div>
 
-      <div className="w-full max-w-sm">
-        <Input
-          ref={inputRef}
-          label={scanTarget === 'box' ? '📦 Отсканируйте штрих-код коробки' : scanTarget === 'pallet' ? '📋 Отсканируйте штрих-код паллета' : '📋 Отсканируйте штрих-код полки'}
-          placeholder={scanTarget === 'box' ? 'Наведите сканер на коробку...' : scanTarget === 'pallet' ? 'Наведите сканер на паллет...' : 'Наведите сканер на полку...'}
-          value={barcode}
-          onChange={handleChange}
-          onKeyDown={handleKeyDown}
-          className="text-center text-lg font-mono tracking-widest"
-          autoComplete="off"
-        />
+      <div className="w-full max-w-sm animate-fade-up" style={{ animationDelay: '0.5s' }}>
+        <div className="relative">
+          <div className="absolute left-4 top-1/2 -translate-y-1/2 opacity-40" style={{ animation: 'pulse 2s ease-in-out infinite' }}>
+            <ScanIcon size={20} />
+          </div>
+          <input
+            ref={inputRef}
+            value={barcode}
+            onChange={handleChange}
+            onKeyDown={handleKeyDown}
+            placeholder={scanTarget === 'box' ? 'Наведите сканер на коробку...' : scanTarget === 'pallet' ? 'Наведите сканер на паллет...' : 'Наведите сканер на полку...'}
+            autoComplete="off"
+            className="w-full pl-12 pr-4 py-4 border-2 border-dashed border-primary-200 rounded-2xl text-center text-lg font-mono tracking-widest focus:border-solid focus:border-primary-400 focus:ring-2 focus:ring-primary-100 outline-none bg-white transition-all"
+          />
+        </div>
         {loading && (
           <div className="flex items-center justify-center mt-3 text-primary-600">
             <Spinner size="sm" />
             <span className="ml-2 text-sm">Проверяем...</span>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Step Item for instructions ──────────────────────────────────────────────
+function StepItem({ num, active, done, title, sub }) {
+  return (
+    <div className="flex items-start gap-3 py-2.5">
+      <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold transition-all ${
+        done ? 'bg-green-100 text-green-600' : active ? 'bg-primary-600 text-white shadow-md shadow-primary-200' : 'bg-gray-100 text-gray-400'
+      }`}>
+        {done ? <Check size={14} /> : num}
+      </div>
+      <div className="pt-1 flex-1">
+        <p className={`text-sm leading-snug ${active ? 'font-semibold text-gray-900' : done ? 'text-gray-400 line-through' : 'text-gray-500'}`}>{title}</p>
+        {sub && <p className="text-xs text-gray-500 mt-0.5">{sub}</p>}
       </div>
     </div>
   );
@@ -746,15 +747,47 @@ function CompletedView({ task, scans }) {
   const navigate = useNavigate();
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[60vh] p-6 text-center">
-      <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-green-100 to-green-200 flex items-center justify-center mb-5 shadow-lg shadow-green-100">
-        <CheckCircle2 size={40} className="text-green-500" />
+    <div className="flex flex-col items-center justify-center min-h-[60vh] p-6 text-center relative overflow-hidden">
+      {/* Confetti */}
+      <div className="absolute inset-x-0 top-0 h-48 pointer-events-none overflow-hidden">
+        {[...Array(10)].map((_, i) => (
+          <div key={i} className="absolute rounded-sm" style={{
+            width: 6 + (i % 3) * 3,
+            height: 6 + (i % 3) * 3,
+            background: ['#7c3aed','#22c55e','#f59e0b','#3b82f6','#ef4444','#ec4899','#8b5cf6','#06b6d4','#f97316','#10b981'][i],
+            left: `${8 + i * 9}%`,
+            animation: `confettiFall ${2 + (i % 3) * 0.5}s ease-in ${i * 0.15}s both`,
+            transform: `rotate(${i * 36}deg)`,
+          }} />
+        ))}
       </div>
-      <h2 className="text-xl font-bold text-gray-900 mb-2">Готово!</h2>
-      <p className="text-gray-500 text-sm mb-5">{task.title}</p>
+
+      {/* Check circle with scaleIn + ringPulse */}
+      <div className="relative mb-5 animate-scale-in">
+        <div className="w-24 h-24 rounded-full bg-gradient-to-br from-green-100 to-green-200 flex items-center justify-center shadow-lg shadow-green-100 relative z-10">
+          <CheckCircle2 size={48} className="text-green-500" />
+        </div>
+        <div className="absolute inset-0 rounded-full border-2 border-green-300 z-0" style={{ animation: 'ringPulse 2s ease-in-out infinite' }} />
+      </div>
+
+      <h2 className="text-2xl font-extrabold text-gray-900 mb-1 animate-fade-up" style={{ animationDelay: '0.3s' }}>Готово!</h2>
+      <p className="text-gray-500 text-sm mb-5 animate-fade-up" style={{ animationDelay: '0.4s' }}>{task.title}</p>
 
       {scans.length > 0 && (
-        <div className="w-full max-w-sm bg-gray-50 rounded-2xl p-4 mb-5 text-left">
+        <div className="w-full max-w-sm grid grid-cols-2 gap-2.5 mb-5">
+          <div className="bg-green-50 rounded-2xl p-4 text-center border border-green-100 animate-fade-up" style={{ animationDelay: '0.5s' }}>
+            <p className="text-[10px] text-green-500 font-bold uppercase tracking-wider">Товаров</p>
+            <p className="text-2xl font-black text-green-600 mt-1">{scans.length}</p>
+          </div>
+          <div className="bg-blue-50 rounded-2xl p-4 text-center border border-blue-100 animate-fade-up" style={{ animationDelay: '0.6s' }}>
+            <p className="text-[10px] text-blue-500 font-bold uppercase tracking-wider">Всего штук</p>
+            <p className="text-2xl font-black text-blue-600 mt-1">{scans.reduce((s, sc) => s + Number(sc.total_quantity || 0), 0)}</p>
+          </div>
+        </div>
+      )}
+
+      {scans.length > 0 && (
+        <div className="w-full max-w-sm bg-white rounded-2xl p-4 mb-5 text-left border border-gray-100 shadow-sm animate-fade-up" style={{ animationDelay: '0.7s' }}>
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Итог</p>
           <div className="space-y-2">
             {scans.map(s => (
@@ -767,7 +800,11 @@ function CompletedView({ task, scans }) {
         </div>
       )}
 
-      <Button onClick={() => navigate('/employee/tasks')} className="w-full max-w-sm">К задачам</Button>
+      <button onClick={() => navigate('/employee/tasks')}
+        className="w-full max-w-sm py-3.5 bg-gradient-to-r from-primary-600 to-primary-700 text-white rounded-2xl font-bold text-sm shadow-lg shadow-primary-200 hover:-translate-y-0.5 hover:shadow-xl transition-all active:scale-[0.98] animate-fade-up"
+        style={{ animationDelay: '0.8s' }}>
+        К задачам
+      </button>
     </div>
   );
 }
