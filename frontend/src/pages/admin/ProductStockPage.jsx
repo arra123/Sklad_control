@@ -3,7 +3,7 @@ import {
   Package, Boxes, ChevronLeft, ChevronRight,
   MapPin, ArrowUp, ArrowDown, Warehouse, Search, X, Pencil, Users, ArrowLeft, Clock
 } from 'lucide-react';
-import { ProductIcon, BundleIcon } from '../../components/ui/WarehouseIcons';
+import { ProductIcon, BundleIcon, WarehouseIcon } from '../../components/ui/WarehouseIcons';
 import { useSearchParams } from 'react-router-dom';
 import api from '../../api/client';
 import Button from '../../components/ui/Button';
@@ -751,7 +751,7 @@ export default function ProductStockPage() {
                 : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
             )}
           >
-            <Warehouse size={15} />
+            <WarehouseIcon size={18} />
             Все склады
           </button>
           {warehouses.map(w => (
@@ -765,7 +765,7 @@ export default function ProductStockPage() {
                   : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
               )}
             >
-              <Warehouse size={15} />
+              <WarehouseIcon size={18} />
               {w.name}
             </button>
           ))}

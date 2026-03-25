@@ -1065,8 +1065,8 @@ export default function ProductsPage() {
   }, []);
 
   const TABS = [
-    { value: 'product', label: 'Единичные', icon: Package },
-    { value: 'bundle', label: 'Комплекты', icon: Boxes },
+    { value: 'product', label: 'Единичные', Icon: ProductIcon },
+    { value: 'bundle', label: 'Комплекты', Icon: BundleIcon },
   ];
 
   return (
@@ -1084,7 +1084,7 @@ export default function ProductsPage() {
 
       {/* Вкладки */}
       <div className="flex gap-2 mb-5">
-        {TABS.map(({ value, label, icon: Icon }) => (
+        {TABS.map(({ value, label, Icon }) => (
           <button
             key={value}
             onClick={() => setActiveTab(value)}
@@ -1097,7 +1097,7 @@ export default function ProductsPage() {
                 : 'bg-white border border-gray-200 text-gray-600 hover:border-gray-300'
             )}
           >
-            <Icon size={16} />
+            <Icon size={20} />
             {label}
           </button>
         ))}

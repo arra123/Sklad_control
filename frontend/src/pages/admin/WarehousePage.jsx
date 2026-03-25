@@ -3611,9 +3611,22 @@ export default function WarehousePage() {
 
   return (
     <div className="p-6 mx-auto max-w-6xl">
-      <div className="mb-5">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Склады</h1>
-        <p className="text-gray-500 text-sm mt-0.5">Управление складами, стеллажами и паллетами</p>
+      <div className="flex items-center justify-between mb-5">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Склады</h1>
+          <p className="text-gray-500 text-sm mt-0.5">Управление складами, стеллажами и паллетами</p>
+        </div>
+        {selectedWh && (
+          <div className="flex items-center gap-1.5 text-sm text-gray-400 flex-wrap">
+            <button onClick={() => setSearchParams(new URLSearchParams())} className="hover:text-primary-500 transition-colors">Склады</button>
+            <ChevronRight size={12} />
+            <button onClick={() => setSearchParams(p => { const n = new URLSearchParams(); n.set('wh', selectedWh.id); return n; })} className="hover:text-primary-500 transition-colors">{selectedWh.name}</button>
+            {initialRackId && <><ChevronRight size={12} /><span className="text-gray-600 dark:text-gray-300">Стеллаж {initialRackId}</span></>}
+            {initialShelfId && <><ChevronRight size={12} /><span className="text-gray-700 dark:text-gray-200 font-medium">Полка {initialShelfId}</span></>}
+            {initialRowId && <><ChevronRight size={12} /><span className="text-gray-600 dark:text-gray-300">Ряд {initialRowId}</span></>}
+            {initialPalletId && <><ChevronRight size={12} /><span className="text-gray-700 dark:text-gray-200 font-medium">Паллет {initialPalletId}</span></>}
+          </div>
+        )}
       </div>
 
       {loading ? (
