@@ -2321,7 +2321,7 @@ function RowModal({ open, onClose, warehouseId, row, onSuccess }) {
 
 // ─── FBO: Rows list ───────────────────────────────────────────────────────────
 // ─── Pallet Cards View (FBO analog of ShelfCardsView) ─────────────────────────
-function PalletCardsView({ rows, onDrillRow }) {
+function PalletCardsView({ rows, onDrillRow, onDrillPallet }) {
   const [rowDetails, setRowDetails] = useState({});
   const [loadingIds, setLoadingIds] = useState(new Set());
 
@@ -2391,13 +2391,14 @@ function PalletCardsView({ rows, onDrillRow }) {
                     const items = Number(p.total_items || 0);
                     return (
                       <div key={p.id}
-                        className="flex items-center gap-2.5 px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition-colors"
-                        onClick={() => onDrillRow(row)}>
+                        className="flex items-center gap-2.5 px-4 py-2.5 hover:bg-primary-50 dark:hover:bg-gray-800 cursor-pointer transition-colors group/pallet"
+                        onClick={() => onDrillPallet ? onDrillPallet(row, p) : onDrillRow(row)}>
                         <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: items > 0 ? c.dot : '#d1d5db' }} />
-                        <span className="text-sm text-gray-700 dark:text-gray-300 flex-1">{p.name}</span>
+                        <span className="text-sm text-gray-700 dark:text-gray-300 flex-1 group-hover/pallet:text-primary-600 transition-colors">{p.name}</span>
                         <span className={`text-sm font-semibold tabular-nums ${items > 0 ? 'text-gray-900 dark:text-white' : 'text-gray-300 dark:text-gray-600'}`}>
                           {items > 0 ? items.toLocaleString('ru-RU') + ' шт.' : '0 шт.'}
                         </span>
+                        <ChevronRight size={14} className="text-gray-200 group-hover/pallet:text-primary-400 transition-colors flex-shrink-0" />
                       </div>
                     );
                   })}
@@ -2428,9 +2429,10 @@ function FBORowListView({ warehouse, initialRowId, initialPalletId, initialBoxId
   const [showAddRow, setShowAddRow] = useState(false);
   const [editRow, setEditRow] = useState(null);
   const [drillRow, setDrillRow] = useState(null);
+  const [quickPalletId, setQuickPalletId] = useState(null);
   const vm = extViewMode || 'list';
 
-  useEffect(() => { setDrillRow(null); }, [warehouse?.id]);
+  useEffect(() => { setDrillRow(null); setQuickPalletId(null); }, [warehouse?.id]);
 
   const loadRows = useCallback(async () => {
     if (!warehouse) return;
@@ -2449,10 +2451,17 @@ function FBORowListView({ warehouse, initialRowId, initialPalletId, initialBoxId
 
   useEffect(() => { loadRows(); }, [loadRows]);
 
-  const handleDrillRow = (row) => {
+  const handleDrillRow = (row, palletId = null) => {
     setDrillRow(row);
+    setQuickPalletId(palletId);
     if (row) {
-      setSearchParams(prev => { const p = new URLSearchParams(prev); p.set('row', row.id); p.delete('pallet'); return p; });
+      setSearchParams(prev => {
+        const p = new URLSearchParams(prev);
+        p.set('row', row.id);
+        if (palletId) p.set('pallet', palletId);
+        else p.delete('pallet');
+        return p;
+      });
     } else {
       setSearchParams(prev => { const p = new URLSearchParams(prev); p.delete('row'); p.delete('pallet'); return p; });
     }
@@ -2467,7 +2476,7 @@ function FBORowListView({ warehouse, initialRowId, initialPalletId, initialBoxId
   };
 
   if (drillRow) {
-    return <RowDetailView row={drillRow} onBack={() => handleDrillRow(null)} initialPalletId={initialPalletId} initialBoxId={initialBoxId} initialBoxType={initialBoxType} />;
+    return <RowDetailView row={drillRow} onBack={() => handleDrillRow(null)} initialPalletId={quickPalletId || initialPalletId} initialBoxId={initialBoxId} initialBoxType={initialBoxType} />;
   }
 
   const viewBtnStyle = (active) => ({
@@ -2515,7 +2524,7 @@ function FBORowListView({ warehouse, initialRowId, initialPalletId, initialBoxId
 
       {/* Cards mode */}
       {vm === 'cards' && (
-        <PalletCardsView rows={rows} onDrillRow={handleDrillRow} />
+        <PalletCardsView rows={rows} onDrillRow={handleDrillRow} onDrillPallet={(row, pallet) => handleDrillRow(row, String(pallet.id))} />
       )}
 
       {/* List mode */}
@@ -3167,7 +3176,7 @@ function WarehouseListView({ warehouses, selectedId, onSelect, onReload }) {
 }
 
 // ─── Shelf Cards View (Visual 2) ──────────────────────────────────────────────
-function ShelfCardsView({ warehouse, racks, onDrillRack }) {
+function ShelfCardsView({ warehouse, racks, onDrillRack, onDrillShelf }) {
   const [rackDetails, setRackDetails] = useState({});
   const [loadingIds, setLoadingIds] = useState(new Set());
 
@@ -3253,13 +3262,14 @@ function ShelfCardsView({ warehouse, racks, onDrillRack }) {
                       const dotColor = items > 0 ? c.dot : '#d1d5db';
                       return (
                         <div key={shelf.id}
-                          className="flex items-center gap-2.5 px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition-colors"
-                          onClick={() => onDrillRack(rack)}>
+                          className="flex items-center gap-2.5 px-4 py-2.5 hover:bg-primary-50 dark:hover:bg-gray-800 cursor-pointer transition-colors group/shelf"
+                          onClick={() => onDrillShelf ? onDrillShelf(rack, shelf) : onDrillRack(rack)}>
                           <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: dotColor }} />
-                          <span className="text-sm text-gray-700 dark:text-gray-300 flex-1">{shelf.name}</span>
+                          <span className="text-sm text-gray-700 dark:text-gray-300 flex-1 group-hover/shelf:text-primary-600 transition-colors">{shelf.name}</span>
                           <span className={`text-sm font-semibold tabular-nums ${items > 0 ? 'text-gray-900 dark:text-white' : 'text-gray-300 dark:text-gray-600'}`}>
                             {items > 0 ? items.toLocaleString('ru-RU') + ' шт.' : '0 шт.'}
                           </span>
+                          <ChevronRight size={14} className="text-gray-200 group-hover/shelf:text-primary-400 transition-colors flex-shrink-0" />
                         </div>
                       );
                     })}
@@ -3302,6 +3312,7 @@ function WarehouseContent({ warehouse, initialRackId, initialShelfId, initialRow
   const [showAddRack, setShowAddRack] = useState(false);
   const [editRack, setEditRack] = useState(null);
   const [drillRack, setDrillRack] = useState(null);
+  const [quickShelfId, setQuickShelfId] = useState(null);
   const [productSearch, setProductSearch] = useState('');
   const [searchResults, setSearchResults] = useState(null);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -3328,7 +3339,7 @@ function WarehouseContent({ warehouse, initialRackId, initialShelfId, initialRow
     return () => clearTimeout(t);
   }, [productSearch]);
 
-  useEffect(() => { setDrillRack(null); }, [warehouse?.id]);
+  useEffect(() => { setDrillRack(null); setQuickShelfId(null); }, [warehouse?.id]);
 
   const loadRacks = useCallback(async () => {
     if (!warehouse || !hasFBS) { setLoading(false); return; }
@@ -3346,10 +3357,17 @@ function WarehouseContent({ warehouse, initialRackId, initialShelfId, initialRow
 
   useEffect(() => { loadRacks(); }, [loadRacks]);
 
-  const handleDrillRack = (rack) => {
+  const handleDrillRack = (rack, shelfId = null) => {
     setDrillRack(rack);
+    setQuickShelfId(shelfId);
     if (rack) {
-      setSearchParams(prev => { const p = new URLSearchParams(prev); p.set('rack', rack.id); p.delete('shelf'); return p; });
+      setSearchParams(prev => {
+        const p = new URLSearchParams(prev);
+        p.set('rack', rack.id);
+        if (shelfId) p.set('shelf', shelfId);
+        else p.delete('shelf');
+        return p;
+      });
     } else {
       setSearchParams(prev => { const p = new URLSearchParams(prev); p.delete('rack'); p.delete('shelf'); return p; });
     }
@@ -3371,7 +3389,7 @@ function WarehouseContent({ warehouse, initialRackId, initialShelfId, initialRow
         rack={drillRack}
         onBack={() => handleDrillRack(null)}
         onReload={loadRacks}
-        initialShelfId={initialShelfId}
+        initialShelfId={quickShelfId || initialShelfId}
       />
     );
   }
@@ -3478,7 +3496,7 @@ function WarehouseContent({ warehouse, initialRackId, initialShelfId, initialRow
 
           {/* Cards mode content */}
           {viewMode === 'cards' && (
-            <ShelfCardsView warehouse={warehouse} racks={racks} onDrillRack={handleDrillRack} />
+            <ShelfCardsView warehouse={warehouse} racks={racks} onDrillRack={handleDrillRack} onDrillShelf={(rack, shelf) => handleDrillRack(rack, String(shelf.id))} />
           )}
 
           {/* List mode content */}
