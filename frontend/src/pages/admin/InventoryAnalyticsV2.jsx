@@ -458,7 +458,8 @@ function OverviewPanel({ data, settings, singleWarehouse }) {
     const st = statusColor(item, settings);
     if (st.label === 'Свежий') return 'bg-[#fafff9]';
     if (st.label === 'Давно') return 'bg-[#fffdf5]';
-    if (st.label === 'Устарел' || st.label === 'Не было') return 'bg-[#fff8f8]';
+    if (st.label === 'Не было') return 'bg-[#fffdf5]';
+    if (st.label === 'Устарел') return 'bg-[#fff8f8]';
     return '';
   }
 
@@ -466,6 +467,7 @@ function OverviewPanel({ data, settings, singleWarehouse }) {
     const st = statusColor(item, settings);
     if (st.label === 'Свежий') return <span className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#ecfdf5] text-[#047857]">Свежий</span>;
     if (st.label === 'Давно') return <span className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#fffbeb] text-[#a16207]">Давно</span>;
+    if (st.label === 'Не было') return <span className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#fffbeb] text-[#a16207]">Не было</span>;
     return <span className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#fef2f2] text-[#b91c1c]">Устарел</span>;
   }
 
@@ -526,11 +528,12 @@ function OverviewPanel({ data, settings, singleWarehouse }) {
             <tbody>
               {sortedItems.map((item, i) => {
                 const curQ = Number(item.current_qty || 0);
-                const invQ = Number(item.last_inventory_qty || 0);
-                const delta = invQ - curQ;
+                const hasInv = item.last_inventory_qty != null;
+                const invQ = hasInv ? Number(item.last_inventory_qty) : null;
+                const delta = hasInv ? invQ - curQ : null;
                 const dur = Number(item.last_inventory_duration_seconds || 0);
-                const spd = invQ > 0 && dur > 0 ? (dur / invQ).toFixed(1) : '—';
-                const pct = curQ > 0 ? ((Math.abs(delta) / curQ) * 100).toFixed(2) : '0';
+                const spd = hasInv && invQ > 0 && dur > 0 ? (dur / invQ).toFixed(1) : '—';
+                const pct = hasInv && curQ > 0 && delta !== 0 ? ((Math.abs(delta) / curQ) * 100).toFixed(2) : '0';
                 const itemType = item._type || (isSingle ? 'rack' : 'warehouse');
                 return (
                   <tr key={item.id || i} className={cn('transition-colors hover:bg-[#faf5ff]', getRowBg(item))}>
@@ -541,9 +544,9 @@ function OverviewPanel({ data, settings, singleWarehouse }) {
                       </div>
                     </td>
                     <td className="px-2.5 py-3 border-b border-gray-100 whitespace-nowrap">{fmtQty(curQ)}</td>
-                    <td className="px-2.5 py-3 border-b border-gray-100 whitespace-nowrap">{fmtQty(invQ)}</td>
-                    <td className={cn('px-2.5 py-3 border-b border-gray-100 whitespace-nowrap', getDiffClass(delta, curQ))}>
-                      {delta > 0 ? '+' : ''}{delta} {curQ > 0 && delta !== 0 ? `(${pct}%)` : ''}
+                    <td className="px-2.5 py-3 border-b border-gray-100 whitespace-nowrap">{hasInv ? fmtQty(invQ) : '—'}</td>
+                    <td className={cn('px-2.5 py-3 border-b border-gray-100 whitespace-nowrap', hasInv ? getDiffClass(delta, curQ) : 'text-gray-400')}>
+                      {hasInv ? (<>{delta > 0 ? '+' : ''}{delta} {curQ > 0 && delta !== 0 ? `(${pct}%)` : ''}</>) : '—'}
                     </td>
                     <td className="px-2.5 py-3 border-b border-gray-100 whitespace-nowrap">{dur > 0 ? fmtDuration(dur) : '—'}</td>
                     <td className="px-2.5 py-3 border-b border-gray-100 whitespace-nowrap">{spd !== '—' ? `${spd} с/шт` : '—'}</td>
