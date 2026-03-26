@@ -32,12 +32,12 @@ export function WarehouseIcon({ size = 20, className = '', style, colorIndex }) 
 export function RackIcon({ size = 20, className = '', style }) {
   return (
     <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className} style={style}>
-      <rect x="7" y="4" width="3" height="40" rx=".5" fill="#8a8a8a" stroke="#6b6b6b" strokeWidth=".8"/>
-      <rect x="38" y="4" width="3" height="40" rx=".5" fill="#8a8a8a" stroke="#6b6b6b" strokeWidth=".8"/>
-      <rect x="7" y="4" width="34" height="2.5" rx=".5" fill="#a0a0a0" stroke="#7a7a7a" strokeWidth=".8"/>
-      <rect x="7" y="16" width="34" height="2.5" rx=".5" fill="#a0a0a0" stroke="#7a7a7a" strokeWidth=".8"/>
-      <rect x="7" y="28" width="34" height="2.5" rx=".5" fill="#a0a0a0" stroke="#7a7a7a" strokeWidth=".8"/>
-      <rect x="7" y="40" width="34" height="2.5" rx=".5" fill="#a0a0a0" stroke="#7a7a7a" strokeWidth=".8"/>
+      <rect x="7" y="4" width="3" height="40" rx=".5" fill="#6ba87b" stroke="#4a7a58" strokeWidth=".8"/>
+      <rect x="38" y="4" width="3" height="40" rx=".5" fill="#6ba87b" stroke="#4a7a58" strokeWidth=".8"/>
+      <rect x="7" y="4" width="34" height="2.5" rx=".5" fill="#7bc090" stroke="#5a9a6a" strokeWidth=".8"/>
+      <rect x="7" y="16" width="34" height="2.5" rx=".5" fill="#7bc090" stroke="#5a9a6a" strokeWidth=".8"/>
+      <rect x="7" y="28" width="34" height="2.5" rx=".5" fill="#7bc090" stroke="#5a9a6a" strokeWidth=".8"/>
+      <rect x="7" y="40" width="34" height="2.5" rx=".5" fill="#7bc090" stroke="#5a9a6a" strokeWidth=".8"/>
       <rect x="12" y="7" width="8" height="8.5" rx="1" fill="#d4a76a" stroke="#b8884a" strokeWidth=".8"/>
       <rect x="22" y="9" width="6" height="6.5" rx="1" fill="#c49558" stroke="#a87a3e" strokeWidth=".8"/>
       <rect x="30" y="8" width="7" height="7.5" rx="1" fill="#d4a76a" stroke="#b8884a" strokeWidth=".8"/>
