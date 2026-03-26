@@ -416,20 +416,19 @@ export function RawMaterialsIcon({ size = 20, className = '', style }) {
 export function PowderIcon({ size = 20, className = '', style }) {
   return (
     <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className} style={style}>
-      {/* Powder mound */}
-      <ellipse cx="24" cy="38" rx="20" ry="6" fill="#e8dcc7" stroke="#a88520" strokeWidth="1"/>
-      <path d="M8 38c0 0 4-18 16-22s16 22 16 22" fill="#d4b870" opacity=".6"/>
-      <path d="M12 38c0 0 3-14 12-18s12 18 12 18" fill="#c9a94e" opacity=".5"/>
+      {/* Powder mound — warm brown/beige */}
+      <ellipse cx="24" cy="38" rx="20" ry="6" fill="#e0d0b8" stroke="#8a7050" strokeWidth="1"/>
+      <path d="M8 38c0 0 4-18 16-22s16 22 16 22" fill="#c4a878" opacity=".6"/>
+      <path d="M12 38c0 0 3-14 12-18s12 18 12 18" fill="#b09060" opacity=".5"/>
       {/* Falling particles */}
-      <circle cx="24" cy="10" r="1.5" fill="#c9a94e" opacity=".6"/>
-      <circle cx="20" cy="14" r="1" fill="#d4b870" opacity=".5"/>
-      <circle cx="28" cy="12" r=".8" fill="#c9a94e" opacity=".4"/>
-      <circle cx="22" cy="8" r=".7" fill="#d4b870" opacity=".35"/>
-      <circle cx="26" cy="6" r="1.2" fill="#c9a94e" opacity=".5"/>
-      {/* Texture dots on mound */}
-      <circle cx="18" cy="32" r=".8" fill="#a88520" opacity=".25"/>
-      <circle cx="28" cy="30" r=".6" fill="#a88520" opacity=".2"/>
-      <circle cx="24" cy="34" r=".7" fill="#a88520" opacity=".2"/>
+      <circle cx="24" cy="10" r="1.5" fill="#b09060" opacity=".6"/>
+      <circle cx="20" cy="14" r="1" fill="#c4a878" opacity=".5"/>
+      <circle cx="28" cy="12" r=".8" fill="#b09060" opacity=".4"/>
+      <circle cx="22" cy="8" r=".7" fill="#c4a878" opacity=".35"/>
+      <circle cx="26" cy="6" r="1.2" fill="#b09060" opacity=".5"/>
+      {/* Texture dots */}
+      <circle cx="18" cy="32" r=".8" fill="#8a7050" opacity=".25"/>
+      <circle cx="28" cy="30" r=".6" fill="#8a7050" opacity=".2"/>
     </svg>
   );
 }
@@ -437,17 +436,17 @@ export function PowderIcon({ size = 20, className = '', style }) {
 export function SemiProductIcon({ size = 20, className = '', style }) {
   return (
     <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className} style={style}>
-      {/* Capsule — bottom half (transparent/white) */}
-      <rect x="14" y="4" width="20" height="40" rx="10" fill="#f0efe8" stroke="#b0a890" strokeWidth="1.3"/>
-      {/* Top half (golden/colored fill) */}
-      <rect x="14" y="4" width="20" height="20" rx="10" fill="#e8d8a0" stroke="#b0a890" strokeWidth="1.3"/>
+      {/* Capsule — bottom half (transparent/cream) */}
+      <rect x="14" y="4" width="20" height="40" rx="10" fill="#f5f0e0" stroke="#a0a080" strokeWidth="1.3"/>
+      {/* Top half (dark green) */}
+      <rect x="14" y="4" width="20" height="20" rx="10" fill="#3a8a50" stroke="#2a6a38" strokeWidth="1.3"/>
       {/* Join line */}
-      <line x1="14" y1="24" x2="34" y2="24" stroke="#b0a890" strokeWidth="1"/>
+      <line x1="14" y1="24" x2="34" y2="24" stroke="#a0a080" strokeWidth="1"/>
       {/* Shine on top */}
-      <path d="M30 10v8" stroke="white" strokeWidth="1.5" opacity=".35" strokeLinecap="round"/>
+      <path d="M29 10v8" stroke="white" strokeWidth="1.5" opacity=".3" strokeLinecap="round"/>
       {/* Powder inside bottom */}
-      <circle cx="22" cy="30" r="1" fill="#d4c8a0" opacity=".4"/>
-      <circle cx="26" cy="33" r=".8" fill="#d4c8a0" opacity=".3"/>
+      <circle cx="22" cy="30" r="1" fill="#c8c0a0" opacity=".4"/>
+      <circle cx="26" cy="33" r=".8" fill="#c8c0a0" opacity=".3"/>
     </svg>
   );
 }
@@ -455,19 +454,19 @@ export function SemiProductIcon({ size = 20, className = '', style }) {
 export function LabelIcon({ size = 20, className = '', style }) {
   return (
     <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className} style={style}>
-      {/* Label/sticker sheet */}
-      <rect x="6" y="8" width="36" height="32" rx="3" fill="#fff8e8" stroke="#c49a40" strokeWidth="1.3"/>
+      {/* White label/sticker */}
+      <rect x="6" y="8" width="36" height="32" rx="3" fill="#ffffff" stroke="#d0d0d0" strokeWidth="1.3"/>
       {/* Peeling corner */}
-      <path d="M36 8h3a3 3 0 013 3v3L36 8z" fill="#e8d8a0" stroke="#c49a40" strokeWidth="1"/>
-      {/* Brand stripe */}
-      <rect x="10" y="14" width="28" height="5" rx="1" fill="#c49a40" opacity=".7"/>
-      <text x="24" y="18.5" textAnchor="middle" fill="white" fontSize="4" fontWeight="700" fontFamily="sans-serif">LABEL</text>
+      <path d="M36 8h3a3 3 0 013 3v3L36 8z" fill="#f0f0f0" stroke="#d0d0d0" strokeWidth="1"/>
+      {/* Brand stripe — deep purple/brand */}
+      <rect x="10" y="13" width="28" height="5" rx="1" fill="#7c3aed" opacity=".8"/>
+      <text x="24" y="17.5" textAnchor="middle" fill="white" fontSize="3.5" fontWeight="700" fontFamily="sans-serif">GRAFLab</text>
       {/* Text lines */}
-      <rect x="10" y="22" width="20" height="2" rx=".5" fill="#c49a40" opacity=".25"/>
-      <rect x="10" y="26" width="16" height="1.5" rx=".5" fill="#c49a40" opacity=".2"/>
-      <rect x="10" y="30" width="22" height="1.5" rx=".5" fill="#c49a40" opacity=".15"/>
-      {/* Barcode hint */}
-      <rect x="10" y="34" width="14" height="4" rx=".5" fill="#c49a40" opacity=".15"/>
+      <rect x="10" y="22" width="20" height="2" rx=".5" fill="#888" opacity=".2"/>
+      <rect x="10" y="26" width="16" height="1.5" rx=".5" fill="#888" opacity=".15"/>
+      <rect x="10" y="30" width="22" height="1.5" rx=".5" fill="#888" opacity=".12"/>
+      {/* Barcode */}
+      <rect x="10" y="34" width="14" height="4" rx=".5" fill="#333" opacity=".1"/>
     </svg>
   );
 }
