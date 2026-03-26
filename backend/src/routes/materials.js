@@ -1,7 +1,6 @@
 const router = require('express').Router();
 const pool = require('../db/pool');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
-const { importTechCards } = require('../utils/techCardImport');
 
 // GET /api/materials
 router.get('/', requireAuth, async (req, res) => {
@@ -109,21 +108,10 @@ router.get('/:id', requireAuth, async (req, res) => {
   }
 });
 
-// POST /api/materials/import
-router.post('/import', requireAuth, requireAdmin, async (req, res) => {
-  try {
-    const token = req.body?.token || undefined;
-    const stats = await importTechCards(pool, { token });
-    res.json(stats);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
 // PUT /api/materials/:id
 router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const { name, code, unit, category, archived } = req.body;
+    const { name, code, unit, category, archived, buy_price, min_stock, supplier, notes, stock } = req.body;
     const fields = [];
     const params = [];
 
@@ -132,6 +120,11 @@ router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
     if (unit !== undefined) { params.push(unit); fields.push(`unit = $${params.length}`); }
     if (category !== undefined) { params.push(category); fields.push(`category = $${params.length}`); }
     if (archived !== undefined) { params.push(archived); fields.push(`archived = $${params.length}`); }
+    if (buy_price !== undefined) { params.push(buy_price); fields.push(`buy_price = $${params.length}`); }
+    if (min_stock !== undefined) { params.push(min_stock); fields.push(`min_stock = $${params.length}`); }
+    if (supplier !== undefined) { params.push(supplier); fields.push(`supplier = $${params.length}`); }
+    if (notes !== undefined) { params.push(notes); fields.push(`notes = $${params.length}`); }
+    if (stock !== undefined) { params.push(stock); fields.push(`stock = $${params.length}`); }
 
     if (fields.length === 0) return res.status(400).json({ error: 'Нет полей для обновления' });
 
@@ -160,23 +153,5 @@ router.delete('/:id', requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
-// POST /api/materials/cleanup — удалить материалы которые являются нашими товарами
-router.post('/cleanup', requireAuth, requireAdmin, async (req, res) => {
-  try {
-    const result = await pool.query(
-      `DELETE FROM raw_materials_s rm
-       USING products_s p
-       WHERE rm.code = p.code AND rm.code IS NOT NULL
-       RETURNING rm.id, rm.name, rm.code`
-    );
-    // Cleanup orphaned tech_card_materials
-    await pool.query(
-      `DELETE FROM tech_card_materials_s WHERE material_id NOT IN (SELECT id FROM raw_materials_s)`
-    );
-    res.json({ deleted: result.rows.length, items: result.rows });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
 
 module.exports = router;

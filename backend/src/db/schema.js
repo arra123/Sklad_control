@@ -124,6 +124,12 @@ async function createSchema() {
       CREATE INDEX IF NOT EXISTS idx_raw_materials_c_category ON raw_materials_s(category);
     `);
 
+    // Migrations for raw_materials_s
+    await client.query(`ALTER TABLE raw_materials_s ADD COLUMN IF NOT EXISTS buy_price NUMERIC(18,2)`);
+    await client.query(`ALTER TABLE raw_materials_s ADD COLUMN IF NOT EXISTS min_stock NUMERIC(15,3) DEFAULT 0`);
+    await client.query(`ALTER TABLE raw_materials_s ADD COLUMN IF NOT EXISTS supplier VARCHAR(500)`);
+    await client.query(`ALTER TABLE raw_materials_s ADD COLUMN IF NOT EXISTS notes TEXT`);
+
     // ─── Tech Cards (production recipes) ───────────────────────────
     await client.query(`
       CREATE TABLE IF NOT EXISTS tech_cards_s (
