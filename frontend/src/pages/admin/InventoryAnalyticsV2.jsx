@@ -528,13 +528,19 @@ function OverviewPanel({ data, settings, singleWarehouse }) {
             <tbody>
               {sortedItems.map((item, i) => {
                 const curQ = Number(item.current_qty || 0);
-                const hasInv = item.last_inventory_qty != null;
-                const invQ = hasInv ? Number(item.last_inventory_qty) : null;
-                const delta = hasInv ? invQ - curQ : null;
-                const dur = Number(item.last_inventory_duration_seconds || 0);
-                const spd = hasInv && invQ > 0 && dur > 0 ? (dur / invQ).toFixed(1) : '—';
-                const pct = hasInv && curQ > 0 && delta !== 0 ? ((Math.abs(delta) / curQ) * 100).toFixed(2) : '0';
+                const hasFullInv = item.last_inventory_qty != null;
+                const hasPartialInv = !hasFullInv && item.partial_inventory_qty != null;
+                const invQ = hasFullInv ? Number(item.last_inventory_qty) : hasPartialInv ? Number(item.partial_inventory_qty) : null;
+                const isPartial = hasPartialInv;
+                const hasAnyInv = hasFullInv || hasPartialInv;
+                const delta = hasFullInv ? invQ - curQ : null;
+                const totalDur = Number(item.last_inventory_duration_seconds || item.partial_inventory_duration_seconds || 0);
+                const spd = hasAnyInv && invQ > 0 && totalDur > 0 ? (totalDur / invQ).toFixed(1) : '—';
+                const pct = hasFullInv && curQ > 0 && delta !== 0 ? ((Math.abs(delta) / curQ) * 100).toFixed(2) : '0';
                 const itemType = item._type || (isSingle ? 'rack' : 'warehouse');
+                const covInfo = item.covered_leaf_count != null && item.total_leaf_count > 0
+                  ? `${item.covered_leaf_count}/${item.total_leaf_count}`
+                  : null;
                 return (
                   <tr key={item.id || i} className={cn('transition-colors hover:bg-[#faf5ff]', getRowBg(item))}>
                     <td className="px-2.5 py-3 border-b border-gray-100 whitespace-nowrap">
@@ -544,11 +550,15 @@ function OverviewPanel({ data, settings, singleWarehouse }) {
                       </div>
                     </td>
                     <td className="px-2.5 py-3 border-b border-gray-100 whitespace-nowrap">{fmtQty(curQ)}</td>
-                    <td className="px-2.5 py-3 border-b border-gray-100 whitespace-nowrap">{hasInv ? fmtQty(invQ) : '—'}</td>
-                    <td className={cn('px-2.5 py-3 border-b border-gray-100 whitespace-nowrap', hasInv ? getDiffClass(delta, curQ) : 'text-gray-400')}>
-                      {hasInv ? (<>{delta > 0 ? '+' : ''}{delta} {curQ > 0 && delta !== 0 ? `(${pct}%)` : ''}</>) : '—'}
+                    <td className="px-2.5 py-3 border-b border-gray-100 whitespace-nowrap">
+                      {hasAnyInv ? (
+                        <span>{fmtQty(invQ)}{isPartial && covInfo && <span className="text-[10px] text-gray-400 ml-1">({covInfo})</span>}</span>
+                      ) : '—'}
                     </td>
-                    <td className="px-2.5 py-3 border-b border-gray-100 whitespace-nowrap">{dur > 0 ? fmtDuration(dur) : '—'}</td>
+                    <td className={cn('px-2.5 py-3 border-b border-gray-100 whitespace-nowrap', hasFullInv ? getDiffClass(delta, curQ) : 'text-gray-400')}>
+                      {hasFullInv ? (<>{delta > 0 ? '+' : ''}{delta} {curQ > 0 && delta !== 0 ? `(${pct}%)` : ''}</>) : isPartial ? 'частично' : '—'}
+                    </td>
+                    <td className="px-2.5 py-3 border-b border-gray-100 whitespace-nowrap">{totalDur > 0 ? fmtDuration(totalDur) : '—'}</td>
                     <td className="px-2.5 py-3 border-b border-gray-100 whitespace-nowrap">{spd !== '—' ? `${spd} с/шт` : '—'}</td>
                     <td className="px-2.5 py-3 border-b border-gray-100 whitespace-nowrap">
                       {item.last_inventory_by ? <span className="text-[#7c3aed] font-semibold">{item.last_inventory_by}</span> : '—'}

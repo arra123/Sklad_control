@@ -508,10 +508,21 @@ function aggregateInventoryStats(children) {
     ? list.reduce((sum, child) => sum + Number(child?.previous_inventory_qty || 0), 0)
     : null;
 
+  // Partial sums for incomplete coverage
+  const coveredChildren = list.filter(child => child?.last_inventory_qty != null);
+  const partialInventoryQty = !coverageComplete && coveredChildren.length > 0
+    ? coveredChildren.reduce((sum, child) => sum + Number(child.last_inventory_qty || 0), 0)
+    : null;
+  const partialDuration = !coverageComplete && coveredChildren.length > 0
+    ? coveredChildren.reduce((sum, child) => sum + Number(child.last_inventory_duration_seconds || 0), 0)
+    : null;
+
   return {
     current_qty: currentQty,
     last_inventory_qty: lastInventoryQty,
     previous_inventory_qty: previousInventoryQty,
+    partial_inventory_qty: partialInventoryQty,
+    partial_inventory_duration_seconds: partialDuration,
     last_inventory_at: latestChild?.last_inventory_at || null,
     previous_inventory_at: previousCoverageComplete
       ? list
