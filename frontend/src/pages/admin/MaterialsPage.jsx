@@ -211,6 +211,8 @@ export default function MaterialsPage() {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({ total: 0, groups: [] });
   const [selectedId, setSelectedId] = useState(null);
+  const [sortBy, setSortBy] = useState('stock');
+  const [sortDir, setSortDir] = useState('desc');
 
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const debounceRef = useRef(null);
@@ -224,7 +226,7 @@ export default function MaterialsPage() {
   const fetchMaterials = useCallback(async () => {
     setLoading(true);
     try {
-      const params = { page, limit };
+      const params = { page, limit, sort_by: sortBy, sort_dir: sortDir };
       if (debouncedSearch) params.search = debouncedSearch;
       if (group) params.material_group = group;
       if (archived) params.archived = true;
@@ -233,7 +235,15 @@ export default function MaterialsPage() {
       setTotal(res.data.total || 0);
     } catch { setMaterials([]); setTotal(0); }
     finally { setLoading(false); }
-  }, [page, debouncedSearch, group, archived]);
+  }, [page, debouncedSearch, group, archived, sortBy, sortDir]);
+
+  const handleSort = (col) => {
+    if (sortBy === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortBy(col); setSortDir(col === 'stock' || col === 'buy_price' ? 'desc' : 'asc'); }
+    setPage(1);
+  };
+
+  const sortArrow = (col) => sortBy === col ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ' ↕';
 
   const fetchStats = useCallback(async () => {
     try { const res = await api.get('/materials/stats'); setStats(res.data); } catch {}
@@ -304,12 +314,24 @@ export default function MaterialsPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100">
-                  <th className="text-left px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wider">Название</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wider">Код</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wider">Группа</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wider">Ед.</th>
-                  <th className="text-right px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wider">Закупка</th>
-                  <th className="text-right px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wider">Остаток</th>
+                  {[
+                    { key: 'name', label: 'Название', align: 'left' },
+                    { key: 'code', label: 'Код', align: 'left' },
+                    { key: 'material_group', label: 'Группа', align: 'left' },
+                    { key: null, label: 'Ед.', align: 'left' },
+                    { key: 'buy_price', label: 'Закупка', align: 'right' },
+                    { key: 'stock', label: 'Остаток', align: 'right' },
+                  ].map(col => (
+                    <th
+                      key={col.label}
+                      onClick={col.key ? () => handleSort(col.key) : undefined}
+                      className={`${col.align === 'right' ? 'text-right' : 'text-left'} px-4 py-3 font-semibold text-xs uppercase tracking-wider whitespace-nowrap select-none ${
+                        col.key ? 'cursor-pointer hover:text-purple-600 ' : ''
+                      }${sortBy === col.key ? 'text-purple-600' : 'text-gray-500'}`}
+                    >
+                      {col.label}{col.key && <span className="text-[10px] opacity-50">{sortArrow(col.key)}</span>}
+                    </th>
+                  ))}
                   <th className="w-8"></th>
                 </tr>
               </thead>
