@@ -5,7 +5,7 @@ import {
   Copy, Check, ArrowRight, Plus, Pencil, Trash2, X, MapPin,
   ArrowUp, ArrowDown, Settings2, GripVertical
 } from 'lucide-react';
-import { ProductIcon, BundleIcon } from '../../components/ui/WarehouseIcons';
+import { ProductIcon, BundleIcon, TechCardIcon, IngredientIcon, PackagingMaterialIcon } from '../../components/ui/WarehouseIcons';
 import api from '../../api/client';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
@@ -664,7 +664,8 @@ export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
             {/* Тех. карта */}
             {product.tech_card && (
               <div>
-                <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2 mb-2">
+                  <TechCardIcon size={16} />
                   <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
                     Тех. карта
                     <span className="text-gray-300 normal-case ml-1.5">
@@ -675,6 +676,9 @@ export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
                 <div className="space-y-1">
                   {(product.tech_card.materials || []).filter(m => m.id).map((m, i) => (
                     <div key={m.id || i} className="flex items-center gap-3 px-3 py-2 rounded-lg bg-gray-50 border border-gray-100">
+                      <span className="flex-shrink-0">
+                        {m.category === 'packaging' ? <PackagingMaterialIcon size={16} /> : <IngredientIcon size={16} />}
+                      </span>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-800 truncate">{m.name}</p>
                         {m.code && <p className="text-[10px] text-gray-400">{m.code}</p>}

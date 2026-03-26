@@ -356,5 +356,90 @@ export function TransferIcon({ size = 20, className = '', style }) {
   );
 }
 
+// ─── Raw Materials & Tech Card icons ─────────────────────────────────────────
+
+export function IngredientIcon({ size = 20, className = '', style }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className} style={style}>
+      {/* Flask body */}
+      <path d="M18 4h12v14l10 22a3 3 0 01-2.7 4.3H10.7A3 3 0 018 40L18 18V4z" fill="#d0f0d8" stroke="#4a9a5e" strokeWidth="1.3" strokeLinejoin="round"/>
+      {/* Flask neck */}
+      <rect x="18" y="3" width="12" height="5" rx="1.5" fill="#e8f5ec" stroke="#4a9a5e" strokeWidth="1"/>
+      {/* Liquid level */}
+      <path d="M12 30l6-6h12l6 6v10a3 3 0 01-3 3H15a3 3 0 01-3-3V30z" fill="#6bc480" opacity=".6"/>
+      {/* Bubbles */}
+      <circle cx="20" cy="34" r="1.5" fill="#a8e0b8" opacity=".8"/>
+      <circle cx="28" cy="32" r="1" fill="#a8e0b8" opacity=".6"/>
+      <circle cx="24" cy="36" r="1.2" fill="#a8e0b8" opacity=".7"/>
+      {/* Pour lines */}
+      <line x1="21" y1="6" x2="21" y2="8" stroke="#4a9a5e" strokeWidth=".6" opacity=".4"/>
+      <line x1="27" y1="6" x2="27" y2="8" stroke="#4a9a5e" strokeWidth=".6" opacity=".4"/>
+    </svg>
+  );
+}
+
+export function PackagingMaterialIcon({ size = 20, className = '', style }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className} style={style}>
+      {/* Roll/tube body */}
+      <rect x="8" y="10" width="32" height="28" rx="3" fill="#e0e8f0" stroke="#7090b0" strokeWidth="1.3"/>
+      {/* Cap top */}
+      <ellipse cx="24" cy="10" rx="16" ry="4" fill="#c0d0e0" stroke="#7090b0" strokeWidth="1"/>
+      {/* Cap bottom */}
+      <ellipse cx="24" cy="38" rx="16" ry="4" fill="#b0c0d0" stroke="#7090b0" strokeWidth="1"/>
+      {/* Label band */}
+      <rect x="8" y="18" width="32" height="12" fill="#7090b0" opacity=".2"/>
+      {/* Detail lines */}
+      <line x1="14" y1="22" x2="34" y2="22" stroke="#7090b0" strokeWidth=".8" opacity=".5"/>
+      <line x1="14" y1="26" x2="28" y2="26" stroke="#7090b0" strokeWidth=".8" opacity=".4"/>
+      {/* Recycle symbol hint */}
+      <circle cx="36" cy="32" r="3" fill="none" stroke="#7090b0" strokeWidth=".8" opacity=".4"/>
+    </svg>
+  );
+}
+
+export function TechCardIcon({ size = 20, className = '', style }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className} style={style}>
+      {/* Card/document */}
+      <rect x="6" y="3" width="30" height="42" rx="3" fill="#f0eef8" stroke="#7c6ab8" strokeWidth="1.3"/>
+      {/* Tab/fold */}
+      <path d="M26 3h7a3 3 0 013 3v4H26V3z" fill="#c4b8e0" stroke="#7c6ab8" strokeWidth="1"/>
+      {/* Header bar */}
+      <rect x="10" y="12" width="22" height="4" rx="1" fill="#7c6ab8" opacity=".7"/>
+      {/* Recipe lines */}
+      <circle cx="13" cy="22" r="1.5" fill="#a890d0"/>
+      <rect x="17" y="21" width="13" height="2" rx=".5" fill="#c4b8e0"/>
+      <circle cx="13" cy="28" r="1.5" fill="#a890d0"/>
+      <rect x="17" y="27" width="10" height="2" rx=".5" fill="#c4b8e0"/>
+      <circle cx="13" cy="34" r="1.5" fill="#a890d0"/>
+      <rect x="17" y="33" width="14" height="2" rx=".5" fill="#c4b8e0"/>
+      {/* Gear/process symbol */}
+      <circle cx="38" cy="38" r="7" fill="#f0eef8" stroke="#7c6ab8" strokeWidth="1.2"/>
+      <circle cx="38" cy="38" r="3" fill="#7c6ab8" opacity=".3"/>
+      <path d="M38 31v2m0 10v2m-5-9l1.5 1m7-5l1.5 1m-10 0l1.5-1m7 5l1.5-1" stroke="#7c6ab8" strokeWidth="1.2" strokeLinecap="round"/>
+    </svg>
+  );
+}
+
+export function RawMaterialsIcon({ size = 20, className = '', style }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className} style={style}>
+      {/* Mortar bowl */}
+      <path d="M6 22c0 10 8 18 18 18s18-8 18-18H6z" fill="#e8dcc7" stroke="#a88520" strokeWidth="1.3"/>
+      <ellipse cx="24" cy="22" rx="18" ry="5" fill="#f0e8d0" stroke="#a88520" strokeWidth="1"/>
+      {/* Powder inside */}
+      <ellipse cx="24" cy="28" rx="12" ry="3" fill="#d4b870" opacity=".5"/>
+      {/* Pestle */}
+      <line x1="34" y1="8" x2="26" y2="20" stroke="#8a7a60" strokeWidth="3" strokeLinecap="round"/>
+      <circle cx="35" cy="7" r="3" fill="#a89070" stroke="#8a7a60" strokeWidth="1"/>
+      {/* Small particles */}
+      <circle cx="20" cy="26" r=".8" fill="#c4a040" opacity=".6"/>
+      <circle cx="28" cy="27" r=".6" fill="#c4a040" opacity=".5"/>
+      <circle cx="24" cy="25" r=".7" fill="#c4a040" opacity=".7"/>
+    </svg>
+  );
+}
+
 // Aliases for backward compatibility
 export const ShelfBoxIcon = BoxIcon;

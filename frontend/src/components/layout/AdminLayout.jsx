@@ -3,8 +3,9 @@ import { NavLink, useNavigate, useLocation, useSearchParams, Link } from 'react-
 import {
   LayoutDashboard, Package, Warehouse, ClipboardList,
   Users, Settings, LogOut, Menu, X, ChevronRight, BarChart3, AlertTriangle, Boxes, ArrowLeftRight,
-  ChevronDown, LayoutGrid, PackageSearch, Home, Coins, FlaskConical
+  ChevronDown, LayoutGrid, PackageSearch, Home, Coins
 } from 'lucide-react';
+import { RawMaterialsIcon } from '../../components/ui/WarehouseIcons';
 import { useAuth } from '../../context/AuthContext';
 import { cn } from '../../utils/cn';
 import api from '../../api/client';
@@ -182,7 +183,7 @@ export default function AdminLayout({ children }) {
                     className={({ isActive }) => cn('sidebar-link text-[13px] py-1.5', isActive && 'active')}
                     onClick={() => setSidebarOpen(false)}
                   >
-                    <FlaskConical size={15} className="flex-shrink-0" />
+                    <RawMaterialsIcon size={15} />
                     <span>Сырьё</span>
                   </NavLink>
                 </div>
@@ -225,7 +226,7 @@ export default function AdminLayout({ children }) {
             <LogOut className="w-4 h-4" />
             Выйти
           </button>
-          <p className="text-[10px] text-gray-300 dark:text-gray-600 mt-2 text-center">v2.3.0</p>
+          <p className="text-[10px] text-gray-300 dark:text-gray-600 mt-2 text-center">v2.3.1</p>
         </div>
       </aside>
 
