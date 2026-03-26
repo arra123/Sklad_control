@@ -148,4 +148,35 @@ router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
+// DELETE /api/materials/:id
+router.delete('/:id', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM tech_card_materials_s WHERE material_id = $1', [req.params.id]);
+    const result = await pool.query('DELETE FROM raw_materials_s WHERE id = $1 RETURNING id', [req.params.id]);
+    if (!result.rows.length) return res.status(404).json({ error: 'Не найдено' });
+    res.json({ deleted: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/materials/cleanup — удалить материалы которые являются нашими товарами
+router.post('/cleanup', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `DELETE FROM raw_materials_s rm
+       USING products_s p
+       WHERE rm.code = p.code AND rm.code IS NOT NULL
+       RETURNING rm.id, rm.name, rm.code`
+    );
+    // Cleanup orphaned tech_card_materials
+    await pool.query(
+      `DELETE FROM tech_card_materials_s WHERE material_id NOT IN (SELECT id FROM raw_materials_s)`
+    );
+    res.json({ deleted: result.rows.length, items: result.rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

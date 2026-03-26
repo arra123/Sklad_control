@@ -230,6 +230,19 @@ async function importTechCards(pool, { token: overrideToken } = {}) {
         }
 
         const meta = productCache.get(matProductUuid);
+
+        // Skip materials that are our own products (by code or UUID match)
+        if (meta.code) {
+          const isOurProduct = await pool.query(
+            'SELECT 1 FROM products_s WHERE code = $1 OR external_id = $2 LIMIT 1',
+            [meta.code, matProductUuid]
+          );
+          if (isOurProduct.rows.length > 0) {
+            console.log(`[techCardImport]   Material "${meta.name}" is our product — skipping`);
+            continue;
+          }
+        }
+
         const category = classifyMaterial(meta.name, meta.pathName);
 
         resolvedMaterials.push({
