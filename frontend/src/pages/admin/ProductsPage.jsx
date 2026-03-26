@@ -75,7 +75,7 @@ function parsePrices(sourceJson) {
     }));
 }
 
-function BarcodeRow({ label, value, kind, onDelete, ozonStatus, onOzonClick }) {
+function BarcodeRow({ label, value, kind, onDelete, ozonStatus, onOzonClick, wbStatus, wbData, onWbCheck }) {
   const [copied, setCopied] = useState(false);
   const colors = MARKETPLACE_COLORS[kind] || MARKETPLACE_COLORS.unknown;
   return (
@@ -85,6 +85,26 @@ function BarcodeRow({ label, value, kind, onDelete, ozonStatus, onOzonClick }) {
                : <span className="text-xs text-gray-300 italic">—</span>}
       </div>
       <span className="flex-1 text-xs font-mono text-gray-700 min-w-0 truncate">{value}</span>
+      {/* WB check button / status */}
+      {onWbCheck && wbStatus === undefined && (
+        <button onClick={() => onWbCheck(value)} className="flex-shrink-0 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-purple-50 text-purple-600 border border-purple-200 hover:bg-purple-100 transition-colors" title="Проверить на Wildberries">
+          WB
+        </button>
+      )}
+      {wbStatus === 'loading' && (
+        <span className="flex-shrink-0 w-5 h-5 flex items-center justify-center"><Spinner size="sm" /></span>
+      )}
+      {wbStatus === 'found' && (
+        <span className="flex-shrink-0 flex items-center gap-1 px-1.5 py-0.5 rounded bg-green-50 border border-green-200" title={wbData ? `WB: ${wbData.vendorCode} — ${wbData.title}` : 'Найден на WB'}>
+          <Check size={11} className="text-green-600" />
+          <span className="text-[10px] text-green-700 font-semibold max-w-[80px] truncate">{wbData?.vendorCode || 'WB'}</span>
+        </span>
+      )}
+      {wbStatus === 'not_found' && (
+        <span className="flex-shrink-0 w-5 h-5 rounded-full bg-red-50 flex items-center justify-center border border-red-200" title="Не найден на WB">
+          <X size={11} className="text-red-500" />
+        </span>
+      )}
       {ozonStatus === 'found' && (
         <button onClick={onOzonClick} className="flex-shrink-0 w-5 h-5 rounded-full bg-green-100 flex items-center justify-center hover:bg-green-200 transition-colors" title="Найден на Ozon ИП И.">
           <Check size={11} className="text-green-600" />
@@ -477,6 +497,26 @@ export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
   const [ozonLoadingStore, setOzonLoadingStore] = useState(null);
   const [expandedOzon, setExpandedOzon] = useState(null);
 
+  // WB barcode check state: { [barcode]: { status: 'loading'|'found'|'not_found', data?: {...} } }
+  const [wbResults, setWbResults] = useState({});
+
+  const checkWbBarcode = async (barcode) => {
+    setWbResults(prev => ({ ...prev, [barcode]: { status: 'loading' } }));
+    try {
+      const res = await api.post('/products/wb-check', { barcode });
+      if (res.data.found) {
+        setWbResults(prev => ({ ...prev, [barcode]: { status: 'found', data: res.data } }));
+        toast.success(`WB: ${res.data.vendorCode} — ${res.data.title}`);
+      } else {
+        setWbResults(prev => ({ ...prev, [barcode]: { status: 'not_found' } }));
+        toast.error('WB: штрих-код не найден');
+      }
+    } catch (err) {
+      setWbResults(prev => ({ ...prev, [barcode]: { status: 'not_found' } }));
+      toast.error('Ошибка WB: ' + (err.response?.data?.error || err.message));
+    }
+  };
+
   const checkOzonStore = async (storeKey, storeLabel) => {
     const allBc = (product ? parseBarcodes(product) : []).map(b => b.value);
     if (allBc.length === 0) return;
@@ -585,6 +625,9 @@ export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
                           onDelete={handleDeleteBarcode}
                           ozonStatus={ozonFound ? 'found' : undefined}
                           onOzonClick={() => setExpandedOzon(isExpanded ? null : bc.value)}
+                          wbStatus={wbResults[bc.value]?.status}
+                          wbData={wbResults[bc.value]?.data}
+                          onWbCheck={checkWbBarcode}
                         />
                         {isExpanded && ozData?.ozon_product && (
                           <div className="ml-3 mt-1 mb-1 px-3 py-2 bg-green-50 rounded-lg border border-green-100 text-xs">

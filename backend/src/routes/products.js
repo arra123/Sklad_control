@@ -467,6 +467,99 @@ router.get('/barcode/:value', requireAuth, async (req, res) => {
   }
 });
 
+// POST /api/products/wb-check — check barcode on Wildberries (READ ONLY)
+router.post('/wb-check', requireAuth, requireAdmin, async (req, res) => {
+  const { barcode } = req.body;
+  if (!barcode?.trim()) return res.status(400).json({ error: 'Штрих-код обязателен' });
+
+  const config = require('../config');
+  const token = config.wbToken;
+  if (!token) return res.status(500).json({ error: 'WB_TOKEN не настроен' });
+
+  const https = require('https');
+
+  function wbPost(body) {
+    return new Promise((resolve, reject) => {
+      const data = JSON.stringify(body);
+      const req = https.request({
+        hostname: 'content-api.wildberries.ru',
+        path: '/content/v2/get/cards/list',
+        method: 'POST',
+        headers: {
+          'Authorization': token,
+          'Content-Type': 'application/json',
+        },
+      }, resp => {
+        let buf = '';
+        resp.on('data', c => buf += c);
+        resp.on('end', () => { try { resolve(JSON.parse(buf)); } catch { reject(new Error('Invalid JSON from WB')); } });
+      });
+      req.on('error', reject);
+      req.write(data);
+      req.end();
+    });
+  }
+
+  const bc = barcode.trim();
+
+  try {
+    // Try textSearch first (faster)
+    const searchResult = await wbPost({
+      settings: { cursor: { limit: 100 }, filter: { withPhoto: -1, textSearch: bc } },
+    });
+
+    const cards = searchResult?.cards || searchResult?.data?.cards || [];
+    for (const card of cards) {
+      for (const size of (card.sizes || [])) {
+        if ((size.skus || []).includes(bc)) {
+          return res.json({
+            found: true,
+            nmID: card.nmID,
+            vendorCode: card.vendorCode,
+            title: card.title,
+            barcode: bc,
+            wbSize: size.techSize || size.wbSize || '',
+          });
+        }
+      }
+    }
+
+    // Fallback: paginate through all cards
+    let cursor = { limit: 100 };
+    for (let page = 0; page < 100; page++) {
+      const result = await wbPost({
+        settings: { cursor, filter: { withPhoto: -1 } },
+      });
+
+      const allCards = result?.cards || result?.data?.cards || [];
+      if (allCards.length === 0) break;
+
+      for (const card of allCards) {
+        for (const size of (card.sizes || [])) {
+          if ((size.skus || []).includes(bc)) {
+            return res.json({
+              found: true,
+              nmID: card.nmID,
+              vendorCode: card.vendorCode,
+              title: card.title,
+              barcode: bc,
+              wbSize: size.techSize || size.wbSize || '',
+            });
+          }
+        }
+      }
+
+      const updatedCursor = result?.cursor || result?.data?.cursor;
+      if (!updatedCursor?.updatedAt || allCards.length < 100) break;
+      cursor = { limit: 100, updatedAt: updatedCursor.updatedAt, nmID: updatedCursor.nmID };
+    }
+
+    res.json({ found: false });
+  } catch (err) {
+    res.status(500).json({ error: 'Ошибка WB API: ' + err.message });
+  }
+});
+
 // POST /api/products/check-ozon — check barcode on Ozon marketplace (READ ONLY)
 // ─── Ozon stores config ──────────────────────────────────────────────────────
 const OZON_STORES = {
