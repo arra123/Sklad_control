@@ -180,6 +180,48 @@ function MaterialDetailModal({ materialId, onClose, onUpdated }) {
               </div>
             )}
 
+            {/* Recipe: what this material consists of */}
+            {!editing && data.recipe?.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                  Состоит из ({data.recipe.length})
+                </p>
+                <div className="space-y-1.5">
+                  {data.recipe.map((r, i) => (
+                    <div key={r.recipe_id || i} className="flex items-center gap-3 px-3 py-2 rounded-lg bg-gray-50 border border-gray-100">
+                      <span className="flex-shrink-0">{groupIcon(r.material_group, 16)}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-800 truncate">{r.name}</p>
+                        {r.code && <p className="text-[10px] text-gray-400">{r.code}</p>}
+                      </div>
+                      <span className="text-sm font-bold text-gray-900 flex-shrink-0">{fmtQty(r.quantity)} {r.unit || 'шт'}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Used in other materials */}
+            {!editing && data.used_in_materials?.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                  Используется в ({data.used_in_materials.length})
+                </p>
+                <div className="space-y-1.5">
+                  {data.used_in_materials.map((m, i) => (
+                    <div key={m.id || i} className="flex items-center gap-3 px-3 py-2 rounded-lg bg-gray-50 border border-gray-100 cursor-pointer hover:bg-purple-50/30" onClick={() => { onClose(); setTimeout(() => setSelectedId?.(m.id), 100); }}>
+                      <span className="flex-shrink-0">{groupIcon(m.material_group, 16)}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-[#7c3aed] truncate">{m.name}</p>
+                        {m.code && <p className="text-[10px] text-gray-400">{m.code}</p>}
+                      </div>
+                      <span className="text-sm font-bold text-gray-900 flex-shrink-0">{fmtQty(m.quantity)} {data.unit || 'шт'}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {!editing && data.tech_cards?.length > 0 && (
               <div>
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-1.5"><TechCardIcon size={14} /> Используется в тех. картах ({data.tech_cards.length})</p>

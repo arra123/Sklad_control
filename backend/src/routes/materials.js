@@ -111,7 +111,34 @@ router.get('/:id', requireAuth, async (req, res) => {
       [material.id]
     );
 
-    res.json({ ...material, tech_cards: techCardsResult.rows });
+    // Recipe: what this material consists of (for semi-products)
+    const recipeResult = await pool.query(
+      `SELECT mr.id as recipe_id, mr.quantity, mr.sort_order,
+              rm.id, rm.name, rm.code, rm.unit, rm.category, rm.material_group
+       FROM material_recipe_s mr
+       JOIN raw_materials_s rm ON rm.id = mr.ingredient_id
+       WHERE mr.material_id = $1
+       ORDER BY mr.sort_order, rm.name`,
+      [material.id]
+    );
+
+    // Used in: which materials use this one as ingredient
+    const usedInResult = await pool.query(
+      `SELECT mr.quantity,
+              rm.id, rm.name, rm.code, rm.unit, rm.material_group
+       FROM material_recipe_s mr
+       JOIN raw_materials_s rm ON rm.id = mr.material_id
+       WHERE mr.ingredient_id = $1
+       ORDER BY rm.name`,
+      [material.id]
+    );
+
+    res.json({
+      ...material,
+      tech_cards: techCardsResult.rows,
+      recipe: recipeResult.rows,
+      used_in_materials: usedInResult.rows,
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -146,6 +173,33 @@ router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
 
     if (!result.rows.length) return res.status(404).json({ error: 'Сырьё не найдено' });
     res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/materials/:id/recipe — add ingredient to material recipe
+router.post('/:id/recipe', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { ingredient_id, quantity } = req.body;
+    if (!ingredient_id) return res.status(400).json({ error: 'ingredient_id обязателен' });
+    const maxOrder = await pool.query('SELECT COALESCE(MAX(sort_order),0)+1 as next FROM material_recipe_s WHERE material_id=$1', [req.params.id]);
+    const result = await pool.query(
+      `INSERT INTO material_recipe_s (material_id, ingredient_id, quantity, sort_order)
+       VALUES ($1, $2, $3, $4) RETURNING *`,
+      [req.params.id, ingredient_id, quantity || 0, maxOrder.rows[0].next]
+    );
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/materials/:id/recipe/:recipeId
+router.delete('/:id/recipe/:recipeId', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM material_recipe_s WHERE id=$1 AND material_id=$2', [req.params.recipeId, req.params.id]);
+    res.json({ deleted: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

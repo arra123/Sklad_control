@@ -131,6 +131,21 @@ async function createSchema() {
     await client.query(`ALTER TABLE raw_materials_s ADD COLUMN IF NOT EXISTS notes TEXT`);
     await client.query(`ALTER TABLE raw_materials_s ADD COLUMN IF NOT EXISTS material_group VARCHAR(50) DEFAULT 'другое'`);
 
+    // ─── Material Recipe (what a material consists of) ─────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS material_recipe_s (
+        id SERIAL PRIMARY KEY,
+        material_id INTEGER NOT NULL REFERENCES raw_materials_s(id) ON DELETE CASCADE,
+        ingredient_id INTEGER NOT NULL REFERENCES raw_materials_s(id) ON DELETE CASCADE,
+        quantity NUMERIC(15,4) NOT NULL DEFAULT 0,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE(material_id, ingredient_id)
+      )
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_material_recipe_c_mat ON material_recipe_s(material_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_material_recipe_c_ing ON material_recipe_s(ingredient_id)`);
+
     // ─── Tech Cards (production recipes) ───────────────────────────
     await client.query(`
       CREATE TABLE IF NOT EXISTS tech_cards_s (
