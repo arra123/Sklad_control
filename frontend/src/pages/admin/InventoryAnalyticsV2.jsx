@@ -52,7 +52,7 @@ function statusColor(node, settings = {}) {
   const cFresh = settings.inventory_color_fresh || '#047857';
   const cWarn = settings.inventory_color_warn || '#a16207';
   const cStale = settings.inventory_color_stale || '#b91c1c';
-  const cNone = settings.inventory_color_none || '#b91c1c';
+  const cNone = settings.inventory_color_none || '#a16207';
 
   if (!node.last_inventory_at) return { ...hexToBgBorder(cNone), label: 'Не было' };
   const hours = (Date.now() - new Date(node.last_inventory_at).getTime()) / 3600000;
@@ -598,12 +598,18 @@ function OverviewPanel({ data, settings, singleWarehouse, onSelectNode }) {
 /* ═══════════════════ Detail Header Card (v2 style) ═══════════════════ */
 
 function DetailHeaderCard({ node, type, breadcrumb, childrenLabel }) {
-  const invQty = Number(node.last_inventory_qty || 0);
   const curQty = Number(node.current_qty || 0);
-  const delta = invQty - curQty;
-  const dur = Number(node.last_inventory_duration_seconds || 0);
-  const avgPick = invQty > 0 && dur > 0 ? (dur / invQty).toFixed(1) : null;
-  const picksPerMin = invQty > 0 && dur > 0 ? (invQty / (dur / 60)).toFixed(1) : null;
+  const hasFullInv = node.last_inventory_qty != null;
+  const hasPartialInv = !hasFullInv && node.partial_inventory_qty != null;
+  const hasAnyInv = hasFullInv || hasPartialInv;
+  const invQty = hasFullInv ? Number(node.last_inventory_qty) : hasPartialInv ? Number(node.partial_inventory_qty) : null;
+  const delta = hasFullInv ? invQty - curQty : null;
+  const dur = Number(node.last_inventory_duration_seconds || node.partial_inventory_duration_seconds || 0);
+  const avgPick = hasAnyInv && invQty > 0 && dur > 0 ? (dur / invQty).toFixed(1) : null;
+  const picksPerMin = hasAnyInv && invQty > 0 && dur > 0 ? (invQty / (dur / 60)).toFixed(1) : null;
+  const covInfo = node.covered_leaf_count != null && node.total_leaf_count > 0
+    ? `${node.covered_leaf_count}/${node.total_leaf_count}`
+    : null;
 
   const iconBgColors = {
     rack: '#ecfdf5',
@@ -616,10 +622,13 @@ function DetailHeaderCard({ node, type, breadcrumb, childrenLabel }) {
   };
   const iconBg = iconBgColors[type] || '#f3f4f6';
 
-  const deltaColor = delta === 0 ? 'text-[#047857]' : Math.abs(delta) <= 5 ? 'text-[#a16207]' : 'text-[#b91c1c]';
-  const statusBadge = delta === 0
-    ? <span className="text-[11px] font-bold px-3 py-1 rounded-full uppercase tracking-wide bg-[#ecfdf5] text-[#047857]">Сходится</span>
-    : <span className="text-[11px] font-bold px-3 py-1 rounded-full uppercase tracking-wide bg-[#fffbeb] text-[#a16207]">{delta > 0 ? '+' : ''}{delta} расхождение</span>;
+  const statusBadge = !hasAnyInv
+    ? <span className="text-[11px] font-bold px-3 py-1 rounded-full uppercase tracking-wide bg-[#fffbeb] text-[#a16207]">Не было</span>
+    : hasPartialInv
+      ? <span className="text-[11px] font-bold px-3 py-1 rounded-full uppercase tracking-wide bg-[#fffbeb] text-[#a16207]">Частично {covInfo}</span>
+      : delta === 0
+        ? <span className="text-[11px] font-bold px-3 py-1 rounded-full uppercase tracking-wide bg-[#ecfdf5] text-[#047857]">Сходится</span>
+        : <span className="text-[11px] font-bold px-3 py-1 rounded-full uppercase tracking-wide bg-[#fffbeb] text-[#a16207]">{delta > 0 ? '+' : ''}{delta} расхождение</span>;
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 p-6 mb-5">
@@ -641,15 +650,17 @@ function DetailHeaderCard({ node, type, breadcrumb, childrenLabel }) {
       {/* Stats grid */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
         <div className="bg-gray-50 rounded-xl p-3 border border-gray-100 border-l-[3px] border-l-[#7c3aed]">
-          <p className="text-lg font-extrabold text-gray-900 leading-tight">{fmtQty(invQty)}</p>
-          <p className="text-[11px] text-gray-400 font-medium mt-0.5">Насчитано</p>
+          <p className="text-lg font-extrabold text-gray-900 leading-tight">{hasAnyInv ? fmtQty(invQty) : '—'}</p>
+          <p className="text-[11px] text-gray-400 font-medium mt-0.5">Насчитано{hasPartialInv && covInfo ? ` (${covInfo})` : ''}</p>
         </div>
         <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
           <p className="text-lg font-extrabold text-gray-900 leading-tight">{fmtQty(curQty)}</p>
           <p className="text-[11px] text-gray-400 font-medium mt-0.5">Текущий остаток</p>
         </div>
         <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
-          <p className={cn('text-lg font-extrabold leading-tight', deltaColor)}>{delta === 0 ? '0' : (delta > 0 ? '+' : '') + delta}</p>
+          <p className={cn('text-lg font-extrabold leading-tight', hasFullInv ? (delta === 0 ? 'text-[#047857]' : Math.abs(delta) <= 5 ? 'text-[#a16207]' : 'text-[#b91c1c]') : 'text-gray-300')}>
+            {hasFullInv ? (delta === 0 ? '0' : (delta > 0 ? '+' : '') + delta) : hasPartialInv ? 'частично' : '—'}
+          </p>
           <p className="text-[11px] text-gray-400 font-medium mt-0.5">Расхождение</p>
         </div>
         {dur > 0 && (
@@ -709,11 +720,14 @@ function RackRowDetail({ node, type, settings, onSelectNode }) {
       <div className="space-y-3">
         {items.map((child, i) => {
           const cst = statusColor(child, settings);
-          const cInv = Number(child.last_inventory_qty || 0);
+          const cHasInv = child.last_inventory_qty != null;
+          const cHasPartial = !cHasInv && child.partial_inventory_qty != null;
+          const cHasAny = cHasInv || cHasPartial;
+          const cInv = cHasInv ? Number(child.last_inventory_qty) : cHasPartial ? Number(child.partial_inventory_qty) : null;
           const cCur = Number(child.current_qty || 0);
-          const cDelta = cInv - cCur;
-          const cDur = Number(child.last_inventory_duration_seconds || 0);
-          const cAvgPick = cInv > 0 && cDur > 0 ? (cDur / cInv).toFixed(1) : null;
+          const cDelta = cHasInv ? cInv - cCur : null;
+          const cDur = Number(child.last_inventory_duration_seconds || child.partial_inventory_duration_seconds || 0);
+          const cAvgPick = cHasAny && cInv > 0 && cDur > 0 ? (cDur / cInv).toFixed(1) : null;
           return (
             <div key={child.id || i} className="bg-white rounded-xl border border-gray-100 p-4 hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer" style={{ borderLeft: `4px solid ${cst.text}` }} onClick={() => onSelectNode?.(child, getChildType(child), nodeId(child, getChildType(child)))}>
               <div className="flex items-center justify-between mb-2">
@@ -725,7 +739,7 @@ function RackRowDetail({ node, type, settings, onSelectNode }) {
               </div>
               <div className="grid grid-cols-3 gap-3 text-center bg-gray-50 rounded-lg p-2 mb-2">
                 <div>
-                  <p className="text-sm font-black text-gray-900">{fmtQty(cInv)}</p>
+                  <p className="text-sm font-black text-gray-900">{cHasAny ? fmtQty(cInv) : '—'}</p>
                   <p className="text-[10px] text-gray-400">по инвенту</p>
                 </div>
                 <div>
@@ -733,8 +747,8 @@ function RackRowDetail({ node, type, settings, onSelectNode }) {
                   <p className="text-[10px] text-gray-400">сейчас</p>
                 </div>
                 <div>
-                  <p className={cn('text-sm font-black', cDelta > 0 ? 'text-green-600' : cDelta < 0 ? 'text-red-600' : 'text-gray-400')}>
-                    {cDelta > 0 ? '+' : ''}{cDelta}
+                  <p className={cn('text-sm font-black', cHasInv ? (cDelta > 0 ? 'text-green-600' : cDelta < 0 ? 'text-red-600' : 'text-gray-400') : 'text-gray-300')}>
+                    {cHasInv ? ((cDelta > 0 ? '+' : '') + cDelta) : '—'}
                   </p>
                   <p className="text-[10px] text-gray-400">разница</p>
                 </div>
