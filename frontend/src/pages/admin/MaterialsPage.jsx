@@ -20,6 +20,7 @@ const GROUP_LABELS = {
   'порошки': { label: 'Порошки', color: 'bg-green-50 text-green-700', Icon: PowderIcon },
   'полуфабрикаты': { label: 'Полуфабрикаты', color: 'bg-purple-50 text-purple-700', Icon: SemiProductIcon },
   'этикетки': { label: 'Этикетки', color: 'bg-amber-50 text-amber-700', Icon: LabelIcon },
+  'смеси': { label: 'Смеси', color: 'bg-orange-50 text-orange-700', Icon: PowderIcon },
   'расходники': { label: 'Расходники', color: 'bg-blue-50 text-blue-700', Icon: SuppliesIcon },
   'другое': { label: 'Другое', color: 'bg-gray-100 text-gray-600', Icon: PackagingMaterialIcon },
 };

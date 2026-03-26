@@ -144,6 +144,22 @@ router.get('/:id', requireAuth, async (req, res) => {
   }
 });
 
+// POST /api/materials — create new material
+router.post('/', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { name, code, unit, category, material_group, folder_path, stock, buy_price } = req.body;
+    if (!name) return res.status(400).json({ error: 'name обязателен' });
+    const result = await pool.query(
+      `INSERT INTO raw_materials_s (name, code, unit, category, material_group, folder_path, stock, buy_price)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      [name, code || null, unit || 'шт', category || 'ingredient', material_group || 'другое', folder_path || null, stock || 0, buy_price || null]
+    );
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // PUT /api/materials/:id
 router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
   try {
