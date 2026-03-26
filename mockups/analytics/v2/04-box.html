@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GRA&#1089;&#1082;&#1083;&#1072;&#1076; — &#1050;&#1086;&#1088;&#1086;&#1073;&#1082;&#1072; &#1056;1&#1055;1&#1050;1</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',sans-serif;background:#f9fafb;color:#1f2937;min-height:100vh}
+.container{max-width:1200px;margin:0 auto;padding:20px 16px}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+.fade-up{animation:fadeUp .5s ease forwards;opacity:0}
+.fade-up-1{animation-delay:.05s}
+.fade-up-2{animation-delay:.1s}
+.fade-up-3{animation-delay:.15s}
+.fade-up-4{animation-delay:.2s}
+
+.breadcrumb{display:flex;align-items:center;gap:8px;font-size:13px;color:#9ca3af;margin-bottom:20px;flex-wrap:wrap}
+.breadcrumb a{color:#7c3aed;text-decoration:none;font-weight:500}
+.breadcrumb a:hover{text-decoration:underline}
+.breadcrumb span.sep{color:#d1d5db}
+
+/* Stat strip horizontal */
+.stat-strip{display:flex;gap:0;background:#fff;border:1px solid #f3f4f6;border-radius:16px;box-shadow:0 1px 3px rgba(0,0,0,.05);margin-bottom:20px;overflow:hidden}
+.ss-item{flex:1;padding:14px 12px;text-align:center;border-right:1px solid #f3f4f6}
+.ss-item:last-child{border-right:none}
+.ss-value{font-size:20px;font-weight:800}
+.ss-label{font-size:10px;color:#9ca3af;font-weight:500;margin-top:2px}
+.ss-purple .ss-value{color:#7c3aed}
+.ss-green .ss-value{color:#047857}
+.ss-red .ss-value{color:#b91c1c}
+@media(max-width:640px){.stat-strip{flex-wrap:wrap}.ss-item{min-width:33%}}
+
+.box-header{display:flex;align-items:center;gap:12px;margin-bottom:20px}
+.bh-icon{width:44px;height:44px;background:#f5f3ff;border-radius:10px;display:flex;align-items:center;justify-content:center}
+.bh-info h1{font-size:20px;font-weight:800}
+.bh-info h1 span{color:#7c3aed}
+.bh-info .bh-sub{font-size:12px;color:#6b7280;margin-top:2px}
+
+.table-card{background:#fff;border:1px solid #f3f4f6;border-radius:16px;box-shadow:0 1px 3px rgba(0,0,0,.05);overflow:hidden;margin-bottom:20px}
+.table-title{padding:16px 20px 0;font-size:15px;font-weight:700}
+.table-subtitle{padding:4px 20px 8px;font-size:12px;color:#9ca3af}
+
+.data-table{width:100%;border-collapse:collapse;font-size:13px}
+.data-table th{text-align:left;padding:10px 16px;font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;background:#f9fafb;border-bottom:1px solid #f3f4f6;white-space:nowrap}
+.data-table td{padding:10px 16px;border-bottom:1px solid #f3f4f6;vertical-align:middle}
+.data-table tr:last-child td{border-bottom:none}
+.data-table tbody tr{transition:background .15s}
+.data-table tbody tr:hover{background:#f5f3ff}
+
+.delta-pos{color:#047857;font-weight:700}
+.delta-neg{color:#b91c1c;font-weight:700}
+.delta-zero{color:#9ca3af;font-weight:500}
+.num-cell{color:#9ca3af;font-weight:600;width:36px}
+.code-cell{color:#9ca3af;font-size:12px}
+.speed-cell{font-size:12px;color:#6b7280}
+.speed-fast{color:#047857}
+.speed-slow{color:#a16207}
+
+.inv-header{display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid #f3f4f6;cursor:pointer}
+.inv-header:hover{background:#f9fafb}
+.inv-title{font-weight:600;font-size:14px}
+.inv-meta{font-size:12px;color:#9ca3af;display:flex;gap:10px;align-items:center;margin-top:2px}
+.inv-badge{padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700}
+.inv-badge-pos{background:#ecfdf5;color:#047857}
+.inv-badge-neg{background:#fef2f2;color:#b91c1c}
+.inv-badge-zero{background:#f3f4f6;color:#6b7280}
+.inv-body{display:none}
+.inv-body.open{display:block}
+</style>
+</head>
+<body>
+<div class="container">
+  <nav class="breadcrumb fade-up fade-up-1">
+    <a href="01-overview.html">&#1054;&#1073;&#1079;&#1086;&#1088;</a>
+    <span class="sep">/</span>
+    <a href="01-overview.html">&#1054;&#1089;&#1085;&#1086;&#1074;&#1085;&#1086;&#1081; &#1089;&#1082;&#1083;&#1072;&#1076;</a>
+    <span class="sep">/</span>
+    <a href="02-rack.html">&#1057;&#1090;&#1077;&#1083;&#1083;&#1072;&#1078; &#1040;1</a>
+    <span class="sep">/</span>
+    <a href="03-shelf.html">&#1055;&#1086;&#1083;&#1082;&#1072; 1</a>
+    <span class="sep">/</span>
+    <span>&#1056;1&#1055;1&#1050;1</span>
+  </nav>
+
+  <div class="box-header fade-up fade-up-1">
+    <div class="bh-icon">
+      <svg width="24" height="24" viewBox="0 0 48 48" fill="none"><path d="M6 16L24 6l18 10v20L24 46 6 36V16z" fill="#d4a76a" stroke="#b8884a" stroke-width="1.5" stroke-linejoin="round"/><path d="M6 16l18 8 18-8" fill="#e8c888" stroke="#b8884a" stroke-width="1"/><path d="M24 24v22" stroke="#b8884a" stroke-width="1"/><path d="M24 24l18-8v20L24 46z" fill="#c49558"/></svg>
+    </div>
+    <div class="bh-info">
+      <h1><span>&#1050;&#1086;&#1088;&#1086;&#1073;&#1082;&#1072; &#1056;1&#1055;1&#1050;1</span></h1>
+      <div class="bh-sub">&#1055;&#1086;&#1083;&#1082;&#1072; 1 &middot; &#1057;&#1090;&#1077;&#1083;&#1083;&#1072;&#1078; &#1040;1 &middot; 3 &#1080;&#1085;&#1074;&#1077;&#1085;&#1090;&#1072;&#1088;&#1080;&#1079;&#1072;&#1094;&#1080;&#1080;</div>
+    </div>
+  </div>
+
+  <div class="stat-strip fade-up fade-up-2">
+    <div class="ss-item"><div class="ss-value">18</div><div class="ss-label">&#1057;&#1077;&#1081;&#1095;&#1072;&#1089;</div></div>
+    <div class="ss-item"><div class="ss-value">17</div><div class="ss-label">&#1055;&#1086; &#1080;&#1085;&#1074;&#1077;&#1085;&#1090;&#1091;</div></div>
+    <div class="ss-item ss-green"><div class="ss-value">+1</div><div class="ss-label">&#1056;&#1072;&#1079;&#1085;&#1080;&#1094;&#1072;</div></div>
+    <div class="ss-item ss-purple"><div class="ss-value">16</div><div class="ss-label">&#1055;&#1088;&#1077;&#1076;. &#1080;&#1085;&#1074;&#1077;&#1085;&#1090;</div></div>
+    <div class="ss-item"><div class="ss-value">6</div><div class="ss-label">SKU</div></div>
+    <div class="ss-item"><div class="ss-value">3 &#1084;&#1080;&#1085;</div><div class="ss-label">&#1057;&#1088;. &#1076;&#1083;&#1080;&#1090;.</div></div>
+  </div>
+
+  <!-- Inventory 1 (expanded) -->
+  <div class="table-card fade-up fade-up-3">
+    <div class="inv-header" onclick="this.nextElementSibling.classList.toggle('open')">
+      <div>
+        <div class="inv-title">25 &#1084;&#1072;&#1088;&#1090;&#1072; 2026, 14:32</div>
+        <div class="inv-meta">
+          <span>&#1048;&#1074;&#1072;&#1085;&#1086;&#1074;&#1072; &#1040;.</span>
+          <span>3 &#1084;&#1080;&#1085;</span>
+          <span>6 &#1089;&#1082;&#1072;&#1085;&#1086;&#1074;</span>
+        </div>
+      </div>
+      <span class="inv-badge inv-badge-pos">+1</span>
+    </div>
+    <div class="inv-body open">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>&#1058;&#1086;&#1074;&#1072;&#1088;</th>
+            <th>&#1050;&#1086;&#1076;</th>
+            <th>&#1042;&#1088;&#1077;&#1084;&#1103;</th>
+            <th>&#1048;&#1085;&#1090;&#1077;&#1088;&#1074;&#1072;&#1083;</th>
+            <th>&#1056;&#1072;&#1079;&#1085;&#1080;&#1094;&#1072;</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="num-cell">1</td>
+            <td><strong>&#1060;&#1091;&#1090;&#1073;&#1086;&#1083;&#1082;&#1072; &#1073;&#1077;&#1083;&#1072;&#1103; XL</strong></td>
+            <td class="code-cell">SKU-00142</td>
+            <td>14:32:04</td>
+            <td class="speed-cell">&#8212;</td>
+            <td class="delta-pos">+1</td>
+          </tr>
+          <tr>
+            <td class="num-cell">2</td>
+            <td><strong>&#1060;&#1091;&#1090;&#1073;&#1086;&#1083;&#1082;&#1072; &#1095;&#1105;&#1088;&#1085;&#1072;&#1103; M</strong></td>
+            <td class="code-cell">SKU-00143</td>
+            <td>14:32:18</td>
+            <td class="speed-cell speed-fast">14&#1089;</td>
+            <td class="delta-zero">0</td>
+          </tr>
+          <tr>
+            <td class="num-cell">3</td>
+            <td><strong>&#1055;&#1086;&#1083;&#1086; &#1089;&#1080;&#1085;&#1077;&#1077; L</strong></td>
+            <td class="code-cell">SKU-00287</td>
+            <td>14:32:45</td>
+            <td class="speed-cell speed-fast">27&#1089;</td>
+            <td class="delta-zero">0</td>
+          </tr>
+          <tr>
+            <td class="num-cell">4</td>
+            <td><strong>&#1053;&#1086;&#1089;&#1082;&#1080; &#1093;/&#1073; &#1091;&#1087;&#1072;&#1082;&#1086;&#1074;&#1082;&#1072;</strong></td>
+            <td class="code-cell">SKU-00501</td>
+            <td>14:33:12</td>
+            <td class="speed-cell speed-fast">27&#1089;</td>
+            <td class="delta-zero">0</td>
+          </tr>
+          <tr>
+            <td class="num-cell">5</td>
+            <td><strong>&#1056;&#1077;&#1084;&#1077;&#1085;&#1100; &#1082;&#1086;&#1078;&#1072;&#1085;&#1099;&#1081;</strong></td>
+            <td class="code-cell">SKU-00612</td>
+            <td>14:34:01</td>
+            <td class="speed-cell speed-slow">49&#1089;</td>
+            <td class="delta-zero">0</td>
+          </tr>
+          <tr>
+            <td class="num-cell">6</td>
+            <td><strong>&#1064;&#1072;&#1087;&#1082;&#1072; &#1074;&#1103;&#1079;&#1072;&#1085;&#1072;&#1103;</strong></td>
+            <td class="code-cell">SKU-00718</td>
+            <td>14:35:10</td>
+            <td class="speed-cell speed-slow">1&#1084;09&#1089;</td>
+            <td class="delta-zero">0</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Inventory 2 (collapsed) -->
+  <div class="table-card fade-up fade-up-4">
+    <div class="inv-header" onclick="this.nextElementSibling.classList.toggle('open')">
+      <div>
+        <div class="inv-title">23 &#1084;&#1072;&#1088;&#1090;&#1072; 2026, 09:15</div>
+        <div class="inv-meta">
+          <span>&#1055;&#1077;&#1090;&#1088;&#1086;&#1074; &#1052;.</span>
+          <span>5 &#1084;&#1080;&#1085;</span>
+          <span>6 &#1089;&#1082;&#1072;&#1085;&#1086;&#1074;</span>
+        </div>
+      </div>
+      <span class="inv-badge inv-badge-neg">-2</span>
+    </div>
+    <div class="inv-body">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>&#1058;&#1086;&#1074;&#1072;&#1088;</th>
+            <th>&#1050;&#1086;&#1076;</th>
+            <th>&#1042;&#1088;&#1077;&#1084;&#1103;</th>
+            <th>&#1048;&#1085;&#1090;&#1077;&#1088;&#1074;&#1072;&#1083;</th>
+            <th>&#1056;&#1072;&#1079;&#1085;&#1080;&#1094;&#1072;</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="num-cell">1</td>
+            <td><strong>&#1060;&#1091;&#1090;&#1073;&#1086;&#1083;&#1082;&#1072; &#1073;&#1077;&#1083;&#1072;&#1103; XL</strong></td>
+            <td class="code-cell">SKU-00142</td>
+            <td>09:15:22</td>
+            <td class="speed-cell">&#8212;</td>
+            <td class="delta-neg">-1</td>
+          </tr>
+          <tr>
+            <td class="num-cell">2</td>
+            <td><strong>&#1060;&#1091;&#1090;&#1073;&#1086;&#1083;&#1082;&#1072; &#1095;&#1105;&#1088;&#1085;&#1072;&#1103; M</strong></td>
+            <td class="code-cell">SKU-00143</td>
+            <td>09:16:05</td>
+            <td class="speed-cell speed-slow">43&#1089;</td>
+            <td class="delta-zero">0</td>
+          </tr>
+          <tr>
+            <td class="num-cell">3</td>
+            <td><strong>&#1055;&#1086;&#1083;&#1086; &#1089;&#1080;&#1085;&#1077;&#1077; L</strong></td>
+            <td class="code-cell">SKU-00287</td>
+            <td>09:17:30</td>
+            <td class="speed-cell speed-slow">1&#1084;25&#1089;</td>
+            <td class="delta-neg">-1</td>
+          </tr>
+          <tr>
+            <td class="num-cell">4</td>
+            <td><strong>&#1053;&#1086;&#1089;&#1082;&#1080; &#1093;/&#1073; &#1091;&#1087;&#1072;&#1082;&#1086;&#1074;&#1082;&#1072;</strong></td>
+            <td class="code-cell">SKU-00501</td>
+            <td>09:18:02</td>
+            <td class="speed-cell speed-fast">32&#1089;</td>
+            <td class="delta-zero">0</td>
+          </tr>
+          <tr>
+            <td class="num-cell">5</td>
+            <td><strong>&#1056;&#1077;&#1084;&#1077;&#1085;&#1100; &#1082;&#1086;&#1078;&#1072;&#1085;&#1099;&#1081;</strong></td>
+            <td class="code-cell">SKU-00612</td>
+            <td>09:19:14</td>
+            <td class="speed-cell speed-slow">1&#1084;12&#1089;</td>
+            <td class="delta-zero">0</td>
+          </tr>
+          <tr>
+            <td class="num-cell">6</td>
+            <td><strong>&#1064;&#1072;&#1087;&#1082;&#1072; &#1074;&#1103;&#1079;&#1072;&#1085;&#1072;&#1103;</strong></td>
+            <td class="code-cell">SKU-00718</td>
+            <td>09:20:08</td>
+            <td class="speed-cell speed-slow">54&#1089;</td>
+            <td class="delta-zero">0</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Inventory 3 (collapsed) -->
+  <div class="table-card fade-up fade-up-4">
+    <div class="inv-header" onclick="this.nextElementSibling.classList.toggle('open')">
+      <div>
+        <div class="inv-title">18 &#1084;&#1072;&#1088;&#1090;&#1072; 2026, 11:40</div>
+        <div class="inv-meta">
+          <span>&#1057;&#1080;&#1076;&#1086;&#1088;&#1086;&#1074;&#1072; &#1050;.</span>
+          <span>4 &#1084;&#1080;&#1085;</span>
+          <span>6 &#1089;&#1082;&#1072;&#1085;&#1086;&#1074;</span>
+        </div>
+      </div>
+      <span class="inv-badge inv-badge-zero">0</span>
+    </div>
+    <div class="inv-body">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>&#1058;&#1086;&#1074;&#1072;&#1088;</th>
+            <th>&#1050;&#1086;&#1076;</th>
+            <th>&#1042;&#1088;&#1077;&#1084;&#1103;</th>
+            <th>&#1048;&#1085;&#1090;&#1077;&#1088;&#1074;&#1072;&#1083;</th>
+            <th>&#1056;&#1072;&#1079;&#1085;&#1080;&#1094;&#1072;</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="num-cell">1</td>
+            <td><strong>&#1060;&#1091;&#1090;&#1073;&#1086;&#1083;&#1082;&#1072; &#1073;&#1077;&#1083;&#1072;&#1103; XL</strong></td>
+            <td class="code-cell">SKU-00142</td>
+            <td>11:40:10</td>
+            <td class="speed-cell">&#8212;</td>
+            <td class="delta-zero">0</td>
+          </tr>
+          <tr>
+            <td class="num-cell">2</td>
+            <td><strong>&#1060;&#1091;&#1090;&#1073;&#1086;&#1083;&#1082;&#1072; &#1095;&#1105;&#1088;&#1085;&#1072;&#1103; M</strong></td>
+            <td class="code-cell">SKU-00143</td>
+            <td>11:40:35</td>
+            <td class="speed-cell speed-fast">25&#1089;</td>
+            <td class="delta-zero">0</td>
+          </tr>
+          <tr>
+            <td class="num-cell">3</td>
+            <td><strong>&#1055;&#1086;&#1083;&#1086; &#1089;&#1080;&#1085;&#1077;&#1077; L</strong></td>
+            <td class="code-cell">SKU-00287</td>
+            <td>11:41:08</td>
+            <td class="speed-cell speed-fast">33&#1089;</td>
+            <td class="delta-zero">0</td>
+          </tr>
+          <tr>
+            <td class="num-cell">4</td>
+            <td><strong>&#1053;&#1086;&#1089;&#1082;&#1080; &#1093;/&#1073; &#1091;&#1087;&#1072;&#1082;&#1086;&#1074;&#1082;&#1072;</strong></td>
+            <td class="code-cell">SKU-00501</td>
+            <td>11:42:00</td>
+            <td class="speed-cell speed-slow">52&#1089;</td>
+            <td class="delta-zero">0</td>
+          </tr>
+          <tr>
+            <td class="num-cell">5</td>
+            <td><strong>&#1056;&#1077;&#1084;&#1077;&#1085;&#1100; &#1082;&#1086;&#1078;&#1072;&#1085;&#1099;&#1081;</strong></td>
+            <td class="code-cell">SKU-00612</td>
+            <td>11:42:30</td>
+            <td class="speed-cell speed-fast">30&#1089;</td>
+            <td class="delta-zero">0</td>
+          </tr>
+          <tr>
+            <td class="num-cell">6</td>
+            <td><strong>&#1064;&#1072;&#1087;&#1082;&#1072; &#1074;&#1103;&#1079;&#1072;&#1085;&#1072;&#1103;</strong></td>
+            <td class="code-cell">SKU-00718</td>
+            <td>11:43:15</td>
+            <td class="speed-cell speed-slow">45&#1089;</td>
+            <td class="delta-zero">0</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+</body>
+</html>

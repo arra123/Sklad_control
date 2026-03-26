@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GRA&#1089;&#1082;&#1083;&#1072;&#1076; — &#1057;&#1090;&#1077;&#1083;&#1083;&#1072;&#1078; &#1040;1</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',sans-serif;background:#f9fafb;color:#1f2937;min-height:100vh}
+.container{max-width:1200px;margin:0 auto;padding:20px 16px}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+.fade-up{animation:fadeUp .5s ease forwards;opacity:0}
+.fade-up:nth-child(1){animation-delay:.05s}
+.fade-up:nth-child(2){animation-delay:.1s}
+.fade-up:nth-child(3){animation-delay:.15s}
+.fade-up:nth-child(4){animation-delay:.2s}
+.fade-up:nth-child(5){animation-delay:.25s}
+.fade-up:nth-child(6){animation-delay:.3s}
+
+/* Breadcrumb */
+.breadcrumb{display:flex;align-items:center;gap:8px;font-size:13px;color:#9ca3af;margin-bottom:20px;flex-wrap:wrap}
+.breadcrumb a{color:#7c3aed;text-decoration:none;font-weight:500}
+.breadcrumb a:hover{text-decoration:underline}
+.breadcrumb span.sep{color:#d1d5db}
+
+/* Header Card */
+.header-card{background:#fff;border:1px solid #f3f4f6;border-radius:16px;padding:24px;box-shadow:0 1px 3px rgba(0,0,0,.05);margin-bottom:24px}
+.hc-top{display:flex;align-items:center;gap:16px;margin-bottom:20px}
+.hc-icon{width:56px;height:56px;background:#f5f3ff;border-radius:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.hc-info h1{font-size:22px;font-weight:800;color:#1f2937}
+.hc-info h1 span{color:#7c3aed}
+.hc-info .hc-sub{font-size:13px;color:#6b7280;margin-top:2px}
+.badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;gap:4px;margin-left:12px}
+.badge-fresh{background:#ecfdf5;color:#047857}
+.badge-warn{background:#fffbeb;color:#a16207}
+.badge-stale{background:#fef2f2;color:#b91c1c}
+.badge::before{content:'';width:6px;height:6px;border-radius:50%}
+.badge-fresh::before{background:#047857}
+.badge-warn::before{background:#a16207}
+.badge-stale::before{background:#b91c1c}
+
+.stat-boxes{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+@media(max-width:640px){.stat-boxes{grid-template-columns:repeat(2,1fr)}}
+.stat-box{background:#f9fafb;border:1px solid #f3f4f6;border-radius:12px;padding:16px;text-align:center}
+.sb-value{font-size:24px;font-weight:800;color:#1f2937}
+.sb-label{font-size:12px;color:#9ca3af;margin-top:4px}
+.sb-green .sb-value{color:#047857}
+.sb-red .sb-value{color:#b91c1c}
+.sb-purple .sb-value{color:#7c3aed}
+
+/* Shelves Grid */
+.section-title{font-size:18px;font-weight:700;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.cards-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+@media(max-width:640px){.cards-grid{grid-template-columns:1fr}}
+.loc-card{background:#fff;border:1px solid #f3f4f6;border-radius:16px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,.05);cursor:pointer;transition:all .2s;text-decoration:none;color:inherit;display:block}
+.loc-card:hover{border-color:#7c3aed;box-shadow:0 4px 12px rgba(124,58,237,.12);transform:translateY(-2px)}
+.loc-card-header{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.lc-icon{width:40px;height:40px;background:#f5f3ff;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.lc-info{flex:1;min-width:0}
+.lc-name{font-size:15px;font-weight:700}
+.lc-type{font-size:12px;color:#9ca3af}
+.loc-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0}
+.loc-stat{text-align:center}
+.loc-stat-val{font-size:17px;font-weight:700}
+.loc-stat-label{font-size:11px;color:#9ca3af}
+.loc-meta{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:#9ca3af}
+</style>
+</head>
+<body>
+<div class="container">
+  <!-- Breadcrumb -->
+  <nav class="breadcrumb fade-up">
+    <a href="01-overview.html">&#1054;&#1073;&#1079;&#1086;&#1088;</a>
+    <span class="sep">/</span>
+    <a href="01-overview.html">&#1054;&#1089;&#1085;&#1086;&#1074;&#1085;&#1086;&#1081; &#1089;&#1082;&#1083;&#1072;&#1076;</a>
+    <span class="sep">/</span>
+    <span>&#1057;&#1090;&#1077;&#1083;&#1083;&#1072;&#1078; &#1040;1</span>
+  </nav>
+
+  <!-- Header Card -->
+  <div class="header-card fade-up">
+    <div class="hc-top">
+      <div class="hc-icon">
+        <svg width="30" height="30" viewBox="0 0 48 48" fill="none"><rect x="7" y="4" width="3" height="40" rx=".5" fill="#8a8a8a" stroke="#6b6b6b" stroke-width=".8"/><rect x="38" y="4" width="3" height="40" rx=".5" fill="#8a8a8a" stroke="#6b6b6b" stroke-width=".8"/><rect x="7" y="4" width="34" height="2.5" rx=".5" fill="#a0a0a0" stroke="#7a7a7a" stroke-width=".8"/><rect x="7" y="16" width="34" height="2.5" rx=".5" fill="#a0a0a0"/><rect x="7" y="28" width="34" height="2.5" rx=".5" fill="#a0a0a0"/><rect x="7" y="40" width="34" height="2.5" rx=".5" fill="#a0a0a0"/><rect x="12" y="7" width="8" height="8.5" rx="1" fill="#d4a76a" stroke="#b8884a" stroke-width=".8"/><rect x="22" y="9" width="6" height="6.5" rx="1" fill="#c49558"/><rect x="30" y="8" width="7" height="7.5" rx="1" fill="#d4a76a" stroke="#b8884a" stroke-width=".8"/></svg>
+      </div>
+      <div class="hc-info">
+        <h1><span>&#1057;&#1090;&#1077;&#1083;&#1083;&#1072;&#1078; &#1040;1</span> <span class="badge badge-fresh">&#1057;&#1074;&#1077;&#1078;&#1080;&#1081;</span></h1>
+        <div class="hc-sub">&#1054;&#1089;&#1085;&#1086;&#1074;&#1085;&#1086;&#1081; &#1089;&#1082;&#1083;&#1072;&#1076; &middot; 5 &#1087;&#1086;&#1083;&#1086;&#1082; &middot; &#1055;&#1086;&#1089;&#1083;&#1077;&#1076;&#1085;&#1080;&#1081; &#1080;&#1085;&#1074;&#1077;&#1085;&#1090;: 2 &#1095;&#1072;&#1089;&#1072; &#1085;&#1072;&#1079;&#1072;&#1076;</div>
+      </div>
+    </div>
+    <div class="stat-boxes">
+      <div class="stat-box">
+        <div class="sb-value">240</div>
+        <div class="sb-label">&#1055;&#1086; &#1080;&#1085;&#1074;&#1077;&#1085;&#1090;&#1091;</div>
+      </div>
+      <div class="stat-box">
+        <div class="sb-value">245</div>
+        <div class="sb-label">&#1057;&#1077;&#1081;&#1095;&#1072;&#1089;</div>
+      </div>
+      <div class="stat-box sb-green">
+        <div class="sb-value">+5</div>
+        <div class="sb-label">&#1056;&#1072;&#1079;&#1085;&#1080;&#1094;&#1072;</div>
+      </div>
+      <div class="stat-box sb-purple">
+        <div class="sb-value">238</div>
+        <div class="sb-label">&#1055;&#1088;&#1077;&#1076;. &#1080;&#1085;&#1074;&#1077;&#1085;&#1090;</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Shelves -->
+  <h2 class="section-title fade-up">
+    <svg width="20" height="20" viewBox="0 0 48 48" fill="none"><rect x="2" y="24" width="44" height="3" rx=".8" fill="#9a9a9a" stroke="#7a7a7a" stroke-width="1"/><path d="M6 27v4l-2 2" stroke="#7a7a7a" stroke-width="1.5" stroke-linecap="round"/><path d="M42 27v4l2 2" stroke="#7a7a7a" stroke-width="1.5" stroke-linecap="round"/><rect x="5" y="10" width="9" height="14" rx="1.5" fill="#d4a76a" stroke="#b8884a" stroke-width=".8"/><rect x="16" y="13" width="7" height="11" rx="1.2" fill="#c9985a"/><rect x="25" y="8" width="10" height="16" rx="1.5" fill="#d4a76a" stroke="#b8884a" stroke-width=".8"/></svg>
+    &#1055;&#1086;&#1083;&#1082;&#1080; (5)
+  </h2>
+
+  <div class="cards-grid">
+    <!-- Shelf 1 -->
+    <a href="03-shelf.html" class="loc-card fade-up">
+      <div class="loc-card-header">
+        <div class="lc-icon"><svg width="22" height="22" viewBox="0 0 48 48" fill="none"><rect x="2" y="24" width="44" height="3" rx=".8" fill="#9a9a9a" stroke="#7a7a7a" stroke-width="1"/><path d="M6 27v4l-2 2" stroke="#7a7a7a" stroke-width="1.5" stroke-linecap="round"/><path d="M42 27v4l2 2" stroke="#7a7a7a" stroke-width="1.5" stroke-linecap="round"/><rect x="5" y="10" width="9" height="14" rx="1.5" fill="#d4a76a" stroke="#b8884a" stroke-width=".8"/><rect x="16" y="13" width="7" height="11" rx="1.2" fill="#c9985a"/><rect x="25" y="8" width="10" height="16" rx="1.5" fill="#d4a76a" stroke="#b8884a" stroke-width=".8"/></svg></div>
+        <div class="lc-info">
+          <div class="lc-name">&#1055;&#1086;&#1083;&#1082;&#1072; 1</div>
+          <div class="lc-type">3 &#1082;&#1086;&#1088;&#1086;&#1073;&#1082;&#1080;</div>
+        </div>
+        <span class="badge badge-fresh">&#1057;&#1074;&#1077;&#1078;&#1080;&#1081;</span>
+      </div>
+      <div class="loc-stats">
+        <div class="loc-stat"><div class="loc-stat-val">52</div><div class="loc-stat-label">&#1057;&#1077;&#1081;&#1095;&#1072;&#1089;</div></div>
+        <div class="loc-stat"><div class="loc-stat-val">50</div><div class="loc-stat-label">&#1055;&#1086; &#1080;&#1085;&#1074;&#1077;&#1085;&#1090;&#1091;</div></div>
+        <div class="loc-stat"><div class="loc-stat-val" style="color:#047857">+2</div><div class="loc-stat-label">&#1056;&#1072;&#1079;&#1085;&#1080;&#1094;&#1072;</div></div>
+      </div>
+      <div class="loc-meta">
+        <span>&#1048;&#1074;&#1072;&#1085;&#1086;&#1074;&#1072; &#1040;. &middot; 2&#1095; &#1085;&#1072;&#1079;&#1072;&#1076;</span>
+        <span>7 &#1084;&#1080;&#1085;</span>
+      </div>
+    </a>
+
+    <!-- Shelf 2 -->
+    <a href="03-shelf.html" class="loc-card fade-up">
+      <div class="loc-card-header">
+        <div class="lc-icon"><svg width="22" height="22" viewBox="0 0 48 48" fill="none"><rect x="2" y="24" width="44" height="3" rx=".8" fill="#9a9a9a" stroke="#7a7a7a" stroke-width="1"/><path d="M6 27v4l-2 2" stroke="#7a7a7a" stroke-width="1.5" stroke-linecap="round"/><path d="M42 27v4l2 2" stroke="#7a7a7a" stroke-width="1.5" stroke-linecap="round"/><rect x="5" y="10" width="9" height="14" rx="1.5" fill="#d4a76a" stroke="#b8884a" stroke-width=".8"/><rect x="16" y="13" width="7" height="11" rx="1.2" fill="#c9985a"/><rect x="25" y="8" width="10" height="16" rx="1.5" fill="#d4a76a" stroke="#b8884a" stroke-width=".8"/></svg></div>
+        <div class="lc-info">
+          <div class="lc-name">&#1055;&#1086;&#1083;&#1082;&#1072; 2</div>
+          <div class="lc-type">2 &#1082;&#1086;&#1088;&#1086;&#1073;&#1082;&#1080;</div>
+        </div>
+        <span class="badge badge-fresh">&#1057;&#1074;&#1077;&#1078;&#1080;&#1081;</span>
+      </div>
+      <div class="loc-stats">
+        <div class="loc-stat"><div class="loc-stat-val">68</div><div class="loc-stat-label">&#1057;&#1077;&#1081;&#1095;&#1072;&#1089;</div></div>
+        <div class="loc-stat"><div class="loc-stat-val">65</div><div class="loc-stat-label">&#1055;&#1086; &#1080;&#1085;&#1074;&#1077;&#1085;&#1090;&#1091;</div></div>
+        <div class="loc-stat"><div class="loc-stat-val" style="color:#047857">+3</div><div class="loc-stat-label">&#1056;&#1072;&#1079;&#1085;&#1080;&#1094;&#1072;</div></div>
+      </div>
+      <div class="loc-meta">
+        <span>&#1048;&#1074;&#1072;&#1085;&#1086;&#1074;&#1072; &#1040;. &middot; 2&#1095; &#1085;&#1072;&#1079;&#1072;&#1076;</span>
+        <span>5 &#1084;&#1080;&#1085;</span>
+      </div>
+    </a>
+
+    <!-- Shelf 3 -->
+    <a href="03-shelf.html" class="loc-card fade-up">
+      <div class="loc-card-header">
+        <div class="lc-icon"><svg width="22" height="22" viewBox="0 0 48 48" fill="none"><rect x="2" y="24" width="44" height="3" rx=".8" fill="#9a9a9a" stroke="#7a7a7a" stroke-width="1"/><path d="M6 27v4l-2 2" stroke="#7a7a7a" stroke-width="1.5" stroke-linecap="round"/><path d="M42 27v4l2 2" stroke="#7a7a7a" stroke-width="1.5" stroke-linecap="round"/><rect x="5" y="10" width="9" height="14" rx="1.5" fill="#d4a76a" stroke="#b8884a" stroke-width=".8"/><rect x="16" y="13" width="7" height="11" rx="1.2" fill="#c9985a"/><rect x="25" y="8" width="10" height="16" rx="1.5" fill="#d4a76a" stroke="#b8884a" stroke-width=".8"/></svg></div>
+        <div class="lc-info">
+          <div class="lc-name">&#1055;&#1086;&#1083;&#1082;&#1072; 3</div>
+          <div class="lc-type">&#1041;&#1077;&#1079; &#1082;&#1086;&#1088;&#1086;&#1073;&#1086;&#1082;</div>
+        </div>
+        <span class="badge badge-fresh">&#1057;&#1074;&#1077;&#1078;&#1080;&#1081;</span>
+      </div>
+      <div class="loc-stats">
+        <div class="loc-stat"><div class="loc-stat-val">45</div><div class="loc-stat-label">&#1057;&#1077;&#1081;&#1095;&#1072;&#1089;</div></div>
+        <div class="loc-stat"><div class="loc-stat-val">45</div><div class="loc-stat-label">&#1055;&#1086; &#1080;&#1085;&#1074;&#1077;&#1085;&#1090;&#1091;</div></div>
+        <div class="loc-stat"><div class="loc-stat-val" style="color:#047857">0</div><div class="loc-stat-label">&#1056;&#1072;&#1079;&#1085;&#1080;&#1094;&#1072;</div></div>
+      </div>
+      <div class="loc-meta">
+        <span>&#1055;&#1077;&#1090;&#1088;&#1086;&#1074; &#1052;. &middot; 3&#1095; &#1085;&#1072;&#1079;&#1072;&#1076;</span>
+        <span>12 &#1084;&#1080;&#1085;</span>
+      </div>
+    </a>
+
+    <!-- Shelf 4 -->
+    <a href="03-shelf.html" class="loc-card fade-up">
+      <div class="loc-card-header">
+        <div class="lc-icon"><svg width="22" height="22" viewBox="0 0 48 48" fill="none"><rect x="2" y="24" width="44" height="3" rx=".8" fill="#9a9a9a" stroke="#7a7a7a" stroke-width="1"/><path d="M6 27v4l-2 2" stroke="#7a7a7a" stroke-width="1.5" stroke-linecap="round"/><path d="M42 27v4l2 2" stroke="#7a7a7a" stroke-width="1.5" stroke-linecap="round"/><rect x="5" y="10" width="9" height="14" rx="1.5" fill="#d4a76a" stroke="#b8884a" stroke-width=".8"/><rect x="16" y="13" width="7" height="11" rx="1.2" fill="#c9985a"/><rect x="25" y="8" width="10" height="16" rx="1.5" fill="#d4a76a" stroke="#b8884a" stroke-width=".8"/></svg></div>
+        <div class="lc-info">
+          <div class="lc-name">&#1055;&#1086;&#1083;&#1082;&#1072; 4</div>
+          <div class="lc-type">4 &#1082;&#1086;&#1088;&#1086;&#1073;&#1082;&#1080;</div>
+        </div>
+        <span class="badge badge-fresh">&#1057;&#1074;&#1077;&#1078;&#1080;&#1081;</span>
+      </div>
+      <div class="loc-stats">
+        <div class="loc-stat"><div class="loc-stat-val">42</div><div class="loc-stat-label">&#1057;&#1077;&#1081;&#1095;&#1072;&#1089;</div></div>
+        <div class="loc-stat"><div class="loc-stat-val">40</div><div class="loc-stat-label">&#1055;&#1086; &#1080;&#1085;&#1074;&#1077;&#1085;&#1090;&#1091;</div></div>
+        <div class="loc-stat"><div class="loc-stat-val" style="color:#047857">+2</div><div class="loc-stat-label">&#1056;&#1072;&#1079;&#1085;&#1080;&#1094;&#1072;</div></div>
+      </div>
+      <div class="loc-meta">
+        <span>&#1057;&#1080;&#1076;&#1086;&#1088;&#1086;&#1074;&#1072; &#1050;. &middot; 4&#1095; &#1085;&#1072;&#1079;&#1072;&#1076;</span>
+        <span>8 &#1084;&#1080;&#1085;</span>
+      </div>
+    </a>
+
+    <!-- Shelf 5 -->
+    <a href="03-shelf.html" class="loc-card fade-up">
+      <div class="loc-card-header">
+        <div class="lc-icon"><svg width="22" height="22" viewBox="0 0 48 48" fill="none"><rect x="2" y="24" width="44" height="3" rx=".8" fill="#9a9a9a" stroke="#7a7a7a" stroke-width="1"/><path d="M6 27v4l-2 2" stroke="#7a7a7a" stroke-width="1.5" stroke-linecap="round"/><path d="M42 27v4l2 2" stroke="#7a7a7a" stroke-width="1.5" stroke-linecap="round"/><rect x="5" y="10" width="9" height="14" rx="1.5" fill="#d4a76a" stroke="#b8884a" stroke-width=".8"/><rect x="16" y="13" width="7" height="11" rx="1.2" fill="#c9985a"/><rect x="25" y="8" width="10" height="16" rx="1.5" fill="#d4a76a" stroke="#b8884a" stroke-width=".8"/></svg></div>
+        <div class="lc-info">
+          <div class="lc-name">&#1055;&#1086;&#1083;&#1082;&#1072; 5</div>
+          <div class="lc-type">&#1041;&#1077;&#1079; &#1082;&#1086;&#1088;&#1086;&#1073;&#1086;&#1082;</div>
+        </div>
+        <span class="badge badge-warn">&#1044;&#1072;&#1074;&#1085;&#1086;</span>
+      </div>
+      <div class="loc-stats">
+        <div class="loc-stat"><div class="loc-stat-val">38</div><div class="loc-stat-label">&#1057;&#1077;&#1081;&#1095;&#1072;&#1089;</div></div>
+        <div class="loc-stat"><div class="loc-stat-val">40</div><div class="loc-stat-label">&#1055;&#1086; &#1080;&#1085;&#1074;&#1077;&#1085;&#1090;&#1091;</div></div>
+        <div class="loc-stat"><div class="loc-stat-val" style="color:#b91c1c">-2</div><div class="loc-stat-label">&#1056;&#1072;&#1079;&#1085;&#1080;&#1094;&#1072;</div></div>
+      </div>
+      <div class="loc-meta">
+        <span>&#1048;&#1074;&#1072;&#1085;&#1086;&#1074;&#1072; &#1040;. &middot; 4 &#1076;&#1085;&#1103; &#1085;&#1072;&#1079;&#1072;&#1076;</span>
+        <span>10 &#1084;&#1080;&#1085;</span>
+      </div>
+    </a>
+  </div>
+</div>
+</body>
+</html>

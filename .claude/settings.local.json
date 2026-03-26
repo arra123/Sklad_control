@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjEsInJvbGUiOiJhZG1pbiIsImlhdCI6MTc3NDUxMDA0NSwiZXhwIjoxNzc1MTE0ODQ1fQ.FTjxWKIsO2IgKvaBvZSVxGERCuZcvad-dV1dISPKWIs\")",
+      "Bash(curl -s -w \"\\\\n%{http_code}\" \"http://147.45.97.155/sklad/api/materials/stats\" -H \"Authorization: Bearer $TOKEN\" -H \"Accept-Encoding: gzip\" --compressed)",
+      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjEsInJvbGUiOiJhZG1pbiIsImlhdCI6MTc3NDUxMDA0NSwiZXhwIjoxNzc1MTE0ODQ1fQ.FTjxWKIsO2IgKvaBvZSVxGERCuZcvad-dV1dISPKWIs\" curl -s -X POST \"http://147.45.97.155/sklad/api/materials/import\" -H \"Authorization: Bearer $TOKEN\" -H \"Accept-Encoding: gzip\" --compressed)",
+      "Bash(ssh:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjEsInJvbGUiOiJhZG1pbiIsImlhdCI6MTc3NDUxMDA0NSwiZXhwIjoxNzc1MTE0ODQ1fQ.FTjxWKIsO2IgKvaBvZSVxGERCuZcvad-dV1dISPKWIs\" curl -s -X POST \"http://147.45.97.155/sklad/api/materials/import\" -H \"Authorization: Bearer $TOKEN\" -H \"Content-Type: application/json\" -d '{\"\"\"\"token\"\"\"\":\"\"\"\"acc9fb5740c06a0501f4453d715ae86d48fbfb34\"\"\"\"}')",
+      "Bash(curl -s \"http://147.45.97.155/sklad/api/materials/stats\" -H \"Authorization: Bearer $TOKEN\" -H \"Accept-Encoding: gzip\" --compressed)"
+    ]
+  }
+}

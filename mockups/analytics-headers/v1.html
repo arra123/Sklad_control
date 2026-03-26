@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>v1 — Wide Gradient Hero</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',sans-serif;background:#f9fafb;padding:24px;min-height:100vh}
+.container{max-width:800px;margin:0 auto}
+.section-label{font-size:13px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:12px;margin-top:32px}
+.section-label:first-child{margin-top:0}
+
+.hero-card{
+  background:linear-gradient(135deg,#7c3aed 0%,#6d28d9 40%,#5b21b6 100%);
+  border-radius:16px;
+  padding:28px 32px 24px;
+  color:#fff;
+  position:relative;
+  overflow:hidden;
+  animation:fadeUp .5s ease both;
+}
+.hero-card::before{
+  content:'';position:absolute;top:-40px;right:-40px;width:200px;height:200px;
+  background:radial-gradient(circle,rgba(255,255,255,.08) 0%,transparent 70%);
+  border-radius:50%;
+}
+.hero-card+.section-label{margin-top:32px}
+
+@keyframes fadeUp{
+  from{opacity:0;transform:translateY(16px)}
+  to{opacity:1;transform:translateY(0)}
+}
+.hero-card:nth-child(2){animation-delay:.1s}
+.hero-card:nth-child(4){animation-delay:.2s}
+.hero-card:nth-child(6){animation-delay:.3s}
+
+.hero-top{display:flex;align-items:flex-start;gap:20px;margin-bottom:20px}
+.hero-icon{flex-shrink:0;background:rgba(255,255,255,.15);border-radius:14px;padding:10px;display:flex;align-items:center;justify-content:center}
+.hero-info{flex:1}
+.hero-name{font-size:26px;font-weight:800;line-height:1.2}
+.hero-breadcrumb{font-size:13px;opacity:.7;margin-top:4px;font-weight:500}
+.hero-barcode{font-size:11px;font-family:'Courier New',monospace;opacity:.5;margin-top:2px;letter-spacing:1px}
+
+.status-badge{
+  position:absolute;top:16px;right:20px;
+  font-size:11px;font-weight:700;
+  padding:4px 12px;border-radius:20px;
+  text-transform:uppercase;letter-spacing:.5px;
+}
+.status-ok{background:rgba(4,120,87,.9);color:#fff}
+.status-warn{background:rgba(217,119,6,.9);color:#fff}
+
+.pills-row{display:flex;flex-wrap:wrap;gap:8px}
+.pill{
+  background:rgba(255,255,255,.95);color:#1f2937;
+  border-radius:10px;padding:8px 14px;
+  font-size:12px;font-weight:600;
+  display:flex;align-items:center;gap:6px;
+  backdrop-filter:blur(4px);
+}
+.pill .label{font-weight:500;color:#6b7280;font-size:11px}
+.pill .value{font-weight:700;color:#1f2937}
+.pill.green .value{color:#047857}
+.pill.red .value{color:#b91c1c}
+.pill.amber .value{color:#a16207}
+.pill.purple .value{color:#7c3aed}
+.pill.employee{background:rgba(255,255,255,.9);gap:4px}
+.pill.employee svg{flex-shrink:0}
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="section-label">Ряд:</div>
+<div class="hero-card">
+  <span class="status-badge status-ok">Сходится</span>
+  <div class="hero-top">
+    <div class="hero-icon">
+      <svg width="64" height="64" viewBox="0 0 48 48" fill="none"><rect x="1" y="36" width="12" height="3" rx=".5" fill="#c49a40"/><rect x="2" y="26" width="10" height="10" rx="1" fill="#d4a76a" stroke="#b8884a" stroke-width=".7"/><rect x="3" y="18" width="8" height="8" rx="1" fill="#c49558" stroke="#a87a3e" stroke-width=".7"/><rect x="16" y="36" width="14" height="3" rx=".5" fill="#c49a40"/><rect x="17" y="22" width="12" height="14" rx="1" fill="#d4a76a" stroke="#b8884a" stroke-width=".7"/><rect x="18" y="10" width="10" height="12" rx="1" fill="#c49558" stroke="#a87a3e" stroke-width=".7"/><rect x="20" y="3" width="6" height="7" rx="1" fill="#d4a76a" stroke="#b8884a" stroke-width=".7"/><rect x="33" y="36" width="12" height="3" rx=".5" fill="#c49a40"/><rect x="34" y="28" width="10" height="8" rx="1" fill="#c49558" stroke="#a87a3e" stroke-width=".7"/><rect x="35" y="20" width="8" height="8" rx="1" fill="#d4a76a" stroke="#b8884a" stroke-width=".7"/></svg>
+    </div>
+    <div class="hero-info">
+      <div class="hero-name">Ряд 1</div>
+      <div class="hero-breadcrumb">Склад &rarr; Зона А &rarr; Ряд 1 &bull; 8 паллетов</div>
+      <div class="hero-barcode">ШК: ROW-0001</div>
+    </div>
+  </div>
+  <div class="pills-row">
+    <div class="pill"><span class="label">По инвенту</span><span class="value">3 749 шт</span></div>
+    <div class="pill"><span class="label">Текущее</span><span class="value">3 749 шт</span></div>
+    <div class="pill green"><span class="label">Разница</span><span class="value">0</span></div>
+    <div class="pill purple"><span class="label">Время</span><span class="value">3ч 22мин</span></div>
+    <div class="pill"><span class="label">Скорость</span><span class="value">3.2 с/шт</span></div>
+    <div class="pill"><span class="label">Товаров/мин</span><span class="value">18.7</span></div>
+    <div class="pill employee">
+      <svg width="16" height="16" viewBox="0 0 48 48" fill="none"><path d="M24 26c-8 0-15 4-15 10v4h30v-4c0-6-7-10-15-10z" fill="#6366f1" opacity=".15" stroke="#6366f1" stroke-width="1.5"/><circle cx="24" cy="15" r="9" fill="#fcd9b6" stroke="#e4a96a" stroke-width="1.3"/><path d="M15 13c0-6 4-9 9-9s9 3 9 9" fill="#5a3e28" opacity=".8"/><circle cx="20.5" cy="15.5" r="1.2" fill="#3a3a3a"/><circle cx="27.5" cy="15.5" r="1.2" fill="#3a3a3a"/></svg>
+      <span class="value">Иванова А.</span>
+    </div>
+    <div class="pill"><span class="label">Дата</span><span class="value">24.03.26 14:23</span></div>
+  </div>
+</div>
+
+<div class="section-label">Паллет:</div>
+<div class="hero-card">
+  <span class="status-badge status-warn">+3 расхождение</span>
+  <div class="hero-top">
+    <div class="hero-icon">
+      <svg width="64" height="64" viewBox="0 0 48 48" fill="none"><rect x="3" y="12" width="42" height="4" rx="1" fill="#d4b05a" stroke="#a88520" stroke-width="1"/><rect x="6" y="16" width="5" height="10" rx="1" fill="#a07820"/><rect x="21.5" y="16" width="5" height="10" rx="1" fill="#a07820"/><rect x="37" y="16" width="5" height="10" rx="1" fill="#a07820"/><rect x="3" y="26" width="42" height="4" rx="1" fill="#d4b05a" stroke="#a88520" stroke-width="1"/></svg>
+    </div>
+    <div class="hero-info">
+      <div class="hero-name">Р1П3</div>
+      <div class="hero-breadcrumb">Склад &rarr; Зона А &rarr; Ряд 1 &rarr; Паллет 3 &bull; 6 коробок</div>
+      <div class="hero-barcode">ШК: PLT-001234</div>
+    </div>
+  </div>
+  <div class="pills-row">
+    <div class="pill"><span class="label">По инвенту</span><span class="value">487 шт</span></div>
+    <div class="pill"><span class="label">Текущее</span><span class="value">490 шт</span></div>
+    <div class="pill amber"><span class="label">Разница</span><span class="value">+3</span></div>
+    <div class="pill purple"><span class="label">Время</span><span class="value">28мин</span></div>
+    <div class="pill"><span class="label">Скорость</span><span class="value">3.4 с/шт</span></div>
+    <div class="pill"><span class="label">Товаров/мин</span><span class="value">17.4</span></div>
+    <div class="pill employee">
+      <svg width="16" height="16" viewBox="0 0 48 48" fill="none"><path d="M24 26c-8 0-15 4-15 10v4h30v-4c0-6-7-10-15-10z" fill="#6366f1" opacity=".15" stroke="#6366f1" stroke-width="1.5"/><circle cx="24" cy="15" r="9" fill="#fcd9b6" stroke="#e4a96a" stroke-width="1.3"/><path d="M15 13c0-6 4-9 9-9s9 3 9 9" fill="#5a3e28" opacity=".8"/><circle cx="20.5" cy="15.5" r="1.2" fill="#3a3a3a"/><circle cx="27.5" cy="15.5" r="1.2" fill="#3a3a3a"/></svg>
+      <span class="value">Петров М.</span>
+    </div>
+    <div class="pill"><span class="label">Дата</span><span class="value">24.03.26 15:10</span></div>
+  </div>
+</div>
+
+<div class="section-label">Коробка:</div>
+<div class="hero-card">
+  <span class="status-badge status-ok">Сходится</span>
+  <div class="hero-top">
+    <div class="hero-icon">
+      <svg width="64" height="64" viewBox="0 0 48 48" fill="none"><path d="M6 16L24 6l18 10v20L24 46 6 36V16z" fill="#d4a76a" stroke="#b8884a" stroke-width="1.5" stroke-linejoin="round"/><path d="M6 16l18 8 18-8" fill="#e8c888" stroke="#b8884a" stroke-width="1" stroke-linejoin="round"/><path d="M24 24v22" stroke="#b8884a" stroke-width="1"/><path d="M24 24l18-8v20L24 46z" fill="#c49558"/><path d="M18 13l6 3 6-3" stroke="#e8d8a0" stroke-width="2.5" stroke-linecap="round" opacity=".7"/><line x1="24" y1="24" x2="24" y2="38" stroke="#e8d8a0" stroke-width="2" opacity=".5"/><rect x="14" y="28" width="8" height="6" rx=".5" fill="white" opacity=".6"/></svg>
+    </div>
+    <div class="hero-info">
+      <div class="hero-name">Р1П3К5</div>
+      <div class="hero-breadcrumb">Склад &rarr; Зона А &rarr; Ряд 1 &rarr; Паллет 3 &rarr; Коробка 5</div>
+      <div class="hero-barcode">ШК: BOX-005678</div>
+    </div>
+  </div>
+  <div class="pills-row">
+    <div class="pill"><span class="label">По инвенту</span><span class="value">82 шт</span></div>
+    <div class="pill"><span class="label">Текущее</span><span class="value">82 шт</span></div>
+    <div class="pill green"><span class="label">Разница</span><span class="value">0</span></div>
+    <div class="pill purple"><span class="label">Время</span><span class="value">4мин 12с</span></div>
+    <div class="pill"><span class="label">Скорость</span><span class="value">3.1 с/шт</span></div>
+    <div class="pill"><span class="label">Товаров/мин</span><span class="value">19.5</span></div>
+    <div class="pill employee">
+      <svg width="16" height="16" viewBox="0 0 48 48" fill="none"><path d="M24 26c-8 0-15 4-15 10v4h30v-4c0-6-7-10-15-10z" fill="#6366f1" opacity=".15" stroke="#6366f1" stroke-width="1.5"/><circle cx="24" cy="15" r="9" fill="#fcd9b6" stroke="#e4a96a" stroke-width="1.3"/><path d="M15 13c0-6 4-9 9-9s9 3 9 9" fill="#5a3e28" opacity=".8"/><circle cx="20.5" cy="15.5" r="1.2" fill="#3a3a3a"/><circle cx="27.5" cy="15.5" r="1.2" fill="#3a3a3a"/></svg>
+      <span class="value">Сидорова Е.</span>
+    </div>
+    <div class="pill"><span class="label">Дата</span><span class="value">24.03.26 15:38</span></div>
+  </div>
+</div>
+
+</div>
+</body>
+</html>

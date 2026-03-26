@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>v5 — Cards + Donut + Employee Board</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',sans-serif;background:#f9fafb;color:#1f2937;min-height:100vh}
+.container{max-width:900px;margin:0 auto;padding:24px}
+.card{background:#fff;border:1px solid #f3f4f6;border-radius:16px;padding:24px;margin-bottom:20px}
+
+@keyframes fadeUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+.fade-up{animation:fadeUp .5s ease both}
+.d1{animation-delay:.08s}.d2{animation-delay:.16s}.d3{animation-delay:.24s}.d4{animation-delay:.32s}
+
+/* top two cards */
+.top-row{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+@media(max-width:650px){.top-row{grid-template-columns:1fr}}
+
+/* donut card */
+.donut-card{display:flex;align-items:center;gap:24px}
+.donut-wrap{position:relative;width:140px;height:140px;flex-shrink:0}
+.donut{width:140px;height:140px;border-radius:50%;background:conic-gradient(
+  #047857 0deg 194.4deg,
+  #a16207 194.4deg 248.4deg,
+  #b91c1c 248.4deg 298.8deg,
+  #e5e7eb 298.8deg 360deg
+);display:flex;align-items:center;justify-content:center}
+.donut-inner{width:90px;height:90px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;flex-direction:column}
+.donut-inner .pct{font-size:24px;font-weight:800;color:#7c3aed}
+.donut-inner .plbl{font-size:10px;color:#6b7280}
+.donut-stats .ds-row{margin-bottom:10px}
+.donut-stats .ds-val{font-size:28px;font-weight:800;color:#1f2937}
+.donut-stats .ds-lbl{font-size:12px;color:#6b7280}
+.donut-legend{margin-top:8px;display:flex;flex-direction:column;gap:4px}
+.donut-legend .dl-item{display:flex;align-items:center;gap:6px;font-size:11px;color:#6b7280}
+.dl-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+
+/* bar chart card */
+.bar-title{font-size:15px;font-weight:700;margin-bottom:16px}
+.bar-row{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.bar-label{width:30px;font-size:13px;font-weight:600;flex-shrink:0}
+.bar-track{flex:1;height:24px;background:#f3f4f6;border-radius:8px;overflow:hidden;position:relative}
+.bar-fill{height:100%;border-radius:8px;transition:width .6s ease}
+.bar-val{font-size:12px;font-weight:600;color:#6b7280;width:60px;text-align:right;flex-shrink:0}
+
+/* rack strip */
+.rack-strip{display:flex;gap:14px;overflow-x:auto;padding:4px 0 12px;-webkit-overflow-scrolling:touch}
+.rack-strip::-webkit-scrollbar{height:6px}
+.rack-strip::-webkit-scrollbar-thumb{background:#d1d5db;border-radius:3px}
+.rs-card{min-width:160px;flex-shrink:0;background:#fff;border:1px solid #f3f4f6;border-radius:14px;padding:16px;text-align:center}
+.rs-card .rs-name{font-size:15px;font-weight:700;margin-top:8px}
+.rs-card .rs-qty{font-size:20px;font-weight:800;color:#7c3aed;margin:4px 0}
+.rs-card .rs-meta{font-size:11px;color:#6b7280}
+.mini-prog{height:6px;background:#f3f4f6;border-radius:3px;margin-top:10px;overflow:hidden}
+.mini-prog-fill{height:100%;border-radius:3px}
+
+/* employee board */
+.emp-board{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+@media(max-width:600px){.emp-board{grid-template-columns:1fr}}
+.emp-card{text-align:center;padding:20px 16px;border:1px solid #f3f4f6;border-radius:14px}
+.emp-icon{width:52px;height:52px;border-radius:50%;background:#ede9fe;display:flex;align-items:center;justify-content:center;margin:0 auto 10px}
+.emp-name{font-size:15px;font-weight:700}
+.emp-stats{margin-top:8px;font-size:12px;color:#6b7280;line-height:1.8}
+.emp-stats b{color:#1f2937;font-weight:600}
+.contrib-bar{height:8px;background:#f3f4f6;border-radius:4px;margin-top:12px;overflow:hidden}
+.contrib-fill{height:100%;background:linear-gradient(90deg,#7c3aed,#a78bfa);border-radius:4px}
+.contrib-lbl{font-size:10px;color:#9ca3af;margin-top:4px}
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- TOP ROW -->
+<div class="top-row">
+  <!-- Donut card -->
+  <div class="card fade-up donut-card">
+    <div class="donut-wrap">
+      <div class="donut">
+        <div class="donut-inner">
+          <div class="pct">76%</div>
+          <div class="plbl">покрытие</div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="donut-stats">
+        <div class="ds-row">
+          <div class="ds-val">82 450</div>
+          <div class="ds-lbl">Всего позиций</div>
+        </div>
+      </div>
+      <div class="donut-legend">
+        <div class="dl-item"><div class="dl-dot" style="background:#047857"></div>Свежие — 58 600 (71%)</div>
+        <div class="dl-item"><div class="dl-dot" style="background:#a16207"></div>Давно — 12 300 (15%)</div>
+        <div class="dl-item"><div class="dl-dot" style="background:#b91c1c"></div>Устарел — 11 550 (14%)</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bar chart card -->
+  <div class="card fade-up d1">
+    <div class="bar-title">Скорость инвентаризации</div>
+    <div class="bar-row">
+      <div class="bar-label">А1</div>
+      <div class="bar-track"><div class="bar-fill" style="width:78%;background:#7c3aed"></div></div>
+      <div class="bar-val">3ч 22м</div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">А2</div>
+      <div class="bar-track"><div class="bar-fill" style="width:65%;background:#8b5cf6"></div></div>
+      <div class="bar-val">2ч 45м</div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">А3</div>
+      <div class="bar-track"><div class="bar-fill" style="width:66%;background:#a78bfa"></div></div>
+      <div class="bar-val">2ч 50м</div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">Б1</div>
+      <div class="bar-track"><div class="bar-fill" style="width:73%;background:#7c3aed"></div></div>
+      <div class="bar-val">3ч 10м</div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">Б2</div>
+      <div class="bar-track"><div class="bar-fill" style="width:81%;background:#c4b5fd"></div></div>
+      <div class="bar-val">3ч 30м</div>
+    </div>
+  </div>
+</div>
+
+<!-- RACK STRIP -->
+<div class="card fade-up d2" style="padding:20px 16px">
+  <div style="font-size:16px;font-weight:700;margin-bottom:14px;padding:0 8px">Стеллажи</div>
+  <div class="rack-strip">
+    <div class="rs-card">
+      <svg width="32" height="32" viewBox="0 0 48 48" fill="none"><rect x="7" y="4" width="3" height="40" rx=".5" fill="#8a8a8a"/><rect x="38" y="4" width="3" height="40" rx=".5" fill="#8a8a8a"/><rect x="7" y="4" width="34" height="2.5" rx=".5" fill="#a0a0a0"/><rect x="7" y="16" width="34" height="2.5" rx=".5" fill="#a0a0a0"/><rect x="7" y="28" width="34" height="2.5" rx=".5" fill="#a0a0a0"/><rect x="7" y="40" width="34" height="2.5" rx=".5" fill="#a0a0a0"/><rect x="12" y="7" width="8" height="8.5" rx="1" fill="#d4a76a" stroke="#b8884a" stroke-width=".8"/><rect x="22" y="9" width="6" height="6.5" rx="1" fill="#c49558"/><rect x="30" y="8" width="7" height="7.5" rx="1" fill="#d4a76a" stroke="#b8884a" stroke-width=".8"/></svg>
+      <div class="rs-name">А1</div>
+      <div class="rs-qty">24 100</div>
+      <div class="rs-meta">3.2 с/шт &middot; Иванова А.</div>
+      <div class="mini-prog"><div class="mini-prog-fill" style="width:100%;background:#047857"></div></div>
+    </div>
+    <div class="rs-card">
+      <svg width="32" height="32" viewBox="0 0 48 48" fill="none"><rect x="7" y="4" width="3" height="40" rx=".5" fill="#8a8a8a"/><rect x="38" y="4" width="3" height="40" rx=".5" fill="#8a8a8a"/><rect x="7" y="4" width="34" height="2.5" rx=".5" fill="#a0a0a0"/><rect x="7" y="16" width="34" height="2.5" rx=".5" fill="#a0a0a0"/><rect x="7" y="28" width="34" height="2.5" rx=".5" fill="#a0a0a0"/><rect x="7" y="40" width="34" height="2.5" rx=".5" fill="#a0a0a0"/><rect x="12" y="7" width="8" height="8.5" rx="1" fill="#d4a76a" stroke="#b8884a" stroke-width=".8"/><rect x="22" y="9" width="6" height="6.5" rx="1" fill="#c49558"/><rect x="30" y="8" width="7" height="7.5" rx="1" fill="#d4a76a" stroke="#b8884a" stroke-width=".8"/></svg>
+      <div class="rs-name">А2</div>
+      <div class="rs-qty">18 700</div>
+      <div class="rs-meta">4.1 с/шт &middot; Петров М.</div>
+      <div class="mini-prog"><div class="mini-prog-fill" style="width:100%;background:#047857"></div></div>
+    </div>
+    <div class="rs-card">
+      <svg width="32" height="32" viewBox="0 0 48 48" fill="none"><rect x="7" y="4" width="3" height="40" rx=".5" fill="#8a8a8a"/><rect x="38" y="4" width="3" height="40" rx=".5" fill="#8a8a8a"/><rect x="7" y="4" width="34" height="2.5" rx=".5" fill="#a0a0a0"/><rect x="7" y="16" width="34" height="2.5" rx=".5" fill="#a0a0a0"/><rect x="7" y="28" width="34" height="2.5" rx=".5" fill="#a0a0a0"/><rect x="7" y="40" width="34" height="2.5" rx=".5" fill="#a0a0a0"/><rect x="12" y="7" width="8" height="8.5" rx="1" fill="#d4a76a" stroke="#b8884a" stroke-width=".8"/><rect x="22" y="9" width="6" height="6.5" rx="1" fill="#c49558"/><rect x="30" y="8" width="7" height="7.5" rx="1" fill="#d4a76a" stroke="#b8884a" stroke-width=".8"/></svg>
+      <div class="rs-name">А3</div>
+      <div class="rs-qty">12 300</div>
+      <div class="rs-meta">5 дн. назад</div>
+      <div class="mini-prog"><div class="mini-prog-fill" style="width:60%;background:#a16207"></div></div>
+    </div>
+    <div class="rs-card">
+      <svg width="32" height="32" viewBox="0 0 48 48" fill="none"><rect x="7" y="4" width="3" height="40" rx=".5" fill="#8a8a8a"/><rect x="38" y="4" width="3" height="40" rx=".5" fill="#8a8a8a"/><rect x="7" y="4" width="34" height="2.5" rx=".5" fill="#a0a0a0"/><rect x="7" y="16" width="34" height="2.5" rx=".5" fill="#a0a0a0"/><rect x="7" y="28" width="34" height="2.5" rx=".5" fill="#a0a0a0"/><rect x="7" y="40" width="34" height="2.5" rx=".5" fill="#a0a0a0"/><rect x="12" y="7" width="8" height="8.5" rx="1" fill="#d4a76a" stroke="#b8884a" stroke-width=".8"/><rect x="22" y="9" width="6" height="6.5" rx="1" fill="#c49558"/><rect x="30" y="8" width="7" height="7.5" rx="1" fill="#d4a76a" stroke="#b8884a" stroke-width=".8"/></svg>
+      <div class="rs-name">Б1</div>
+      <div class="rs-qty">15 800</div>
+      <div class="rs-meta">3.8 с/шт &middot; Сидорова Е.</div>
+      <div class="mini-prog"><div class="mini-prog-fill" style="width:100%;background:#047857"></div></div>
+    </div>
+    <div class="rs-card">
+      <svg width="32" height="32" viewBox="0 0 48 48" fill="none"><rect x="7" y="4" width="3" height="40" rx=".5" fill="#8a8a8a"/><rect x="38" y="4" width="3" height="40" rx=".5" fill="#8a8a8a"/><rect x="7" y="4" width="34" height="2.5" rx=".5" fill="#a0a0a0"/><rect x="7" y="16" width="34" height="2.5" rx=".5" fill="#a0a0a0"/><rect x="7" y="28" width="34" height="2.5" rx=".5" fill="#a0a0a0"/><rect x="7" y="40" width="34" height="2.5" rx=".5" fill="#a0a0a0"/><rect x="12" y="7" width="8" height="8.5" rx="1" fill="#d4a76a" stroke="#b8884a" stroke-width=".8"/><rect x="22" y="9" width="6" height="6.5" rx="1" fill="#c49558"/><rect x="30" y="8" width="7" height="7.5" rx="1" fill="#d4a76a" stroke="#b8884a" stroke-width=".8"/></svg>
+      <div class="rs-name">Б2</div>
+      <div class="rs-qty">11 550</div>
+      <div class="rs-meta">8 дн. назад</div>
+      <div class="mini-prog"><div class="mini-prog-fill" style="width:30%;background:#b91c1c"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- EMPLOYEE BOARD -->
+<div class="fade-up d3" style="margin-bottom:20px">
+  <div style="font-size:17px;font-weight:700;margin-bottom:14px">Производительность сотрудников</div>
+  <div class="emp-board">
+    <div class="card emp-card" style="margin-bottom:0">
+      <div class="emp-icon">
+        <svg width="28" height="28" viewBox="0 0 48 48" fill="none"><path d="M24 26c-8 0-15 4-15 10v4h30v-4c0-6-7-10-15-10z" fill="#6366f1" opacity=".15" stroke="#6366f1" stroke-width="1.5"/><circle cx="24" cy="15" r="9" fill="#fcd9b6" stroke="#e4a96a" stroke-width="1.3"/><path d="M15 13c0-6 4-9 9-9s9 3 9 9" fill="#5a3e28" opacity=".8"/><circle cx="20.5" cy="15.5" r="1.2" fill="#3a3a3a"/><circle cx="27.5" cy="15.5" r="1.2" fill="#3a3a3a"/></svg>
+      </div>
+      <div class="emp-name">Иванова А.</div>
+      <div class="emp-stats">
+        Проверок: <b>48</b><br>
+        Скорость: <b>3.2 с/шт</b><br>
+        Точность: <b>99.9%</b>
+      </div>
+      <div class="contrib-bar"><div class="contrib-fill" style="width:48%"></div></div>
+      <div class="contrib-lbl">48% от всех проверок</div>
+    </div>
+    <div class="card emp-card" style="margin-bottom:0">
+      <div class="emp-icon">
+        <svg width="28" height="28" viewBox="0 0 48 48" fill="none"><path d="M24 26c-8 0-15 4-15 10v4h30v-4c0-6-7-10-15-10z" fill="#6366f1" opacity=".15" stroke="#6366f1" stroke-width="1.5"/><circle cx="24" cy="15" r="9" fill="#fcd9b6" stroke="#e4a96a" stroke-width="1.3"/><path d="M15 13c0-6 4-9 9-9s9 3 9 9" fill="#5a3e28" opacity=".8"/><circle cx="20.5" cy="15.5" r="1.2" fill="#3a3a3a"/><circle cx="27.5" cy="15.5" r="1.2" fill="#3a3a3a"/></svg>
+      </div>
+      <div class="emp-name">Петров М.</div>
+      <div class="emp-stats">
+        Проверок: <b>31</b><br>
+        Скорость: <b>4.1 с/шт</b><br>
+        Точность: <b>99.5%</b>
+      </div>
+      <div class="contrib-bar"><div class="contrib-fill" style="width:31%"></div></div>
+      <div class="contrib-lbl">31% от всех проверок</div>
+    </div>
+    <div class="card emp-card" style="margin-bottom:0">
+      <div class="emp-icon">
+        <svg width="28" height="28" viewBox="0 0 48 48" fill="none"><path d="M24 26c-8 0-15 4-15 10v4h30v-4c0-6-7-10-15-10z" fill="#6366f1" opacity=".15" stroke="#6366f1" stroke-width="1.5"/><circle cx="24" cy="15" r="9" fill="#fcd9b6" stroke="#e4a96a" stroke-width="1.3"/><path d="M15 13c0-6 4-9 9-9s9 3 9 9" fill="#5a3e28" opacity=".8"/><circle cx="20.5" cy="15.5" r="1.2" fill="#3a3a3a"/><circle cx="27.5" cy="15.5" r="1.2" fill="#3a3a3a"/></svg>
+      </div>
+      <div class="emp-name">Сидорова Е.</div>
+      <div class="emp-stats">
+        Проверок: <b>22</b><br>
+        Скорость: <b>3.8 с/шт</b><br>
+        Точность: <b>99.7%</b>
+      </div>
+      <div class="contrib-bar"><div class="contrib-fill" style="width:22%"></div></div>
+      <div class="contrib-lbl">22% от всех проверок</div>
+    </div>
+  </div>
+</div>
+
+</div>
+</body>
+</html>

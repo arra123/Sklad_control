@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>v1 — Hero + Metric Grid + Rack Cards</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',sans-serif;background:#f9fafb;color:#1f2937;min-height:100vh}
+.container{max-width:900px;margin:0 auto;padding:24px}
+.card{background:#fff;border:1px solid #f3f4f6;border-radius:16px;padding:24px;margin-bottom:20px}
+
+/* animations */
+@keyframes fadeUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+.fade-up{animation:fadeUp .5s ease both}
+.fade-up:nth-child(2){animation-delay:.08s}
+.fade-up:nth-child(3){animation-delay:.16s}
+.fade-up:nth-child(4){animation-delay:.24s}
+.fade-up:nth-child(5){animation-delay:.32s}
+.fade-up:nth-child(6){animation-delay:.4s}
+.fade-up:nth-child(7){animation-delay:.48s}
+.fade-up:nth-child(8){animation-delay:.56s}
+
+/* hero */
+.hero{background:linear-gradient(135deg,#7c3aed 0%,#6d28d9 50%,#5b21b6 100%);color:#fff;border:none;padding:32px;text-align:center}
+.hero-icon{margin-bottom:12px}
+.hero h1{font-size:28px;font-weight:800;margin-bottom:6px}
+.hero .subtitle{font-size:15px;opacity:.85;margin-bottom:20px}
+.hero-stats{display:flex;justify-content:center;gap:32px}
+.hero-stat{text-align:center}
+.hero-stat .num{font-size:26px;font-weight:700}
+.hero-stat .label{font-size:12px;opacity:.7;margin-top:2px}
+
+/* metric grid */
+.metric-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:20px}
+.metric-tile{background:#fff;border:1px solid #f3f4f6;border-radius:16px;padding:20px;text-align:center}
+.metric-tile .value{font-size:24px;font-weight:700;color:#7c3aed;margin-bottom:4px}
+.metric-tile .mlabel{font-size:13px;color:#6b7280}
+.metric-tile.green .value{color:#047857}
+.metric-tile.amber .value{color:#a16207}
+.metric-tile.red .value{color:#b91c1c}
+
+/* rack cards */
+.rack-card{display:flex;align-items:center;gap:16px;padding:18px 20px}
+.rack-card+.rack-card{border-top:1px solid #f3f4f6}
+.rack-info{flex:1}
+.rack-name{font-size:16px;font-weight:700}
+.rack-qty{font-size:13px;color:#6b7280;margin-top:2px}
+.rack-meta{display:flex;gap:16px;margin-top:6px;flex-wrap:wrap}
+.rack-meta span{font-size:12px;color:#6b7280}
+.rack-meta span b{color:#1f2937;font-weight:600}
+.badge{display:inline-block;padding:3px 10px;border-radius:99px;font-size:11px;font-weight:600}
+.badge-green{background:#ecfdf5;color:#047857}
+.badge-amber{background:#fffbeb;color:#a16207}
+.badge-red{background:#fef2f2;color:#b91c1c}
+.rack-right{text-align:right;flex-shrink:0}
+.rack-employee{font-size:13px;font-weight:600;color:#7c3aed}
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- HERO -->
+<div class="card hero fade-up">
+  <div class="hero-icon">
+    <svg width="64" height="64" viewBox="0 0 48 48" fill="none"><rect x="6" y="18" width="36" height="24" rx="2" fill="#c7d2e0" stroke="#8494a7" stroke-width="1.5"/><path d="M4 20L24 6l20 14" fill="#7b8fa8" stroke="#5c6f82" stroke-width="1.5" stroke-linejoin="round"/><path d="M4 20L24 10l20 10" fill="#9bafc4"/><rect x="17" y="28" width="14" height="14" rx="1.5" fill="#5a7089" stroke="#46586b" stroke-width="1"/><line x1="24" y1="28" x2="24" y2="42" stroke="#46586b" stroke-width=".8"/></svg>
+  </div>
+  <h1>Основной склад</h1>
+  <div class="subtitle">82 450 позиций &middot; 76% проинвентаризировано</div>
+  <div class="hero-stats">
+    <div class="hero-stat"><div class="num">5</div><div class="label">Стеллажей</div></div>
+    <div class="hero-stat"><div class="num">3</div><div class="label">Проверено</div></div>
+    <div class="hero-stat"><div class="num">2</div><div class="label">Не проверено</div></div>
+  </div>
+</div>
+
+<!-- METRIC GRID -->
+<div class="metric-grid">
+  <div class="metric-tile fade-up green">
+    <div class="value">58 600</div>
+    <div class="mlabel">Проверено за 24ч</div>
+  </div>
+  <div class="metric-tile fade-up red">
+    <div class="value">23 850</div>
+    <div class="mlabel">Осталось проверить</div>
+  </div>
+  <div class="metric-tile fade-up">
+    <div class="value">2ч 59мин</div>
+    <div class="mlabel">Среднее время инвент.</div>
+  </div>
+  <div class="metric-tile fade-up">
+    <div class="value">3.5 с/шт</div>
+    <div class="mlabel">Средняя скорость</div>
+  </div>
+  <div class="metric-tile fade-up" style="background:#faf5ff">
+    <div class="value" style="font-size:18px">Иванова А.</div>
+    <div class="mlabel">Лучший сотрудник</div>
+  </div>
+  <div class="metric-tile fade-up amber">
+    <div class="value">2ч назад</div>
+    <div class="mlabel">Последняя проверка</div>
+  </div>
+</div>
+
+<!-- RACK CARDS -->
+<div class="card fade-up" style="padding:0;overflow:hidden">
+  <div style="padding:18px 20px 0;font-size:17px;font-weight:700">Стеллажи</div>
+
+  <div class="rack-card">
+    <svg width="36" height="36" viewBox="0 0 48 48" fill="none"><rect x="7" y="4" width="3" height="40" rx=".5" fill="#8a8a8a"/><rect x="38" y="4" width="3" height="40" rx=".5" fill="#8a8a8a"/><rect x="7" y="4" width="34" height="2.5" rx=".5" fill="#a0a0a0"/><rect x="7" y="16" width="34" height="2.5" rx=".5" fill="#a0a0a0"/><rect x="7" y="28" width="34" height="2.5" rx=".5" fill="#a0a0a0"/><rect x="7" y="40" width="34" height="2.5" rx=".5" fill="#a0a0a0"/><rect x="12" y="7" width="8" height="8.5" rx="1" fill="#d4a76a" stroke="#b8884a" stroke-width=".8"/><rect x="22" y="9" width="6" height="6.5" rx="1" fill="#c49558"/><rect x="30" y="8" width="7" height="7.5" rx="1" fill="#d4a76a" stroke="#b8884a" stroke-width=".8"/></svg>
+    <div class="rack-info">
+      <div class="rack-name">Стеллаж А1</div>
+      <div class="rack-qty">24 100 позиций</div>
+      <div class="rack-meta">
+        <span>Время: <b>3ч 22мин</b></span>
+        <span>Скорость: <b>3.2 с/шт</b></span>
+      </div>
+    </div>
+    <div class="rack-right">
+      <span class="badge badge-green">Свежий</span>
+      <div class="rack-employee" style="margin-top:6px">Иванова А.</div>
+    </div>
+  </div>
+
+  <div class="rack-card">
+    <svg width="36" height="36" viewBox="0 0 48 48" fill="none"><rect x="7" y="4" width="3" height="40" rx=".5" fill="#8a8a8a"/><rect x="38" y="4" width="3" height="40" rx=".5" fill="#8a8a8a"/><rect x="7" y="4" width="34" height="2.5" rx=".5" fill="#a0a0a0"/><rect x="7" y="16" width="34" height="2.5" rx=".5" fill="#a0a0a0"/><rect x="7" y="28" width="34" height="2.5" rx=".5" fill="#a0a0a0"/><rect x="7" y="40" width="34" height="2.5" rx=".5" fill="#a0a0a0"/><rect x="12" y="7" width="8" height="8.5" rx="1" fill="#d4a76a" stroke="#b8884a" stroke-width=".8"/><rect x="22" y="9" width="6" height="6.5" rx="1" fill="#c49558"/><rect x="30" y="8" width="7" height="7.5" rx="1" fill="#d4a76a" stroke="#b8884a" stroke-width=".8"/></svg>
+    <div class="rack-info">
+      <div class="rack-name">Стеллаж А2</div>
+      <div class="rack-qty">18 700 позиций</div>
+      <div class="rack-meta">
+        <span>Время: <b>2ч 45мин</b></span>
+        <span>Скорость: <b>4.1 с/шт</b></span>
+      </div>
+    </div>
+    <div class="rack-right">
+      <span class="badge badge-green">Свежий</span>
+      <div class="rack-employee" style="margin-top:6px">Петров М.</div>
+    </div>
+  </div>
+
+  <div class="rack-card">
+    <svg width="36" height="36" viewBox="0 0 48 48" fill="none"><rect x="7" y="4" width="3" height="40" rx=".5" fill="#8a8a8a"/><rect x="38" y="4" width="3" height="40" rx=".5" fill="#8a8a8a"/><rect x="7" y="4" width="34" height="2.5" rx=".5" fill="#a0a0a0"/><rect x="7" y="16" width="34" height="2.5" rx=".5" fill="#a0a0a0"/><rect x="7" y="28" width="34" height="2.5" rx=".5" fill="#a0a0a0"/><rect x="7" y="40" width="34" height="2.5" rx=".5" fill="#a0a0a0"/><rect x="12" y="7" width="8" height="8.5" rx="1" fill="#d4a76a" stroke="#b8884a" stroke-width=".8"/><rect x="22" y="9" width="6" height="6.5" rx="1" fill="#c49558"/><rect x="30" y="8" width="7" height="7.5" rx="1" fill="#d4a76a" stroke="#b8884a" stroke-width=".8"/></svg>
+    <div class="rack-info">
+      <div class="rack-name">Стеллаж А3</div>
+      <div class="rack-qty">12 300 позиций</div>
+      <div class="rack-meta">
+        <span>Последняя: <b>5 дней назад</b></span>
+      </div>
+    </div>
+    <div class="rack-right">
+      <span class="badge badge-amber">Давно</span>
+    </div>
+  </div>
+
+  <div class="rack-card">
+    <svg width="36" height="36" viewBox="0 0 48 48" fill="none"><rect x="7" y="4" width="3" height="40" rx=".5" fill="#8a8a8a"/><rect x="38" y="4" width="3" height="40" rx=".5" fill="#8a8a8a"/><rect x="7" y="4" width="34" height="2.5" rx=".5" fill="#a0a0a0"/><rect x="7" y="16" width="34" height="2.5" rx=".5" fill="#a0a0a0"/><rect x="7" y="28" width="34" height="2.5" rx=".5" fill="#a0a0a0"/><rect x="7" y="40" width="34" height="2.5" rx=".5" fill="#a0a0a0"/><rect x="12" y="7" width="8" height="8.5" rx="1" fill="#d4a76a" stroke="#b8884a" stroke-width=".8"/><rect x="22" y="9" width="6" height="6.5" rx="1" fill="#c49558"/><rect x="30" y="8" width="7" height="7.5" rx="1" fill="#d4a76a" stroke="#b8884a" stroke-width=".8"/></svg>
+    <div class="rack-info">
+      <div class="rack-name">Стеллаж Б1</div>
+      <div class="rack-qty">15 800 позиций</div>
+      <div class="rack-meta">
+        <span>Время: <b>3ч 10мин</b></span>
+        <span>Скорость: <b>3.8 с/шт</b></span>
+      </div>
+    </div>
+    <div class="rack-right">
+      <span class="badge badge-green">Свежий</span>
+      <div class="rack-employee" style="margin-top:6px">Сидорова Е.</div>
+    </div>
+  </div>
+
+  <div class="rack-card">
+    <svg width="36" height="36" viewBox="0 0 48 48" fill="none"><rect x="7" y="4" width="3" height="40" rx=".5" fill="#8a8a8a"/><rect x="38" y="4" width="3" height="40" rx=".5" fill="#8a8a8a"/><rect x="7" y="4" width="34" height="2.5" rx=".5" fill="#a0a0a0"/><rect x="7" y="16" width="34" height="2.5" rx=".5" fill="#a0a0a0"/><rect x="7" y="28" width="34" height="2.5" rx=".5" fill="#a0a0a0"/><rect x="7" y="40" width="34" height="2.5" rx=".5" fill="#a0a0a0"/><rect x="12" y="7" width="8" height="8.5" rx="1" fill="#d4a76a" stroke="#b8884a" stroke-width=".8"/><rect x="22" y="9" width="6" height="6.5" rx="1" fill="#c49558"/><rect x="30" y="8" width="7" height="7.5" rx="1" fill="#d4a76a" stroke="#b8884a" stroke-width=".8"/></svg>
+    <div class="rack-info">
+      <div class="rack-name">Стеллаж Б2</div>
+      <div class="rack-qty">11 550 позиций</div>
+      <div class="rack-meta">
+        <span>Последняя: <b>8 дней назад</b></span>
+      </div>
+    </div>
+    <div class="rack-right">
+      <span class="badge badge-red">Устарел</span>
+    </div>
+  </div>
+
+</div>
+
+</div>
+</body>
+</html>

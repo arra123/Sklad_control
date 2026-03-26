@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GRAсклад — Обзор инвентаризации (v1)</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',sans-serif;background:#f9fafb;color:#1f2937;min-height:100vh}
+a{text-decoration:none;color:inherit}
+
+/* Layout */
+.app-shell{display:flex;max-width:1200px;margin:0 auto;min-height:100vh;border-left:1px solid #f3f4f6;border-right:1px solid #f3f4f6;background:#fff}
+.sidebar{width:260px;min-width:260px;background:#fff;border-right:1px solid #f3f4f6;display:flex;flex-direction:column;overflow:hidden}
+.sidebar-header{padding:20px 16px 12px;border-bottom:1px solid #f3f4f6}
+.sidebar-header h1{font-size:18px;font-weight:800;color:#7c3aed;display:flex;align-items:center;gap:8px}
+.sidebar-subtitle{font-size:11px;color:#9ca3af;margin-top:4px;font-weight:500;letter-spacing:.5px;text-transform:uppercase}
+
+/* Clean Minimal Tree */
+.tree{padding:8px 0;flex:1;overflow-y:auto}
+.tree-section-label{padding:6px 16px;font-size:10px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:.6px;margin-top:8px}
+.tree-node{user-select:none;position:relative}
+.tree-row{display:flex;align-items:center;gap:6px;height:28px;padding:0 12px;cursor:pointer;transition:color .15s;font-size:13px;font-weight:500;color:#6b7280;position:relative}
+.tree-row:hover{color:#7c3aed}
+.tree-row.active{color:#7c3aed;font-weight:600}
+/* Status bar instead of dot */
+.tree-status-bar{position:absolute;left:0;top:50%;transform:translateY(-50%);width:3px;height:16px;border-radius:2px}
+.bar-green{background:#047857}
+.bar-amber{background:#a16207}
+.bar-red{background:#b91c1c}
+/* Indent lines (VS Code style) */
+.tree-indent{position:relative;padding-left:16px}
+.tree-indent::before{content:'';position:absolute;left:20px;top:0;bottom:0;width:1px;background:#e5e7eb}
+.tree-indent-2{padding-left:32px}
+.tree-indent-2::before{left:36px}
+.tree-indent-3{padding-left:48px}
+.tree-indent-3::before{left:52px}
+.tree-arrow{width:14px;height:14px;display:flex;align-items:center;justify-content:center;transition:transform .2s;flex-shrink:0;color:#9ca3af}
+.tree-arrow.expanded{transform:rotate(90deg)}
+.tree-arrow.empty{visibility:hidden}
+.tree-children{overflow:hidden;transition:max-height .3s ease}
+.tree-children.collapsed{max-height:0!important}
+.tree-icon{flex-shrink:0;width:14px;height:14px;color:#9ca3af}
+.tree-row:hover .tree-icon,.tree-row.active .tree-icon{color:#7c3aed}
+
+/* Main */
+.main-panel{flex:1;overflow-y:auto;background:#f9fafb}
+.main-header{padding:24px 28px 0}
+.main-header h2{font-size:22px;font-weight:700;color:#111827}
+.breadcrumb{display:flex;align-items:center;gap:4px;font-size:12px;color:#9ca3af;padding:8px 28px 0}
+.breadcrumb a{color:#7c3aed;font-weight:500}
+.main-content{padding:20px 28px 28px}
+
+/* Stat strip (4 cards horizontal) */
+.stat-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px}
+.stat-card{background:#fff;border:1px solid #f3f4f6;border-radius:16px;padding:18px;animation:fadeUp .5s ease both}
+.stat-card:nth-child(1){animation-delay:.05s}
+.stat-card:nth-child(2){animation-delay:.1s}
+.stat-card:nth-child(3){animation-delay:.15s}
+.stat-card:nth-child(4){animation-delay:.2s}
+.stat-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;margin-bottom:8px}
+.stat-icon.purple{background:#ede9fe;color:#7c3aed}
+.stat-icon.green{background:#ecfdf5;color:#047857}
+.stat-icon.amber{background:#fffbeb;color:#a16207}
+.stat-icon.red{background:#fef2f2;color:#b91c1c}
+.stat-value{font-size:24px;font-weight:800;color:#111827}
+.stat-label{font-size:12px;color:#6b7280;margin-top:2px;font-weight:500}
+
+/* Charts row */
+.charts-row{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px}
+.card{background:#fff;border:1px solid #f3f4f6;border-radius:16px;padding:24px;animation:fadeUp .5s ease both}
+.card-title{font-size:14px;font-weight:700;color:#111827;margin-bottom:16px}
+
+/* Donut */
+.donut-wrap{display:flex;align-items:center;gap:24px}
+.donut{width:140px;height:140px;border-radius:50%;position:relative;background:conic-gradient(#047857 0% 58%,#a16207 58% 78%,#b91c1c 78% 86%,#e5e7eb 86% 100%)}
+.donut::after{content:'';position:absolute;top:28px;left:28px;width:84px;height:84px;background:#fff;border-radius:50%}
+.donut-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:1;text-align:center}
+.donut-center .big{font-size:24px;font-weight:800;color:#111827;display:block}
+.donut-center .small{font-size:10px;color:#6b7280}
+.legend{display:flex;flex-direction:column;gap:8px}
+.legend-item{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:500;color:#374151}
+.legend-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.legend-val{font-weight:700;margin-left:auto}
+
+/* Horizontal bar chart */
+.hbar-item{margin-bottom:12px}
+.hbar-item:last-child{margin-bottom:0}
+.hbar-top{display:flex;justify-content:space-between;margin-bottom:4px}
+.hbar-name{font-size:12px;font-weight:600;color:#374151}
+.hbar-val{font-size:12px;font-weight:700;color:#7c3aed}
+.hbar-track{height:10px;background:#f3f4f6;border-radius:99px;overflow:hidden}
+.hbar-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,#7c3aed,#a78bfa);transition:width .8s ease}
+
+/* Attention section */
+.attention-section{margin-bottom:24px}
+.attention-section .card-title{color:#b91c1c}
+.attention-item{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #f9fafb}
+.attention-item:last-child{border-bottom:none}
+.attention-badge{font-size:10px;font-weight:600;padding:3px 8px;border-radius:6px}
+.badge-red{background:#fef2f2;color:#b91c1c}
+.badge-amber{background:#fffbeb;color:#a16207}
+.attention-loc{font-size:13px;font-weight:600;color:#374151}
+.attention-detail{font-size:11px;color:#9ca3af;margin-top:2px}
+.attention-age{font-size:11px;font-weight:600;color:#6b7280;margin-left:auto;white-space:nowrap}
+
+/* Activity feed */
+.activity-item{display:flex;align-items:flex-start;gap:12px;padding:10px 0;border-bottom:1px solid #f9fafb}
+.activity-item:last-child{border-bottom:none}
+.activity-avatar{width:32px;height:32px;border-radius:50%;background:#ede9fe;color:#7c3aed;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0}
+.activity-text{font-size:13px;color:#374151;line-height:1.4}
+.activity-text strong{font-weight:600}
+.activity-time{font-size:11px;color:#9ca3af;margin-top:2px}
+
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:768px){.app-shell{flex-direction:column}.sidebar{width:100%;min-width:auto;max-height:50vh}.stat-strip{grid-template-columns:repeat(2,1fr)}.charts-row{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="app-shell">
+<aside class="sidebar">
+<div class="sidebar-header">
+<h1>
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9h18V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v4z"/><path d="M3 9v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9"/><line x1="12" y1="9" x2="12" y2="21"/><line x1="3" y1="14" x2="21" y2="14"/></svg>
+GRAсклад
+</h1>
+<div class="sidebar-subtitle">Аналитика инвентаризации</div>
+</div>
+<nav class="tree">
+<div class="tree-section-label">Иерархия склада</div>
+
+<!-- Основной склад -->
+<div class="tree-node">
+<div class="tree-row active" onclick="toggleTree(this)">
+<span class="tree-status-bar bar-green"></span>
+<span class="tree-arrow expanded"><svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><polygon points="3,1 8,5 3,9"/></svg></span>
+<svg class="tree-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21V8l9-5 9 5v13"/><path d="M9 21V12h6v9"/></svg>
+<span>Основной склад</span>
+</div>
+<div class="tree-children">
+<div class="tree-node tree-indent">
+<div class="tree-row" onclick="toggleTree(this)">
+<span class="tree-status-bar bar-green"></span>
+<span class="tree-arrow expanded"><svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><polygon points="3,1 8,5 3,9"/></svg></span>
+<svg class="tree-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><line x1="4" y1="10" x2="20" y2="10"/><line x1="4" y1="16" x2="20" y2="16"/></svg>
+<a href="02-rack.html">Стеллаж А1</a>
+</div>
+<div class="tree-children">
+<div class="tree-node tree-indent-2">
+<div class="tree-row" onclick="toggleTree(this)">
+<span class="tree-status-bar bar-green"></span>
+<span class="tree-arrow expanded"><svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><polygon points="3,1 8,5 3,9"/></svg></span>
+<svg class="tree-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/></svg>
+<a href="03-shelf.html">Полка 1</a>
+</div>
+<div class="tree-children">
+<div class="tree-node tree-indent-3">
+<div class="tree-row"><span class="tree-status-bar bar-green"></span><span class="tree-arrow empty"></span><svg class="tree-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg><a href="04-box.html">К1</a></div>
+</div>
+<div class="tree-node tree-indent-3">
+<div class="tree-row"><span class="tree-status-bar bar-green"></span><span class="tree-arrow empty"></span><svg class="tree-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg><a href="04-box.html">К2</a></div>
+</div>
+<div class="tree-node tree-indent-3">
+<div class="tree-row"><span class="tree-status-bar bar-amber"></span><span class="tree-arrow empty"></span><svg class="tree-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg><a href="04-box.html">К3</a></div>
+</div>
+</div>
+</div>
+<div class="tree-node tree-indent-2">
+<div class="tree-row" onclick="toggleTree(this)">
+<span class="tree-status-bar bar-green"></span>
+<span class="tree-arrow"><svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><polygon points="3,1 8,5 3,9"/></svg></span>
+<svg class="tree-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/></svg>
+<a href="03-shelf.html">Полка 2</a>
+</div>
+<div class="tree-children collapsed">
+<div class="tree-node tree-indent-3">
+<div class="tree-row"><span class="tree-status-bar bar-green"></span><span class="tree-arrow empty"></span><svg class="tree-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg><a href="04-box.html">К4</a></div>
+</div>
+<div class="tree-node tree-indent-3">
+<div class="tree-row"><span class="tree-status-bar bar-red"></span><span class="tree-arrow empty"></span><svg class="tree-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg><a href="04-box.html">К5</a></div>
+</div>
+</div>
+</div>
+<div class="tree-node tree-indent-2">
+<div class="tree-row">
+<span class="tree-status-bar bar-amber"></span>
+<span class="tree-arrow empty"></span>
+<svg class="tree-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/></svg>
+<a href="03-shelf.html">Полка 3</a>
+</div>
+</div>
+</div>
+</div>
+<div class="tree-node tree-indent">
+<div class="tree-row" onclick="toggleTree(this)">
+<span class="tree-status-bar bar-amber"></span>
+<span class="tree-arrow"><svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><polygon points="3,1 8,5 3,9"/></svg></span>
+<svg class="tree-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><line x1="4" y1="10" x2="20" y2="10"/><line x1="4" y1="16" x2="20" y2="16"/></svg>
+<a href="02-rack.html">Стеллаж А2</a>
+</div>
+<div class="tree-children collapsed">
+<div class="tree-node tree-indent-2">
+<div class="tree-row"><span class="tree-status-bar bar-green"></span><span class="tree-arrow empty"></span><svg class="tree-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/></svg><a href="03-shelf.html">Полка 1</a></div>
+</div>
+<div class="tree-node tree-indent-2">
+<div class="tree-row"><span class="tree-status-bar bar-amber"></span><span class="tree-arrow empty"></span><svg class="tree-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/></svg><a href="03-shelf.html">Полка 2</a></div>
+</div>
+</div>
+</div>
+<div class="tree-node tree-indent">
+<div class="tree-row" onclick="toggleTree(this)">
+<span class="tree-status-bar bar-green"></span>
+<span class="tree-arrow"><svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><polygon points="3,1 8,5 3,9"/></svg></span>
+<svg class="tree-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><line x1="4" y1="10" x2="20" y2="10"/><line x1="4" y1="16" x2="20" y2="16"/></svg>
+<a href="02-rack.html">Стеллаж А3</a>
+</div>
+<div class="tree-children collapsed">
+<div class="tree-node tree-indent-2">
+<div class="tree-row"><span class="tree-status-bar bar-green"></span><span class="tree-arrow empty"></span><svg class="tree-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/></svg><a href="03-shelf.html">Полка 1</a></div>
+</div>
+<div class="tree-node tree-indent-2">
+<div class="tree-row"><span class="tree-status-bar bar-green"></span><span class="tree-arrow empty"></span><svg class="tree-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/></svg><a href="03-shelf.html">Полка 2</a></div>
+</div>
+<div class="tree-node tree-indent-2">
+<div class="tree-row"><span class="tree-status-bar bar-red"></span><span class="tree-arrow empty"></span><svg class="tree-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/></svg><a href="03-shelf.html">Полка 3</a></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- Паллетный ФБО -->
+<div class="tree-node">
+<div class="tree-row" onclick="toggleTree(this)">
+<span class="tree-status-bar bar-amber"></span>
+<span class="tree-arrow"><svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><polygon points="3,1 8,5 3,9"/></svg></span>
+<svg class="tree-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21V8l9-5 9 5v13"/><path d="M9 21V12h6v9"/></svg>
+<span>Паллетный ФБО</span>
+</div>
+<div class="tree-children collapsed">
+<div class="tree-node tree-indent">
+<div class="tree-row" onclick="toggleTree(this)">
+<span class="tree-status-bar bar-green"></span>
+<span class="tree-arrow"><svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><polygon points="3,1 8,5 3,9"/></svg></span>
+<svg class="tree-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><line x1="4" y1="10" x2="20" y2="10"/><line x1="4" y1="16" x2="20" y2="16"/></svg>
+<a href="02-rack.html">Стеллаж Б1</a>
+</div>
+<div class="tree-children collapsed">
+<div class="tree-node tree-indent-2"><div class="tree-row"><span class="tree-status-bar bar-green"></span><span class="tree-arrow empty"></span><svg class="tree-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/></svg><a href="03-shelf.html">Полка 1</a></div></div>
+<div class="tree-node tree-indent-2"><div class="tree-row"><span class="tree-status-bar bar-green"></span><span class="tree-arrow empty"></span><svg class="tree-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/></svg><a href="03-shelf.html">Полка 2</a></div></div>
+<div class="tree-node tree-indent-2"><div class="tree-row"><span class="tree-status-bar bar-amber"></span><span class="tree-arrow empty"></span><svg class="tree-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/></svg><a href="03-shelf.html">Полка 3</a></div></div>
+</div>
+</div>
+<div class="tree-node tree-indent">
+<div class="tree-row" onclick="toggleTree(this)">
+<span class="tree-status-bar bar-red"></span>
+<span class="tree-arrow"><svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><polygon points="3,1 8,5 3,9"/></svg></span>
+<svg class="tree-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><line x1="4" y1="10" x2="20" y2="10"/><line x1="4" y1="16" x2="20" y2="16"/></svg>
+<a href="02-rack.html">Стеллаж Б2</a>
+</div>
+<div class="tree-children collapsed">
+<div class="tree-node tree-indent-2"><div class="tree-row"><span class="tree-status-bar bar-red"></span><span class="tree-arrow empty"></span><svg class="tree-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/></svg><a href="03-shelf.html">Полка 1</a></div></div>
+<div class="tree-node tree-indent-2"><div class="tree-row"><span class="tree-status-bar bar-amber"></span><span class="tree-arrow empty"></span><svg class="tree-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/></svg><a href="03-shelf.html">Полка 2</a></div></div>
+</div>
+</div>
+</div>
+</div>
+
+</nav>
+</aside>
+
+<main class="main-panel">
+<div class="breadcrumb"><a href="01-overview.html">GRAсклад</a> / Аналитика инвентаризации</div>
+<div class="main-header"><h2>Обзор инвентаризации</h2></div>
+<div class="main-content">
+
+<!-- 4 stat cards -->
+<div class="stat-strip">
+<div class="stat-card">
+<div class="stat-icon purple"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg></div>
+<div class="stat-value">1 248</div>
+<div class="stat-label">Всего позиций</div>
+</div>
+<div class="stat-card">
+<div class="stat-icon green"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></div>
+<div class="stat-value">312</div>
+<div class="stat-label">Проверено сегодня</div>
+</div>
+<div class="stat-card">
+<div class="stat-icon amber"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
+<div class="stat-value" style="color:#a16207">23</div>
+<div class="stat-label">Требуют проверки</div>
+</div>
+<div class="stat-card">
+<div class="stat-icon red"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div>
+<div class="stat-value" style="color:#b91c1c">17</div>
+<div class="stat-label">Расхождения</div>
+</div>
+</div>
+
+<!-- Two charts side by side -->
+<div class="charts-row">
+<div class="card" style="animation-delay:.25s">
+<div class="card-title">Покрытие инвентаризацией</div>
+<div class="donut-wrap">
+<div class="donut" style="position:relative">
+<div class="donut-center">
+<span class="big">86%</span>
+<span class="small">покрытие</span>
+</div>
+</div>
+<div class="legend">
+<div class="legend-item"><span class="legend-dot" style="background:#047857"></span>Актуально<span class="legend-val" style="color:#047857">58%</span></div>
+<div class="legend-item"><span class="legend-dot" style="background:#a16207"></span>Требует проверки<span class="legend-val" style="color:#a16207">20%</span></div>
+<div class="legend-item"><span class="legend-dot" style="background:#b91c1c"></span>Устаревшие<span class="legend-val" style="color:#b91c1c">8%</span></div>
+<div class="legend-item"><span class="legend-dot" style="background:#e5e7eb"></span>Не проверено<span class="legend-val" style="color:#9ca3af">14%</span></div>
+</div>
+</div>
+</div>
+<div class="card" style="animation-delay:.3s">
+<div class="card-title">Позиции по складам</div>
+<div class="hbar-item">
+<div class="hbar-top"><span class="hbar-name">Основной склад</span><span class="hbar-val">847</span></div>
+<div class="hbar-track"><div class="hbar-fill" style="width:68%"></div></div>
+</div>
+<div class="hbar-item">
+<div class="hbar-top"><span class="hbar-name">Паллетный ФБО</span><span class="hbar-val">401</span></div>
+<div class="hbar-track"><div class="hbar-fill" style="width:32%"></div></div>
+</div>
+</div>
+</div>
+
+<!-- Требуют внимания -->
+<div class="card attention-section" style="animation-delay:.35s;margin-bottom:24px">
+<div class="card-title">Требуют внимания</div>
+<div class="attention-item">
+<span class="attention-badge badge-red">Устарело</span>
+<div>
+<div class="attention-loc">Стеллаж Б2 / Полка 1</div>
+<div class="attention-detail">Паллетный ФБО — данные от 10.03.2026</div>
+</div>
+<span class="attention-age">15 дней</span>
+</div>
+<div class="attention-item">
+<span class="attention-badge badge-red">Устарело</span>
+<div>
+<div class="attention-loc">Стеллаж А3 / Полка 3</div>
+<div class="attention-detail">Основной склад — данные от 12.03.2026</div>
+</div>
+<span class="attention-age">13 дней</span>
+</div>
+<div class="attention-item">
+<span class="attention-badge badge-amber">Проверить</span>
+<div>
+<div class="attention-loc">Стеллаж А2 / Полка 2</div>
+<div class="attention-detail">Основной склад — расхождение 5 шт</div>
+</div>
+<span class="attention-age">7 дней</span>
+</div>
+<div class="attention-item">
+<span class="attention-badge badge-amber">Проверить</span>
+<div>
+<div class="attention-loc">Стеллаж Б1 / Полка 3</div>
+<div class="attention-detail">Паллетный ФБО — расхождение 3 шт</div>
+</div>
+<span class="attention-age">5 дней</span>
+</div>
+</div>
+
+<!-- Recent activity -->
+<div class="card" style="animation-delay:.4s">
+<div class="card-title">Последние инвентаризации</div>
+<div class="activity-item">
+<div class="activity-avatar">ИА</div>
+<div>
+<div class="activity-text"><strong>Иванова А.</strong> — Стеллаж А1 / Полка 1</div>
+<div class="activity-time">5 мин назад — 8 мин, 4.2 с/шт</div>
+</div>
+</div>
+<div class="activity-item">
+<div class="activity-avatar">ПМ</div>
+<div>
+<div class="activity-text"><strong>Петров М.</strong> — Стеллаж Б1 / Полка 2</div>
+<div class="activity-time">25 мин назад — 11 мин, 5.1 с/шт</div>
+</div>
+</div>
+<div class="activity-item">
+<div class="activity-avatar">СК</div>
+<div>
+<div class="activity-text"><strong>Сидорова К.</strong> — Стеллаж А2 / Полка 1</div>
+<div class="activity-time">1 час назад — 15 мин, 6.3 с/шт</div>
+</div>
+</div>
+<div class="activity-item">
+<div class="activity-avatar">ВД</div>
+<div>
+<div class="activity-text"><strong>Волков Д.</strong> — Стеллаж А3 / Полка 1</div>
+<div class="activity-time">2 часа назад — 9 мин, 3.8 с/шт</div>
+</div>
+</div>
+<div class="activity-item">
+<div class="activity-avatar">ИА</div>
+<div>
+<div class="activity-text"><strong>Иванова А.</strong> — Стеллаж Б2 / Полка 2</div>
+<div class="activity-time">3 часа назад — 12 мин, 5.5 с/шт</div>
+</div>
+</div>
+</div>
+
+</div>
+</main>
+</div>
+
+<script>
+function toggleTree(row){
+  const node=row.closest('.tree-node');
+  const children=node.querySelector(':scope > .tree-children');
+  const arrow=row.querySelector('.tree-arrow');
+  if(!children)return;
+  children.classList.toggle('collapsed');
+  if(arrow)arrow.classList.toggle('expanded');
+}
+</script>
+</body>
+</html>

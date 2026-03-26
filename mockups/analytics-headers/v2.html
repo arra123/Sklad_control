@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>v2 — Icon Card + Stats Grid Below</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',sans-serif;background:#f9fafb;padding:24px;min-height:100vh}
+.container{max-width:800px;margin:0 auto}
+.section-label{font-size:13px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:12px;margin-top:32px}
+.section-label:first-child{margin-top:0}
+
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+
+.header-card{
+  background:#fff;border:1px solid #f3f4f6;border-radius:16px;
+  padding:24px;animation:fadeUp .5s ease both;
+}
+.header-card:nth-of-type(2){animation-delay:.1s}
+.header-card:nth-of-type(3){animation-delay:.2s}
+
+.top-row{display:flex;align-items:center;gap:16px;margin-bottom:18px}
+.icon-circle{
+  width:72px;height:72px;border-radius:16px;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.icon-circle.amber{background:#fffbeb}
+.icon-circle.yellow{background:#fefce8}
+.icon-circle.brown{background:#fef3c7}
+
+.top-info{flex:1;min-width:0}
+.top-info .name{font-size:22px;font-weight:800;color:#111827}
+.top-info .breadcrumb{font-size:12px;color:#9ca3af;margin-top:2px;font-weight:500}
+.top-info .barcode{font-size:11px;font-family:'Courier New',monospace;color:#d1d5db;margin-top:2px;letter-spacing:1px}
+
+.top-right{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.status{font-size:11px;font-weight:700;padding:4px 12px;border-radius:20px;text-transform:uppercase;letter-spacing:.5px}
+.status.ok{background:#ecfdf5;color:#047857}
+.status.warn{background:#fffbeb;color:#a16207}
+
+.stats-grid{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:10px;
+}
+.stat-card{
+  background:#f9fafb;border-radius:10px;padding:12px 14px;
+  border:1px solid #f3f4f6;
+}
+.stat-card .value{font-size:18px;font-weight:800;color:#111827;line-height:1.2}
+.stat-card .label{font-size:11px;color:#9ca3af;font-weight:500;margin-top:2px}
+.stat-card.green .value{color:#047857}
+.stat-card.amber .value{color:#a16207}
+.stat-card.purple .value{color:#7c3aed}
+.stat-card.accent{border-left:3px solid #7c3aed}
+.stat-card.employee{display:flex;align-items:center;gap:8px}
+.stat-card.employee .emp-info{min-width:0}
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- Ряд -->
+<div class="section-label">Ряд:</div>
+<div class="header-card">
+  <div class="top-row">
+    <div class="icon-circle amber">
+      <svg width="56" height="56" viewBox="0 0 48 48" fill="none"><rect x="1" y="36" width="12" height="3" rx=".5" fill="#c49a40"/><rect x="2" y="26" width="10" height="10" rx="1" fill="#d4a76a" stroke="#b8884a" stroke-width=".7"/><rect x="3" y="18" width="8" height="8" rx="1" fill="#c49558" stroke="#a87a3e" stroke-width=".7"/><rect x="16" y="36" width="14" height="3" rx=".5" fill="#c49a40"/><rect x="17" y="22" width="12" height="14" rx="1" fill="#d4a76a" stroke="#b8884a" stroke-width=".7"/><rect x="18" y="10" width="10" height="12" rx="1" fill="#c49558" stroke="#a87a3e" stroke-width=".7"/><rect x="20" y="3" width="6" height="7" rx="1" fill="#d4a76a" stroke="#b8884a" stroke-width=".7"/><rect x="33" y="36" width="12" height="3" rx=".5" fill="#c49a40"/><rect x="34" y="28" width="10" height="8" rx="1" fill="#c49558" stroke="#a87a3e" stroke-width=".7"/><rect x="35" y="20" width="8" height="8" rx="1" fill="#d4a76a" stroke="#b8884a" stroke-width=".7"/></svg>
+    </div>
+    <div class="top-info">
+      <div class="name">Ряд 1</div>
+      <div class="breadcrumb">Склад &rarr; Зона А &rarr; Ряд 1 &bull; 8 паллетов</div>
+      <div class="barcode">ROW-0001</div>
+    </div>
+    <div class="top-right">
+      <span class="status ok">Сходится</span>
+    </div>
+  </div>
+  <div class="stats-grid">
+    <div class="stat-card accent"><div class="value">3 749</div><div class="label">Насчитано</div></div>
+    <div class="stat-card"><div class="value">3 749</div><div class="label">Текущий остаток</div></div>
+    <div class="stat-card green"><div class="value">0</div><div class="label">Расхождение</div></div>
+    <div class="stat-card purple"><div class="value">3ч 22м</div><div class="label">Потрачено на инвент.</div></div>
+    <div class="stat-card"><div class="value">3.2 с</div><div class="label">Скорость/шт</div></div>
+    <div class="stat-card"><div class="value">18.7</div><div class="label">Товаров/мин</div></div>
+    <div class="stat-card employee">
+      <svg width="24" height="24" viewBox="0 0 48 48" fill="none"><path d="M24 26c-8 0-15 4-15 10v4h30v-4c0-6-7-10-15-10z" fill="#6366f1" opacity=".15" stroke="#6366f1" stroke-width="1.5"/><circle cx="24" cy="15" r="9" fill="#fcd9b6" stroke="#e4a96a" stroke-width="1.3"/><path d="M15 13c0-6 4-9 9-9s9 3 9 9" fill="#5a3e28" opacity=".8"/><circle cx="20.5" cy="15.5" r="1.2" fill="#3a3a3a"/><circle cx="27.5" cy="15.5" r="1.2" fill="#3a3a3a"/></svg>
+      <div class="emp-info"><div class="value" style="font-size:14px">Иванова А.</div><div class="label">Сотрудник</div></div>
+    </div>
+    <div class="stat-card"><div class="value" style="font-size:14px">24.03.26</div><div class="label">Дата &bull; 14:23</div></div>
+  </div>
+</div>
+
+<!-- Паллет -->
+<div class="section-label">Паллет:</div>
+<div class="header-card">
+  <div class="top-row">
+    <div class="icon-circle yellow">
+      <svg width="56" height="56" viewBox="0 0 48 48" fill="none"><rect x="3" y="12" width="42" height="4" rx="1" fill="#d4b05a" stroke="#a88520" stroke-width="1"/><rect x="6" y="16" width="5" height="10" rx="1" fill="#a07820"/><rect x="21.5" y="16" width="5" height="10" rx="1" fill="#a07820"/><rect x="37" y="16" width="5" height="10" rx="1" fill="#a07820"/><rect x="3" y="26" width="42" height="4" rx="1" fill="#d4b05a" stroke="#a88520" stroke-width="1"/></svg>
+    </div>
+    <div class="top-info">
+      <div class="name">Р1П3</div>
+      <div class="breadcrumb">Склад &rarr; Зона А &rarr; Ряд 1 &rarr; Паллет 3 &bull; 6 коробок</div>
+      <div class="barcode">PLT-001234</div>
+    </div>
+    <div class="top-right">
+      <span class="status warn">+3 расхождение</span>
+    </div>
+  </div>
+  <div class="stats-grid">
+    <div class="stat-card accent"><div class="value">487</div><div class="label">Насчитано</div></div>
+    <div class="stat-card"><div class="value">490</div><div class="label">Текущий остаток</div></div>
+    <div class="stat-card amber"><div class="value">+3</div><div class="label">Расхождение</div></div>
+    <div class="stat-card purple"><div class="value">28м</div><div class="label">Потрачено на инвент.</div></div>
+    <div class="stat-card"><div class="value">3.4 с</div><div class="label">Скорость/шт</div></div>
+    <div class="stat-card"><div class="value">17.4</div><div class="label">Товаров/мин</div></div>
+    <div class="stat-card employee">
+      <svg width="24" height="24" viewBox="0 0 48 48" fill="none"><path d="M24 26c-8 0-15 4-15 10v4h30v-4c0-6-7-10-15-10z" fill="#6366f1" opacity=".15" stroke="#6366f1" stroke-width="1.5"/><circle cx="24" cy="15" r="9" fill="#fcd9b6" stroke="#e4a96a" stroke-width="1.3"/><path d="M15 13c0-6 4-9 9-9s9 3 9 9" fill="#5a3e28" opacity=".8"/><circle cx="20.5" cy="15.5" r="1.2" fill="#3a3a3a"/><circle cx="27.5" cy="15.5" r="1.2" fill="#3a3a3a"/></svg>
+      <div class="emp-info"><div class="value" style="font-size:14px">Петров М.</div><div class="label">Сотрудник</div></div>
+    </div>
+    <div class="stat-card"><div class="value" style="font-size:14px">24.03.26</div><div class="label">Дата &bull; 15:10</div></div>
+  </div>
+</div>
+
+<!-- Коробка -->
+<div class="section-label">Коробка:</div>
+<div class="header-card">
+  <div class="top-row">
+    <div class="icon-circle brown">
+      <svg width="56" height="56" viewBox="0 0 48 48" fill="none"><path d="M6 16L24 6l18 10v20L24 46 6 36V16z" fill="#d4a76a" stroke="#b8884a" stroke-width="1.5" stroke-linejoin="round"/><path d="M6 16l18 8 18-8" fill="#e8c888" stroke="#b8884a" stroke-width="1" stroke-linejoin="round"/><path d="M24 24v22" stroke="#b8884a" stroke-width="1"/><path d="M24 24l18-8v20L24 46z" fill="#c49558"/><path d="M18 13l6 3 6-3" stroke="#e8d8a0" stroke-width="2.5" stroke-linecap="round" opacity=".7"/><line x1="24" y1="24" x2="24" y2="38" stroke="#e8d8a0" stroke-width="2" opacity=".5"/><rect x="14" y="28" width="8" height="6" rx=".5" fill="white" opacity=".6"/></svg>
+    </div>
+    <div class="top-info">
+      <div class="name">Р1П3К5</div>
+      <div class="breadcrumb">Склад &rarr; Зона А &rarr; Ряд 1 &rarr; Паллет 3 &rarr; Коробка 5</div>
+      <div class="barcode">BOX-005678</div>
+    </div>
+    <div class="top-right">
+      <span class="status ok">Сходится</span>
+    </div>
+  </div>
+  <div class="stats-grid">
+    <div class="stat-card accent"><div class="value">82</div><div class="label">Насчитано</div></div>
+    <div class="stat-card"><div class="value">82</div><div class="label">Текущий остаток</div></div>
+    <div class="stat-card green"><div class="value">0</div><div class="label">Расхождение</div></div>
+    <div class="stat-card purple"><div class="value">4м 12с</div><div class="label">Потрачено на инвент.</div></div>
+    <div class="stat-card"><div class="value">3.1 с</div><div class="label">Скорость/шт</div></div>
+    <div class="stat-card"><div class="value">19.5</div><div class="label">Товаров/мин</div></div>
+    <div class="stat-card employee">
+      <svg width="24" height="24" viewBox="0 0 48 48" fill="none"><path d="M24 26c-8 0-15 4-15 10v4h30v-4c0-6-7-10-15-10z" fill="#6366f1" opacity=".15" stroke="#6366f1" stroke-width="1.5"/><circle cx="24" cy="15" r="9" fill="#fcd9b6" stroke="#e4a96a" stroke-width="1.3"/><path d="M15 13c0-6 4-9 9-9s9 3 9 9" fill="#5a3e28" opacity=".8"/><circle cx="20.5" cy="15.5" r="1.2" fill="#3a3a3a"/><circle cx="27.5" cy="15.5" r="1.2" fill="#3a3a3a"/></svg>
+      <div class="emp-info"><div class="value" style="font-size:14px">Сидорова Е.</div><div class="label">Сотрудник</div></div>
+    </div>
+    <div class="stat-card"><div class="value" style="font-size:14px">24.03.26</div><div class="label">Дата &bull; 15:38</div></div>
+  </div>
+</div>
+
+</div>
+</body>
+</html>

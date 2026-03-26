@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>v5 — Tabbed Stats Card</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',sans-serif;background:#f9fafb;padding:24px;min-height:100vh}
+.container{max-width:800px;margin:0 auto}
+.section-label{font-size:13px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:12px;margin-top:32px}
+.section-label:first-child{margin-top:0}
+
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+
+.tab-card{
+  background:#fff;border:1px solid #f3f4f6;border-radius:16px;
+  overflow:hidden;animation:fadeUp .5s ease both;
+}
+.tab-card:nth-of-type(2){animation-delay:.1s}
+.tab-card:nth-of-type(3){animation-delay:.2s}
+
+.card-top{
+  display:flex;align-items:center;gap:14px;
+  padding:20px 24px 16px;
+}
+.card-top .icon-wrap{flex-shrink:0;display:flex;align-items:center}
+.card-top .name{font-size:22px;font-weight:800;color:#111827}
+.card-top .status{
+  font-size:11px;font-weight:700;padding:4px 12px;border-radius:20px;
+  margin-left:8px;
+}
+.status.ok{background:#ecfdf5;color:#047857}
+.status.warn{background:#fffbeb;color:#a16207}
+.card-top .barcode{
+  margin-left:auto;font-size:10px;font-family:'Courier New',monospace;
+  color:#d1d5db;letter-spacing:1px;
+}
+
+.tabs{
+  display:flex;border-bottom:1px solid #f3f4f6;padding:0 24px;
+}
+.tab{
+  padding:10px 18px;font-size:12px;font-weight:600;color:#9ca3af;
+  border-bottom:2px solid transparent;cursor:pointer;
+  transition:all .2s;
+}
+.tab.active{color:#7c3aed;border-bottom-color:#7c3aed}
+.tab:hover{color:#6b7280}
+
+.tab-panels{padding:0 24px 20px}
+.tab-panel{margin-top:16px}
+.tab-panel-label{
+  font-size:10px;font-weight:700;color:#d1d5db;text-transform:uppercase;
+  letter-spacing:1px;margin-bottom:10px;
+}
+
+.stats-row{display:flex;gap:12px;flex-wrap:wrap}
+.stat-block{
+  flex:1;min-width:120px;
+  background:#f9fafb;border-radius:10px;padding:14px 16px;
+  border:1px solid #f3f4f6;
+}
+.stat-block .value{font-size:20px;font-weight:800;color:#111827;line-height:1.2}
+.stat-block .label{font-size:11px;color:#9ca3af;font-weight:500;margin-top:3px}
+.stat-block.green .value{color:#047857}
+.stat-block.amber .value{color:#a16207}
+.stat-block.purple .value{color:#7c3aed}
+
+.stat-block.emp{display:flex;align-items:center;gap:10px}
+.stat-block.emp .emp-info .value{font-size:15px}
+.stat-block.emp svg{flex-shrink:0}
+
+.divider{height:1px;background:#f3f4f6;margin:16px 0 0}
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- Ряд -->
+<div class="section-label">Ряд:</div>
+<div class="tab-card">
+  <div class="card-top">
+    <div class="icon-wrap">
+      <svg width="48" height="48" viewBox="0 0 48 48" fill="none"><rect x="1" y="36" width="12" height="3" rx=".5" fill="#c49a40"/><rect x="2" y="26" width="10" height="10" rx="1" fill="#d4a76a" stroke="#b8884a" stroke-width=".7"/><rect x="3" y="18" width="8" height="8" rx="1" fill="#c49558" stroke="#a87a3e" stroke-width=".7"/><rect x="16" y="36" width="14" height="3" rx=".5" fill="#c49a40"/><rect x="17" y="22" width="12" height="14" rx="1" fill="#d4a76a" stroke="#b8884a" stroke-width=".7"/><rect x="18" y="10" width="10" height="12" rx="1" fill="#c49558" stroke="#a87a3e" stroke-width=".7"/><rect x="20" y="3" width="6" height="7" rx="1" fill="#d4a76a" stroke="#b8884a" stroke-width=".7"/><rect x="33" y="36" width="12" height="3" rx=".5" fill="#c49a40"/><rect x="34" y="28" width="10" height="8" rx="1" fill="#c49558" stroke="#a87a3e" stroke-width=".7"/><rect x="35" y="20" width="8" height="8" rx="1" fill="#d4a76a" stroke="#b8884a" stroke-width=".7"/></svg>
+    </div>
+    <span class="name">Ряд 1</span>
+    <span class="status ok">Сходится</span>
+    <span class="barcode">ROW-0001</span>
+  </div>
+  <div class="tabs">
+    <div class="tab active">Основное</div>
+    <div class="tab">Скорость</div>
+    <div class="tab">Сотрудник</div>
+  </div>
+  <div class="tab-panels">
+    <!-- Основное (active) -->
+    <div class="tab-panel">
+      <div class="tab-panel-label">Основное</div>
+      <div class="stats-row">
+        <div class="stat-block"><div class="value">3 749</div><div class="label">Насчитано</div></div>
+        <div class="stat-block"><div class="value">3 749</div><div class="label">Текущее</div></div>
+        <div class="stat-block green"><div class="value">0</div><div class="label">Расхождение</div></div>
+        <div class="stat-block"><div class="value" style="font-size:15px">24.03.26</div><div class="label">Дата &bull; 14:23</div></div>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <!-- Скорость -->
+    <div class="tab-panel">
+      <div class="tab-panel-label">Скорость</div>
+      <div class="stats-row">
+        <div class="stat-block purple"><div class="value">3ч 22м</div><div class="label">Время на инвент.</div></div>
+        <div class="stat-block"><div class="value">3.2 с</div><div class="label">Секунд / шт</div></div>
+        <div class="stat-block"><div class="value">18.7</div><div class="label">Штук / мин</div></div>
+        <div class="stat-block"><div class="value" style="font-size:14px">2.8–4.1</div><div class="label">Мин/макс пик с/шт</div></div>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <!-- Сотрудник -->
+    <div class="tab-panel">
+      <div class="tab-panel-label">Сотрудник</div>
+      <div class="stats-row">
+        <div class="stat-block emp">
+          <svg width="32" height="32" viewBox="0 0 48 48" fill="none"><path d="M24 26c-8 0-15 4-15 10v4h30v-4c0-6-7-10-15-10z" fill="#6366f1" opacity=".15" stroke="#6366f1" stroke-width="1.5"/><circle cx="24" cy="15" r="9" fill="#fcd9b6" stroke="#e4a96a" stroke-width="1.3"/><path d="M15 13c0-6 4-9 9-9s9 3 9 9" fill="#5a3e28" opacity=".8"/><circle cx="20.5" cy="15.5" r="1.2" fill="#3a3a3a"/><circle cx="27.5" cy="15.5" r="1.2" fill="#3a3a3a"/></svg>
+          <div class="emp-info"><div class="value">Иванова А.</div><div class="label">Проверяющий</div></div>
+        </div>
+        <div class="stat-block"><div class="value">12</div><div class="label">Кол-во проверок</div></div>
+        <div class="stat-block green"><div class="value">99.2%</div><div class="label">Средняя точность</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Паллет -->
+<div class="section-label">Паллет:</div>
+<div class="tab-card">
+  <div class="card-top">
+    <div class="icon-wrap">
+      <svg width="48" height="48" viewBox="0 0 48 48" fill="none"><rect x="3" y="12" width="42" height="4" rx="1" fill="#d4b05a" stroke="#a88520" stroke-width="1"/><rect x="6" y="16" width="5" height="10" rx="1" fill="#a07820"/><rect x="21.5" y="16" width="5" height="10" rx="1" fill="#a07820"/><rect x="37" y="16" width="5" height="10" rx="1" fill="#a07820"/><rect x="3" y="26" width="42" height="4" rx="1" fill="#d4b05a" stroke="#a88520" stroke-width="1"/></svg>
+    </div>
+    <span class="name">Р1П3</span>
+    <span class="status warn">+3 расхождение</span>
+    <span class="barcode">PLT-001234</span>
+  </div>
+  <div class="tabs">
+    <div class="tab active">Основное</div>
+    <div class="tab">Скорость</div>
+    <div class="tab">Сотрудник</div>
+  </div>
+  <div class="tab-panels">
+    <div class="tab-panel">
+      <div class="tab-panel-label">Основное</div>
+      <div class="stats-row">
+        <div class="stat-block"><div class="value">487</div><div class="label">Насчитано</div></div>
+        <div class="stat-block"><div class="value">490</div><div class="label">Текущее</div></div>
+        <div class="stat-block amber"><div class="value">+3</div><div class="label">Расхождение</div></div>
+        <div class="stat-block"><div class="value" style="font-size:15px">24.03.26</div><div class="label">Дата &bull; 15:10</div></div>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="tab-panel">
+      <div class="tab-panel-label">Скорость</div>
+      <div class="stats-row">
+        <div class="stat-block purple"><div class="value">28м</div><div class="label">Время на инвент.</div></div>
+        <div class="stat-block"><div class="value">3.4 с</div><div class="label">Секунд / шт</div></div>
+        <div class="stat-block"><div class="value">17.4</div><div class="label">Штук / мин</div></div>
+        <div class="stat-block"><div class="value" style="font-size:14px">2.9–4.5</div><div class="label">Мин/макс пик с/шт</div></div>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="tab-panel">
+      <div class="tab-panel-label">Сотрудник</div>
+      <div class="stats-row">
+        <div class="stat-block emp">
+          <svg width="32" height="32" viewBox="0 0 48 48" fill="none"><path d="M24 26c-8 0-15 4-15 10v4h30v-4c0-6-7-10-15-10z" fill="#6366f1" opacity=".15" stroke="#6366f1" stroke-width="1.5"/><circle cx="24" cy="15" r="9" fill="#fcd9b6" stroke="#e4a96a" stroke-width="1.3"/><path d="M15 13c0-6 4-9 9-9s9 3 9 9" fill="#5a3e28" opacity=".8"/><circle cx="20.5" cy="15.5" r="1.2" fill="#3a3a3a"/><circle cx="27.5" cy="15.5" r="1.2" fill="#3a3a3a"/></svg>
+          <div class="emp-info"><div class="value">Петров М.</div><div class="label">Проверяющий</div></div>
+        </div>
+        <div class="stat-block"><div class="value">8</div><div class="label">Кол-во проверок</div></div>
+        <div class="stat-block amber"><div class="value">97.1%</div><div class="label">Средняя точность</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Коробка -->
+<div class="section-label">Коробка:</div>
+<div class="tab-card">
+  <div class="card-top">
+    <div class="icon-wrap">
+      <svg width="48" height="48" viewBox="0 0 48 48" fill="none"><path d="M6 16L24 6l18 10v20L24 46 6 36V16z" fill="#d4a76a" stroke="#b8884a" stroke-width="1.5" stroke-linejoin="round"/><path d="M6 16l18 8 18-8" fill="#e8c888" stroke="#b8884a" stroke-width="1" stroke-linejoin="round"/><path d="M24 24v22" stroke="#b8884a" stroke-width="1"/><path d="M24 24l18-8v20L24 46z" fill="#c49558"/><path d="M18 13l6 3 6-3" stroke="#e8d8a0" stroke-width="2.5" stroke-linecap="round" opacity=".7"/><line x1="24" y1="24" x2="24" y2="38" stroke="#e8d8a0" stroke-width="2" opacity=".5"/><rect x="14" y="28" width="8" height="6" rx=".5" fill="white" opacity=".6"/></svg>
+    </div>
+    <span class="name">Р1П3К5</span>
+    <span class="status ok">Сходится</span>
+    <span class="barcode">BOX-005678</span>
+  </div>
+  <div class="tabs">
+    <div class="tab active">Основное</div>
+    <div class="tab">Скорость</div>
+    <div class="tab">Сотрудник</div>
+  </div>
+  <div class="tab-panels">
+    <div class="tab-panel">
+      <div class="tab-panel-label">Основное</div>
+      <div class="stats-row">
+        <div class="stat-block"><div class="value">82</div><div class="label">Насчитано</div></div>
+        <div class="stat-block"><div class="value">82</div><div class="label">Текущее</div></div>
+        <div class="stat-block green"><div class="value">0</div><div class="label">Расхождение</div></div>
+        <div class="stat-block"><div class="value" style="font-size:15px">24.03.26</div><div class="label">Дата &bull; 15:38</div></div>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="tab-panel">
+      <div class="tab-panel-label">Скорость</div>
+      <div class="stats-row">
+        <div class="stat-block purple"><div class="value">4м 12с</div><div class="label">Время на инвент.</div></div>
+        <div class="stat-block"><div class="value">3.1 с</div><div class="label">Секунд / шт</div></div>
+        <div class="stat-block"><div class="value">19.5</div><div class="label">Штук / мин</div></div>
+        <div class="stat-block"><div class="value" style="font-size:14px">2.6–3.8</div><div class="label">Мин/макс пик с/шт</div></div>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="tab-panel">
+      <div class="tab-panel-label">Сотрудник</div>
+      <div class="stats-row">
+        <div class="stat-block emp">
+          <svg width="32" height="32" viewBox="0 0 48 48" fill="none"><path d="M24 26c-8 0-15 4-15 10v4h30v-4c0-6-7-10-15-10z" fill="#6366f1" opacity=".15" stroke="#6366f1" stroke-width="1.5"/><circle cx="24" cy="15" r="9" fill="#fcd9b6" stroke="#e4a96a" stroke-width="1.3"/><path d="M15 13c0-6 4-9 9-9s9 3 9 9" fill="#5a3e28" opacity=".8"/><circle cx="20.5" cy="15.5" r="1.2" fill="#3a3a3a"/><circle cx="27.5" cy="15.5" r="1.2" fill="#3a3a3a"/></svg>
+          <div class="emp-info"><div class="value">Сидорова Е.</div><div class="label">Проверяющий</div></div>
+        </div>
+        <div class="stat-block"><div class="value">15</div><div class="label">Кол-во проверок</div></div>
+        <div class="stat-block green"><div class="value">99.8%</div><div class="label">Средняя точность</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div>
+</body>
+</html>

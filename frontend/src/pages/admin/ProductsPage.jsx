@@ -5,7 +5,7 @@ import {
   Copy, Check, ArrowRight, Plus, Pencil, Trash2, X, MapPin,
   ArrowUp, ArrowDown, Settings2, GripVertical
 } from 'lucide-react';
-import { ProductIcon, BundleIcon, TechCardIcon, IngredientIcon, PackagingMaterialIcon } from '../../components/ui/WarehouseIcons';
+import { ProductIcon, BundleIcon } from '../../components/ui/WarehouseIcons';
 import api from '../../api/client';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
@@ -412,88 +412,12 @@ export function ProductFormModal({ open, onClose, onSuccess, initial }) {
   );
 }
 
-// ─── Material Detail Popup (inside product card) ────────────────────────────
-function MaterialPopup({ materialId, onClose }) {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  useEffect(() => {
-    if (!materialId) return;
-    setLoading(true);
-    api.get(`/materials/${materialId}`).then(r => setData(r.data)).catch(() => setData(null)).finally(() => setLoading(false));
-  }, [materialId]);
-
-  const fmtP = v => { const n = parseFloat(v); return isNaN(n) || n === 0 ? '—' : n.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ₽'; };
-  const fmtQ = v => { const n = parseFloat(v); return isNaN(n) ? '0' : Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/\.?0+$/, ''); };
-
-  if (!materialId) return null;
-  return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/30" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-xl max-w-md w-full max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-        {loading ? <div className="flex items-center justify-center py-16"><Spinner /></div> : !data ? <div className="p-6 text-center text-gray-400">Не найдено</div> : (
-          <div className="p-5 space-y-4">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-gray-50">
-                  {data.category === 'packaging' ? <PackagingMaterialIcon size={24} /> : <IngredientIcon size={24} />}
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-gray-900">{data.name}</h3>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    {data.code && <span className="text-xs font-mono text-gray-400">{data.code}</span>}
-                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${data.category === 'packaging' ? 'bg-blue-50 text-blue-600' : 'bg-green-50 text-green-600'}`}>
-                      {data.category === 'packaging' ? 'Упаковка' : 'Ингредиент'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <button onClick={onClose} className="text-gray-300 hover:text-gray-500"><X size={18} /></button>
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              <div className="bg-gray-50 rounded-lg p-2.5">
-                <p className="text-base font-bold text-gray-900">{fmtQ(data.stock)}</p>
-                <p className="text-[10px] text-gray-400">Остаток</p>
-              </div>
-              <div className="bg-gray-50 rounded-lg p-2.5">
-                <p className="text-base font-bold text-gray-900">{fmtP(data.buy_price)}</p>
-                <p className="text-[10px] text-gray-400">Закупка</p>
-              </div>
-              <div className="bg-gray-50 rounded-lg p-2.5">
-                <p className="text-sm font-bold text-gray-900">{data.unit || 'шт'}</p>
-                <p className="text-[10px] text-gray-400">Единица</p>
-              </div>
-              <div className="bg-gray-50 rounded-lg p-2.5">
-                <p className="text-sm font-bold text-gray-900">{fmtQ(data.min_stock)}</p>
-                <p className="text-[10px] text-gray-400">Мин. остаток</p>
-              </div>
-            </div>
-            {data.supplier && <p className="text-xs"><span className="text-gray-400">Поставщик:</span> <span className="font-medium text-gray-700">{data.supplier}</span></p>}
-            {data.notes && <p className="text-xs"><span className="text-gray-400">Заметки:</span> <span className="text-gray-600">{data.notes}</span></p>}
-            {data.folder_path && <p className="text-[10px] text-gray-400">Папка: {data.folder_path}</p>}
-            {data.tech_cards?.length > 0 && (
-              <div>
-                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5 flex items-center gap-1"><TechCardIcon size={12} /> Используется в ({data.tech_cards.length})</p>
-                {data.tech_cards.map((tc, i) => (
-                  <div key={tc.id || i} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-gray-50 text-xs mb-1">
-                    <span className="flex-1 truncate font-medium text-gray-700">{tc.product_name}</span>
-                    <span className="font-bold text-purple-600">{fmtQ(tc.quantity)} {data.unit || 'шт'}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
 // ─── Product Detail Modal ─────────────────────────────────────────────────────
 export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [nestedId, setNestedId] = useState(null);
   const [showAddComp, setShowAddComp] = useState(false);
-  const [materialDetailId, setMaterialDetailId] = useState(null);
   const toast = useToast();
 
   const loadProduct = useCallback(() => {
@@ -737,45 +661,6 @@ export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
             </div>
 
             {/* Состав комплекта */}
-            {/* Тех. карта */}
-            {product.tech_card && (
-              <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <TechCardIcon size={16} />
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                    Тех. карта
-                    <span className="text-gray-300 normal-case ml-1.5">
-                      {product.tech_card.materials?.length || 0} материалов · выход {fmtQty(product.tech_card.output_quantity)} шт
-                    </span>
-                  </p>
-                </div>
-                <div className="space-y-1">
-                  {(product.tech_card.materials || []).filter(m => m.id).map((m, i) => (
-                    <div key={m.id || i} onClick={() => setMaterialDetailId(m.id)} className="flex items-center gap-3 px-3 py-2 rounded-lg bg-gray-50 border border-gray-100 hover:bg-purple-50/40 cursor-pointer transition-colors">
-                      <span className="flex-shrink-0">
-                        {m.category === 'packaging' ? <PackagingMaterialIcon size={16} /> : <IngredientIcon size={16} />}
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-[#7c3aed] truncate">{m.name}</p>
-                        {m.code && <p className="text-[10px] text-gray-400">{m.code}</p>}
-                      </div>
-                      <span className="text-sm font-bold text-gray-900 flex-shrink-0">{fmtQty(m.quantity)} {m.unit}</span>
-                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${
-                        m.category === 'packaging'
-                          ? 'bg-blue-50 text-blue-600'
-                          : 'bg-green-50 text-green-600'
-                      }`}>
-                        {m.category === 'packaging' ? 'Упаковка' : 'Ингредиент'}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-                {product.tech_card.folder_path && (
-                  <p className="text-[10px] text-gray-300 mt-2">{product.tech_card.name} · {product.tech_card.folder_path}</p>
-                )}
-              </div>
-            )}
-
             {isBundle && (
               <div>
                 <div className="flex items-center justify-between mb-2">
@@ -834,11 +719,6 @@ export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
       </Modal>
 
       {nestedId && <ProductDetailModal productId={nestedId} onClose={() => setNestedId(null)} />}
-
-      {/* Material detail popup */}
-      {materialDetailId && (
-        <MaterialPopup materialId={materialDetailId} onClose={() => setMaterialDetailId(null)} />
-      )}
 
       {showAddComp && product && (
         <AddComponentModal

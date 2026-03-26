@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GRAсклад — Коробка К1 (V3 Pill Tree)</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',sans-serif;background:#f9fafb;color:#1f2937;min-height:100vh}
+a{text-decoration:none;color:inherit}
+
+.app-wrapper{display:flex;min-height:100vh}
+.sidebar{width:270px;min-width:270px;background:#fff;border-right:1px solid #f3f4f6;display:flex;flex-direction:column;overflow:hidden}
+.sidebar-header{padding:20px;border-bottom:1px solid #f3f4f6}
+.sidebar-header h1{font-size:18px;font-weight:800;color:#7c3aed;display:flex;align-items:center;gap:8px}
+.sidebar-nav{padding:10px 0;border-bottom:1px solid #f3f4f6}
+.sidebar-nav a{display:flex;align-items:center;gap:8px;padding:8px 20px;font-size:13px;font-weight:500;color:#6b7280;transition:all .2s;border-radius:99px;margin:2px 12px}
+.sidebar-nav a:hover{color:#7c3aed;background:#f5f3ff}
+.sidebar-nav a.active{color:#fff;background:#7c3aed;font-weight:600}
+.sidebar-nav a svg{width:16px;height:16px;flex-shrink:0}
+.tree-search{padding:12px 14px 8px}
+.tree-search input{width:100%;padding:7px 12px;border:1px solid #e5e7eb;border-radius:99px;font-size:12px;font-family:inherit;outline:none;transition:border .2s}
+.tree-search input:focus{border-color:#7c3aed}
+.tree-search input::placeholder{color:#9ca3af}
+.tree-container{flex:1;overflow-y:auto;padding:4px 0}
+.tree-label{padding:6px 20px;font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px}
+.tree-node{user-select:none}
+.tree-row{display:flex;align-items:center;gap:6px;padding:0 12px;cursor:pointer;transition:all .2s;border-radius:99px;margin:1px 8px;font-size:13px;font-weight:500;color:#374151;height:34px}
+.tree-row:hover{background:#f5f3ff;color:#7c3aed}
+.tree-row.active{background:#7c3aed;color:#fff}
+.tree-row.active .tree-arrow{color:#fff}
+.tree-row.active .tree-qty{color:rgba(255,255,255,.7)}
+.tree-row.active .status-ring{border-color:rgba(255,255,255,.5)}
+.tree-arrow{width:16px;height:16px;display:flex;align-items:center;justify-content:center;transition:transform .2s;flex-shrink:0;color:#9ca3af}
+.tree-arrow.expanded{transform:rotate(90deg)}
+.tree-arrow.empty{visibility:hidden}
+.status-ring{width:18px;height:18px;border-radius:50%;border:2.5px solid;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.status-ring svg{width:10px;height:10px}
+.ring-green{border-color:#047857;color:#047857}
+.ring-amber{border-color:#a16207;color:#a16207}
+.ring-red{border-color:#b91c1c;color:#b91c1c}
+.tree-text{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tree-qty{font-size:11px;color:#9ca3af;flex-shrink:0;margin-left:auto}
+.tree-children{overflow:hidden;transition:max-height .35s ease,opacity .3s ease}
+.tree-children.collapsed{max-height:0 !important;opacity:0}
+.tree-indent-1 .tree-row{padding-left:28px}
+.tree-indent-2 .tree-row{padding-left:44px}
+.tree-indent-3 .tree-row{padding-left:60px}
+
+.main-panel{flex:1;overflow-y:auto;background:#f9fafb}
+.breadcrumb{display:flex;align-items:center;gap:4px;font-size:12px;color:#9ca3af;padding:8px 28px 0}
+.breadcrumb span{color:#7c3aed;font-weight:500}
+.main-header{padding:24px 28px 0}
+.main-header h2{font-size:20px;font-weight:700;color:#111827}
+.main-content{padding:20px 28px 28px;max-width:680px}
+
+/* Pill badges */
+.pill-badges{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:24px;animation:fadeUp .5s ease both}
+.pill-badge{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;background:#fff;border:1px solid #f3f4f6;border-radius:99px;font-size:13px;font-weight:500;color:#374151}
+.pill-badge .val{font-weight:700;color:#111827}
+.pill-badge.green{border-color:#d1fae5;background:#ecfdf5}
+.pill-badge.amber{border-color:#fef3c7;background:#fffbeb}
+
+/* Product list (not table) */
+.product-list{margin-bottom:28px;animation:fadeUp .5s ease .1s both}
+.product-list h3{font-size:14px;font-weight:700;color:#111827;margin-bottom:12px}
+.product-item{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #f3f4f6}
+.product-item:last-child{border-bottom:none}
+.product-icon{width:32px;height:32px;border-radius:8px;background:#f5f3ff;display:flex;align-items:center;justify-content:center;color:#7c3aed;flex-shrink:0}
+.product-info{flex:1}
+.product-name{font-size:13px;font-weight:600;color:#111827}
+.product-sku{font-size:11px;color:#9ca3af}
+.product-qty{font-size:15px;font-weight:700;color:#111827}
+
+/* Chat bubbles */
+.history-section{animation:fadeUp .5s ease .2s both}
+.history-section h3{font-size:14px;font-weight:700;color:#111827;margin-bottom:16px}
+.chat-list{display:flex;flex-direction:column;gap:10px}
+.chat-bubble{max-width:85%;padding:10px 16px;border-radius:16px;font-size:13px;line-height:1.5}
+.chat-bubble.left{align-self:flex-start;background:#fff;border:1px solid #f3f4f6;border-bottom-left-radius:4px}
+.chat-bubble.right{align-self:flex-end;background:#f5f3ff;border:1px solid #ede9fe;border-bottom-right-radius:4px;color:#6b7280;font-size:12px}
+.chat-bubble strong{color:#111827;font-weight:600}
+.chat-bubble .time{font-size:10px;color:#9ca3af;margin-top:4px;display:block}
+.scan-list{margin-top:6px;padding-left:16px;font-size:12px;color:#6b7280}
+.scan-list li{margin-bottom:2px}
+
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:768px){.app-wrapper{flex-direction:column}.sidebar{width:100%;min-width:auto;max-height:50vh}}
+</style>
+</head>
+<body>
+<div class="app-wrapper">
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <h1>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+        GRAсклад
+      </h1>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="01-overview.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Обзор</a>
+      <a href="02-rack.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h18v18H3z"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M9 3v18"/></svg>Стеллажи</a>
+      <a href="03-shelf.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/><path d="M4 6v12"/><path d="M20 6v12"/></svg>Полки</a>
+      <a href="04-box.html" class="active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>Коробки</a>
+    </nav>
+    <div class="tree-search"><input type="text" placeholder="Поиск по складу..."></div>
+    <div class="tree-container">
+      <div class="tree-label">Иерархия склада</div>
+      <div class="tree-node">
+        <div class="tree-row" onclick="toggleTree(this)">
+          <span class="tree-arrow expanded"><svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M4 2l5 4-5 4V2z"/></svg></span>
+          <span class="status-ring ring-green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></span>
+          <span class="tree-text">Основной склад</span>
+          <span class="tree-qty">842</span>
+        </div>
+        <div class="tree-children">
+          <div class="tree-node tree-indent-1">
+            <div class="tree-row" onclick="toggleTree(this)">
+              <span class="tree-arrow expanded"><svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M4 2l5 4-5 4V2z"/></svg></span>
+              <span class="status-ring ring-green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></span>
+              <a href="02-rack.html" class="tree-text">Стеллаж А1</a>
+              <span class="tree-qty">312</span>
+            </div>
+            <div class="tree-children">
+              <div class="tree-node tree-indent-2">
+                <div class="tree-row" onclick="toggleTree(this)">
+                  <span class="tree-arrow expanded"><svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M4 2l5 4-5 4V2z"/></svg></span>
+                  <span class="status-ring ring-green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></span>
+                  <a href="03-shelf.html" class="tree-text">Полка 1</a>
+                  <span class="tree-qty">145</span>
+                </div>
+                <div class="tree-children">
+                  <div class="tree-node tree-indent-3">
+                    <div class="tree-row active"><span class="tree-arrow empty"></span><span class="status-ring ring-green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></span><a href="04-box.html" class="tree-text">К1</a><span class="tree-qty">48</span></div>
+                  </div>
+                  <div class="tree-node tree-indent-3">
+                    <div class="tree-row"><span class="tree-arrow empty"></span><span class="status-ring ring-green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></span><a href="04-box.html" class="tree-text">К2</a><span class="tree-qty">52</span></div>
+                  </div>
+                  <div class="tree-node tree-indent-3">
+                    <div class="tree-row"><span class="tree-arrow empty"></span><span class="status-ring ring-amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span><a href="04-box.html" class="tree-text">К3</a><span class="tree-qty">45</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main-panel">
+    <div class="breadcrumb"><span>GRAсклад</span> / <span>Основной склад</span> / <span>Стеллаж А1</span> / <span>Полка 1</span> / К1</div>
+    <div class="main-header">
+      <h2>Коробка К1</h2>
+    </div>
+    <div class="main-content">
+
+      <!-- Pill badges -->
+      <div class="pill-badges">
+        <div class="pill-badge green">Статус: <span class="val">Свежий</span></div>
+        <div class="pill-badge">Кол-во: <span class="val">48</span></div>
+        <div class="pill-badge">Скорость: <span class="val">4.2 с/шт</span></div>
+        <div class="pill-badge">Время: <span class="val">3 мин 22 с</span></div>
+        <div class="pill-badge green">Дельта: <span class="val">0</span></div>
+      </div>
+
+      <!-- Products as list -->
+      <div class="product-list">
+        <h3>Товары</h3>
+        <div class="product-item">
+          <div class="product-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg></div>
+          <div class="product-info">
+            <div class="product-name">Болт М8x40</div>
+            <div class="product-sku">BLT-0840</div>
+          </div>
+          <div class="product-qty">24</div>
+        </div>
+        <div class="product-item">
+          <div class="product-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg></div>
+          <div class="product-info">
+            <div class="product-name">Гайка М8</div>
+            <div class="product-sku">GYK-0800</div>
+          </div>
+          <div class="product-qty">24</div>
+        </div>
+      </div>
+
+      <!-- History as chat bubbles -->
+      <div class="history-section">
+        <h3>История проверок</h3>
+        <div class="chat-list">
+          <div class="chat-bubble left">
+            <strong>Инвентаризация завершена</strong><br>
+            Иванова А. — 48 позиций, без расхождений
+            <ul class="scan-list">
+              <li>Болт М8x40 &mdash; 24 шт (ок)</li>
+              <li>Гайка М8 &mdash; 24 шт (ок)</li>
+            </ul>
+            <span class="time">25 марта 2026, 09:15</span>
+          </div>
+          <div class="chat-bubble right">
+            Скорость: 4.2 с/шт &middot; Время: 3 мин 22 с &middot; Устройство: ТСД-04
+            <span class="time">25 марта 2026, 09:15</span>
+          </div>
+
+          <div class="chat-bubble left">
+            <strong>Инвентаризация завершена</strong><br>
+            Петров М. — 48 позиций, расхождение -1
+            <ul class="scan-list">
+              <li>Болт М8x40 &mdash; 23 шт (-1)</li>
+              <li>Гайка М8 &mdash; 25 шт (+1)</li>
+            </ul>
+            <span class="time">18 марта 2026, 14:30</span>
+          </div>
+          <div class="chat-bubble right">
+            Скорость: 5.1 с/шт &middot; Время: 4 мин 05 с &middot; Устройство: ТСД-02
+            <span class="time">18 марта 2026, 14:30</span>
+          </div>
+
+          <div class="chat-bubble left">
+            <strong>Инвентаризация завершена</strong><br>
+            Сидорова Е. — 48 позиций, без расхождений
+            <span class="time">11 марта 2026, 10:45</span>
+          </div>
+          <div class="chat-bubble right">
+            Скорость: 3.8 с/шт &middot; Время: 3 мин 02 с &middot; Устройство: ТСД-01
+            <span class="time">11 марта 2026, 10:45</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<script>
+function toggleTree(row){
+  const node=row.closest('.tree-node');
+  const children=node.querySelector(':scope > .tree-children');
+  const arrow=row.querySelector('.tree-arrow');
+  if(!children)return;
+  children.classList.toggle('collapsed');
+  if(arrow)arrow.classList.toggle('expanded');
+}
+</script>
+</body>
+</html>

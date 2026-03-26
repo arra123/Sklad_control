@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>v4 — Split Card: Info Left + Metrics Right</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',sans-serif;background:#f9fafb;padding:24px;min-height:100vh}
+.container{max-width:800px;margin:0 auto}
+.section-label{font-size:13px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:12px;margin-top:32px}
+.section-label:first-child{margin-top:0}
+
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+
+.split-card{
+  background:#fff;border:1px solid #f3f4f6;border-radius:16px;
+  display:flex;overflow:hidden;animation:fadeUp .5s ease both;
+}
+.split-card:nth-of-type(2){animation-delay:.1s}
+.split-card:nth-of-type(3){animation-delay:.2s}
+
+.left-half{
+  width:40%;padding:28px 24px;
+  display:flex;flex-direction:column;align-items:center;
+  text-align:center;gap:10px;
+  border-right:1px solid #f3f4f6;
+}
+.left-half .icon-wrap{margin-bottom:4px}
+.left-half .name{font-size:24px;font-weight:800;color:#111827}
+.left-half .type-label{
+  font-size:11px;font-weight:700;color:#7c3aed;
+  background:#f5f3ff;padding:3px 12px;border-radius:20px;
+  text-transform:uppercase;letter-spacing:.5px;
+}
+.left-half .status{
+  font-size:11px;font-weight:700;padding:4px 12px;border-radius:20px;
+}
+.status.ok{background:#ecfdf5;color:#047857}
+.status.warn{background:#fffbeb;color:#a16207}
+.left-half .barcode{font-size:10px;font-family:'Courier New',monospace;color:#d1d5db;letter-spacing:1px}
+.left-half .breadcrumb{font-size:10px;color:#9ca3af;font-weight:500;line-height:1.4}
+
+.right-half{
+  width:60%;background:#1f2937;padding:20px 24px;
+  display:grid;grid-template-columns:repeat(2,1fr);gap:12px;
+  align-content:center;
+}
+.metric{display:flex;align-items:flex-start;gap:10px}
+.metric-icon{
+  width:32px;height:32px;border-radius:8px;
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;font-size:14px;
+}
+.metric-icon.purple{background:rgba(124,58,237,.2)}
+.metric-icon.green{background:rgba(4,120,87,.2)}
+.metric-icon.amber{background:rgba(161,98,7,.2)}
+.metric-icon.blue{background:rgba(59,130,246,.2)}
+.metric-icon.gray{background:rgba(255,255,255,.08)}
+.metric-icon.indigo{background:rgba(99,102,241,.2)}
+
+.metric-text .value{font-size:16px;font-weight:800;color:#fff;line-height:1.2}
+.metric-text .label{font-size:10px;color:#9ca3af;font-weight:500;margin-top:1px}
+.metric-text .value.green{color:#34d399}
+.metric-text .value.amber{color:#fbbf24}
+.metric-text .value.purple{color:#a78bfa}
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- Ряд -->
+<div class="section-label">Ряд:</div>
+<div class="split-card">
+  <div class="left-half">
+    <div class="icon-wrap">
+      <svg width="72" height="72" viewBox="0 0 48 48" fill="none"><rect x="1" y="36" width="12" height="3" rx=".5" fill="#c49a40"/><rect x="2" y="26" width="10" height="10" rx="1" fill="#d4a76a" stroke="#b8884a" stroke-width=".7"/><rect x="3" y="18" width="8" height="8" rx="1" fill="#c49558" stroke="#a87a3e" stroke-width=".7"/><rect x="16" y="36" width="14" height="3" rx=".5" fill="#c49a40"/><rect x="17" y="22" width="12" height="14" rx="1" fill="#d4a76a" stroke="#b8884a" stroke-width=".7"/><rect x="18" y="10" width="10" height="12" rx="1" fill="#c49558" stroke="#a87a3e" stroke-width=".7"/><rect x="20" y="3" width="6" height="7" rx="1" fill="#d4a76a" stroke="#b8884a" stroke-width=".7"/><rect x="33" y="36" width="12" height="3" rx=".5" fill="#c49a40"/><rect x="34" y="28" width="10" height="8" rx="1" fill="#c49558" stroke="#a87a3e" stroke-width=".7"/><rect x="35" y="20" width="8" height="8" rx="1" fill="#d4a76a" stroke="#b8884a" stroke-width=".7"/></svg>
+    </div>
+    <div class="name">Ряд 1</div>
+    <span class="type-label">Ряд</span>
+    <span class="status ok">Сходится</span>
+    <div class="barcode">ROW-0001</div>
+    <div class="breadcrumb">Склад &rarr; Зона А &rarr; Ряд 1<br>8 паллетов</div>
+  </div>
+  <div class="right-half">
+    <div class="metric">
+      <div class="metric-icon purple"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="12" height="12" rx="2" stroke="#a78bfa" stroke-width="1.5"/><path d="M5 8h6M8 5v6" stroke="#a78bfa" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+      <div class="metric-text"><div class="value">3 749</div><div class="label">Насчитано</div></div>
+    </div>
+    <div class="metric">
+      <div class="metric-icon gray"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="12" height="12" rx="2" stroke="#9ca3af" stroke-width="1.5"/><path d="M5 8h6" stroke="#9ca3af" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+      <div class="metric-text"><div class="value">3 749</div><div class="label">Текущий остаток</div></div>
+    </div>
+    <div class="metric">
+      <div class="metric-icon green"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 8l3 3 5-5" stroke="#34d399" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div class="metric-text"><div class="value green">0</div><div class="label">Расхождение</div></div>
+    </div>
+    <div class="metric">
+      <div class="metric-icon blue"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="#60a5fa" stroke-width="1.5"/><path d="M8 5v3l2 2" stroke="#60a5fa" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+      <div class="metric-text"><div class="value purple">3ч 22м</div><div class="label">Время инвентаризации</div></div>
+    </div>
+    <div class="metric">
+      <div class="metric-icon amber"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 12l4-8 4 8H4z" stroke="#fbbf24" stroke-width="1.5" stroke-linejoin="round"/></svg></div>
+      <div class="metric-text"><div class="value">3.2 с/шт</div><div class="label">Скорость &bull; 18.7 шт/мин</div></div>
+    </div>
+    <div class="metric">
+      <div class="metric-icon indigo">
+        <svg width="16" height="16" viewBox="0 0 48 48" fill="none"><path d="M24 26c-8 0-15 4-15 10v4h30v-4c0-6-7-10-15-10z" fill="#6366f1" opacity=".15" stroke="#818cf8" stroke-width="1.5"/><circle cx="24" cy="15" r="9" fill="#fcd9b6" stroke="#e4a96a" stroke-width="1.3"/></svg>
+      </div>
+      <div class="metric-text"><div class="value" style="font-size:13px">Иванова А.</div><div class="label">24.03.26 &bull; 14:23</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Паллет -->
+<div class="section-label">Паллет:</div>
+<div class="split-card">
+  <div class="left-half">
+    <div class="icon-wrap">
+      <svg width="72" height="72" viewBox="0 0 48 48" fill="none"><rect x="3" y="12" width="42" height="4" rx="1" fill="#d4b05a" stroke="#a88520" stroke-width="1"/><rect x="6" y="16" width="5" height="10" rx="1" fill="#a07820"/><rect x="21.5" y="16" width="5" height="10" rx="1" fill="#a07820"/><rect x="37" y="16" width="5" height="10" rx="1" fill="#a07820"/><rect x="3" y="26" width="42" height="4" rx="1" fill="#d4b05a" stroke="#a88520" stroke-width="1"/></svg>
+    </div>
+    <div class="name">Р1П3</div>
+    <span class="type-label">Паллет</span>
+    <span class="status warn">+3 расхождение</span>
+    <div class="barcode">PLT-001234</div>
+    <div class="breadcrumb">Склад &rarr; Зона А &rarr; Ряд 1 &rarr; П3<br>6 коробок</div>
+  </div>
+  <div class="right-half">
+    <div class="metric">
+      <div class="metric-icon purple"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="12" height="12" rx="2" stroke="#a78bfa" stroke-width="1.5"/><path d="M5 8h6M8 5v6" stroke="#a78bfa" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+      <div class="metric-text"><div class="value">487</div><div class="label">Насчитано</div></div>
+    </div>
+    <div class="metric">
+      <div class="metric-icon gray"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="12" height="12" rx="2" stroke="#9ca3af" stroke-width="1.5"/><path d="M5 8h6" stroke="#9ca3af" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+      <div class="metric-text"><div class="value">490</div><div class="label">Текущий остаток</div></div>
+    </div>
+    <div class="metric">
+      <div class="metric-icon amber"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 8l3 3 5-5" stroke="#fbbf24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div class="metric-text"><div class="value amber">+3</div><div class="label">Расхождение</div></div>
+    </div>
+    <div class="metric">
+      <div class="metric-icon blue"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="#60a5fa" stroke-width="1.5"/><path d="M8 5v3l2 2" stroke="#60a5fa" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+      <div class="metric-text"><div class="value purple">28м</div><div class="label">Время инвентаризации</div></div>
+    </div>
+    <div class="metric">
+      <div class="metric-icon amber"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 12l4-8 4 8H4z" stroke="#fbbf24" stroke-width="1.5" stroke-linejoin="round"/></svg></div>
+      <div class="metric-text"><div class="value">3.4 с/шт</div><div class="label">Скорость &bull; 17.4 шт/мин</div></div>
+    </div>
+    <div class="metric">
+      <div class="metric-icon indigo">
+        <svg width="16" height="16" viewBox="0 0 48 48" fill="none"><path d="M24 26c-8 0-15 4-15 10v4h30v-4c0-6-7-10-15-10z" fill="#6366f1" opacity=".15" stroke="#818cf8" stroke-width="1.5"/><circle cx="24" cy="15" r="9" fill="#fcd9b6" stroke="#e4a96a" stroke-width="1.3"/></svg>
+      </div>
+      <div class="metric-text"><div class="value" style="font-size:13px">Петров М.</div><div class="label">24.03.26 &bull; 15:10</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Коробка -->
+<div class="section-label">Коробка:</div>
+<div class="split-card">
+  <div class="left-half">
+    <div class="icon-wrap">
+      <svg width="72" height="72" viewBox="0 0 48 48" fill="none"><path d="M6 16L24 6l18 10v20L24 46 6 36V16z" fill="#d4a76a" stroke="#b8884a" stroke-width="1.5" stroke-linejoin="round"/><path d="M6 16l18 8 18-8" fill="#e8c888" stroke="#b8884a" stroke-width="1" stroke-linejoin="round"/><path d="M24 24v22" stroke="#b8884a" stroke-width="1"/><path d="M24 24l18-8v20L24 46z" fill="#c49558"/><path d="M18 13l6 3 6-3" stroke="#e8d8a0" stroke-width="2.5" stroke-linecap="round" opacity=".7"/><line x1="24" y1="24" x2="24" y2="38" stroke="#e8d8a0" stroke-width="2" opacity=".5"/><rect x="14" y="28" width="8" height="6" rx=".5" fill="white" opacity=".6"/></svg>
+    </div>
+    <div class="name">Р1П3К5</div>
+    <span class="type-label">Коробка</span>
+    <span class="status ok">Сходится</span>
+    <div class="barcode">BOX-005678</div>
+    <div class="breadcrumb">Склад &rarr; Зона А &rarr; Ряд 1 &rarr; П3 &rarr; К5</div>
+  </div>
+  <div class="right-half">
+    <div class="metric">
+      <div class="metric-icon purple"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="12" height="12" rx="2" stroke="#a78bfa" stroke-width="1.5"/><path d="M5 8h6M8 5v6" stroke="#a78bfa" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+      <div class="metric-text"><div class="value">82</div><div class="label">Насчитано</div></div>
+    </div>
+    <div class="metric">
+      <div class="metric-icon gray"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="12" height="12" rx="2" stroke="#9ca3af" stroke-width="1.5"/><path d="M5 8h6" stroke="#9ca3af" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+      <div class="metric-text"><div class="value">82</div><div class="label">Текущий остаток</div></div>
+    </div>
+    <div class="metric">
+      <div class="metric-icon green"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 8l3 3 5-5" stroke="#34d399" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div class="metric-text"><div class="value green">0</div><div class="label">Расхождение</div></div>
+    </div>
+    <div class="metric">
+      <div class="metric-icon blue"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="#60a5fa" stroke-width="1.5"/><path d="M8 5v3l2 2" stroke="#60a5fa" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+      <div class="metric-text"><div class="value purple">4м 12с</div><div class="label">Время инвентаризации</div></div>
+    </div>
+    <div class="metric">
+      <div class="metric-icon amber"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 12l4-8 4 8H4z" stroke="#fbbf24" stroke-width="1.5" stroke-linejoin="round"/></svg></div>
+      <div class="metric-text"><div class="value">3.1 с/шт</div><div class="label">Скорость &bull; 19.5 шт/мин</div></div>
+    </div>
+    <div class="metric">
+      <div class="metric-icon indigo">
+        <svg width="16" height="16" viewBox="0 0 48 48" fill="none"><path d="M24 26c-8 0-15 4-15 10v4h30v-4c0-6-7-10-15-10z" fill="#6366f1" opacity=".15" stroke="#818cf8" stroke-width="1.5"/><circle cx="24" cy="15" r="9" fill="#fcd9b6" stroke="#e4a96a" stroke-width="1.3"/></svg>
+      </div>
+      <div class="metric-text"><div class="value" style="font-size:13px">Сидорова Е.</div><div class="label">24.03.26 &bull; 15:38</div></div>
+    </div>
+  </div>
+</div>
+
+</div>
+</body>
+</html>

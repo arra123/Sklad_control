@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Сканирование — Вариант B</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Inter', sans-serif;
+    background: #0a0a14;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+  }
+  .phone-frame {
+    width: 100%;
+    max-width: 430px;
+    min-height: 100vh;
+    background: #0f0f1a;
+    position: relative;
+    overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Header */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 20px;
+    background: #0f0f1a;
+    z-index: 10;
+  }
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .back-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    background: #ffffff08;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #94a3b8;
+    cursor: pointer;
+  }
+  .header-title {
+    color: #e2e8f0;
+    font-weight: 600;
+    font-size: 15px;
+  }
+  .header-badge {
+    background: #22c55e22;
+    color: #4ade80;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .pulse-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #4ade80;
+    animation: pulse 1.5s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.7); }
+  }
+
+  /* Toast notification */
+  .toast {
+    position: absolute;
+    top: 60px;
+    left: 16px;
+    right: 16px;
+    background: linear-gradient(135deg, #065f46, #047857);
+    border: 1px solid #10b98144;
+    border-radius: 14px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    z-index: 20;
+    animation: toastSlide 0.4s ease-out, toastGlow 2s ease-in-out infinite;
+    box-shadow: 0 8px 32px rgba(16, 185, 129, 0.2);
+  }
+  @keyframes toastSlide {
+    from { transform: translateY(-20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+  @keyframes toastGlow {
+    0%, 100% { box-shadow: 0 8px 32px rgba(16, 185, 129, 0.2); }
+    50% { box-shadow: 0 8px 40px rgba(16, 185, 129, 0.35); }
+  }
+  .toast-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: #10b98133;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .toast-content { flex: 1; }
+  .toast-title { color: white; font-weight: 600; font-size: 13px; }
+  .toast-subtitle { color: #a7f3d0; font-size: 11px; margin-top: 2px; }
+  .toast-time { color: #6ee7b7; font-size: 11px; font-weight: 500; }
+
+  /* Main ring area */
+  .ring-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 50px 20px 20px;
+  }
+  .main-ring {
+    width: 180px;
+    height: 180px;
+    position: relative;
+  }
+  .main-ring svg {
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+  }
+  .ring-bg {
+    fill: none;
+    stroke: #1e1e3a;
+    stroke-width: 8;
+  }
+  .ring-progress {
+    fill: none;
+    stroke: url(#ringGradient);
+    stroke-width: 8;
+    stroke-linecap: round;
+    stroke-dasharray: 502;
+    stroke-dashoffset: 175;
+    transition: stroke-dashoffset 1s ease;
+    filter: drop-shadow(0 0 8px rgba(124, 58, 237, 0.5));
+  }
+  .ring-center {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  .ring-count {
+    font-size: 42px;
+    font-weight: 800;
+    color: white;
+    line-height: 1;
+  }
+  .ring-total {
+    font-size: 14px;
+    color: #64748b;
+    margin-top: 4px;
+  }
+  .ring-label {
+    font-size: 11px;
+    color: #a78bfa;
+    font-weight: 600;
+    margin-top: 8px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  /* Mini gauges */
+  .mini-gauges {
+    display: flex;
+    gap: 24px;
+    margin-top: 28px;
+  }
+  .mini-gauge {
+    text-align: center;
+    position: relative;
+  }
+  .mini-gauge svg {
+    width: 64px;
+    height: 64px;
+    transform: rotate(-90deg);
+  }
+  .gauge-bg {
+    fill: none;
+    stroke: #1e1e3a;
+    stroke-width: 5;
+  }
+  .gauge-fill {
+    fill: none;
+    stroke-width: 5;
+    stroke-linecap: round;
+    stroke-dasharray: 151;
+    transition: stroke-dashoffset 1s ease;
+  }
+  .gauge-fill.speed { stroke: #3b82f6; stroke-dashoffset: 45; }
+  .gauge-fill.accuracy { stroke: #10b981; stroke-dashoffset: 8; }
+  .gauge-fill.time { stroke: #f59e0b; stroke-dashoffset: 60; }
+  .gauge-center {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  .gauge-value {
+    font-size: 14px;
+    font-weight: 700;
+    color: #e2e8f0;
+  }
+  .gauge-label {
+    font-size: 10px;
+    color: #64748b;
+    margin-top: 4px;
+  }
+
+  /* Speedometer */
+  .speedometer-section {
+    padding: 16px 20px;
+  }
+  .speedo-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .speedo-title {
+    color: #94a3b8;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .speedo-value {
+    color: #a78bfa;
+    font-size: 13px;
+    font-weight: 700;
+  }
+  .speedometer {
+    height: 80px;
+    background: #1a1a2e;
+    border-radius: 16px;
+    padding: 16px;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .speedo-arc {
+    width: 120px;
+    height: 60px;
+    position: relative;
+  }
+  .speedo-arc svg { width: 100%; height: 100%; }
+  .needle {
+    transform-origin: 60px 58px;
+    animation: needleSwing 2s ease-in-out infinite alternate;
+  }
+  @keyframes needleSwing {
+    from { transform: rotate(-30deg); }
+    to { transform: rotate(15deg); }
+  }
+
+  /* Timeline */
+  .timeline-section {
+    padding: 8px 20px 16px;
+  }
+  .timeline-title {
+    color: #94a3b8;
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 12px;
+  }
+  .timeline-scroll {
+    display: flex;
+    gap: 12px;
+    overflow-x: auto;
+    padding-bottom: 8px;
+    scrollbar-width: none;
+  }
+  .timeline-scroll::-webkit-scrollbar { display: none; }
+  .timeline-dot-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+  .timeline-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    position: relative;
+  }
+  .timeline-dot.success { background: #10b981; box-shadow: 0 0 8px rgba(16, 185, 129, 0.4); }
+  .timeline-dot.error { background: #ef4444; box-shadow: 0 0 8px rgba(239, 68, 68, 0.4); }
+  .timeline-dot.recent {
+    background: #7c3aed;
+    box-shadow: 0 0 12px rgba(124, 58, 237, 0.5);
+    animation: dotPulse 1.5s infinite;
+  }
+  @keyframes dotPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.3); }
+  }
+  .timeline-time {
+    font-size: 9px;
+    color: #475569;
+    white-space: nowrap;
+  }
+  .timeline-connector {
+    width: 20px;
+    height: 2px;
+    background: #1e1e3a;
+    align-self: center;
+    margin-top: -14px;
+    flex-shrink: 0;
+  }
+
+  /* Scan input */
+  .scan-input-area {
+    padding: 12px 20px;
+    background: #13131f;
+    border-top: 1px solid #ffffff08;
+    position: sticky;
+    bottom: 0;
+    z-index: 10;
+  }
+  .scan-row {
+    display: flex;
+    gap: 10px;
+  }
+  .scan-input {
+    flex: 1;
+    background: #1a1a2e;
+    border: 2px solid #7c3aed33;
+    border-radius: 14px;
+    padding: 14px 16px 14px 44px;
+    color: white;
+    font-family: 'Inter', sans-serif;
+    font-size: 15px;
+    outline: none;
+    transition: all 0.3s;
+    position: relative;
+  }
+  .scan-input:focus {
+    border-color: #7c3aed;
+    box-shadow: 0 0 24px rgba(124, 58, 237, 0.25);
+  }
+  .scan-input::placeholder { color: #475569; }
+  .input-wrapper {
+    position: relative;
+    flex: 1;
+  }
+  .input-icon {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #7c3aed;
+    z-index: 1;
+  }
+  .scan-btn {
+    width: 50px;
+    height: 50px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #7c3aed, #6d28d9);
+    border: none;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .scan-counter {
+    text-align: center;
+    padding: 8px 0 4px;
+    color: #475569;
+    font-size: 11px;
+  }
+</style>
+</head>
+<body>
+<div class="phone-frame">
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <button class="back-btn">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+          <path d="M11 4L6 9l5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+      </button>
+      <span class="header-title">Зона A3</span>
+    </div>
+    <div class="header-badge">
+      <div class="pulse-dot"></div>
+      Сканирование
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast">
+    <div class="toast-icon">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+        <path d="M4 9l4 4 6-6" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <div class="toast-content">
+      <div class="toast-title">Крем для рук "Бархат" 75мл</div>
+      <div class="toast-subtitle">SKU: 4607891234567 — Полка 14</div>
+    </div>
+    <div class="toast-time">2с</div>
+  </div>
+
+  <!-- Main ring -->
+  <div class="ring-section">
+    <div class="main-ring">
+      <svg viewBox="0 0 180 180">
+        <defs>
+          <linearGradient id="ringGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#7c3aed"/>
+            <stop offset="100%" stop-color="#3b82f6"/>
+          </linearGradient>
+        </defs>
+        <circle class="ring-bg" cx="90" cy="90" r="80"/>
+        <circle class="ring-progress" cx="90" cy="90" r="80"/>
+      </svg>
+      <div class="ring-center">
+        <div class="ring-count">117</div>
+        <div class="ring-total">из 180</div>
+        <div class="ring-label">отсканировано</div>
+      </div>
+    </div>
+
+    <!-- Mini gauges -->
+    <div class="mini-gauges">
+      <div class="mini-gauge">
+        <svg viewBox="0 0 64 64">
+          <circle class="gauge-bg" cx="32" cy="32" r="24"/>
+          <circle class="gauge-fill speed" cx="32" cy="32" r="24"/>
+        </svg>
+        <div class="gauge-center">
+          <div class="gauge-value">4.2</div>
+        </div>
+        <div class="gauge-label">сек/шт</div>
+      </div>
+      <div class="mini-gauge">
+        <svg viewBox="0 0 64 64">
+          <circle class="gauge-bg" cx="32" cy="32" r="24"/>
+          <circle class="gauge-fill accuracy" cx="32" cy="32" r="24"/>
+        </svg>
+        <div class="gauge-center">
+          <div class="gauge-value">95%</div>
+        </div>
+        <div class="gauge-label">точность</div>
+      </div>
+      <div class="mini-gauge">
+        <svg viewBox="0 0 64 64">
+          <circle class="gauge-bg" cx="32" cy="32" r="24"/>
+          <circle class="gauge-fill time" cx="32" cy="32" r="24"/>
+        </svg>
+        <div class="gauge-center">
+          <div class="gauge-value">23м</div>
+        </div>
+        <div class="gauge-label">прошло</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Speedometer -->
+  <div class="speedometer-section">
+    <div class="speedo-header">
+      <span class="speedo-title">Скорость сканирования</span>
+      <span class="speedo-value">14.3 шт/мин</span>
+    </div>
+    <div class="speedometer">
+      <div class="speedo-arc">
+        <svg viewBox="0 0 120 65">
+          <!-- Arc background -->
+          <path d="M10 58 A50 50 0 0 1 110 58" fill="none" stroke="#1e1e3a" stroke-width="6" stroke-linecap="round"/>
+          <!-- Arc fill gradient -->
+          <path d="M10 58 A50 50 0 0 1 85 18" fill="none" stroke="url(#speedGrad)" stroke-width="6" stroke-linecap="round"/>
+          <defs>
+            <linearGradient id="speedGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="#3b82f6"/>
+              <stop offset="50%" stop-color="#7c3aed"/>
+              <stop offset="100%" stop-color="#ef4444"/>
+            </linearGradient>
+          </defs>
+          <!-- Needle -->
+          <g class="needle">
+            <line x1="60" y1="58" x2="60" y2="16" stroke="#a78bfa" stroke-width="2" stroke-linecap="round"/>
+            <circle cx="60" cy="58" r="4" fill="#7c3aed"/>
+          </g>
+          <!-- Labels -->
+          <text x="10" y="65" fill="#475569" font-size="8" font-family="Inter">0</text>
+          <text x="105" y="65" fill="#475569" font-size="8" font-family="Inter">30</text>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- Timeline -->
+  <div class="timeline-section">
+    <div class="timeline-title">Хронология сканирований</div>
+    <div class="timeline-scroll">
+      <div class="timeline-dot-group">
+        <div class="timeline-dot success"></div>
+        <div class="timeline-time">14:21</div>
+      </div>
+      <div class="timeline-connector"></div>
+      <div class="timeline-dot-group">
+        <div class="timeline-dot success"></div>
+        <div class="timeline-time">14:22</div>
+      </div>
+      <div class="timeline-connector"></div>
+      <div class="timeline-dot-group">
+        <div class="timeline-dot error"></div>
+        <div class="timeline-time">14:22</div>
+      </div>
+      <div class="timeline-connector"></div>
+      <div class="timeline-dot-group">
+        <div class="timeline-dot success"></div>
+        <div class="timeline-time">14:23</div>
+      </div>
+      <div class="timeline-connector"></div>
+      <div class="timeline-dot-group">
+        <div class="timeline-dot success"></div>
+        <div class="timeline-time">14:24</div>
+      </div>
+      <div class="timeline-connector"></div>
+      <div class="timeline-dot-group">
+        <div class="timeline-dot success"></div>
+        <div class="timeline-time">14:25</div>
+      </div>
+      <div class="timeline-connector"></div>
+      <div class="timeline-dot-group">
+        <div class="timeline-dot success"></div>
+        <div class="timeline-time">14:26</div>
+      </div>
+      <div class="timeline-connector"></div>
+      <div class="timeline-dot-group">
+        <div class="timeline-dot success"></div>
+        <div class="timeline-time">14:27</div>
+      </div>
+      <div class="timeline-connector"></div>
+      <div class="timeline-dot-group">
+        <div class="timeline-dot recent"></div>
+        <div class="timeline-time">14:28</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scan input -->
+  <div class="scan-input-area">
+    <div class="scan-row">
+      <div class="input-wrapper">
+        <div class="input-icon">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+            <rect x="2" y="2" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.5" fill="none"/>
+            <rect x="11" y="2" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.5" fill="none"/>
+            <rect x="2" y="11" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.5" fill="none"/>
+            <rect x="11" y="11" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.5" fill="none"/>
+          </svg>
+        </div>
+        <input class="scan-input" type="text" placeholder="Сканируйте товар..." autofocus>
+      </div>
+      <button class="scan-btn">
+        <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+          <path d="M2 7V3a1 1 0 011-1h4M15 2h4a1 1 0 011 1v4M20 15v4a1 1 0 01-1 1h-4M7 20H3a1 1 0 01-1-1v-4" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+      </button>
+    </div>
+    <div class="scan-counter">Последнее сканирование: 2 сек назад</div>
+  </div>
+</div>
+</body>
+</html>

@@ -2,10 +2,9 @@ import { useState, useEffect } from 'react';
 import { NavLink, useNavigate, useLocation, useSearchParams, Link } from 'react-router-dom';
 import {
   LayoutDashboard, Package, Warehouse, ClipboardList,
-  Users, Settings, LogOut, Menu, X, ChevronRight, BarChart3, AlertTriangle, ArrowLeftRight,
-  ChevronDown, LayoutGrid, PackageSearch, Coins
+  Users, Settings, LogOut, Menu, X, ChevronRight, BarChart3, AlertTriangle, Boxes, ArrowLeftRight,
+  ChevronDown, LayoutGrid, PackageSearch, Home, Coins
 } from 'lucide-react';
-import { RawMaterialsIcon } from '../../components/ui/WarehouseIcons';
 import { useAuth } from '../../context/AuthContext';
 import { cn } from '../../utils/cn';
 import api from '../../api/client';
@@ -14,7 +13,6 @@ import api from '../../api/client';
 function buildCrumbs(pathname) {
   if (pathname === '/admin') return [{ label: 'Дашборд' }];
   if (pathname.startsWith('/admin/products/cards')) return [{ label: 'Товары' }, { label: 'Карточки', to: '/admin/products/cards' }];
-  if (pathname.startsWith('/admin/products/materials')) return [{ label: 'Товары' }, { label: 'Сырьё' }];
   if (pathname.startsWith('/admin/products/stock')) return [{ label: 'Товары' }, { label: 'Остатки', to: '/admin/products/stock' }];
   if (pathname.startsWith('/admin/warehouse'))  return [{ label: 'Склады' }];
   if (pathname.startsWith('/admin/tasks'))      return [{ label: 'Задачи' }];
@@ -178,14 +176,6 @@ export default function AdminLayout({ children }) {
                     <PackageSearch size={15} className="flex-shrink-0" />
                     <span>Остатки</span>
                   </NavLink>
-                  <NavLink
-                    to="/admin/products/materials"
-                    className={({ isActive }) => cn('sidebar-link text-[13px] py-1.5', isActive && 'active')}
-                    onClick={() => setSidebarOpen(false)}
-                  >
-                    <RawMaterialsIcon size={15} />
-                    <span>Сырьё</span>
-                  </NavLink>
                 </div>
               )}
             </div>
@@ -226,7 +216,7 @@ export default function AdminLayout({ children }) {
             <LogOut className="w-4 h-4" />
             Выйти
           </button>
-          <p className="text-[10px] text-gray-300 dark:text-gray-600 mt-2 text-center">v2.4.4</p>
+          <p className="text-[10px] text-gray-300 dark:text-gray-600 mt-2 text-center">v2.2.5</p>
         </div>
       </aside>
 

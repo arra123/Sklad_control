@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GRAсклад — Стеллаж А1</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',sans-serif;background:#f9fafb;color:#1f2937;min-height:100vh}
+.container{max-width:1200px;margin:0 auto;padding:24px 16px}
+
+@keyframes fadeUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+.fade-up{animation:fadeUp .5s ease both}
+.fade-up-d1{animation-delay:.1s}
+.fade-up-d2{animation-delay:.2s}
+.fade-up-d3{animation-delay:.3s}
+
+.header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:16px}
+.logo{display:flex;align-items:center;gap:12px}
+.logo svg{width:36px;height:36px}
+.logo h1{font-size:22px;font-weight:800;color:#7c3aed}
+.logo h1 span{color:#6b7280;font-weight:500;font-size:14px;display:block;margin-top:2px}
+.badge{font-size:11px;font-weight:600;background:#7c3aed;color:#fff;border-radius:20px;padding:4px 12px}
+
+/* Breadcrumb */
+.breadcrumb{display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:28px;flex-wrap:wrap}
+.breadcrumb a{color:#7c3aed;text-decoration:none;font-weight:500}
+.breadcrumb a:hover{text-decoration:underline}
+.breadcrumb .sep{color:#d1d5db}
+.breadcrumb .current{color:#6b7280;font-weight:600}
+
+/* Layout */
+.rack-layout{display:grid;grid-template-columns:320px 1fr;gap:32px;align-items:start}
+@media(max-width:768px){.rack-layout{grid-template-columns:1fr}}
+
+/* Rack visual */
+.rack-visual{background:#fff;border:1px solid #f3f4f6;border-radius:16px;box-shadow:0 1px 3px rgba(0,0,0,.05);padding:24px;position:relative}
+.rack-visual::before{content:'';position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,#7c3aed,#a78bfa);border-radius:16px 16px 0 0}
+.rack-header{text-align:center;margin-bottom:20px}
+.rack-header h2{font-size:18px;font-weight:700}
+.rack-header p{font-size:12px;color:#9ca3af;margin-top:4px}
+
+/* Rack icon */
+.rack-icon{display:flex;justify-content:center;margin-bottom:16px}
+
+/* Shelf slots (vertical) */
+.shelf-stack{display:flex;flex-direction:column;gap:6px}
+.shelf-slot{display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:12px;cursor:pointer;transition:transform .15s,box-shadow .15s;text-decoration:none;color:inherit}
+.shelf-slot:hover{transform:translateX(4px);box-shadow:0 4px 16px rgba(0,0,0,.08)}
+.shelf-slot.active{box-shadow:0 0 0 2px #7c3aed,0 4px 16px rgba(124,58,237,.15)}
+.shelf-num{font-size:14px;font-weight:700;min-width:70px}
+.shelf-qty{font-size:12px;opacity:.8}
+.shelf-bar{flex:1;height:6px;border-radius:3px;background:rgba(0,0,0,.08)}
+.shelf-bar-fill{height:100%;border-radius:3px;transition:width .3s}
+
+.status-fresh{background:#ecfdf5;color:#047857;border:1px solid #a7f3d0}
+.status-warn{background:#fffbeb;color:#a16207;border:1px solid #fde68a}
+.status-stale{background:#fef2f2;color:#b91c1c;border:1px solid #fecaca}
+.status-never{background:#f3f4f6;color:#9ca3af;border:1px solid #e5e7eb}
+.fill-fresh{background:#047857}
+.fill-warn{background:#a16207}
+.fill-stale{background:#b91c1c}
+
+/* Details panel */
+.details-panel{background:#fff;border:1px solid #f3f4f6;border-radius:16px;box-shadow:0 1px 3px rgba(0,0,0,.05);padding:28px}
+.details-panel h3{font-size:16px;font-weight:700;margin-bottom:20px;display:flex;align-items:center;gap:8px}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px}
+.detail-card{background:#f9fafb;border:1px solid #f3f4f6;border-radius:12px;padding:16px}
+.detail-card .label{font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;font-weight:600}
+.detail-card .value{font-size:22px;font-weight:800;margin-top:4px}
+.detail-card .sub{font-size:12px;color:#6b7280;margin-top:2px}
+.text-green{color:#047857}
+.text-amber{color:#a16207}
+.text-red{color:#b91c1c}
+
+.action-btn{display:inline-flex;align-items:center;gap:8px;padding:10px 20px;border-radius:10px;font-size:13px;font-weight:600;text-decoration:none;transition:opacity .15s}
+.action-btn-primary{background:#7c3aed;color:#fff}
+.action-btn-primary:hover{opacity:.9}
+
+/* Products mini list */
+.prod-list{margin-top:20px}
+.prod-list h4{font-size:13px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px}
+.prod-item{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #f3f4f6;font-size:13px}
+.prod-item:last-child{border:none}
+.prod-name{font-weight:500}
+.prod-qty{color:#6b7280}
+
+a{text-decoration:none;color:inherit}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header fade-up">
+    <div class="logo">
+      <svg viewBox="0 0 36 36" fill="none"><rect x="4" y="14" width="28" height="18" rx="2" fill="#7c3aed" opacity=".15" stroke="#7c3aed" stroke-width="2"/><path d="M2 14L18 4L34 14" stroke="#7c3aed" stroke-width="2" stroke-linecap="round"/><rect x="14" y="22" width="8" height="10" rx="1" fill="#7c3aed" opacity=".3"/></svg>
+      <h1>GRAсклад <span>Аналитика инвентаризаций</span></h1>
+    </div>
+    <span class="badge">v3 — Visual Map</span>
+  </div>
+
+  <div class="breadcrumb fade-up fade-up-d1">
+    <a href="01-overview.html">Склады</a>
+    <span class="sep">/</span>
+    <span class="current">Основной склад</span>
+    <span class="sep">/</span>
+    <span class="current">Стеллаж А1</span>
+  </div>
+
+  <div class="rack-layout">
+    <!-- Left: rack visual -->
+    <div class="rack-visual fade-up fade-up-d2">
+      <div class="rack-icon">
+        <!-- Rack SVG -->
+        <svg width="80" height="80" viewBox="0 0 80 80" fill="none">
+          <rect x="10" y="8" width="60" height="66" rx="4" fill="#7c3aed" opacity=".08" stroke="#7c3aed" stroke-width="2"/>
+          <line x1="10" y1="22" x2="70" y2="22" stroke="#7c3aed" stroke-width="1.5" opacity=".4"/>
+          <line x1="10" y1="36" x2="70" y2="36" stroke="#7c3aed" stroke-width="1.5" opacity=".4"/>
+          <line x1="10" y1="50" x2="70" y2="50" stroke="#7c3aed" stroke-width="1.5" opacity=".4"/>
+          <line x1="10" y1="62" x2="70" y2="62" stroke="#7c3aed" stroke-width="1.5" opacity=".4"/>
+          <rect x="14" y="10" width="12" height="10" rx="2" fill="#047857" opacity=".3"/>
+          <rect x="30" y="10" width="18" height="10" rx="2" fill="#047857" opacity=".3"/>
+          <rect x="14" y="24" width="16" height="10" rx="2" fill="#a16207" opacity=".3"/>
+          <rect x="34" y="24" width="12" height="10" rx="2" fill="#a16207" opacity=".3"/>
+          <rect x="14" y="38" width="20" height="10" rx="2" fill="#047857" opacity=".3"/>
+          <rect x="14" y="52" width="14" height="8" rx="2" fill="#b91c1c" opacity=".3"/>
+          <rect x="32" y="52" width="14" height="8" rx="2" fill="#b91c1c" opacity=".3"/>
+          <rect x="14" y="64" width="18" height="8" rx="2" fill="#047857" opacity=".3"/>
+        </svg>
+      </div>
+      <div class="rack-header">
+        <h2>Стеллаж А1</h2>
+        <p>Основной склад · Ряд 1 · 5 полок</p>
+      </div>
+      <div class="shelf-stack">
+        <a href="03-shelf.html?shelf=1" class="shelf-slot status-fresh active">
+          <span class="shelf-num">Полка 1</span>
+          <span class="shelf-qty">120 шт</span>
+          <div class="shelf-bar"><div class="shelf-bar-fill fill-fresh" style="width:80%"></div></div>
+        </a>
+        <a href="03-shelf.html?shelf=2" class="shelf-slot status-warn">
+          <span class="shelf-num">Полка 2</span>
+          <span class="shelf-qty">85 шт</span>
+          <div class="shelf-bar"><div class="shelf-bar-fill fill-warn" style="width:55%"></div></div>
+        </a>
+        <a href="03-shelf.html?shelf=3" class="shelf-slot status-fresh">
+          <span class="shelf-num">Полка 3</span>
+          <span class="shelf-qty">65 шт</span>
+          <div class="shelf-bar"><div class="shelf-bar-fill fill-fresh" style="width:42%"></div></div>
+        </a>
+        <a href="03-shelf.html?shelf=4" class="shelf-slot status-stale">
+          <span class="shelf-num">Полка 4</span>
+          <span class="shelf-qty">35 шт</span>
+          <div class="shelf-bar"><div class="shelf-bar-fill fill-stale" style="width:23%"></div></div>
+        </a>
+        <a href="03-shelf.html?shelf=5" class="shelf-slot status-fresh">
+          <span class="shelf-num">Полка 5</span>
+          <span class="shelf-qty">20 шт</span>
+          <div class="shelf-bar"><div class="shelf-bar-fill fill-fresh" style="width:13%"></div></div>
+        </a>
+      </div>
+    </div>
+
+    <!-- Right: details -->
+    <div class="details-panel fade-up fade-up-d3">
+      <h3>
+        <!-- Shelf icon -->
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="2" y="6" width="16" height="3" rx="1" fill="#7c3aed" opacity=".3" stroke="#7c3aed" stroke-width="1.2"/><line x1="4" y1="9" x2="4" y2="17" stroke="#7c3aed" stroke-width="1.2"/><line x1="16" y1="9" x2="16" y2="17" stroke="#7c3aed" stroke-width="1.2"/></svg>
+        Полка 1 — Детали
+      </h3>
+
+      <div class="detail-grid">
+        <div class="detail-card">
+          <div class="label">Товаров</div>
+          <div class="value text-green">120</div>
+          <div class="sub">шт. на полке</div>
+        </div>
+        <div class="detail-card">
+          <div class="label">Статус</div>
+          <div class="value text-green">Свежий</div>
+          <div class="sub">23.03.2026</div>
+        </div>
+        <div class="detail-card">
+          <div class="label">Сотрудник</div>
+          <div class="value" style="font-size:16px">Иванова А.</div>
+          <div class="sub">Последняя проверка</div>
+        </div>
+        <div class="detail-card">
+          <div class="label">Длительность</div>
+          <div class="value">7 мин</div>
+          <div class="sub">Среднее время</div>
+        </div>
+      </div>
+
+      <a href="03-shelf.html?shelf=1" class="action-btn action-btn-primary">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>
+        Открыть полку
+      </a>
+
+      <div class="prod-list">
+        <h4>Топ товаров на полке</h4>
+        <div class="prod-item"><span class="prod-name">Кроссовки Nike Air Max 90</span><span class="prod-qty">35 шт</span></div>
+        <div class="prod-item"><span class="prod-name">Футболка Adidas Originals</span><span class="prod-qty">28 шт</span></div>
+        <div class="prod-item"><span class="prod-name">Рюкзак Puma Core</span><span class="prod-qty">22 шт</span></div>
+        <div class="prod-item"><span class="prod-name">Шапка New Era 59FIFTY</span><span class="prod-qty">20 шт</span></div>
+        <div class="prod-item"><span class="prod-name">Носки Nike Everyday (3 пары)</span><span class="prod-qty">15 шт</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

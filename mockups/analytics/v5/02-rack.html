@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GRAсклад — Стеллаж А1</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',sans-serif;background:#f9fafb;color:#1f2937;min-height:100vh}
+a{text-decoration:none;color:inherit}
+
+.app-wrapper{max-width:1200px;margin:0 auto;display:flex;min-height:100vh;border-left:1px solid #f3f4f6;border-right:1px solid #f3f4f6;background:#fff}
+.sidebar{width:280px;min-width:280px;background:#fff;border-right:1px solid #f3f4f6;display:flex;flex-direction:column;overflow:hidden}
+.sidebar-header{padding:20px;border-bottom:1px solid #f3f4f6}
+.sidebar-header h1{font-size:18px;font-weight:800;color:#7c3aed;display:flex;align-items:center;gap:8px}
+.sidebar-header h1 svg{flex-shrink:0}
+.sidebar-nav{padding:12px 0;border-bottom:1px solid #f3f4f6}
+.sidebar-nav a{display:flex;align-items:center;gap:8px;padding:8px 20px;font-size:13px;font-weight:500;color:#6b7280;transition:all .2s}
+.sidebar-nav a:hover{color:#7c3aed;background:#f5f3ff}
+.sidebar-nav a.active{color:#7c3aed;background:#f5f3ff;font-weight:600}
+.sidebar-nav a svg{width:16px;height:16px;flex-shrink:0}
+
+.tree-container{flex:1;overflow-y:auto;padding:12px 0}
+.tree-label{padding:6px 20px;font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px}
+.tree-node{user-select:none}
+.tree-row{display:flex;align-items:center;gap:6px;padding:6px 12px;cursor:pointer;transition:all .15s;border-radius:6px;margin:1px 8px;font-size:13px;font-weight:500;color:#374151}
+.tree-row:hover{background:#f5f3ff;color:#7c3aed}
+.tree-row.active{background:#ede9fe;color:#7c3aed;font-weight:600}
+.tree-arrow{width:16px;height:16px;display:flex;align-items:center;justify-content:center;transition:transform .2s;flex-shrink:0;color:#9ca3af}
+.tree-arrow.expanded{transform:rotate(90deg)}
+.tree-arrow.empty{visibility:hidden}
+.tree-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.dot-green{background:#047857}
+.dot-amber{background:#a16207}
+.dot-red{background:#b91c1c}
+.tree-children{overflow:hidden;transition:max-height .3s ease}
+.tree-children.collapsed{max-height:0 !important}
+.tree-indent-1 .tree-row{padding-left:28px}
+.tree-indent-2 .tree-row{padding-left:44px}
+.tree-indent-3 .tree-row{padding-left:60px}
+.tree-indent-4 .tree-row{padding-left:76px}
+
+.main-panel{flex:1;overflow-y:auto;background:#f9fafb}
+.main-header{padding:24px 28px 0}
+.main-header h2{font-size:22px;font-weight:700;color:#111827;display:flex;align-items:center;gap:10px}
+.breadcrumb{display:flex;align-items:center;gap:4px;font-size:12px;color:#9ca3af;padding:8px 28px 0}
+.breadcrumb a{color:#7c3aed;font-weight:500}
+.breadcrumb a:hover{text-decoration:underline}
+.main-content{padding:20px 28px 28px}
+
+.rack-icon{width:48px;height:48px;background:#f5f3ff;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
+.stat-card{background:#fff;border:1px solid #f3f4f6;border-radius:16px;padding:18px;animation:fadeUp .5s ease both}
+.stat-card:nth-child(1){animation-delay:.05s}
+.stat-card:nth-child(2){animation-delay:.1s}
+.stat-card:nth-child(3){animation-delay:.15s}
+.stat-card:nth-child(4){animation-delay:.2s}
+.stat-label{font-size:12px;font-weight:500;color:#6b7280;margin-bottom:4px}
+.stat-value{font-size:24px;font-weight:800;color:#111827}
+.stat-sub{font-size:11px;color:#9ca3af;margin-top:2px}
+
+.shelves-section{animation:fadeUp .5s ease .25s both}
+.shelves-section h3{font-size:15px;font-weight:700;margin-bottom:14px;color:#111827}
+
+.shelf-card{background:#fff;border:1px solid #f3f4f6;border-radius:14px;padding:18px;margin-bottom:12px;display:flex;align-items:center;gap:16px;cursor:pointer;transition:all .2s}
+.shelf-card:hover{border-color:#ddd6fe;box-shadow:0 2px 8px rgba(124,58,237,.08);transform:translateY(-1px)}
+.shelf-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.shelf-icon.green{background:#ecfdf5;color:#047857}
+.shelf-icon.amber{background:#fffbeb;color:#a16207}
+.shelf-icon.red{background:#fef2f2;color:#b91c1c}
+.shelf-info{flex:1;min-width:0}
+.shelf-name{font-size:14px;font-weight:600;color:#111827;margin-bottom:2px}
+.shelf-meta{font-size:12px;color:#6b7280}
+.shelf-stats{display:flex;align-items:center;gap:16px;flex-shrink:0}
+.shelf-stat{text-align:right}
+.shelf-stat-val{font-size:16px;font-weight:700;color:#111827}
+.shelf-stat-label{font-size:11px;color:#9ca3af}
+.shelf-progress{width:80px;flex-shrink:0}
+.mini-bar{height:6px;background:#f3f4f6;border-radius:99px;overflow:hidden}
+.mini-fill{height:100%;border-radius:99px}
+.shelf-arrow{color:#9ca3af;flex-shrink:0}
+
+.status-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:99px;font-size:11px;font-weight:600}
+.badge-green{background:#ecfdf5;color:#047857}
+.badge-amber{background:#fffbeb;color:#a16207}
+.badge-red{background:#fef2f2;color:#b91c1c}
+
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:768px){
+.app-wrapper{flex-direction:column}
+.sidebar{width:100%;min-width:auto;max-height:50vh}
+.stats-grid{grid-template-columns:repeat(2,1fr)}
+}
+</style>
+</head>
+<body>
+<div class="app-wrapper">
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <h1>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+        GRAсклад
+      </h1>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="01-overview.html">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        Обзор
+      </a>
+      <a href="02-rack.html" class="active">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h18v18H3z"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M9 3v18"/></svg>
+        Стеллажи
+      </a>
+      <a href="03-shelf.html">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/><path d="M4 6v12"/><path d="M20 6v12"/></svg>
+        Полки
+      </a>
+      <a href="04-box.html">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+        Коробки
+      </a>
+    </nav>
+
+    <div class="tree-container">
+      <div class="tree-label">Иерархия склада</div>
+
+      <!-- Основной склад - expanded -->
+      <div class="tree-node">
+        <div class="tree-row" onclick="toggleTree(this)">
+          <span class="tree-arrow expanded"><svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M4 2l5 4-5 4V2z"/></svg></span>
+          <span class="tree-dot dot-green"></span>
+          <span>Основной склад</span>
+        </div>
+        <div class="tree-children">
+          <!-- А1 - expanded, highlighted -->
+          <div class="tree-node tree-indent-1">
+            <div class="tree-row active" onclick="toggleTree(this)">
+              <span class="tree-arrow expanded"><svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M4 2l5 4-5 4V2z"/></svg></span>
+              <span class="tree-dot dot-green"></span>
+              <a href="02-rack.html">Стеллаж А1</a>
+            </div>
+            <div class="tree-children">
+              <div class="tree-node tree-indent-2">
+                <div class="tree-row" onclick="toggleTree(this)">
+                  <span class="tree-arrow"><svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M4 2l5 4-5 4V2z"/></svg></span>
+                  <span class="tree-dot dot-green"></span>
+                  <a href="03-shelf.html">Полка 1</a>
+                </div>
+                <div class="tree-children collapsed">
+                  <div class="tree-node tree-indent-3"><div class="tree-row"><span class="tree-arrow empty"></span><span class="tree-dot dot-green"></span><a href="04-box.html">К1</a></div></div>
+                  <div class="tree-node tree-indent-3"><div class="tree-row"><span class="tree-arrow empty"></span><span class="tree-dot dot-green"></span><a href="04-box.html">К2</a></div></div>
+                  <div class="tree-node tree-indent-3"><div class="tree-row"><span class="tree-arrow empty"></span><span class="tree-dot dot-amber"></span><a href="04-box.html">К3</a></div></div>
+                </div>
+              </div>
+              <div class="tree-node tree-indent-2">
+                <div class="tree-row" onclick="toggleTree(this)">
+                  <span class="tree-arrow"><svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M4 2l5 4-5 4V2z"/></svg></span>
+                  <span class="tree-dot dot-green"></span>
+                  <a href="03-shelf.html">Полка 2</a>
+                </div>
+                <div class="tree-children collapsed">
+                  <div class="tree-node tree-indent-3"><div class="tree-row"><span class="tree-arrow empty"></span><span class="tree-dot dot-green"></span><a href="04-box.html">К4</a></div></div>
+                  <div class="tree-node tree-indent-3"><div class="tree-row"><span class="tree-arrow empty"></span><span class="tree-dot dot-red"></span><a href="04-box.html">К5</a></div></div>
+                </div>
+              </div>
+              <div class="tree-node tree-indent-2">
+                <div class="tree-row"><span class="tree-arrow empty"></span><span class="tree-dot dot-amber"></span><a href="03-shelf.html">Полка 3</a></div>
+              </div>
+            </div>
+          </div>
+          <div class="tree-node tree-indent-1">
+            <div class="tree-row" onclick="toggleTree(this)">
+              <span class="tree-arrow"><svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M4 2l5 4-5 4V2z"/></svg></span>
+              <span class="tree-dot dot-amber"></span>
+              <a href="02-rack.html">Стеллаж А2</a>
+            </div>
+            <div class="tree-children collapsed">
+              <div class="tree-node tree-indent-2"><div class="tree-row"><span class="tree-arrow empty"></span><span class="tree-dot dot-green"></span><a href="03-shelf.html">Полка 1</a></div></div>
+              <div class="tree-node tree-indent-2"><div class="tree-row"><span class="tree-arrow empty"></span><span class="tree-dot dot-amber"></span><a href="03-shelf.html">Полка 2</a></div></div>
+            </div>
+          </div>
+          <div class="tree-node tree-indent-1">
+            <div class="tree-row" onclick="toggleTree(this)">
+              <span class="tree-arrow"><svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M4 2l5 4-5 4V2z"/></svg></span>
+              <span class="tree-dot dot-green"></span>
+              <a href="02-rack.html">Стеллаж А3</a>
+            </div>
+            <div class="tree-children collapsed">
+              <div class="tree-node tree-indent-2"><div class="tree-row"><span class="tree-arrow empty"></span><span class="tree-dot dot-green"></span><a href="03-shelf.html">Полка 1</a></div></div>
+              <div class="tree-node tree-indent-2"><div class="tree-row"><span class="tree-arrow empty"></span><span class="tree-dot dot-green"></span><a href="03-shelf.html">Полка 2</a></div></div>
+              <div class="tree-node tree-indent-2"><div class="tree-row"><span class="tree-arrow empty"></span><span class="tree-dot dot-red"></span><a href="03-shelf.html">Полка 3</a></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Паллетный ФБО -->
+      <div class="tree-node">
+        <div class="tree-row" onclick="toggleTree(this)">
+          <span class="tree-arrow"><svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M4 2l5 4-5 4V2z"/></svg></span>
+          <span class="tree-dot dot-amber"></span>
+          <span>Паллетный ФБО</span>
+        </div>
+        <div class="tree-children collapsed">
+          <div class="tree-node tree-indent-1">
+            <div class="tree-row" onclick="toggleTree(this)">
+              <span class="tree-arrow"><svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M4 2l5 4-5 4V2z"/></svg></span>
+              <span class="tree-dot dot-green"></span>
+              <a href="02-rack.html">Стеллаж Б1</a>
+            </div>
+            <div class="tree-children collapsed">
+              <div class="tree-node tree-indent-2"><div class="tree-row"><span class="tree-arrow empty"></span><span class="tree-dot dot-green"></span><a href="03-shelf.html">Полка 1</a></div></div>
+              <div class="tree-node tree-indent-2"><div class="tree-row"><span class="tree-arrow empty"></span><span class="tree-dot dot-green"></span><a href="03-shelf.html">Полка 2</a></div></div>
+              <div class="tree-node tree-indent-2"><div class="tree-row"><span class="tree-arrow empty"></span><span class="tree-dot dot-amber"></span><a href="03-shelf.html">Полка 3</a></div></div>
+            </div>
+          </div>
+          <div class="tree-node tree-indent-1">
+            <div class="tree-row" onclick="toggleTree(this)">
+              <span class="tree-arrow"><svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M4 2l5 4-5 4V2z"/></svg></span>
+              <span class="tree-dot dot-red"></span>
+              <a href="02-rack.html">Стеллаж Б2</a>
+            </div>
+            <div class="tree-children collapsed">
+              <div class="tree-node tree-indent-2"><div class="tree-row"><span class="tree-arrow empty"></span><span class="tree-dot dot-red"></span><a href="03-shelf.html">Полка 1</a></div></div>
+              <div class="tree-node tree-indent-2"><div class="tree-row"><span class="tree-arrow empty"></span><span class="tree-dot dot-amber"></span><a href="03-shelf.html">Полка 2</a></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main-panel">
+    <div class="breadcrumb">
+      <a href="01-overview.html">GRAсклад</a> / <a href="01-overview.html">Основной склад</a> / <span style="color:#7c3aed;font-weight:500">Стеллаж А1</span>
+    </div>
+    <div class="main-header">
+      <h2>
+        <div class="rack-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2"><path d="M3 3h18v18H3z"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M9 3v18"/></svg>
+        </div>
+        Стеллаж А1
+        <span class="status-badge badge-green">Актуально</span>
+      </h2>
+    </div>
+    <div class="main-content">
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">Полок</div>
+          <div class="stat-value">3</div>
+          <div class="stat-sub">из 5 макс.</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Коробок</div>
+          <div class="stat-value">5</div>
+          <div class="stat-sub">на 2 полках</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Позиций</div>
+          <div class="stat-value">387</div>
+          <div class="stat-sub">проверено 312</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Ср. скорость</div>
+          <div class="stat-value">4.8</div>
+          <div class="stat-sub">с/шт</div>
+        </div>
+      </div>
+
+      <div class="shelves-section">
+        <h3>Полки стеллажа</h3>
+
+        <a href="03-shelf.html" class="shelf-card">
+          <div class="shelf-icon green">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/></svg>
+          </div>
+          <div class="shelf-info">
+            <div class="shelf-name">Полка 1</div>
+            <div class="shelf-meta">3 коробки (К1, К2, К3) &middot; Ряд 1</div>
+          </div>
+          <div class="shelf-stats">
+            <div class="shelf-stat">
+              <div class="shelf-stat-val">156</div>
+              <div class="shelf-stat-label">позиций</div>
+            </div>
+          </div>
+          <div class="shelf-progress">
+            <div class="mini-bar"><div class="mini-fill" style="width:95%;background:#047857"></div></div>
+          </div>
+          <div class="shelf-arrow">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+          </div>
+        </a>
+
+        <a href="03-shelf.html" class="shelf-card">
+          <div class="shelf-icon green">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/></svg>
+          </div>
+          <div class="shelf-info">
+            <div class="shelf-name">Полка 2</div>
+            <div class="shelf-meta">2 коробки (К4, К5) &middot; Ряд 1</div>
+          </div>
+          <div class="shelf-stats">
+            <div class="shelf-stat">
+              <div class="shelf-stat-val">198</div>
+              <div class="shelf-stat-label">позиций</div>
+            </div>
+          </div>
+          <div class="shelf-progress">
+            <div class="mini-bar"><div class="mini-fill" style="width:82%;background:#047857"></div></div>
+          </div>
+          <div class="shelf-arrow">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+          </div>
+        </a>
+
+        <a href="03-shelf.html" class="shelf-card">
+          <div class="shelf-icon amber">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/></svg>
+          </div>
+          <div class="shelf-info">
+            <div class="shelf-name">Полка 3</div>
+            <div class="shelf-meta">Без коробок &middot; Ряд 2 &middot; Россыпь</div>
+          </div>
+          <div class="shelf-stats">
+            <div class="shelf-stat">
+              <div class="shelf-stat-val">73</div>
+              <div class="shelf-stat-label">позиций</div>
+            </div>
+          </div>
+          <div class="shelf-progress">
+            <div class="mini-bar"><div class="mini-fill" style="width:58%;background:#a16207"></div></div>
+          </div>
+          <div class="shelf-arrow">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+          </div>
+        </a>
+
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+function toggleTree(row){
+  const node=row.closest('.tree-node');
+  const children=node.querySelector(':scope > .tree-children');
+  const arrow=row.querySelector('.tree-arrow');
+  if(!children)return;
+  children.classList.toggle('collapsed');
+  if(arrow)arrow.classList.toggle('expanded');
+}
+</script>
+</body>
+</html>

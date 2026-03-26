@@ -28,7 +28,6 @@ import MovePage from './pages/employee/MovePage';
 import MyInventoryPage from './pages/employee/MyInventoryPage';
 import FBOPage from './pages/admin/FBOPage';
 import MovementsPage from './pages/admin/MovementsPage';
-import MaterialsPage from './pages/admin/MaterialsPage';
 
 function hasAdminAccess(user) {
   if (!user) return false;
@@ -71,7 +70,6 @@ function AppRoutes() {
       <Route path="/admin/products" element={<Navigate to="/admin/products/cards" replace />} />
       <Route path="/admin/products/cards" element={<AdminRoute><ProductsPage /></AdminRoute>} />
       <Route path="/admin/products/stock" element={<AdminRoute><ProductStockPage /></AdminRoute>} />
-      <Route path="/admin/products/materials" element={<AdminRoute><MaterialsPage /></AdminRoute>} />
       <Route path="/admin/warehouse" element={<AdminRoute><WarehousePage /></AdminRoute>} />
       <Route path="/admin/tasks" element={<AdminRoute><TasksPage /></AdminRoute>} />
       <Route path="/admin/staff" element={<AdminRoute><StaffPage /></AdminRoute>} />

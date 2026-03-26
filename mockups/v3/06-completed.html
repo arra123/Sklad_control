@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GRAсклад — Задача завершена</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --primary-50: #f5f3ff;
+  --primary-100: #ede9fe;
+  --primary-200: #ddd6fe;
+  --primary-300: #c4b5fd;
+  --primary-400: #a78bfa;
+  --primary-500: #8b5cf6;
+  --primary-600: #7c3aed;
+  --primary-700: #6d28d9;
+  --primary-800: #5b21b6;
+  --primary-900: #4c1d95;
+  --gray-50: #f9fafb;
+  --gray-100: #f3f4f6;
+  --gray-200: #e5e7eb;
+  --gray-300: #d1d5db;
+  --gray-400: #9ca3af;
+  --gray-500: #6b7280;
+  --gray-600: #4b5563;
+  --gray-700: #374151;
+  --gray-800: #1f2937;
+  --gray-900: #111827;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--gray-50);
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+}
+.app {
+  width: 100%;
+  max-width: 430px;
+  min-height: 100vh;
+  background: var(--gray-50);
+  position: relative;
+  padding-bottom: 80px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Top bar — light green accent for completed */
+.top-bar {
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px 20px; position: relative;
+}
+.top-title {
+  font-weight: 700; font-size: 17px; color: var(--gray-800);
+}
+
+/* Confetti particles */
+.confetti-container {
+  position: absolute; top: 0; left: 0; right: 0; height: 200px;
+  overflow: hidden; pointer-events: none; z-index: 0;
+}
+.confetti {
+  position: absolute; width: 8px; height: 8px; border-radius: 2px;
+  animation: confettiFall 3s ease-in forwards;
+  opacity: 0;
+}
+.confetti:nth-child(1) { left: 10%; background: var(--primary-400); animation-delay: 0.2s; }
+.confetti:nth-child(2) { left: 20%; background: #22c55e; animation-delay: 0.4s; width: 6px; height: 10px; }
+.confetti:nth-child(3) { left: 35%; background: #f59e0b; animation-delay: 0.1s; }
+.confetti:nth-child(4) { left: 50%; background: #3b82f6; animation-delay: 0.5s; width: 10px; height: 6px; }
+.confetti:nth-child(5) { left: 65%; background: #ef4444; animation-delay: 0.3s; }
+.confetti:nth-child(6) { left: 75%; background: var(--primary-500); animation-delay: 0.6s; width: 6px; height: 10px; }
+.confetti:nth-child(7) { left: 85%; background: #22c55e; animation-delay: 0.15s; }
+.confetti:nth-child(8) { left: 45%; background: #f59e0b; animation-delay: 0.45s; width: 10px; height: 6px; }
+.confetti:nth-child(9) { left: 15%; background: #3b82f6; animation-delay: 0.55s; }
+.confetti:nth-child(10) { left: 90%; background: var(--primary-300); animation-delay: 0.25s; }
+@keyframes confettiFall {
+  0% { top: -10px; opacity: 1; transform: rotate(0deg) translateX(0); }
+  50% { opacity: 1; }
+  100% { top: 200px; opacity: 0; transform: rotate(720deg) translateX(30px); }
+}
+
+/* Celebration */
+.celebration {
+  flex: 0; display: flex; flex-direction: column;
+  align-items: center; padding: 32px 20px 20px;
+  position: relative; z-index: 1;
+}
+.celebration::before {
+  content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+  width: 200px; height: 200px;
+  background: radial-gradient(circle, rgba(34,197,94,0.08) 0%, transparent 70%);
+  border-radius: 50%;
+}
+.check-circle {
+  width: 96px; height: 96px; border-radius: 50%;
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 8px 32px rgba(34,197,94,0.25);
+  animation: scaleIn 0.5s ease; position: relative;
+}
+.check-circle::after {
+  content: ''; position: absolute; inset: -8px; border-radius: 50%;
+  border: 3px solid rgba(34,197,94,0.15);
+  animation: ringPulse 2s infinite;
+}
+@keyframes scaleIn {
+  0% { transform: scale(0); }
+  60% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+@keyframes ringPulse {
+  0%,100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.15); opacity: 0.4; }
+}
+.check-circle svg {
+  width: 48px; height: 48px; color: #fff;
+  animation: checkDraw 0.6s 0.3s ease both;
+}
+@keyframes checkDraw {
+  0% { opacity: 0; transform: scale(0.5); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.celebrate-title {
+  font-size: 24px; font-weight: 800; color: var(--gray-800);
+  margin-top: 20px; animation: fadeUp 0.5s 0.4s ease both;
+}
+.celebrate-subtitle {
+  font-size: 14px; color: var(--gray-500);
+  margin-top: 6px; animation: fadeUp 0.5s 0.5s ease both;
+}
+
+/* GRA Reward */
+.gra-reward {
+  margin: 0 20px;
+  background: linear-gradient(135deg, #fffbeb, #fef3c7);
+  border: 1px solid #fde68a;
+  border-radius: 16px; padding: 16px;
+  text-align: center;
+  box-shadow: 0 2px 12px rgba(245,158,11,0.1);
+  animation: fadeUp 0.5s 0.6s ease both;
+}
+.gra-reward-icon {
+  display: inline-flex; align-items: center; gap: 6px; margin-bottom: 6px;
+}
+.gra-reward-coin {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: rgb(224,231,255); color: rgb(79,70,229);
+  font-weight: 800; font-size: 13px;
+  display: flex; align-items: center; justify-content: center;
+}
+.gra-reward-label { font-size: 12px; font-weight: 600; color: #92400E; }
+.gra-reward-value { font-size: 32px; font-weight: 800; color: #B45309; }
+
+/* Stats Grid */
+.stats-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 10px; margin: 16px 20px 0;
+}
+.stat-item {
+  background: white; border: 1px solid var(--gray-100);
+  border-radius: 16px; padding: 16px;
+  text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  animation: fadeUp 0.4s ease both;
+}
+.stat-item:nth-child(1) { animation-delay: 0.7s; }
+.stat-item:nth-child(2) { animation-delay: 0.8s; }
+.stat-item:nth-child(3) { animation-delay: 0.9s; }
+.stat-item:nth-child(4) { animation-delay: 1.0s; }
+.stat-item-icon { margin-bottom: 8px; }
+.stat-item-icon svg { width: 28px; height: 28px; }
+.stat-item-value { font-size: 26px; font-weight: 800; color: var(--gray-800); }
+.stat-item-label {
+  font-size: 11px; font-weight: 600; color: var(--gray-400);
+  margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px;
+}
+.stat-item.highlight {
+  background: linear-gradient(135deg, var(--primary-50), #e0e7ff);
+  border-color: var(--primary-100);
+}
+.stat-item.highlight .stat-item-value { color: var(--primary-600); }
+
+/* Time Summary */
+.time-summary {
+  margin: 16px 20px 0;
+  background: white; border: 1px solid var(--gray-100);
+  border-radius: 16px; padding: 16px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  display: flex; align-items: center; gap: 14px;
+  animation: fadeUp 0.4s 1.1s ease both;
+}
+.time-icon {
+  width: 44px; height: 44px;
+  background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+  border-radius: 12px; display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.time-icon svg { width: 24px; height: 24px; }
+.time-info { flex: 1; }
+.time-label { font-size: 12px; font-weight: 600; color: var(--gray-400); }
+.time-value { font-size: 18px; font-weight: 800; color: var(--gray-800); }
+.time-detail { font-size: 12px; color: var(--gray-500); margin-top: 2px; }
+
+/* CTA Button */
+.cta-section { margin: 24px 20px 0; animation: fadeUp 0.4s 1.2s ease both; }
+.cta-btn {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  width: 100%; height: 56px;
+  background: linear-gradient(135deg, var(--primary-600), var(--primary-700));
+  color: #fff; border: none; border-radius: 16px;
+  font-family: 'Inter', sans-serif; font-size: 16px; font-weight: 700;
+  cursor: pointer; transition: all 0.2s;
+  box-shadow: 0 4px 16px rgba(124,58,237,0.25);
+}
+.cta-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(124,58,237,0.35);
+}
+.cta-btn:active { transform: translateY(0); }
+.cta-btn svg { width: 20px; height: 20px; }
+
+/* Animations */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Bottom Nav */
+.bottom-nav {
+  position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+  width: 100%; max-width: 430px;
+  background: white; border-top: 1px solid var(--gray-100);
+  display: flex; padding: 8px 16px 12px; gap: 8px; z-index: 100;
+}
+.nav-tab {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 8px 4px; border-radius: 12px; font-size: 11px;
+  color: var(--gray-400); font-weight: 500; cursor: pointer;
+  transition: all 0.2s; border: none; background: none;
+}
+.nav-tab.active-blue { background: #eff6ff; color: #3b82f6; font-weight: 600; box-shadow: inset 0 0 0 1px rgba(59,130,246,0.2); }
+.nav-icon { width: 22px; height: 22px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- Confetti -->
+  <div class="confetti-container">
+    <div class="confetti"></div>
+    <div class="confetti"></div>
+    <div class="confetti"></div>
+    <div class="confetti"></div>
+    <div class="confetti"></div>
+    <div class="confetti"></div>
+    <div class="confetti"></div>
+    <div class="confetti"></div>
+    <div class="confetti"></div>
+    <div class="confetti"></div>
+  </div>
+
+  <!-- Top Bar -->
+  <div class="top-bar">
+    <div class="top-title">Задача завершена</div>
+  </div>
+
+  <!-- Celebration -->
+  <div class="celebration">
+    <div class="check-circle">
+      <svg viewBox="0 0 50 50" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 26l9 9 17-20"/>
+      </svg>
+    </div>
+    <div class="celebrate-title">Отличная работа!</div>
+    <div class="celebrate-subtitle">Инвентаризация зоны A успешно завершена</div>
+  </div>
+
+  <!-- GRA Reward -->
+  <div class="gra-reward">
+    <div class="gra-reward-icon">
+      <div class="gra-reward-coin">G</div>
+      <span class="gra-reward-label">Начислено GRA</span>
+    </div>
+    <div class="gra-reward-value">+85</div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-grid">
+    <div class="stat-item">
+      <div class="stat-item-icon">
+        <svg viewBox="0 0 28 28" fill="none"><rect x="3" y="5" width="22" height="16" rx="2" stroke="#3B82F6" stroke-width="2"/><line x1="7" y1="10" x2="7" y2="17" stroke="#3B82F6" stroke-width="2"/><line x1="11" y1="8" x2="11" y2="17" stroke="#3B82F6" stroke-width="1.5"/><line x1="15" y1="12" x2="15" y2="17" stroke="#3B82F6" stroke-width="2"/><line x1="19" y1="9" x2="19" y2="17" stroke="#3B82F6" stroke-width="1.5"/></svg>
+      </div>
+      <div class="stat-item-value">120</div>
+      <div class="stat-item-label">Всего сканов</div>
+    </div>
+    <div class="stat-item highlight">
+      <div class="stat-item-icon">
+        <svg viewBox="0 0 28 28" fill="none"><circle cx="14" cy="14" r="10" stroke="#6C3AED" stroke-width="2"/><path d="M10 14l3 3 5-6" stroke="#6C3AED" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div class="stat-item-value">98%</div>
+      <div class="stat-item-label">Точность</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-item-icon">
+        <svg viewBox="0 0 28 28" fill="none"><circle cx="14" cy="14" r="10" stroke="#EF4444" stroke-width="2"/><path d="M11 11l6 6M17 11l-6 6" stroke="#EF4444" stroke-width="2" stroke-linecap="round"/></svg>
+      </div>
+      <div class="stat-item-value">2</div>
+      <div class="stat-item-label">Ошибки</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-item-icon">
+        <svg viewBox="0 0 28 28" fill="none"><circle cx="14" cy="14" r="10" stroke="#F59E0B" stroke-width="2"/><path d="M14 8v6l4 2" stroke="#F59E0B" stroke-width="2" stroke-linecap="round"/></svg>
+      </div>
+      <div class="stat-item-value">2.4с</div>
+      <div class="stat-item-label">Ср. скорость</div>
+    </div>
+  </div>
+
+  <!-- Time Summary -->
+  <div class="time-summary">
+    <div class="time-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#3B82F6" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+    </div>
+    <div class="time-info">
+      <div class="time-label">Время выполнения</div>
+      <div class="time-value">42 мин 15 сек</div>
+      <div class="time-detail">Начало 13:50 — Конец 14:32</div>
+    </div>
+  </div>
+
+  <!-- CTA -->
+  <div class="cta-section">
+    <button class="cta-btn">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M13 16l-6-6 6-6"/></svg>
+      Вернуться к задачам
+    </button>
+  </div>
+</div>
+
+<!-- Bottom Nav -->
+<div class="bottom-nav">
+  <button class="nav-tab active-blue">
+    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="M9 14l2 2 4-4"/></svg>
+    Задачи
+  </button>
+  <button class="nav-tab">
+    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3l4 4-4 4"/><path d="M16 21l-4-4 4-4"/><path d="M12 7h7a2 2 0 0 1 2 2v2"/><path d="M12 17H5a2 2 0 0 1-2-2v-2"/></svg>
+    Переместить
+  </button>
+  <button class="nav-tab">
+    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 9.4l-9-5.19M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+    Мой товар
+  </button>
+</div>
+</body>
+</html>

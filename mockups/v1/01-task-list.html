@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Задачи — Склад</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:'Inter',sans-serif;background:#f0f0f5;min-height:100vh;display:flex;justify-content:center;}
+  .app{width:100%;max-width:430px;background:#f0f0f5;min-height:100vh;position:relative;padding-bottom:80px;}
+
+  /* Header */
+  .header{background:linear-gradient(135deg,#6C3AED,#4F46E5);padding:20px 20px 24px;border-radius:0 0 24px 24px;position:relative;overflow:hidden;}
+  .header::after{content:'';position:absolute;top:-40px;right:-40px;width:120px;height:120px;background:rgba(255,255,255,0.08);border-radius:50%;}
+  .header-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;}
+  .header-title{color:#fff;font-size:22px;font-weight:700;}
+  .gra-badge{background:rgba(255,255,255,0.18);backdrop-filter:blur(8px);border-radius:12px;padding:8px 14px;display:flex;align-items:center;gap:8px;}
+  .gra-badge svg{width:20px;height:20px;}
+  .gra-label{color:rgba(255,255,255,0.7);font-size:11px;font-weight:500;}
+  .gra-value{color:#fff;font-size:15px;font-weight:700;}
+  .header-stats{display:flex;gap:12px;}
+  .header-stat{background:rgba(255,255,255,0.12);border-radius:12px;padding:10px 14px;flex:1;text-align:center;}
+  .header-stat-num{color:#fff;font-size:20px;font-weight:800;}
+  .header-stat-label{color:rgba(255,255,255,0.7);font-size:11px;font-weight:500;margin-top:2px;}
+
+  /* Section */
+  .section{padding:16px 16px 0;}
+  .section-title{font-size:13px;font-weight:700;color:#6C3AED;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:10px;}
+
+  /* Task Card */
+  .task-card{background:#fff;border-radius:16px;padding:16px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,0.06);display:flex;gap:14px;align-items:flex-start;transition:transform 0.15s,box-shadow 0.15s;cursor:pointer;position:relative;overflow:hidden;}
+  .task-card:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(108,58,237,0.12);}
+  .task-card.completed{opacity:0.65;}
+  .task-card.completed::after{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:#10B981;}
+  .task-card.active::after{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:#6C3AED;}
+  .task-card.pending::after{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:#F59E0B;}
+  .task-icon{width:48px;height:48px;border-radius:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .task-icon.inventory{background:linear-gradient(135deg,#EDE9FE,#DDD6FE);}
+  .task-icon.packaging{background:linear-gradient(135deg,#FEF3C7,#FDE68A);}
+  .task-icon.transfer{background:linear-gradient(135deg,#DBEAFE,#BFDBFE);}
+  .task-icon svg{width:26px;height:26px;}
+  .task-info{flex:1;min-width:0;}
+  .task-name{font-size:15px;font-weight:600;color:#1E1B4B;margin-bottom:4px;}
+  .task-meta{font-size:12px;color:#9CA3AF;display:flex;gap:10px;align-items:center;}
+  .task-meta span{display:flex;align-items:center;gap:4px;}
+  .task-status{font-size:11px;font-weight:600;padding:4px 10px;border-radius:8px;white-space:nowrap;}
+  .status-active{background:#EDE9FE;color:#6C3AED;}
+  .status-completed{background:#D1FAE5;color:#059669;}
+  .status-pending{background:#FEF3C7;color:#D97706;}
+  .task-right{display:flex;flex-direction:column;align-items:flex-end;gap:6px;}
+  .task-progress{width:40px;height:40px;position:relative;}
+  .task-progress svg{transform:rotate(-90deg);}
+  .task-progress-text{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#4F46E5;}
+
+  /* Bottom Nav */
+  .bottom-nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:#fff;border-radius:20px 20px 0 0;box-shadow:0 -4px 20px rgba(0,0,0,0.08);display:flex;padding:8px 16px 12px;z-index:100;}
+  .nav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px;border-radius:12px;cursor:pointer;transition:all 0.2s;}
+  .nav-item.active{background:linear-gradient(135deg,#EDE9FE,#E0E7FF);}
+  .nav-item svg{width:24px;height:24px;color:#9CA3AF;transition:color 0.2s;}
+  .nav-item.active svg{color:#6C3AED;}
+  .nav-label{font-size:11px;font-weight:600;color:#9CA3AF;transition:color 0.2s;}
+  .nav-item.active .nav-label{color:#6C3AED;}
+  .nav-item:hover{background:rgba(108,58,237,0.06);}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- Header -->
+  <div class="header">
+    <div class="header-top">
+      <div class="header-title">Задачи</div>
+      <div class="gra-badge">
+        <svg viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="9" stroke="#FCD34D" stroke-width="2"/><text x="10" y="14" text-anchor="middle" font-size="10" font-weight="800" fill="#FCD34D">G</text></svg>
+        <div>
+          <div class="gra-label">GRA баланс</div>
+          <div class="gra-value">1 247</div>
+        </div>
+      </div>
+    </div>
+    <div class="header-stats">
+      <div class="header-stat"><div class="header-stat-num">3</div><div class="header-stat-label">Активные</div></div>
+      <div class="header-stat"><div class="header-stat-num">12</div><div class="header-stat-label">Завершены</div></div>
+      <div class="header-stat"><div class="header-stat-num">98%</div><div class="header-stat-label">Точность</div></div>
+    </div>
+  </div>
+
+  <!-- Active Tasks -->
+  <div class="section">
+    <div class="section-title">Активные задачи</div>
+
+    <!-- Inventory Task -->
+    <div class="task-card active">
+      <div class="task-icon inventory">
+        <svg viewBox="0 0 26 26" fill="none">
+          <rect x="4" y="3" width="14" height="18" rx="2" stroke="#6C3AED" stroke-width="1.8" fill="#EDE9FE"/>
+          <line x1="8" y1="8" x2="14" y2="8" stroke="#6C3AED" stroke-width="1.5" stroke-linecap="round"/>
+          <line x1="8" y1="11.5" x2="14" y2="11.5" stroke="#6C3AED" stroke-width="1.5" stroke-linecap="round"/>
+          <line x1="8" y1="15" x2="12" y2="15" stroke="#6C3AED" stroke-width="1.5" stroke-linecap="round"/>
+          <circle cx="19" cy="18" r="5.5" stroke="#6C3AED" stroke-width="1.8" fill="#fff"/>
+          <line x1="22.5" y1="22" x2="24" y2="23.5" stroke="#6C3AED" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="task-info">
+        <div class="task-name">Инвентаризация зона A</div>
+        <div class="task-meta">
+          <span><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><rect x="1" y="3" width="10" height="8" rx="1.5" stroke="#9CA3AF" stroke-width="1.2"/><path d="M3 1v3M9 1v3" stroke="#9CA3AF" stroke-width="1.2" stroke-linecap="round"/></svg>Сегодня</span>
+          <span>56 / 120 позиций</span>
+        </div>
+      </div>
+      <div class="task-right">
+        <div class="task-status status-active">В работе</div>
+        <div class="task-progress">
+          <svg width="40" height="40" viewBox="0 0 40 40">
+            <circle cx="20" cy="20" r="16" fill="none" stroke="#EDE9FE" stroke-width="4"/>
+            <circle cx="20" cy="20" r="16" fill="none" stroke="#6C3AED" stroke-width="4" stroke-dasharray="100.5" stroke-dashoffset="53" stroke-linecap="round"/>
+          </svg>
+          <div class="task-progress-text">47%</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Packaging Task -->
+    <div class="task-card pending">
+      <div class="task-icon packaging">
+        <svg viewBox="0 0 26 26" fill="none">
+          <path d="M4 10 L4 22 Q4 23 5 23 L21 23 Q22 23 22 22 L22 10" stroke="#D97706" stroke-width="1.8" fill="#FEF3C7"/>
+          <path d="M2 10 L13 4 L24 10" stroke="#D97706" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M10 10 L10 16 Q10 17 13 17 Q16 17 16 16 L16 10" stroke="#D97706" stroke-width="1.5" fill="none"/>
+          <path d="M13 4 L13 10" stroke="#D97706" stroke-width="1.2" stroke-dasharray="2 2"/>
+        </svg>
+      </div>
+      <div class="task-info">
+        <div class="task-name">Упаковка заказ #4891</div>
+        <div class="task-meta">
+          <span><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><rect x="1" y="3" width="10" height="8" rx="1.5" stroke="#9CA3AF" stroke-width="1.2"/><path d="M3 1v3M9 1v3" stroke="#9CA3AF" stroke-width="1.2" stroke-linecap="round"/></svg>Сегодня</span>
+          <span>24 позиции</span>
+        </div>
+      </div>
+      <div class="task-right">
+        <div class="task-status status-pending">Ожидает</div>
+      </div>
+    </div>
+
+    <!-- Transfer Task -->
+    <div class="task-card active">
+      <div class="task-icon transfer">
+        <svg viewBox="0 0 26 26" fill="none">
+          <rect x="1" y="6" width="8" height="10" rx="1" stroke="#3B82F6" stroke-width="1.5" fill="#DBEAFE"/>
+          <rect x="2.5" y="8" width="5" height="3" rx="0.5" stroke="#3B82F6" stroke-width="1"/>
+          <rect x="2.5" y="12" width="5" height="2.5" rx="0.5" stroke="#3B82F6" stroke-width="1"/>
+          <line x1="1" y1="16" x2="9" y2="16" stroke="#3B82F6" stroke-width="1"/>
+          <path d="M11 13 L16 13" stroke="#3B82F6" stroke-width="1.8" stroke-linecap="round"/>
+          <path d="M14 10.5 L16.5 13 L14 15.5" stroke="#3B82F6" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          <rect x="18" y="14" width="7" height="2" rx="0.5" fill="#93C5FD" stroke="#3B82F6" stroke-width="1"/>
+          <rect x="18" y="11.5" width="7" height="2.5" rx="0.5" fill="#DBEAFE" stroke="#3B82F6" stroke-width="1"/>
+          <rect x="19" y="9" width="5" height="2.5" rx="0.5" fill="#DBEAFE" stroke="#3B82F6" stroke-width="1"/>
+          <line x1="18" y1="17" x2="25" y2="17" stroke="#3B82F6" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="task-info">
+        <div class="task-name">Перемещение на склад B</div>
+        <div class="task-meta">
+          <span>18 паллет</span>
+          <span>~2 часа</span>
+        </div>
+      </div>
+      <div class="task-right">
+        <div class="task-status status-active">В работе</div>
+        <div class="task-progress">
+          <svg width="40" height="40" viewBox="0 0 40 40">
+            <circle cx="20" cy="20" r="16" fill="none" stroke="#DBEAFE" stroke-width="4"/>
+            <circle cx="20" cy="20" r="16" fill="none" stroke="#3B82F6" stroke-width="4" stroke-dasharray="100.5" stroke-dashoffset="78" stroke-linecap="round"/>
+          </svg>
+          <div class="task-progress-text" style="color:#3B82F6">22%</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Completed Tasks -->
+  <div class="section">
+    <div class="section-title">Завершённые</div>
+
+    <div class="task-card completed">
+      <div class="task-icon inventory">
+        <svg viewBox="0 0 26 26" fill="none">
+          <rect x="4" y="3" width="14" height="18" rx="2" stroke="#6C3AED" stroke-width="1.8" fill="#EDE9FE"/>
+          <line x1="8" y1="8" x2="14" y2="8" stroke="#6C3AED" stroke-width="1.5" stroke-linecap="round"/>
+          <line x1="8" y1="11.5" x2="14" y2="11.5" stroke="#6C3AED" stroke-width="1.5" stroke-linecap="round"/>
+          <circle cx="19" cy="18" r="5.5" stroke="#6C3AED" stroke-width="1.8" fill="#fff"/>
+          <line x1="22.5" y1="22" x2="24" y2="23.5" stroke="#6C3AED" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="task-info">
+        <div class="task-name">Инвентаризация зона C</div>
+        <div class="task-meta">
+          <span>Вчера</span>
+          <span>200 / 200 позиций</span>
+          <span style="color:#059669;font-weight:600;">100%</span>
+        </div>
+      </div>
+      <div class="task-right">
+        <div class="task-status status-completed">Готово</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Bottom Navigation -->
+<nav class="bottom-nav">
+  <div class="nav-item active">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+    <span class="nav-label">Задачи</span>
+  </div>
+  <div class="nav-item">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/><rect x="3" y="3" width="18" height="18" rx="3"/></svg>
+    <span class="nav-label">Переместить</span>
+  </div>
+  <div class="nav-item">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7H4a2 2 0 00-2 2v9a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/></svg>
+    <span class="nav-label">Мой товар</span>
+  </div>
+</nav>
+</body>
+</html>

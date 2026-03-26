@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>v3 — Compact Horizontal Strip</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',sans-serif;background:#f9fafb;padding:24px;min-height:100vh}
+.container{max-width:800px;margin:0 auto}
+.section-label{font-size:13px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:12px;margin-top:32px}
+.section-label:first-child{margin-top:0}
+
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+
+.strip{
+  background:#fff;border:1px solid #f3f4f6;border-radius:16px;
+  padding:16px 20px;animation:fadeUp .5s ease both;
+}
+.strip:nth-of-type(2){animation-delay:.1s}
+.strip:nth-of-type(3){animation-delay:.2s}
+
+.strip-top{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+.strip-icon{flex-shrink:0;display:flex;align-items:center}
+.strip-name{font-size:18px;font-weight:800;color:#111827}
+.strip-type{font-size:11px;font-weight:600;color:#9ca3af;margin-left:4px}
+.strip-barcode{font-size:10px;font-family:'Courier New',monospace;color:#d1d5db;margin-left:auto;letter-spacing:1px}
+
+.status-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.status-dot.ok{background:#047857;box-shadow:0 0 0 3px rgba(4,120,87,.15)}
+.status-dot.warn{background:#a16207;box-shadow:0 0 0 3px rgba(161,98,7,.15)}
+
+.strip-stats{
+  display:flex;align-items:center;gap:0;
+  font-size:12px;color:#6b7280;flex-wrap:wrap;
+}
+.strip-stats .stat{
+  display:flex;align-items:center;gap:4px;
+  padding:4px 12px;
+  border-right:1px solid #f3f4f6;
+  white-space:nowrap;
+}
+.strip-stats .stat:last-child{border-right:none}
+.strip-stats .stat:first-child{padding-left:0}
+.stat .val{font-weight:700;color:#111827;font-size:13px}
+.stat .lbl{font-weight:500;color:#9ca3af;font-size:10px}
+.stat.green .val{color:#047857}
+.stat.amber .val{color:#a16207}
+.stat.purple .val{color:#7c3aed}
+.stat.emp{gap:5px}
+.stat.emp svg{flex-shrink:0}
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- Ряд -->
+<div class="section-label">Ряд:</div>
+<div class="strip">
+  <div class="strip-top">
+    <div class="strip-icon">
+      <svg width="40" height="40" viewBox="0 0 48 48" fill="none"><rect x="1" y="36" width="12" height="3" rx=".5" fill="#c49a40"/><rect x="2" y="26" width="10" height="10" rx="1" fill="#d4a76a" stroke="#b8884a" stroke-width=".7"/><rect x="3" y="18" width="8" height="8" rx="1" fill="#c49558" stroke="#a87a3e" stroke-width=".7"/><rect x="16" y="36" width="14" height="3" rx=".5" fill="#c49a40"/><rect x="17" y="22" width="12" height="14" rx="1" fill="#d4a76a" stroke="#b8884a" stroke-width=".7"/><rect x="18" y="10" width="10" height="12" rx="1" fill="#c49558" stroke="#a87a3e" stroke-width=".7"/><rect x="20" y="3" width="6" height="7" rx="1" fill="#d4a76a" stroke="#b8884a" stroke-width=".7"/><rect x="33" y="36" width="12" height="3" rx=".5" fill="#c49a40"/><rect x="34" y="28" width="10" height="8" rx="1" fill="#c49558" stroke="#a87a3e" stroke-width=".7"/><rect x="35" y="20" width="8" height="8" rx="1" fill="#d4a76a" stroke="#b8884a" stroke-width=".7"/></svg>
+    </div>
+    <span class="strip-name">Ряд 1</span>
+    <span class="strip-type">8 паллетов</span>
+    <span class="status-dot ok"></span>
+    <span class="strip-barcode">ROW-0001</span>
+  </div>
+  <div class="strip-stats">
+    <div class="stat"><span class="val">3 749</span><span class="lbl">инвент</span></div>
+    <div class="stat"><span class="val">3 749</span><span class="lbl">сейчас</span></div>
+    <div class="stat green"><span class="val">0</span><span class="lbl">расхож.</span></div>
+    <div class="stat purple"><span class="val">3ч 22м</span><span class="lbl">время</span></div>
+    <div class="stat"><span class="val">3.2</span><span class="lbl">с/шт</span></div>
+    <div class="stat"><span class="val">18.7</span><span class="lbl">шт/мин</span></div>
+    <div class="stat emp">
+      <svg width="14" height="14" viewBox="0 0 48 48" fill="none"><path d="M24 26c-8 0-15 4-15 10v4h30v-4c0-6-7-10-15-10z" fill="#6366f1" opacity=".15" stroke="#6366f1" stroke-width="1.5"/><circle cx="24" cy="15" r="9" fill="#fcd9b6" stroke="#e4a96a" stroke-width="1.3"/><path d="M15 13c0-6 4-9 9-9s9 3 9 9" fill="#5a3e28" opacity=".8"/><circle cx="20.5" cy="15.5" r="1.2" fill="#3a3a3a"/><circle cx="27.5" cy="15.5" r="1.2" fill="#3a3a3a"/></svg>
+      <span class="val">Иванова А.</span>
+    </div>
+    <div class="stat"><span class="val">24.03.</span><span class="lbl">14:23</span></div>
+  </div>
+</div>
+
+<!-- Паллет -->
+<div class="section-label">Паллет:</div>
+<div class="strip">
+  <div class="strip-top">
+    <div class="strip-icon">
+      <svg width="40" height="40" viewBox="0 0 48 48" fill="none"><rect x="3" y="12" width="42" height="4" rx="1" fill="#d4b05a" stroke="#a88520" stroke-width="1"/><rect x="6" y="16" width="5" height="10" rx="1" fill="#a07820"/><rect x="21.5" y="16" width="5" height="10" rx="1" fill="#a07820"/><rect x="37" y="16" width="5" height="10" rx="1" fill="#a07820"/><rect x="3" y="26" width="42" height="4" rx="1" fill="#d4b05a" stroke="#a88520" stroke-width="1"/></svg>
+    </div>
+    <span class="strip-name">Р1П3</span>
+    <span class="strip-type">6 коробок</span>
+    <span class="status-dot warn"></span>
+    <span class="strip-barcode">PLT-001234</span>
+  </div>
+  <div class="strip-stats">
+    <div class="stat"><span class="val">487</span><span class="lbl">инвент</span></div>
+    <div class="stat"><span class="val">490</span><span class="lbl">сейчас</span></div>
+    <div class="stat amber"><span class="val">+3</span><span class="lbl">расхож.</span></div>
+    <div class="stat purple"><span class="val">28м</span><span class="lbl">время</span></div>
+    <div class="stat"><span class="val">3.4</span><span class="lbl">с/шт</span></div>
+    <div class="stat"><span class="val">17.4</span><span class="lbl">шт/мин</span></div>
+    <div class="stat emp">
+      <svg width="14" height="14" viewBox="0 0 48 48" fill="none"><path d="M24 26c-8 0-15 4-15 10v4h30v-4c0-6-7-10-15-10z" fill="#6366f1" opacity=".15" stroke="#6366f1" stroke-width="1.5"/><circle cx="24" cy="15" r="9" fill="#fcd9b6" stroke="#e4a96a" stroke-width="1.3"/><path d="M15 13c0-6 4-9 9-9s9 3 9 9" fill="#5a3e28" opacity=".8"/><circle cx="20.5" cy="15.5" r="1.2" fill="#3a3a3a"/><circle cx="27.5" cy="15.5" r="1.2" fill="#3a3a3a"/></svg>
+      <span class="val">Петров М.</span>
+    </div>
+    <div class="stat"><span class="val">24.03.</span><span class="lbl">15:10</span></div>
+  </div>
+</div>
+
+<!-- Коробка -->
+<div class="section-label">Коробка:</div>
+<div class="strip">
+  <div class="strip-top">
+    <div class="strip-icon">
+      <svg width="40" height="40" viewBox="0 0 48 48" fill="none"><path d="M6 16L24 6l18 10v20L24 46 6 36V16z" fill="#d4a76a" stroke="#b8884a" stroke-width="1.5" stroke-linejoin="round"/><path d="M6 16l18 8 18-8" fill="#e8c888" stroke="#b8884a" stroke-width="1" stroke-linejoin="round"/><path d="M24 24v22" stroke="#b8884a" stroke-width="1"/><path d="M24 24l18-8v20L24 46z" fill="#c49558"/><path d="M18 13l6 3 6-3" stroke="#e8d8a0" stroke-width="2.5" stroke-linecap="round" opacity=".7"/><line x1="24" y1="24" x2="24" y2="38" stroke="#e8d8a0" stroke-width="2" opacity=".5"/><rect x="14" y="28" width="8" height="6" rx=".5" fill="white" opacity=".6"/></svg>
+    </div>
+    <span class="strip-name">Р1П3К5</span>
+    <span class="strip-type">82 шт</span>
+    <span class="status-dot ok"></span>
+    <span class="strip-barcode">BOX-005678</span>
+  </div>
+  <div class="strip-stats">
+    <div class="stat"><span class="val">82</span><span class="lbl">инвент</span></div>
+    <div class="stat"><span class="val">82</span><span class="lbl">сейчас</span></div>
+    <div class="stat green"><span class="val">0</span><span class="lbl">расхож.</span></div>
+    <div class="stat purple"><span class="val">4м 12с</span><span class="lbl">время</span></div>
+    <div class="stat"><span class="val">3.1</span><span class="lbl">с/шт</span></div>
+    <div class="stat"><span class="val">19.5</span><span class="lbl">шт/мин</span></div>
+    <div class="stat emp">
+      <svg width="14" height="14" viewBox="0 0 48 48" fill="none"><path d="M24 26c-8 0-15 4-15 10v4h30v-4c0-6-7-10-15-10z" fill="#6366f1" opacity=".15" stroke="#6366f1" stroke-width="1.5"/><circle cx="24" cy="15" r="9" fill="#fcd9b6" stroke="#e4a96a" stroke-width="1.3"/><path d="M15 13c0-6 4-9 9-9s9 3 9 9" fill="#5a3e28" opacity=".8"/><circle cx="20.5" cy="15.5" r="1.2" fill="#3a3a3a"/><circle cx="27.5" cy="15.5" r="1.2" fill="#3a3a3a"/></svg>
+      <span class="val">Сидорова Е.</span>
+    </div>
+    <div class="stat"><span class="val">24.03.</span><span class="lbl">15:38</span></div>
+  </div>
+</div>
+
+</div>
+</body>
+</html>

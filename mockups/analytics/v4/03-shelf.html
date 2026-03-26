@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GRAсклад — Полка 1 (Kanban коробок)</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',sans-serif;background:#f9fafb;color:#1f2937;min-height:100vh}
+.container{max-width:1200px;margin:0 auto;padding:24px 16px}
+
+@keyframes fadeUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+.fade-up{animation:fadeUp .5s ease both}
+.fade-up-d1{animation-delay:.1s}
+.fade-up-d2{animation-delay:.2s}
+.fade-up-d3{animation-delay:.3s}
+.fade-up-d4{animation-delay:.4s}
+
+.header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:16px}
+.logo{display:flex;align-items:center;gap:12px}
+.logo svg{width:36px;height:36px}
+.logo h1{font-size:22px;font-weight:800;color:#7c3aed}
+.logo h1 span{color:#6b7280;font-weight:500;font-size:14px;display:block;margin-top:2px}
+.badge{font-size:11px;font-weight:600;background:#7c3aed;color:#fff;border-radius:20px;padding:4px 12px}
+
+.breadcrumb{display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:28px;flex-wrap:wrap}
+.breadcrumb a{color:#7c3aed;text-decoration:none;font-weight:500}
+.breadcrumb a:hover{text-decoration:underline}
+.breadcrumb .sep{color:#d1d5db}
+.breadcrumb .current{color:#6b7280;font-weight:600}
+
+/* Shelf header */
+.shelf-header{background:#fff;border:1px solid #f3f4f6;border-radius:16px;box-shadow:0 1px 3px rgba(0,0,0,.05);padding:20px 24px;display:flex;align-items:center;gap:16px;margin-bottom:20px;flex-wrap:wrap}
+.shelf-header h2{font-size:20px;font-weight:800}
+.shelf-header p{font-size:13px;color:#6b7280}
+.shelf-header .shelf-stats{margin-left:auto;display:flex;gap:16px;flex-wrap:wrap}
+.mini-stat{text-align:center}
+.mini-stat .val{font-size:18px;font-weight:800}
+.mini-stat .lbl{font-size:10px;color:#9ca3af;font-weight:600;text-transform:uppercase}
+.text-green{color:#047857}
+
+/* History mini section */
+.history-card{background:#fff;border:1px solid #f3f4f6;border-radius:16px;box-shadow:0 1px 3px rgba(0,0,0,.05);padding:20px 24px;margin-bottom:28px}
+.history-card h3{font-size:14px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.history-row{display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid #f3f4f6;font-size:13px}
+.history-row:last-child{border:none}
+.history-date{font-weight:600;min-width:110px}
+.history-emp{color:#6b7280;min-width:90px}
+.history-dur{color:#9ca3af}
+.status-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.status-dot-green{background:#047857}
+.status-dot-amber{background:#a16207}
+
+/* Kanban mini for boxes */
+.kanban{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;align-items:start}
+@media(max-width:900px){.kanban{grid-template-columns:1fr}}
+
+.kanban-col{background:#fff;border:1px solid #f3f4f6;border-radius:16px;box-shadow:0 1px 3px rgba(0,0,0,.05);overflow:hidden}
+.col-header{padding:14px 18px;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:space-between}
+.col-header .count{font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px}
+.col-green .col-header{background:linear-gradient(135deg,#ecfdf5,#d1fae5);color:#047857}
+.col-green .col-header .count{background:rgba(4,120,87,.1)}
+.col-amber .col-header{background:linear-gradient(135deg,#fffbeb,#fef3c7);color:#a16207}
+.col-amber .col-header .count{background:rgba(161,98,7,.1)}
+.col-red .col-header{background:linear-gradient(135deg,#fef2f2,#fecaca);color:#b91c1c}
+.col-red .col-header .count{background:rgba(185,28,28,.1)}
+
+.col-body{padding:10px;display:flex;flex-direction:column;gap:8px;min-height:120px}
+
+/* Box card */
+.box-card{background:#f9fafb;border:1px solid #f3f4f6;border-radius:10px;padding:12px 14px;cursor:pointer;transition:transform .12s,box-shadow .12s;text-decoration:none;color:inherit;display:block}
+.box-card:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,.08)}
+.box-card-top{display:flex;align-items:center;gap:8px}
+.box-card-top .name{font-size:13px;font-weight:700;flex:1}
+.box-card-top .qty{font-size:12px;font-weight:600}
+.box-card-bottom{font-size:11px;color:#9ca3af;margin-top:4px}
+
+/* Products list */
+.products-section{margin-top:28px}
+.products-section h3{font-size:14px;font-weight:700;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.prod-table{width:100%;border-collapse:collapse}
+.prod-table th{text-align:left;font-size:11px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.3px;padding:8px 12px;border-bottom:2px solid #f3f4f6}
+.prod-table td{padding:10px 12px;border-bottom:1px solid #f3f4f6;font-size:13px}
+.prod-table tr:last-child td{border:none}
+.prod-table .prod-name{font-weight:500}
+.prod-table .prod-sku{color:#9ca3af;font-family:monospace;font-size:11px}
+.prod-table .prod-qty-val{font-weight:700}
+
+.drag-hint{text-align:center;padding:8px;font-size:11px;color:#d1d5db;font-style:italic;border:2px dashed #e5e7eb;border-radius:8px;margin-top:4px}
+
+a{text-decoration:none;color:inherit}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header fade-up">
+    <div class="logo">
+      <svg viewBox="0 0 36 36" fill="none"><rect x="4" y="14" width="28" height="18" rx="2" fill="#7c3aed" opacity=".15" stroke="#7c3aed" stroke-width="2"/><path d="M2 14L18 4L34 14" stroke="#7c3aed" stroke-width="2" stroke-linecap="round"/><rect x="14" y="22" width="8" height="10" rx="1" fill="#7c3aed" opacity=".3"/></svg>
+      <h1>GRAсклад <span>Аналитика инвентаризаций</span></h1>
+    </div>
+    <span class="badge">v4 — Kanban Board</span>
+  </div>
+
+  <div class="breadcrumb fade-up fade-up-d1">
+    <a href="01-overview.html">Склады</a>
+    <span class="sep">/</span>
+    <a href="01-overview.html">Основной склад</a>
+    <span class="sep">/</span>
+    <a href="02-rack.html">Стеллаж А1</a>
+    <span class="sep">/</span>
+    <span class="current">Полка 1</span>
+  </div>
+
+  <!-- Shelf header -->
+  <div class="shelf-header fade-up fade-up-d1">
+    <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+      <rect x="4" y="10" width="28" height="5" rx="2" fill="#7c3aed" opacity=".2" stroke="#7c3aed" stroke-width="1.5"/>
+      <line x1="8" y1="15" x2="8" y2="30" stroke="#7c3aed" stroke-width="1.5"/>
+      <line x1="28" y1="15" x2="28" y2="30" stroke="#7c3aed" stroke-width="1.5"/>
+    </svg>
+    <div>
+      <h2>Полка 1</h2>
+      <p>Стеллаж А1 · Основной склад · 8 коробок</p>
+    </div>
+    <div class="shelf-stats">
+      <div class="mini-stat"><div class="val text-green">120</div><div class="lbl">Товаров</div></div>
+      <div class="mini-stat"><div class="val text-green">Свежий</div><div class="lbl">Статус</div></div>
+    </div>
+  </div>
+
+  <!-- History mini -->
+  <div class="history-card fade-up fade-up-d2">
+    <h3>
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="#7c3aed" stroke-width="1.2" fill="#7c3aed" opacity=".1"/><path d="M8 4v4l2.5 2.5" stroke="#7c3aed" stroke-width="1.2" stroke-linecap="round"/></svg>
+      Последние проверки
+    </h3>
+    <div class="history-row">
+      <span class="status-dot status-dot-green"></span>
+      <span class="history-date">23.03.2026</span>
+      <span class="history-emp">Иванова А.</span>
+      <span class="history-dur">5 мин</span>
+    </div>
+    <div class="history-row">
+      <span class="status-dot status-dot-amber"></span>
+      <span class="history-date">15.03.2026</span>
+      <span class="history-emp">Петров М.</span>
+      <span class="history-dur">9 мин</span>
+    </div>
+  </div>
+
+  <!-- Kanban of boxes -->
+  <div class="kanban fade-up fade-up-d2">
+    <div class="kanban-col col-green">
+      <div class="col-header">
+        <span>Свежий</span>
+        <span class="count">5 коробок</span>
+      </div>
+      <div class="col-body">
+        <a href="04-box.html?box=K1" class="box-card">
+          <div class="box-card-top">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="5" width="12" height="9" rx="1.5" fill="#047857" opacity=".15" stroke="#047857" stroke-width="1"/><path d="M2 7h12" stroke="#047857" stroke-width=".8" opacity=".3"/></svg>
+            <span class="name">К1</span>
+            <span class="qty" style="color:#047857">50 шт</span>
+          </div>
+          <div class="box-card-bottom">23.03.2026</div>
+        </a>
+        <a href="04-box.html?box=K2" class="box-card">
+          <div class="box-card-top">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="5" width="12" height="9" rx="1.5" fill="#047857" opacity=".15" stroke="#047857" stroke-width="1"/><path d="M2 7h12" stroke="#047857" stroke-width=".8" opacity=".3"/></svg>
+            <span class="name">К2</span>
+            <span class="qty" style="color:#047857">35 шт</span>
+          </div>
+          <div class="box-card-bottom">23.03.2026</div>
+        </a>
+        <a href="04-box.html?box=K5" class="box-card">
+          <div class="box-card-top">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="5" width="12" height="9" rx="1.5" fill="#047857" opacity=".15" stroke="#047857" stroke-width="1"/><path d="M2 7h12" stroke="#047857" stroke-width=".8" opacity=".3"/></svg>
+            <span class="name">К5</span>
+            <span class="qty" style="color:#047857">5 шт</span>
+          </div>
+          <div class="box-card-bottom">24.03.2026</div>
+        </a>
+        <a href="04-box.html?box=K7" class="box-card">
+          <div class="box-card-top">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="5" width="12" height="9" rx="1.5" fill="#047857" opacity=".15" stroke="#047857" stroke-width="1"/><path d="M2 7h12" stroke="#047857" stroke-width=".8" opacity=".3"/></svg>
+            <span class="name">К7</span>
+            <span class="qty" style="color:#047857">2 шт</span>
+          </div>
+          <div class="box-card-bottom">22.03.2026</div>
+        </a>
+        <div class="drag-hint">Перетащите сюда</div>
+      </div>
+    </div>
+
+    <div class="kanban-col col-amber">
+      <div class="col-header">
+        <span>Давно</span>
+        <span class="count">2 коробки</span>
+      </div>
+      <div class="col-body">
+        <a href="04-box.html?box=K3" class="box-card">
+          <div class="box-card-top">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="5" width="12" height="9" rx="1.5" fill="#a16207" opacity=".15" stroke="#a16207" stroke-width="1"/><path d="M2 7h12" stroke="#a16207" stroke-width=".8" opacity=".3"/></svg>
+            <span class="name">К3</span>
+            <span class="qty" style="color:#a16207">15 шт</span>
+          </div>
+          <div class="box-card-bottom">11.03.2026</div>
+        </a>
+        <a href="04-box.html?box=K6" class="box-card">
+          <div class="box-card-top">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="5" width="12" height="9" rx="1.5" fill="#a16207" opacity=".15" stroke="#a16207" stroke-width="1"/><path d="M2 7h12" stroke="#a16207" stroke-width=".8" opacity=".3"/></svg>
+            <span class="name">К6</span>
+            <span class="qty" style="color:#a16207">3 шт</span>
+          </div>
+          <div class="box-card-bottom">10.03.2026</div>
+        </a>
+        <div class="drag-hint">Перетащите сюда</div>
+      </div>
+    </div>
+
+    <div class="kanban-col col-red">
+      <div class="col-header">
+        <span>Устарел / Не было</span>
+        <span class="count">2 коробки</span>
+      </div>
+      <div class="col-body">
+        <a href="04-box.html?box=K4" class="box-card">
+          <div class="box-card-top">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="5" width="12" height="9" rx="1.5" fill="#b91c1c" opacity=".15" stroke="#b91c1c" stroke-width="1"/><path d="M2 7h12" stroke="#b91c1c" stroke-width=".8" opacity=".3"/></svg>
+            <span class="name">К4</span>
+            <span class="qty" style="color:#b91c1c">8 шт</span>
+          </div>
+          <div class="box-card-bottom">28.02.2026</div>
+        </a>
+        <a href="04-box.html?box=K8" class="box-card" style="border-style:dashed">
+          <div class="box-card-top">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="5" width="12" height="9" rx="1.5" fill="#9ca3af" opacity=".15" stroke="#9ca3af" stroke-width="1" stroke-dasharray="2 2"/></svg>
+            <span class="name" style="color:#9ca3af">К8</span>
+            <span class="qty" style="color:#d1d5db">-- шт</span>
+          </div>
+          <div class="box-card-bottom" style="color:#d1d5db">Никогда</div>
+        </a>
+        <div class="drag-hint">Перетащите сюда</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Products table -->
+  <div class="products-section fade-up fade-up-d3">
+    <h3>
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="14" height="14" rx="2" stroke="#7c3aed" stroke-width="1.2"/><line x1="1" y1="5" x2="15" y2="5" stroke="#7c3aed" stroke-width="1" opacity=".3"/><line x1="1" y1="9" x2="15" y2="9" stroke="#7c3aed" stroke-width="1" opacity=".3"/></svg>
+      Товары на полке
+    </h3>
+    <div style="background:#fff;border:1px solid #f3f4f6;border-radius:16px;box-shadow:0 1px 3px rgba(0,0,0,.05);overflow:hidden">
+      <table class="prod-table">
+        <thead>
+          <tr><th>Товар</th><th>Артикул</th><th>Коробка</th><th>Кол-во</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="prod-name">Кроссовки Nike Air Max 90</td><td class="prod-sku">NKE-AM90-WH42</td><td>К1</td><td class="prod-qty-val">35</td></tr>
+          <tr><td class="prod-name">Футболка Adidas Originals</td><td class="prod-sku">ADS-OG-TEE-M</td><td>К1</td><td class="prod-qty-val">28</td></tr>
+          <tr><td class="prod-name">Рюкзак Puma Core</td><td class="prod-sku">PMA-CORE-BP</td><td>К2</td><td class="prod-qty-val">22</td></tr>
+          <tr><td class="prod-name">Шапка New Era 59FIFTY</td><td class="prod-sku">NE-59F-BLK</td><td>К2</td><td class="prod-qty-val">20</td></tr>
+          <tr><td class="prod-name">Носки Nike Everyday (3 пары)</td><td class="prod-sku">NKE-EVD-3PK</td><td>К5</td><td class="prod-qty-val">15</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+</body>
+</html>

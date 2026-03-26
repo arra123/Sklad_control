@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Начало задачи — Вариант B</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Inter', sans-serif;
+    background: #0a0a14;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+  }
+  .phone-frame {
+    width: 100%;
+    max-width: 430px;
+    min-height: 100vh;
+    background: linear-gradient(170deg, #1a1a2e 0%, #16213e 40%, #0f0f23 100%);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Ambient glow */
+  .ambient-glow {
+    position: absolute;
+    top: 30%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 300px;
+    height: 300px;
+    background: radial-gradient(circle, rgba(124,58,237,0.15) 0%, transparent 70%);
+    animation: glowPulse 3s ease-in-out infinite;
+    pointer-events: none;
+  }
+  @keyframes glowPulse {
+    0%, 100% { opacity: 0.6; transform: translate(-50%, -50%) scale(1); }
+    50% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+  }
+
+  /* Back button */
+  .back-row {
+    display: flex;
+    align-items: center;
+    padding: 16px 20px;
+    gap: 8px;
+    z-index: 2;
+  }
+  .back-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 12px;
+    background: #ffffff0a;
+    border: 1px solid #ffffff0f;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: #94a3b8;
+  }
+  .back-label {
+    color: #94a3b8;
+    font-size: 14px;
+  }
+
+  /* Step indicator */
+  .step-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px 40px;
+    gap: 0;
+    z-index: 2;
+  }
+  .step-dot {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 600;
+    transition: all 0.3s;
+    flex-shrink: 0;
+  }
+  .step-dot.completed {
+    background: #7c3aed;
+    color: white;
+  }
+  .step-dot.active {
+    background: linear-gradient(135deg, #7c3aed, #a855f7);
+    color: white;
+    box-shadow: 0 0 20px rgba(124, 58, 237, 0.5);
+    animation: stepPulse 2s infinite;
+  }
+  @keyframes stepPulse {
+    0%, 100% { box-shadow: 0 0 20px rgba(124, 58, 237, 0.5); }
+    50% { box-shadow: 0 0 30px rgba(124, 58, 237, 0.8); }
+  }
+  .step-dot.pending {
+    background: #ffffff0a;
+    border: 2px solid #ffffff15;
+    color: #64748b;
+  }
+  .step-line {
+    width: 40px;
+    height: 2px;
+    flex-shrink: 0;
+  }
+  .step-line.completed { background: #7c3aed; }
+  .step-line.pending { background: #ffffff15; }
+
+  .step-labels {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 24px 0;
+    z-index: 2;
+  }
+  .step-label {
+    font-size: 10px;
+    color: #64748b;
+    text-align: center;
+    width: 70px;
+  }
+  .step-label.active { color: #a78bfa; }
+
+  /* Central icon */
+  .central-icon {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+    padding: 20px;
+  }
+  .icon-container {
+    width: 140px;
+    height: 140px;
+    position: relative;
+    margin-bottom: 32px;
+  }
+  .icon-glow-ring {
+    position: absolute;
+    inset: -20px;
+    border-radius: 50%;
+    border: 2px solid rgba(124, 58, 237, 0.2);
+    animation: ringRotate 8s linear infinite;
+  }
+  @keyframes ringRotate {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+  .icon-glow-ring::before {
+    content: '';
+    position: absolute;
+    top: -3px;
+    left: 50%;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #a855f7;
+    box-shadow: 0 0 12px #a855f7;
+  }
+  .icon-bg {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #7c3aed22, #7c3aed11);
+    border: 1px solid #7c3aed33;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: iconFloat 3s ease-in-out infinite;
+  }
+  @keyframes iconFloat {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+  }
+
+  .task-title {
+    color: white;
+    font-size: 22px;
+    font-weight: 700;
+    text-align: center;
+    margin-bottom: 8px;
+  }
+  .task-subtitle {
+    color: #94a3b8;
+    font-size: 14px;
+    text-align: center;
+    line-height: 1.5;
+    max-width: 280px;
+  }
+
+  /* Step details */
+  .step-details {
+    z-index: 2;
+    margin: 0 20px;
+    background: #ffffff08;
+    border: 1px solid #ffffff0f;
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .step-details-title {
+    color: #a78bfa;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 12px;
+  }
+  .step-detail-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 0;
+  }
+  .step-detail-row + .step-detail-row {
+    border-top: 1px solid #ffffff08;
+  }
+  .detail-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: #7c3aed15;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .detail-label {
+    color: #64748b;
+    font-size: 12px;
+  }
+  .detail-value {
+    color: #e2e8f0;
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  /* Scan input area */
+  .scan-area {
+    z-index: 2;
+    padding: 0 20px 24px;
+  }
+  .scan-input-wrapper {
+    position: relative;
+  }
+  .scan-input {
+    width: 100%;
+    background: #0f0f23;
+    border: 2px solid #7c3aed44;
+    border-radius: 16px;
+    padding: 16px 20px 16px 52px;
+    color: white;
+    font-family: 'Inter', sans-serif;
+    font-size: 16px;
+    outline: none;
+    transition: all 0.3s;
+  }
+  .scan-input:focus {
+    border-color: #7c3aed;
+    box-shadow: 0 0 30px rgba(124, 58, 237, 0.3), 0 0 60px rgba(124, 58, 237, 0.1);
+  }
+  .scan-input::placeholder { color: #475569; }
+  .scan-input-icon {
+    position: absolute;
+    left: 18px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #7c3aed;
+  }
+  .neon-border {
+    position: absolute;
+    inset: -2px;
+    border-radius: 18px;
+    background: linear-gradient(135deg, #7c3aed, #3b82f6, #7c3aed);
+    background-size: 200% 200%;
+    animation: neonShift 3s ease infinite;
+    z-index: -1;
+    opacity: 0.5;
+  }
+  @keyframes neonShift {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+  }
+
+  /* Swipe hint */
+  .swipe-hint {
+    text-align: center;
+    padding: 16px 0 32px;
+    z-index: 2;
+  }
+  .swipe-hint-text {
+    color: #64748b;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .swipe-arrow {
+    animation: swipeUp 1.5s ease-in-out infinite;
+  }
+  @keyframes swipeUp {
+    0%, 100% { transform: translateY(0); opacity: 0.5; }
+    50% { transform: translateY(-6px); opacity: 1; }
+  }
+</style>
+</head>
+<body>
+<div class="phone-frame">
+  <div class="ambient-glow"></div>
+
+  <!-- Back -->
+  <div class="back-row">
+    <div class="back-btn">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+        <path d="M11 4L6 9l5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <span class="back-label">Назад к задачам</span>
+  </div>
+
+  <!-- Step indicator -->
+  <div class="step-indicator">
+    <div class="step-dot completed">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+        <path d="M3 7l3 3 5-5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <div class="step-line completed"></div>
+    <div class="step-dot active">2</div>
+    <div class="step-line pending"></div>
+    <div class="step-dot pending">3</div>
+    <div class="step-line pending"></div>
+    <div class="step-dot pending">4</div>
+  </div>
+  <div class="step-labels">
+    <div class="step-label">Выбор задачи</div>
+    <div class="step-label active">Сканирование</div>
+    <div class="step-label">Проверка</div>
+    <div class="step-label">Завершение</div>
+  </div>
+
+  <!-- Central icon -->
+  <div class="central-icon">
+    <div class="icon-container">
+      <div class="icon-glow-ring"></div>
+      <div class="icon-bg">
+        <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
+          <!-- Pallet icon -->
+          <rect x="12" y="36" width="40" height="6" rx="2" stroke="#a78bfa" stroke-width="2" fill="none"/>
+          <rect x="16" y="22" width="12" height="14" rx="2" stroke="#a78bfa" stroke-width="2" fill="none"/>
+          <rect x="36" y="22" width="12" height="14" rx="2" stroke="#a78bfa" stroke-width="2" fill="none"/>
+          <line x1="16" y1="46" x2="16" y2="50" stroke="#a78bfa" stroke-width="2" stroke-linecap="round"/>
+          <line x1="32" y1="46" x2="32" y2="50" stroke="#a78bfa" stroke-width="2" stroke-linecap="round"/>
+          <line x1="48" y1="46" x2="48" y2="50" stroke="#a78bfa" stroke-width="2" stroke-linecap="round"/>
+          <!-- Scan beam -->
+          <line x1="8" y1="16" x2="56" y2="16" stroke="#7c3aed" stroke-width="2" stroke-linecap="round" opacity="0.5">
+            <animate attributeName="y1" values="16;42;16" dur="2s" repeatCount="indefinite"/>
+            <animate attributeName="y2" values="16;42;16" dur="2s" repeatCount="indefinite"/>
+          </line>
+        </svg>
+      </div>
+    </div>
+    <div class="task-title">Сканируйте паллет</div>
+    <div class="task-subtitle">Наведите сканер на штрих-код паллета для начала инвентаризации зоны A3</div>
+  </div>
+
+  <!-- Step details -->
+  <div class="step-details">
+    <div class="step-details-title">Шаг 2 — Детали</div>
+    <div class="step-detail-row">
+      <div class="detail-icon">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <rect x="2" y="4" width="12" height="9" rx="2" stroke="#a78bfa" stroke-width="1.5" fill="none"/>
+          <path d="M5 4V3a3 3 0 016 0v1" stroke="#a78bfa" stroke-width="1.5"/>
+        </svg>
+      </div>
+      <div>
+        <div class="detail-label">Зона</div>
+        <div class="detail-value">A3 — Полки 12-18</div>
+      </div>
+    </div>
+    <div class="step-detail-row">
+      <div class="detail-icon">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <circle cx="8" cy="8" r="6" stroke="#a78bfa" stroke-width="1.5" fill="none"/>
+          <path d="M8 5v3l2 1.5" stroke="#a78bfa" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div>
+        <div class="detail-label">Примерное время</div>
+        <div class="detail-value">45 минут</div>
+      </div>
+    </div>
+    <div class="step-detail-row">
+      <div class="detail-icon">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path d="M3 8h10M8 3v10" stroke="#a78bfa" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div>
+        <div class="detail-label">Ожидается товаров</div>
+        <div class="detail-value">~180 позиций</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scan input -->
+  <div class="scan-area">
+    <div class="scan-input-wrapper">
+      <div class="neon-border"></div>
+      <div class="scan-input-icon">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+          <rect x="3" y="3" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.5" fill="none"/>
+          <rect x="12" y="3" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.5" fill="none"/>
+          <rect x="3" y="12" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.5" fill="none"/>
+          <rect x="12" y="12" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.5" fill="none"/>
+        </svg>
+      </div>
+      <input class="scan-input" type="text" placeholder="Сканируйте штрих-код..." autofocus>
+    </div>
+  </div>
+
+  <!-- Swipe hint -->
+  <div class="swipe-hint">
+    <div class="swipe-hint-text">
+      <span class="swipe-arrow">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path d="M8 12V4M4 7l4-4 4 4" stroke="#64748b" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </span>
+      Поднесите сканер или введите код вручную
+    </div>
+  </div>
+</div>
+</body>
+</html>

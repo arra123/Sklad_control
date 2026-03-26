@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GRA&#1089;&#1082;&#1083;&#1072;&#1076; — &#1055;&#1086;&#1083;&#1082;&#1072; 1</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',sans-serif;background:#f9fafb;color:#1f2937;min-height:100vh}
+.container{max-width:1200px;margin:0 auto;padding:20px 16px}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+.fade-up{animation:fadeUp .5s ease forwards;opacity:0}
+.fade-up:nth-child(1){animation-delay:.05s}
+.fade-up:nth-child(2){animation-delay:.1s}
+.fade-up:nth-child(3){animation-delay:.15s}
+.fade-up:nth-child(4){animation-delay:.2s}
+.fade-up:nth-child(5){animation-delay:.25s}
+
+.breadcrumb{display:flex;align-items:center;gap:8px;font-size:13px;color:#9ca3af;margin-bottom:20px;flex-wrap:wrap}
+.breadcrumb a{color:#7c3aed;text-decoration:none;font-weight:500}
+.breadcrumb a:hover{text-decoration:underline}
+.breadcrumb span.sep{color:#d1d5db}
+
+.header-card{background:#fff;border:1px solid #f3f4f6;border-radius:16px;padding:24px;box-shadow:0 1px 3px rgba(0,0,0,.05);margin-bottom:24px}
+.hc-top{display:flex;align-items:center;gap:16px;margin-bottom:20px}
+.hc-icon{width:56px;height:56px;background:#f5f3ff;border-radius:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.hc-info h1{font-size:22px;font-weight:800}
+.hc-info h1 span{color:#7c3aed}
+.hc-info .hc-sub{font-size:13px;color:#6b7280;margin-top:2px}
+.badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;gap:4px;margin-left:12px}
+.badge-fresh{background:#ecfdf5;color:#047857}
+.badge::before{content:'';width:6px;height:6px;border-radius:50%;background:#047857}
+
+.stat-boxes{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+@media(max-width:640px){.stat-boxes{grid-template-columns:repeat(2,1fr)}}
+.stat-box{background:#f9fafb;border:1px solid #f3f4f6;border-radius:12px;padding:16px;text-align:center}
+.sb-value{font-size:24px;font-weight:800;color:#1f2937}
+.sb-label{font-size:12px;color:#9ca3af;margin-top:4px}
+.sb-green .sb-value{color:#047857}
+.sb-purple .sb-value{color:#7c3aed}
+
+.section-title{font-size:18px;font-weight:700;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.cards-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-bottom:32px}
+@media(max-width:640px){.cards-grid{grid-template-columns:1fr}}
+
+.loc-card{background:#fff;border:1px solid #f3f4f6;border-radius:16px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,.05);cursor:pointer;transition:all .2s;text-decoration:none;color:inherit;display:block}
+.loc-card:hover{border-color:#7c3aed;box-shadow:0 4px 12px rgba(124,58,237,.12);transform:translateY(-2px)}
+.loc-card-header{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.lc-icon{width:40px;height:40px;background:#f5f3ff;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.lc-name{font-size:15px;font-weight:700}
+.lc-type{font-size:12px;color:#9ca3af}
+.loc-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0}
+.loc-stat{text-align:center}
+.loc-stat-val{font-size:17px;font-weight:700}
+.loc-stat-label{font-size:11px;color:#9ca3af}
+.loc-meta{font-size:12px;color:#9ca3af}
+
+/* History Section */
+.history-section{background:#fff;border:1px solid #f3f4f6;border-radius:16px;padding:24px;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+.history-item{padding:16px 0;border-bottom:1px solid #f3f4f6}
+.history-item:last-child{border-bottom:none}
+.hi-header{display:flex;align-items:center;justify-content:space-between;cursor:pointer}
+.hi-header:hover .hi-date{color:#7c3aed}
+.hi-date{font-size:14px;font-weight:600}
+.hi-meta{font-size:12px;color:#9ca3af;display:flex;gap:12px;align-items:center}
+.hi-badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600}
+.hi-badge-plus{background:#ecfdf5;color:#047857}
+.hi-badge-minus{background:#fef2f2;color:#b91c1c}
+.hi-badge-zero{background:#f3f4f6;color:#6b7280}
+.hi-details{margin-top:12px;display:none}
+.hi-details.open{display:block}
+.hi-row{display:grid;grid-template-columns:30px 1fr auto auto;gap:12px;align-items:center;padding:8px 0;border-bottom:1px solid #f9fafb;font-size:13px}
+.hi-row:last-child{border-bottom:none}
+.hi-num{color:#9ca3af;font-weight:600;text-align:center}
+.hi-product{font-weight:500}
+.hi-time{color:#9ca3af;font-size:12px}
+.hi-delta{font-weight:700;font-size:13px}
+.hi-delta.plus{color:#047857}
+.hi-delta.minus{color:#b91c1c}
+</style>
+</head>
+<body>
+<div class="container">
+  <nav class="breadcrumb fade-up">
+    <a href="01-overview.html">&#1054;&#1073;&#1079;&#1086;&#1088;</a>
+    <span class="sep">/</span>
+    <a href="01-overview.html">&#1054;&#1089;&#1085;&#1086;&#1074;&#1085;&#1086;&#1081; &#1089;&#1082;&#1083;&#1072;&#1076;</a>
+    <span class="sep">/</span>
+    <a href="02-rack.html">&#1057;&#1090;&#1077;&#1083;&#1083;&#1072;&#1078; &#1040;1</a>
+    <span class="sep">/</span>
+    <span>&#1055;&#1086;&#1083;&#1082;&#1072; 1</span>
+  </nav>
+
+  <div class="header-card fade-up">
+    <div class="hc-top">
+      <div class="hc-icon">
+        <svg width="30" height="30" viewBox="0 0 48 48" fill="none"><rect x="2" y="24" width="44" height="3" rx=".8" fill="#9a9a9a" stroke="#7a7a7a" stroke-width="1"/><path d="M6 27v4l-2 2" stroke="#7a7a7a" stroke-width="1.5" stroke-linecap="round"/><path d="M42 27v4l2 2" stroke="#7a7a7a" stroke-width="1.5" stroke-linecap="round"/><rect x="5" y="10" width="9" height="14" rx="1.5" fill="#d4a76a" stroke="#b8884a" stroke-width=".8"/><rect x="16" y="13" width="7" height="11" rx="1.2" fill="#c9985a"/><rect x="25" y="8" width="10" height="16" rx="1.5" fill="#d4a76a" stroke="#b8884a" stroke-width=".8"/></svg>
+      </div>
+      <div class="hc-info">
+        <h1><span>&#1055;&#1086;&#1083;&#1082;&#1072; 1</span> <span class="badge badge-fresh">&#1057;&#1074;&#1077;&#1078;&#1080;&#1081;</span></h1>
+        <div class="hc-sub">&#1057;&#1090;&#1077;&#1083;&#1083;&#1072;&#1078; &#1040;1 &middot; 3 &#1082;&#1086;&#1088;&#1086;&#1073;&#1082;&#1080; &middot; &#1055;&#1086;&#1089;&#1083;&#1077;&#1076;&#1085;&#1080;&#1081; &#1080;&#1085;&#1074;&#1077;&#1085;&#1090;: 2 &#1095;&#1072;&#1089;&#1072; &#1085;&#1072;&#1079;&#1072;&#1076;</div>
+      </div>
+    </div>
+    <div class="stat-boxes">
+      <div class="stat-box"><div class="sb-value">50</div><div class="sb-label">&#1055;&#1086; &#1080;&#1085;&#1074;&#1077;&#1085;&#1090;&#1091;</div></div>
+      <div class="stat-box"><div class="sb-value">52</div><div class="sb-label">&#1057;&#1077;&#1081;&#1095;&#1072;&#1089;</div></div>
+      <div class="stat-box sb-green"><div class="sb-value">+2</div><div class="sb-label">&#1056;&#1072;&#1079;&#1085;&#1080;&#1094;&#1072;</div></div>
+      <div class="stat-box sb-purple"><div class="sb-value">48</div><div class="sb-label">&#1055;&#1088;&#1077;&#1076;. &#1080;&#1085;&#1074;&#1077;&#1085;&#1090;</div></div>
+    </div>
+  </div>
+
+  <!-- Boxes Grid -->
+  <h2 class="section-title fade-up">
+    <svg width="20" height="20" viewBox="0 0 48 48" fill="none"><path d="M6 16L24 6l18 10v20L24 46 6 36V16z" fill="#d4a76a" stroke="#b8884a" stroke-width="1.5" stroke-linejoin="round"/><path d="M6 16l18 8 18-8" fill="#e8c888" stroke="#b8884a" stroke-width="1"/><path d="M24 24v22" stroke="#b8884a" stroke-width="1"/><path d="M24 24l18-8v20L24 46z" fill="#c49558"/></svg>
+    &#1050;&#1086;&#1088;&#1086;&#1073;&#1082;&#1080; (3)
+  </h2>
+
+  <div class="cards-grid">
+    <a href="04-box.html" class="loc-card fade-up">
+      <div class="loc-card-header">
+        <div class="lc-icon"><svg width="22" height="22" viewBox="0 0 48 48" fill="none"><path d="M6 16L24 6l18 10v20L24 46 6 36V16z" fill="#d4a76a" stroke="#b8884a" stroke-width="1.5" stroke-linejoin="round"/><path d="M6 16l18 8 18-8" fill="#e8c888" stroke="#b8884a" stroke-width="1"/><path d="M24 24v22" stroke="#b8884a" stroke-width="1"/><path d="M24 24l18-8v20L24 46z" fill="#c49558"/></svg></div>
+        <div><div class="lc-name">&#1056;1&#1055;1&#1050;1</div><div class="lc-type">&#1050;&#1086;&#1088;&#1086;&#1073;&#1082;&#1072;</div></div>
+        <span class="badge badge-fresh">&#1057;&#1074;&#1077;&#1078;&#1080;&#1081;</span>
+      </div>
+      <div class="loc-stats">
+        <div class="loc-stat"><div class="loc-stat-val">18</div><div class="loc-stat-label">&#1057;&#1077;&#1081;&#1095;&#1072;&#1089;</div></div>
+        <div class="loc-stat"><div class="loc-stat-val">17</div><div class="loc-stat-label">&#1055;&#1086; &#1080;&#1085;&#1074;&#1077;&#1085;&#1090;&#1091;</div></div>
+        <div class="loc-stat"><div class="loc-stat-val" style="color:#047857">+1</div><div class="loc-stat-label">&#1056;&#1072;&#1079;&#1085;&#1080;&#1094;&#1072;</div></div>
+      </div>
+      <div class="loc-meta">&#1048;&#1074;&#1072;&#1085;&#1086;&#1074;&#1072; &#1040;. &middot; 2&#1095; &#1085;&#1072;&#1079;&#1072;&#1076; &middot; 3 &#1084;&#1080;&#1085;</div>
+    </a>
+
+    <a href="04-box.html" class="loc-card fade-up">
+      <div class="loc-card-header">
+        <div class="lc-icon"><svg width="22" height="22" viewBox="0 0 48 48" fill="none"><path d="M6 16L24 6l18 10v20L24 46 6 36V16z" fill="#d4a76a" stroke="#b8884a" stroke-width="1.5" stroke-linejoin="round"/><path d="M6 16l18 8 18-8" fill="#e8c888" stroke="#b8884a" stroke-width="1"/><path d="M24 24v22" stroke="#b8884a" stroke-width="1"/><path d="M24 24l18-8v20L24 46z" fill="#c49558"/></svg></div>
+        <div><div class="lc-name">&#1056;1&#1055;1&#1050;2</div><div class="lc-type">&#1050;&#1086;&#1088;&#1086;&#1073;&#1082;&#1072;</div></div>
+        <span class="badge badge-fresh">&#1057;&#1074;&#1077;&#1078;&#1080;&#1081;</span>
+      </div>
+      <div class="loc-stats">
+        <div class="loc-stat"><div class="loc-stat-val">22</div><div class="loc-stat-label">&#1057;&#1077;&#1081;&#1095;&#1072;&#1089;</div></div>
+        <div class="loc-stat"><div class="loc-stat-val">21</div><div class="loc-stat-label">&#1055;&#1086; &#1080;&#1085;&#1074;&#1077;&#1085;&#1090;&#1091;</div></div>
+        <div class="loc-stat"><div class="loc-stat-val" style="color:#047857">+1</div><div class="loc-stat-label">&#1056;&#1072;&#1079;&#1085;&#1080;&#1094;&#1072;</div></div>
+      </div>
+      <div class="loc-meta">&#1048;&#1074;&#1072;&#1085;&#1086;&#1074;&#1072; &#1040;. &middot; 2&#1095; &#1085;&#1072;&#1079;&#1072;&#1076; &middot; 4 &#1084;&#1080;&#1085;</div>
+    </a>
+
+    <a href="04-box.html" class="loc-card fade-up">
+      <div class="loc-card-header">
+        <div class="lc-icon"><svg width="22" height="22" viewBox="0 0 48 48" fill="none"><path d="M6 16L24 6l18 10v20L24 46 6 36V16z" fill="#d4a76a" stroke="#b8884a" stroke-width="1.5" stroke-linejoin="round"/><path d="M6 16l18 8 18-8" fill="#e8c888" stroke="#b8884a" stroke-width="1"/><path d="M24 24v22" stroke="#b8884a" stroke-width="1"/><path d="M24 24l18-8v20L24 46z" fill="#c49558"/></svg></div>
+        <div><div class="lc-name">&#1056;1&#1055;1&#1050;3</div><div class="lc-type">&#1050;&#1086;&#1088;&#1086;&#1073;&#1082;&#1072;</div></div>
+        <span class="badge badge-fresh">&#1057;&#1074;&#1077;&#1078;&#1080;&#1081;</span>
+      </div>
+      <div class="loc-stats">
+        <div class="loc-stat"><div class="loc-stat-val">12</div><div class="loc-stat-label">&#1057;&#1077;&#1081;&#1095;&#1072;&#1089;</div></div>
+        <div class="loc-stat"><div class="loc-stat-val">12</div><div class="loc-stat-label">&#1055;&#1086; &#1080;&#1085;&#1074;&#1077;&#1085;&#1090;&#1091;</div></div>
+        <div class="loc-stat"><div class="loc-stat-val">0</div><div class="loc-stat-label">&#1056;&#1072;&#1079;&#1085;&#1080;&#1094;&#1072;</div></div>
+      </div>
+      <div class="loc-meta">&#1048;&#1074;&#1072;&#1085;&#1086;&#1074;&#1072; &#1040;. &middot; 2&#1095; &#1085;&#1072;&#1079;&#1072;&#1076; &middot; 3 &#1084;&#1080;&#1085;</div>
+    </a>
+  </div>
+
+  <!-- History (for shelves without boxes, shown inline) -->
+  <h2 class="section-title fade-up">&#1048;&#1089;&#1090;&#1086;&#1088;&#1080;&#1103; &#1080;&#1085;&#1074;&#1077;&#1085;&#1090;&#1072;&#1088;&#1080;&#1079;&#1072;&#1094;&#1080;&#1081;</h2>
+  <div class="history-section fade-up">
+    <div class="history-item">
+      <div class="hi-header" onclick="this.nextElementSibling.classList.toggle('open')">
+        <div>
+          <div class="hi-date">25 &#1084;&#1072;&#1088;&#1090;&#1072; 2026, 14:32</div>
+          <div class="hi-meta">
+            <span>&#1048;&#1074;&#1072;&#1085;&#1086;&#1074;&#1072; &#1040;.</span>
+            <span>7 &#1084;&#1080;&#1085;</span>
+            <span class="hi-badge hi-badge-plus">+2</span>
+          </div>
+        </div>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="#9ca3af" stroke-width="2" stroke-linecap="round"/></svg>
+      </div>
+      <div class="hi-details open">
+        <div class="hi-row"><div class="hi-num">1</div><div class="hi-product">&#1060;&#1091;&#1090;&#1073;&#1086;&#1083;&#1082;&#1072; &#1073;&#1077;&#1083;&#1072;&#1103; XL</div><div class="hi-time">14:32</div><div class="hi-delta plus">+1</div></div>
+        <div class="hi-row"><div class="hi-num">2</div><div class="hi-product">&#1044;&#1078;&#1080;&#1085;&#1089;&#1099; &#1089;&#1080;&#1085;&#1080;&#1077; M</div><div class="hi-time">14:33</div><div class="hi-delta">0</div></div>
+        <div class="hi-row"><div class="hi-num">3</div><div class="hi-product">&#1050;&#1091;&#1088;&#1090;&#1082;&#1072; &#1079;&#1080;&#1084;&#1085;&#1103;&#1103; L</div><div class="hi-time">14:35</div><div class="hi-delta plus">+1</div></div>
+        <div class="hi-row"><div class="hi-num">4</div><div class="hi-product">&#1064;&#1072;&#1088;&#1092; &#1096;&#1077;&#1088;&#1089;&#1090;&#1103;&#1085;&#1086;&#1081;</div><div class="hi-time">14:36</div><div class="hi-delta">0</div></div>
+        <div class="hi-row"><div class="hi-num">5</div><div class="hi-product">&#1050;&#1077;&#1087;&#1082;&#1072; &#1095;&#1105;&#1088;&#1085;&#1072;&#1103;</div><div class="hi-time">14:39</div><div class="hi-delta">0</div></div>
+      </div>
+    </div>
+
+    <div class="history-item">
+      <div class="hi-header" onclick="this.nextElementSibling.classList.toggle('open')">
+        <div>
+          <div class="hi-date">23 &#1084;&#1072;&#1088;&#1090;&#1072; 2026, 09:15</div>
+          <div class="hi-meta">
+            <span>&#1055;&#1077;&#1090;&#1088;&#1086;&#1074; &#1052;.</span>
+            <span>12 &#1084;&#1080;&#1085;</span>
+            <span class="hi-badge hi-badge-minus">-1</span>
+          </div>
+        </div>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="#9ca3af" stroke-width="2" stroke-linecap="round"/></svg>
+      </div>
+      <div class="hi-details">
+        <div class="hi-row"><div class="hi-num">1</div><div class="hi-product">&#1060;&#1091;&#1090;&#1073;&#1086;&#1083;&#1082;&#1072; &#1073;&#1077;&#1083;&#1072;&#1103; XL</div><div class="hi-time">09:15</div><div class="hi-delta">0</div></div>
+        <div class="hi-row"><div class="hi-num">2</div><div class="hi-product">&#1044;&#1078;&#1080;&#1085;&#1089;&#1099; &#1089;&#1080;&#1085;&#1080;&#1077; M</div><div class="hi-time">09:18</div><div class="hi-delta minus">-1</div></div>
+        <div class="hi-row"><div class="hi-num">3</div><div class="hi-product">&#1050;&#1091;&#1088;&#1090;&#1082;&#1072; &#1079;&#1080;&#1084;&#1085;&#1103;&#1103; L</div><div class="hi-time">09:22</div><div class="hi-delta">0</div></div>
+        <div class="hi-row"><div class="hi-num">4</div><div class="hi-product">&#1064;&#1072;&#1088;&#1092; &#1096;&#1077;&#1088;&#1089;&#1090;&#1103;&#1085;&#1086;&#1081;</div><div class="hi-time">09:24</div><div class="hi-delta">0</div></div>
+      </div>
+    </div>
+
+    <div class="history-item">
+      <div class="hi-header" onclick="this.nextElementSibling.classList.toggle('open')">
+        <div>
+          <div class="hi-date">20 &#1084;&#1072;&#1088;&#1090;&#1072; 2026, 16:45</div>
+          <div class="hi-meta">
+            <span>&#1057;&#1080;&#1076;&#1086;&#1088;&#1086;&#1074;&#1072; &#1050;.</span>
+            <span>9 &#1084;&#1080;&#1085;</span>
+            <span class="hi-badge hi-badge-zero">0</span>
+          </div>
+        </div>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="#9ca3af" stroke-width="2" stroke-linecap="round"/></svg>
+      </div>
+      <div class="hi-details">
+        <div class="hi-row"><div class="hi-num">1</div><div class="hi-product">&#1060;&#1091;&#1090;&#1073;&#1086;&#1083;&#1082;&#1072; &#1073;&#1077;&#1083;&#1072;&#1103; XL</div><div class="hi-time">16:45</div><div class="hi-delta">0</div></div>
+        <div class="hi-row"><div class="hi-num">2</div><div class="hi-product">&#1044;&#1078;&#1080;&#1085;&#1089;&#1099; &#1089;&#1080;&#1085;&#1080;&#1077; M</div><div class="hi-time">16:48</div><div class="hi-delta">0</div></div>
+        <div class="hi-row"><div class="hi-num">3</div><div class="hi-product">&#1050;&#1091;&#1088;&#1090;&#1082;&#1072; &#1079;&#1080;&#1084;&#1085;&#1103;&#1103; L</div><div class="hi-time">16:50</div><div class="hi-delta">0</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

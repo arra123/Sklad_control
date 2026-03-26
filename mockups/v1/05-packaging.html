@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Упаковка — Склад</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:'Inter',sans-serif;background:#f0f0f5;min-height:100vh;display:flex;justify-content:center;}
+  .app{width:100%;max-width:430px;background:#f0f0f5;min-height:100vh;position:relative;padding-bottom:80px;}
+
+  .header{background:linear-gradient(135deg,#6C3AED,#4F46E5);padding:14px 20px 18px;border-radius:0 0 24px 24px;}
+  .header-top{display:flex;align-items:center;gap:12px;margin-bottom:10px;}
+  .back-btn{width:34px;height:34px;background:rgba(255,255,255,0.15);border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;}
+  .back-btn svg{width:18px;height:18px;color:#fff;}
+  .header-title{color:#fff;font-size:16px;font-weight:700;flex:1;}
+  .header-badge{background:rgba(255,255,255,0.15);color:#fff;font-size:12px;font-weight:600;padding:5px 10px;border-radius:8px;}
+
+  /* Progress Hero */
+  .progress-hero{margin:16px 16px 0;background:linear-gradient(135deg,#fff,#F5F3FF);border-radius:20px;padding:20px;box-shadow:0 4px 16px rgba(108,58,237,0.08);}
+  .progress-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
+  .progress-title{font-size:15px;font-weight:700;color:#1E1B4B;}
+  .progress-count{font-size:24px;font-weight:800;color:#6C3AED;}
+  .progress-count span{font-size:14px;color:#9CA3AF;font-weight:600;}
+  .progress-bar{height:12px;background:#E5E7EB;border-radius:6px;overflow:hidden;margin-bottom:8px;}
+  .progress-fill{height:100%;background:linear-gradient(90deg,#8B5CF6,#6C3AED,#4F46E5);border-radius:6px;transition:width 0.5s ease;width:66.7%;position:relative;}
+  .progress-fill::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.3),transparent);animation:shimmer 2s infinite;}
+  @keyframes shimmer{0%{transform:translateX(-100%);}100%{transform:translateX(100%);}}
+  .progress-detail{display:flex;justify-content:space-between;font-size:12px;color:#9CA3AF;font-weight:500;}
+
+  /* Speed Badges */
+  .speed-section{margin:14px 16px 0;}
+  .speed-title{font-size:12px;font-weight:700;color:#6C3AED;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;}
+  .speed-grid{display:flex;gap:6px;flex-wrap:wrap;}
+  .speed-dot{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;transition:transform 0.15s;}
+  .speed-dot:hover{transform:scale(1.1);}
+  .speed-dot.fast{background:linear-gradient(135deg,#D1FAE5,#A7F3D0);color:#059669;}
+  .speed-dot.medium{background:linear-gradient(135deg,#FEF3C7,#FDE68A);color:#D97706;}
+  .speed-dot.slow{background:linear-gradient(135deg,#FEE2E2,#FECACA);color:#DC2626;}
+
+  /* Current Product */
+  .current-product{margin:14px 16px 0;background:#fff;border-radius:16px;padding:16px;box-shadow:0 2px 10px rgba(0,0,0,0.05);display:flex;gap:14px;align-items:center;}
+  .product-icon{width:56px;height:56px;background:linear-gradient(135deg,#FEF3C7,#FDE68A);border-radius:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .product-icon svg{width:32px;height:32px;}
+  .product-info{flex:1;min-width:0;}
+  .product-label{font-size:11px;font-weight:600;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;}
+  .product-name{font-size:15px;font-weight:700;color:#1E1B4B;margin-bottom:4px;}
+  .product-meta{font-size:12px;color:#6B7280;}
+  .product-qty{text-align:right;}
+  .product-qty-num{font-size:28px;font-weight:800;color:#6C3AED;}
+  .product-qty-label{font-size:10px;color:#9CA3AF;font-weight:500;}
+
+  /* Box Barcode */
+  .box-barcode{margin:14px 16px 0;background:linear-gradient(135deg,#fff,#F9FAFB);border-radius:16px;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,0.04);display:flex;align-items:center;gap:14px;}
+  .barcode-visual{flex-shrink:0;}
+  .barcode-visual svg{width:60px;height:40px;}
+  .barcode-info{flex:1;}
+  .barcode-label{font-size:11px;font-weight:600;color:#9CA3AF;margin-bottom:2px;}
+  .barcode-value{font-size:16px;font-weight:800;color:#1E1B4B;font-family:'Courier New',monospace;letter-spacing:2px;}
+  .print-btn{width:42px;height:42px;background:linear-gradient(135deg,#6C3AED,#4F46E5);border-radius:12px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform 0.15s,box-shadow 0.15s;flex-shrink:0;}
+  .print-btn:hover{transform:scale(1.05);box-shadow:0 4px 12px rgba(108,58,237,0.3);}
+  .print-btn svg{width:22px;height:22px;color:#fff;}
+
+  /* Scan */
+  .scan-section{margin:14px 16px 0;}
+  .scan-card{background:#fff;border-radius:16px;padding:14px 16px;box-shadow:0 2px 10px rgba(0,0,0,0.06);}
+  .scan-label{font-size:12px;font-weight:600;color:#6B7280;margin-bottom:8px;display:flex;align-items:center;gap:6px;}
+  .scan-input-wrap{position:relative;}
+  .scan-input{width:100%;height:52px;border:2px solid #DDD6FE;border-radius:12px;background:#F9FAFB;font-size:16px;font-family:'Inter',sans-serif;font-weight:600;color:#1E1B4B;padding:0 48px 0 14px;outline:none;transition:all 0.2s;}
+  .scan-input:focus{border-color:#6C3AED;box-shadow:0 0 0 4px rgba(108,58,237,0.1);background:#fff;}
+  .scan-input::placeholder{color:#C4B5FD;font-weight:500;}
+  .scan-icon{position:absolute;right:12px;top:50%;transform:translateY(-50%);color:#6C3AED;}
+  .scan-icon svg{width:22px;height:22px;}
+  .pulse{animation:pulse 2s infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.4;}}
+
+  /* Stats */
+  .stats-row{display:flex;gap:8px;margin:12px 16px 0;}
+  .stat-card{flex:1;background:#fff;border-radius:12px;padding:10px;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,0.04);}
+  .stat-num{font-size:18px;font-weight:800;}
+  .stat-num.blue{color:#3B82F6;}
+  .stat-num.red{color:#EF4444;}
+  .stat-num.amber{color:#F59E0B;}
+  .stat-label{font-size:9px;color:#9CA3AF;font-weight:600;text-transform:uppercase;letter-spacing:0.4px;margin-top:2px;}
+
+  .bottom-nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:#fff;border-radius:20px 20px 0 0;box-shadow:0 -4px 20px rgba(0,0,0,0.08);display:flex;padding:8px 16px 12px;z-index:100;}
+  .nav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px;border-radius:12px;cursor:pointer;transition:all 0.2s;}
+  .nav-item.active{background:linear-gradient(135deg,#EDE9FE,#E0E7FF);}
+  .nav-item svg{width:24px;height:24px;color:#9CA3AF;}
+  .nav-item.active svg{color:#6C3AED;}
+  .nav-label{font-size:11px;font-weight:600;color:#9CA3AF;}
+  .nav-item.active .nav-label{color:#6C3AED;}
+  .nav-item:hover{background:rgba(108,58,237,0.06);}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <div class="header-top">
+      <div class="back-btn"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M13 4L7 10l6 6"/></svg></div>
+      <div class="header-title">Упаковка #4891</div>
+      <div class="header-badge">Коробка 3/5</div>
+    </div>
+  </div>
+
+  <!-- Progress Hero -->
+  <div class="progress-hero">
+    <div class="progress-top">
+      <div class="progress-title">Прогресс упаковки</div>
+      <div class="progress-count">16 <span>/ 24</span></div>
+    </div>
+    <div class="progress-bar"><div class="progress-fill"></div></div>
+    <div class="progress-detail">
+      <span>Упаковано 16 товаров</span>
+      <span>Осталось 8</span>
+    </div>
+  </div>
+
+  <!-- Speed Badges -->
+  <div class="speed-section">
+    <div class="speed-title">Скорость последних 10 сканов</div>
+    <div class="speed-grid">
+      <div class="speed-dot fast">1.2</div>
+      <div class="speed-dot fast">2.1</div>
+      <div class="speed-dot fast">1.8</div>
+      <div class="speed-dot medium">3.4</div>
+      <div class="speed-dot fast">2.0</div>
+      <div class="speed-dot medium">4.1</div>
+      <div class="speed-dot slow">7.2</div>
+      <div class="speed-dot fast">1.5</div>
+      <div class="speed-dot fast">2.8</div>
+      <div class="speed-dot medium">3.9</div>
+    </div>
+  </div>
+
+  <!-- Current Product -->
+  <div class="current-product">
+    <div class="product-icon">
+      <svg viewBox="0 0 32 32" fill="none">
+        <!-- Product jar with gold cap -->
+        <rect x="6" y="10" width="20" height="16" rx="3" fill="#FEF3C7" stroke="#D97706" stroke-width="1.5"/>
+        <rect x="8" y="6" width="16" height="5" rx="2" fill="url(#goldCap)" stroke="#B45309" stroke-width="1"/>
+        <defs><linearGradient id="goldCap" x1="8" y1="6" x2="24" y2="11"><stop offset="0%" stop-color="#FCD34D"/><stop offset="50%" stop-color="#FBBF24"/><stop offset="100%" stop-color="#F59E0B"/></linearGradient></defs>
+        <rect x="10" y="14" width="12" height="6" rx="1" fill="#FDE68A" stroke="#D97706" stroke-width="0.8"/>
+        <line x1="12" y1="16" x2="20" y2="16" stroke="#D97706" stroke-width="0.8"/>
+        <line x1="13" y1="18" x2="19" y2="18" stroke="#D97706" stroke-width="0.6"/>
+      </svg>
+    </div>
+    <div class="product-info">
+      <div class="product-label">Следующий товар</div>
+      <div class="product-name">Крем для рук "Бархат" 75мл</div>
+      <div class="product-meta">Артикул: KRM-2847 | Ячейка: A3-12</div>
+    </div>
+    <div class="product-qty">
+      <div class="product-qty-num">3</div>
+      <div class="product-qty-label">осталось</div>
+    </div>
+  </div>
+
+  <!-- Box Barcode -->
+  <div class="box-barcode">
+    <div class="barcode-visual">
+      <svg viewBox="0 0 60 40" fill="none">
+        <rect x="0" y="0" width="60" height="40" rx="4" fill="#F9FAFB"/>
+        <line x1="5" y1="5" x2="5" y2="30" stroke="#1E1B4B" stroke-width="2"/>
+        <line x1="9" y1="5" x2="9" y2="30" stroke="#1E1B4B" stroke-width="1"/>
+        <line x1="12" y1="5" x2="12" y2="30" stroke="#1E1B4B" stroke-width="2.5"/>
+        <line x1="16" y1="5" x2="16" y2="30" stroke="#1E1B4B" stroke-width="1"/>
+        <line x1="19" y1="5" x2="19" y2="30" stroke="#1E1B4B" stroke-width="1.5"/>
+        <line x1="22" y1="5" x2="22" y2="30" stroke="#1E1B4B" stroke-width="2"/>
+        <line x1="26" y1="5" x2="26" y2="30" stroke="#1E1B4B" stroke-width="1"/>
+        <line x1="29" y1="5" x2="29" y2="30" stroke="#1E1B4B" stroke-width="1.5"/>
+        <line x1="33" y1="5" x2="33" y2="30" stroke="#1E1B4B" stroke-width="2"/>
+        <line x1="36" y1="5" x2="36" y2="30" stroke="#1E1B4B" stroke-width="1"/>
+        <line x1="39" y1="5" x2="39" y2="30" stroke="#1E1B4B" stroke-width="2.5"/>
+        <line x1="43" y1="5" x2="43" y2="30" stroke="#1E1B4B" stroke-width="1"/>
+        <line x1="46" y1="5" x2="46" y2="30" stroke="#1E1B4B" stroke-width="1.5"/>
+        <line x1="50" y1="5" x2="50" y2="30" stroke="#1E1B4B" stroke-width="2"/>
+        <line x1="53" y1="5" x2="53" y2="30" stroke="#1E1B4B" stroke-width="1"/>
+        <line x1="55" y1="5" x2="55" y2="30" stroke="#1E1B4B" stroke-width="2"/>
+        <text x="30" y="38" text-anchor="middle" font-size="6" fill="#6B7280" font-family="monospace">BOX-4891-03</text>
+      </svg>
+    </div>
+    <div class="barcode-info">
+      <div class="barcode-label">Штрихкод коробки</div>
+      <div class="barcode-value">BOX-4891-03</div>
+    </div>
+    <div class="print-btn">
+      <svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M6 9V3h10v6"/>
+        <rect x="3" y="9" width="16" height="8" rx="1.5"/>
+        <rect x="6" y="14" width="10" height="5" rx="1"/>
+        <circle cx="15" cy="12" r="1" fill="currentColor"/>
+      </svg>
+    </div>
+  </div>
+
+  <!-- Scan -->
+  <div class="scan-section">
+    <div class="scan-card">
+      <div class="scan-label">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="3.5" width="12" height="7" rx="1" stroke="#6C3AED" stroke-width="1.3"/><line x1="3.5" y1="5" x2="3.5" y2="9" stroke="#6C3AED" stroke-width="1.3"/><line x1="5.5" y1="5" x2="5.5" y2="9" stroke="#6C3AED" stroke-width="0.8"/><line x1="7" y1="5" x2="7" y2="9" stroke="#6C3AED" stroke-width="1.3"/><line x1="9" y1="5" x2="9" y2="9" stroke="#6C3AED" stroke-width="0.8"/><line x1="10.5" y1="5" x2="10.5" y2="9" stroke="#6C3AED" stroke-width="1.3"/></svg>
+        Сканируйте товар в коробку
+      </div>
+      <div class="scan-input-wrap">
+        <input class="scan-input" type="text" placeholder="Наведите сканер..." autofocus>
+        <div class="scan-icon pulse"><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 6V4a2 2 0 012-2h2M16 2h2a2 2 0 012 2v2M20 16v2a2 2 0 01-2 2h-2M6 20H4a2 2 0 01-2-2v-2"/><line x1="6" y1="7" x2="6" y2="15"/><line x1="9" y1="7" x2="9" y2="15"/><line x1="11.5" y1="7" x2="11.5" y2="15"/><line x1="14" y1="7" x2="14" y2="15"/><line x1="16" y1="7" x2="16" y2="15"/></svg></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-row">
+    <div class="stat-card"><div class="stat-num blue">16</div><div class="stat-label">Упаковано</div></div>
+    <div class="stat-card"><div class="stat-num red">0</div><div class="stat-label">Ошибок</div></div>
+    <div class="stat-card"><div class="stat-num amber">2.5с</div><div class="stat-label">Ср. время</div></div>
+  </div>
+</div>
+
+<nav class="bottom-nav">
+  <div class="nav-item active">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+    <span class="nav-label">Задачи</span>
+  </div>
+  <div class="nav-item">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/><rect x="3" y="3" width="18" height="18" rx="3"/></svg>
+    <span class="nav-label">Переместить</span>
+  </div>
+  <div class="nav-item">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7H4a2 2 0 00-2 2v9a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/></svg>
+    <span class="nav-label">Мой товар</span>
+  </div>
+</nav>
+</body>
+</html>
