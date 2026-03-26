@@ -112,7 +112,8 @@ router.get('/:id', requireAuth, async (req, res) => {
 // POST /api/materials/import
 router.post('/import', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const stats = await importTechCards();
+    const token = req.body?.token || undefined;
+    const stats = await importTechCards(pool, { token });
     res.json(stats);
   } catch (err) {
     res.status(500).json({ error: err.message });

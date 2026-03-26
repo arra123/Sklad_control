@@ -38,15 +38,11 @@ function extractUuid(href) {
 /**
  * Fetch JSON from МойСклад with retry / rate-limit handling.
  */
-async function msGet(url) {
-  if (!TOKEN) {
-    throw new Error('[techCardImport] MOYSKLAD_TOKEN is not configured');
-  }
-
+async function msGet(url, authToken) {
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     const response = await fetch(url, {
       headers: {
-        Authorization: `Bearer ${TOKEN}`,
+        Authorization: `Bearer ${authToken}`,
         Accept: 'application/json;charset=utf-8',
       },
     });
@@ -88,7 +84,7 @@ async function msGet(url) {
 /**
  * Fetch all rows from a paginated МойСклад endpoint.
  */
-async function fetchAllRows(baseUrl) {
+async function fetchAllRows(baseUrl, authToken) {
   const items = [];
   let offset = 0;
 
@@ -97,7 +93,7 @@ async function fetchAllRows(baseUrl) {
     pageUrl.searchParams.set('limit', String(PAGE_LIMIT));
     pageUrl.searchParams.set('offset', String(offset));
 
-    const page = await msGet(pageUrl.toString());
+    const page = await msGet(pageUrl.toString(), authToken);
     const rows = Array.isArray(page?.rows) ? page.rows : [];
     items.push(...rows);
 
@@ -131,12 +127,14 @@ function classifyMaterial(name, pathName) {
  * @param {import('pg').Pool} pool  – PostgreSQL connection pool
  * @returns {Promise<{total_plans: number, matched: number, skipped: number, materials_count: number, errors: string[]}>}
  */
-async function importTechCards(pool) {
+async function importTechCards(pool, { token: overrideToken } = {}) {
+  const useToken = overrideToken || TOKEN;
+  if (!useToken) throw new Error('[techCardImport] MOYSKLAD_TOKEN is not configured');
   const stats = { total_plans: 0, matched: 0, skipped: 0, materials_count: 0, errors: [] };
 
   // ------ Step 1: fetch all processing plans ------
   console.log('[techCardImport] Fetching processing plans from МойСклад...');
-  const plans = await fetchAllRows(`${API_BASE}/entity/processingplan`);
+  const plans = await fetchAllRows(`${API_BASE}/entity/processingplan`, useToken);
   stats.total_plans = plans.length;
   console.log(`[techCardImport] Fetched ${plans.length} processing plan(s)`);
 
@@ -157,7 +155,7 @@ async function importTechCards(pool) {
       }
 
       await delay(REQUEST_DELAY_MS);
-      const outputProducts = await msGet(productsHref);
+      const outputProducts = await msGet(productsHref, useToken);
       const outputRows = Array.isArray(outputProducts?.rows) ? outputProducts.rows : [];
 
       if (outputRows.length === 0) {
@@ -200,7 +198,7 @@ async function importTechCards(pool) {
       }
 
       await delay(REQUEST_DELAY_MS);
-      const materialsData = await msGet(materialsHref);
+      const materialsData = await msGet(materialsHref, useToken);
       const materialRows = Array.isArray(materialsData?.rows) ? materialsData.rows : [];
 
       // Resolve each material's product details
@@ -219,7 +217,7 @@ async function importTechCards(pool) {
         if (!productCache.has(matProductUuid)) {
           await delay(REQUEST_DELAY_MS);
           try {
-            const prodData = await msGet(`${API_BASE}/entity/product/${matProductUuid}`);
+            const prodData = await msGet(`${API_BASE}/entity/product/${matProductUuid}`, useToken);
             productCache.set(matProductUuid, {
               name: prodData.name || '',
               code: prodData.code || null,
