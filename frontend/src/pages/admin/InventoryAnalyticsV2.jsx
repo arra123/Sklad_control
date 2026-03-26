@@ -359,7 +359,7 @@ function InventoryHistorySection({ node }) {
 
 /* ═══════════════════ Overview Panel (v4 table style) ═══════════════════ */
 
-function OverviewPanel({ data, settings, singleWarehouse }) {
+function OverviewPanel({ data, settings, singleWarehouse, onSelectNode }) {
   const warehouses = data.warehouses || data || [];
   const isSingle = singleWarehouse && warehouses.length === 1;
   const wh = isSingle ? warehouses[0] : null;
@@ -542,9 +542,9 @@ function OverviewPanel({ data, settings, singleWarehouse }) {
                   ? `${item.covered_leaf_count}/${item.total_leaf_count}`
                   : null;
                 return (
-                  <tr key={item.id || i} className={cn('transition-colors hover:bg-[#faf5ff]', getRowBg(item))}>
+                  <tr key={item.id || i} className={cn('transition-colors hover:bg-[#faf5ff] cursor-pointer', getRowBg(item))} onClick={() => onSelectNode?.(item, itemType, nodeId(item, itemType))}>
                     <td className="px-2.5 py-3 border-b border-gray-100 whitespace-nowrap">
-                      <div className="flex items-center gap-2 font-semibold">
+                      <div className="flex items-center gap-2 font-semibold text-[#7c3aed]">
                         {getNodeIcon(itemType, 20, isSingle ? 0 : (item.id || i) % 10)}
                         {getNodeLabel(item)}
                       </div>
@@ -692,7 +692,7 @@ function DetailHeaderCard({ node, type, breadcrumb, childrenLabel }) {
 
 /* ═══════════════════ Rack / Row Detail ═══════════════════ */
 
-function RackRowDetail({ node, type, settings }) {
+function RackRowDetail({ node, type, settings, onSelectNode }) {
   const childrenData = getChildren(node);
   const items = childrenData?.items || [];
 
@@ -715,11 +715,11 @@ function RackRowDetail({ node, type, settings }) {
           const cDur = Number(child.last_inventory_duration_seconds || 0);
           const cAvgPick = cInv > 0 && cDur > 0 ? (cDur / cInv).toFixed(1) : null;
           return (
-            <div key={child.id || i} className="bg-white rounded-xl border border-gray-100 p-4 hover:shadow-md transition-shadow" style={{ borderLeft: `4px solid ${cst.text}` }}>
+            <div key={child.id || i} className="bg-white rounded-xl border border-gray-100 p-4 hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer" style={{ borderLeft: `4px solid ${cst.text}` }} onClick={() => onSelectNode?.(child, getChildType(child), nodeId(child, getChildType(child)))}>
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   {getNodeIcon(getChildType(child), 18)}
-                  <span className="font-semibold text-gray-900">{getNodeLabel(child)}</span>
+                  <span className="font-semibold text-[#7c3aed]">{getNodeLabel(child)}</span>
                 </div>
                 <span className="text-[11px] font-semibold px-2 py-0.5 rounded-lg" style={{ background: cst.bg, color: cst.text }}>{cst.label}</span>
               </div>
@@ -881,15 +881,15 @@ function BoxDetail({ node, type, settings }) {
 
 function RightPanelContent({ selectedNode, selectedType, data, settings, onSelectNode }) {
   if (!selectedNode) {
-    return <OverviewPanel data={data} settings={settings} />;
+    return <OverviewPanel data={data} settings={settings} onSelectNode={onSelectNode} />;
   }
 
   if (selectedType === 'warehouse') {
-    return <OverviewPanel data={{ warehouses: [selectedNode] }} settings={settings} singleWarehouse />;
+    return <OverviewPanel data={{ warehouses: [selectedNode] }} settings={settings} singleWarehouse onSelectNode={onSelectNode} />;
   }
 
   if (selectedType === 'rack' || selectedType === 'row') {
-    return <RackRowDetail node={selectedNode} type={selectedType} settings={settings} />;
+    return <RackRowDetail node={selectedNode} type={selectedType} settings={settings} onSelectNode={onSelectNode} />;
   }
 
   if (selectedType === 'shelf' || selectedType === 'pallet') {
