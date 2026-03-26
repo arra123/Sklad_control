@@ -390,7 +390,11 @@ router.get('/:id', requireAuth, async (req, res) => {
          ORDER BY tcm.sort_order, rm.name`,
         [tc.id]
       );
-      tech_card = { ...tc, materials: materialsResult.rows };
+      tech_card = {
+        ...tc,
+        output_quantity: Number(tc.output_quantity),
+        materials: materialsResult.rows.map(m => ({ ...m, quantity: Number(m.quantity) })),
+      };
     }
 
     res.json({ ...product, components, shelves: locationsResult.rows, tech_card });

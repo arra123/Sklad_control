@@ -669,7 +669,7 @@ export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
                   <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
                     Тех. карта
                     <span className="text-gray-300 normal-case ml-1.5">
-                      {product.tech_card.materials?.length || 0} материалов · выход {product.tech_card.output_quantity} шт
+                      {product.tech_card.materials?.length || 0} материалов · выход {fmtQty(product.tech_card.output_quantity)} шт
                     </span>
                   </p>
                 </div>
@@ -683,7 +683,7 @@ export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
                         <p className="text-sm font-medium text-gray-800 truncate">{m.name}</p>
                         {m.code && <p className="text-[10px] text-gray-400">{m.code}</p>}
                       </div>
-                      <span className="text-sm font-bold text-gray-900 flex-shrink-0">{m.quantity} {m.unit}</span>
+                      <span className="text-sm font-bold text-gray-900 flex-shrink-0">{fmtQty(m.quantity)} {m.unit}</span>
                       <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${
                         m.category === 'packaging'
                           ? 'bg-blue-50 text-blue-600'
