@@ -397,7 +397,7 @@ export default function MaterialsPage() {
                     <td className="px-4 py-3">{groupBadge(m.material_group)}</td>
                     <td className="px-4 py-3 text-gray-500">{m.unit || '—'}</td>
                     <td className="px-4 py-3 text-right text-gray-600">{fmtPrice(m.buy_price)}</td>
-                    <td className="px-4 py-3 text-right font-bold text-gray-900">{fmtQty(m.stock)}</td>
+                    <td className="px-4 py-3 text-right font-bold text-gray-900">{fmtQty(m.stock)} <span className="text-gray-400 font-normal text-xs">{m.unit || 'шт'}</span></td>
                     <td className="px-4 py-3"><ChevronRight size={14} className="text-gray-300" /></td>
                   </tr>
                 ))}
