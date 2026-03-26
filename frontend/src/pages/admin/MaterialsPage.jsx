@@ -49,8 +49,10 @@ function MaterialDetailModal({ materialId, onClose, onUpdated }) {
         setForm({
           name: d.name || '', code: d.code || '', unit: d.unit || 'шт',
           category: d.category || 'ingredient', material_group: d.material_group || 'другое',
-          buy_price: d.buy_price || '', stock: d.stock || '',
-          min_stock: d.min_stock || '', supplier: d.supplier || '', notes: d.notes || '',
+          buy_price: d.buy_price ? parseFloat(d.buy_price) : '',
+          stock: d.stock ? parseFloat(d.stock) : '',
+          min_stock: d.min_stock ? parseFloat(d.min_stock) : '',
+          supplier: d.supplier || '', notes: d.notes || '',
         });
       })
       .catch(() => setData(null))
@@ -142,7 +144,15 @@ function MaterialDetailModal({ materialId, onClose, onUpdated }) {
                       {Object.entries(GROUP_LABELS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                     </select></label>
                   <label className="block"><span className="text-[11px] text-gray-400 font-medium">Единица</span>
-                    <input value={form.unit} onChange={e => setForm({ ...form, unit: e.target.value })} className="w-full mt-0.5 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400" /></label>
+                    <select value={form.unit} onChange={e => setForm({ ...form, unit: e.target.value })} className="w-full mt-0.5 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400">
+                      <option value="шт">шт</option>
+                      <option value="г">г (грамм)</option>
+                      <option value="мг">мг (миллиграмм)</option>
+                      <option value="кг">кг (килограмм)</option>
+                      <option value="мл">мл (миллилитр)</option>
+                      <option value="л">л (литр)</option>
+                      <option value="уп">уп (упаковка)</option>
+                    </select></label>
                   <label className="block"><span className="text-[11px] text-gray-400 font-medium">Цена закупки</span>
                     <input type="number" step="0.01" value={form.buy_price} onChange={e => setForm({ ...form, buy_price: e.target.value })} className="w-full mt-0.5 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400" /></label>
                 </div>
