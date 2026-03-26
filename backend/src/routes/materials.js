@@ -33,7 +33,12 @@ router.get('/', requireAuth, async (req, res) => {
       conditions.push(`m.category = $${params.length}`);
     }
 
-    const allowedSortBy = ['name', 'code', 'category', 'created_at'];
+    if (req.query.material_group) {
+      params.push(req.query.material_group);
+      conditions.push(`m.material_group = $${params.length}`);
+    }
+
+    const allowedSortBy = ['name', 'code', 'category', 'material_group', 'created_at', 'stock', 'buy_price'];
     const safeSortBy = allowedSortBy.includes(sort_by) ? sort_by : 'name';
     const safeSortDir = sort_dir === 'desc' ? 'DESC' : 'ASC';
 
@@ -47,7 +52,7 @@ router.get('/', requireAuth, async (req, res) => {
 
     const dataParams = [...params, parseInt(limit), offset];
     const rows = await pool.query(
-      `SELECT m.id, m.name, m.code, m.article, m.unit, m.category, m.folder_path, m.stock, m.archived, m.created_at
+      `SELECT m.id, m.name, m.code, m.article, m.unit, m.category, m.material_group, m.folder_path, m.stock, m.buy_price, m.archived, m.created_at
        FROM raw_materials_s m
        ${where}
        ORDER BY m.${safeSortBy} ${safeSortDir}
@@ -71,11 +76,15 @@ router.get('/stats', requireAuth, async (req, res) => {
          COUNT(*) FILTER (WHERE category = 'packaging') AS packaging
        FROM raw_materials_s`
     );
+    const groupsResult = await pool.query(
+      `SELECT material_group, COUNT(*) as count FROM raw_materials_s WHERE archived = false GROUP BY material_group ORDER BY count DESC`
+    );
     const stats = result.rows[0];
     res.json({
       total: parseInt(stats.total),
       ingredients: parseInt(stats.ingredients),
       packaging: parseInt(stats.packaging),
+      groups: groupsResult.rows.map(r => ({ group: r.material_group, count: parseInt(r.count) })),
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -125,6 +134,7 @@ router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
     if (supplier !== undefined) { params.push(supplier); fields.push(`supplier = $${params.length}`); }
     if (notes !== undefined) { params.push(notes); fields.push(`notes = $${params.length}`); }
     if (stock !== undefined) { params.push(stock); fields.push(`stock = $${params.length}`); }
+    if (req.body.material_group !== undefined) { params.push(req.body.material_group); fields.push(`material_group = $${params.length}`); }
 
     if (fields.length === 0) return res.status(400).json({ error: 'Нет полей для обновления' });
 

@@ -129,6 +129,7 @@ async function createSchema() {
     await client.query(`ALTER TABLE raw_materials_s ADD COLUMN IF NOT EXISTS min_stock NUMERIC(15,3) DEFAULT 0`);
     await client.query(`ALTER TABLE raw_materials_s ADD COLUMN IF NOT EXISTS supplier VARCHAR(500)`);
     await client.query(`ALTER TABLE raw_materials_s ADD COLUMN IF NOT EXISTS notes TEXT`);
+    await client.query(`ALTER TABLE raw_materials_s ADD COLUMN IF NOT EXISTS material_group VARCHAR(50) DEFAULT 'другое'`);
 
     // ─── Tech Cards (production recipes) ───────────────────────────
     await client.query(`
