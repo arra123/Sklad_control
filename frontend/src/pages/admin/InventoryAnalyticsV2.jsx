@@ -169,6 +169,7 @@ function TreeNode({ node, type, depth = 0, expandedNodes, selectedNodeId, onTogg
     <div>
       <button
         onClick={() => {
+          if (hasChildren) onToggle(nid);
           onSelect(node, type, nid);
         }}
         className={cn(
@@ -182,8 +183,7 @@ function TreeNode({ node, type, depth = 0, expandedNodes, selectedNodeId, onTogg
         {hasChildren && (
           <ChevronRight
             size={12}
-            className={cn('flex-shrink-0 text-gray-400 transition-transform cursor-pointer', isExpanded && 'rotate-90')}
-            onClick={(e) => { e.stopPropagation(); onToggle(nid); }}
+            className={cn('flex-shrink-0 text-gray-400 transition-transform', isExpanded && 'rotate-90')}
           />
         )}
         {!hasChildren && <span className="w-3 flex-shrink-0" />}
@@ -882,14 +882,13 @@ export default function InventoryAnalyticsV2() {
       const path = buildPath(node, type, warehouses);
       setSelectedPath(path);
 
-      // Auto-expand selected node and all its ancestors in tree
+      // Auto-expand ancestors (but not the node itself — toggle handles that)
       setExpandedNodes(prev => {
         const next = new Set(prev);
         const selectedNid = nid || nodeId(node, type);
-        if (selectedNid) next.add(selectedNid);
         path.forEach(p => {
           const pid = nodeId(p.node, p.type);
-          if (pid) next.add(pid);
+          if (pid && pid !== selectedNid) next.add(pid);
         });
         return next;
       });
