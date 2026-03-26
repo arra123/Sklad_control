@@ -441,5 +441,183 @@ export function RawMaterialsIcon({ size = 20, className = '', style }) {
   );
 }
 
+// ─── Capsule icon ────────────────────────────────────────────────────────────
+
+export function CapsuleIcon({ size = 20, className = '', style }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className} style={style}>
+      <rect x="14" y="4" width="20" height="40" rx="10" fill="#f0efe8" stroke="#b0a890" strokeWidth="1.3"/>
+      <rect x="14" y="4" width="20" height="20" rx="10" fill="#e8d8a0" stroke="#b0a890" strokeWidth="1.3"/>
+      <path d="M30 10v6" stroke="white" strokeWidth="1.5" opacity=".35" strokeLinecap="round"/>
+      <line x1="14" y1="24" x2="34" y2="24" stroke="#b0a890" strokeWidth="1"/>
+    </svg>
+  );
+}
+
+// ─── Sidebar nav icons ──────────────────────────────────────────────────────
+
+export function DashboardNavIcon({ size = 20, className = '', style }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className} style={style}>
+      <rect x="4" y="4" width="18" height="18" rx="3" fill="#7c3aed" opacity=".8"/>
+      <rect x="26" y="4" width="18" height="10" rx="3" fill="#a78bfa" opacity=".6"/>
+      <rect x="4" y="26" width="18" height="10" rx="3" fill="#a78bfa" opacity=".6"/>
+      <rect x="26" y="18" width="18" height="18" rx="3" fill="#7c3aed" opacity=".5"/>
+      <rect x="4" y="40" width="40" height="4" rx="2" fill="#c4b5fd" opacity=".4"/>
+    </svg>
+  );
+}
+
+export function WarehouseNavIcon({ size = 20, className = '', style }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className} style={style}>
+      <rect x="6" y="18" width="36" height="24" rx="2" fill="#c7d2e0" stroke="#8494a7" strokeWidth="1.3"/>
+      <path d="M4 20L24 6l20 14" fill="#7b8fa8" stroke="#5c6f82" strokeWidth="1.3" strokeLinejoin="round"/>
+      <rect x="17" y="28" width="14" height="14" rx="1.5" fill="#5a7089"/>
+      <line x1="24" y1="28" x2="24" y2="42" stroke="#46586b" strokeWidth=".8"/>
+    </svg>
+  );
+}
+
+export function TasksNavIcon({ size = 20, className = '', style }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className} style={style}>
+      <rect x="8" y="4" width="32" height="40" rx="3" fill="#e8edf2" stroke="#8494a7" strokeWidth="1.2"/>
+      <rect x="16" y="3" width="16" height="6" rx="2" fill="#5c6f82"/>
+      <circle cx="15" cy="18" r="2.5" fill="#4caf50" stroke="#388e3c" strokeWidth=".7"/>
+      <path d="M13.5 18l1 1 2-2" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+      <rect x="20" y="16.5" width="16" height="2.5" rx="1" fill="#b0bec5" opacity=".5"/>
+      <circle cx="15" cy="26" r="2.5" fill="#4caf50" stroke="#388e3c" strokeWidth=".7"/>
+      <path d="M13.5 26l1 1 2-2" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+      <rect x="20" y="24.5" width="12" height="2.5" rx="1" fill="#b0bec5" opacity=".5"/>
+      <circle cx="15" cy="34" r="2.5" fill="white" stroke="#b0bec5" strokeWidth="1"/>
+      <rect x="20" y="32.5" width="14" height="2.5" rx="1" fill="#b0bec5" opacity=".5"/>
+    </svg>
+  );
+}
+
+export function AnalyticsNavIcon({ size = 20, className = '', style }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className} style={style}>
+      <rect x="6" y="30" width="8" height="14" rx="1.5" fill="#7c3aed" opacity=".7"/>
+      <rect x="17" y="22" width="8" height="22" rx="1.5" fill="#7c3aed" opacity=".85"/>
+      <rect x="28" y="14" width="8" height="30" rx="1.5" fill="#7c3aed"/>
+      <rect x="39" y="6" width="3" height="38" rx="1" fill="#a78bfa" opacity=".4"/>
+      <path d="M8 26l10-8 8 4 12-12" stroke="#a78bfa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+      <circle cx="38" cy="10" r="2.5" fill="#7c3aed"/>
+    </svg>
+  );
+}
+
+export function EarningsNavIcon({ size = 20, className = '', style }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className} style={style}>
+      <circle cx="24" cy="24" r="18" fill="#fef3c7" stroke="#d97706" strokeWidth="1.5"/>
+      <circle cx="24" cy="24" r="14" fill="#fbbf24" opacity=".3"/>
+      <text x="24" y="29" textAnchor="middle" fill="#d97706" fontSize="16" fontWeight="800" fontFamily="sans-serif">G</text>
+    </svg>
+  );
+}
+
+export function MovementsNavIcon({ size = 20, className = '', style }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className} style={style}>
+      <rect x="4" y="16" width="16" height="16" rx="2" fill="#c7d2e0" stroke="#8494a7" strokeWidth="1"/>
+      <rect x="28" y="16" width="16" height="16" rx="2" fill="#c7e8d0" stroke="#6ba87b" strokeWidth="1"/>
+      <path d="M22 20h4" stroke="#6366f1" strokeWidth="2.5" strokeLinecap="round"/>
+      <path d="M24 17l3 3-3 3" stroke="#6366f1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M26 28h-4" stroke="#6366f1" strokeWidth="2.5" strokeLinecap="round"/>
+      <path d="M24 31l-3-3 3-3" stroke="#6366f1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+}
+
+export function ErrorsNavIcon({ size = 20, className = '', style }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className} style={style}>
+      <path d="M24 4L4 40h40L24 4z" fill="#fef3c7" stroke="#d97706" strokeWidth="1.5" strokeLinejoin="round"/>
+      <line x1="24" y1="18" x2="24" y2="30" stroke="#d97706" strokeWidth="3" strokeLinecap="round"/>
+      <circle cx="24" cy="35" r="2" fill="#d97706"/>
+    </svg>
+  );
+}
+
+export function StaffNavIcon({ size = 20, className = '', style }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className} style={style}>
+      <circle cx="18" cy="14" r="7" fill="#fcd9b6" stroke="#e4a96a" strokeWidth="1.2"/>
+      <path d="M14 11c0-4 2-6 4-6s4 2 4 6" fill="#5a3e28" opacity=".7"/>
+      <path d="M18 24c-7 0-13 3.5-13 9v3h26v-3c0-5.5-6-9-13-9z" fill="#6366f1" opacity=".15" stroke="#6366f1" strokeWidth="1.2"/>
+      <circle cx="34" cy="16" r="5.5" fill="#fcd9b6" stroke="#e4a96a" strokeWidth="1"/>
+      <path d="M31 14c0-3 1.5-5 3-5s3 2 3 5" fill="#5a3e28" opacity=".7"/>
+      <path d="M34 25c-4.5 0-9 2.5-9 6.5v2.5h18V31.5c0-4-4.5-6.5-9-6.5z" fill="#6366f1" opacity=".1" stroke="#6366f1" strokeWidth="1"/>
+    </svg>
+  );
+}
+
+export function SettingsNavIcon({ size = 20, className = '', style }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className} style={style}>
+      <circle cx="24" cy="24" r="8" fill="none" stroke="#8494a7" strokeWidth="2.5"/>
+      <circle cx="24" cy="24" r="3.5" fill="#8494a7"/>
+      {[0,45,90,135,180,225,270,315].map(a => (
+        <line key={a} x1="24" y1="24" x2={24+Math.cos(a*Math.PI/180)*16} y2={24+Math.sin(a*Math.PI/180)*16}
+          stroke="#8494a7" strokeWidth="3.5" strokeLinecap="round" transform={`rotate(0,24,24)`}
+          style={{transform: 'none'}}/>
+      ))}
+      <circle cx="24" cy="6" r="3.5" fill="#8494a7"/>
+      <circle cx="24" cy="42" r="3.5" fill="#8494a7"/>
+      <circle cx="6" cy="24" r="3.5" fill="#8494a7"/>
+      <circle cx="42" cy="24" r="3.5" fill="#8494a7"/>
+      <circle cx="11.3" cy="11.3" r="3" fill="#8494a7"/>
+      <circle cx="36.7" cy="11.3" r="3" fill="#8494a7"/>
+      <circle cx="11.3" cy="36.7" r="3" fill="#8494a7"/>
+      <circle cx="36.7" cy="36.7" r="3" fill="#8494a7"/>
+    </svg>
+  );
+}
+
+export function ProductsNavIcon({ size = 20, className = '', style }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className} style={style}>
+      <rect x="8" y="8" width="32" height="32" rx="5" fill="#f8f8f6" stroke="#d4d0c8" strokeWidth="1.3"/>
+      <rect x="10" y="6" width="28" height="6" rx="3" fill="#c9a94e" stroke="#b08d30" strokeWidth=".8"/>
+      <rect x="12" y="16" width="24" height="16" rx="1.5" fill="white" stroke="#e8e0c8" strokeWidth=".7"/>
+      <rect x="12" y="16" width="24" height="3.5" rx="1" fill="#c9a94e" opacity=".8"/>
+      <rect x="14" y="22" width="16" height="1.5" rx=".4" fill="#b08d30" opacity=".3"/>
+      <rect x="14" y="25" width="12" height="1.2" rx=".4" fill="#c9a94e" opacity=".2"/>
+      <rect x="14" y="28" width="8" height="1.2" rx=".4" fill="#d4d0c8" opacity=".3"/>
+      <path d="M35 12v28" stroke="white" strokeWidth="1.5" opacity=".3" strokeLinecap="round"/>
+    </svg>
+  );
+}
+
+export function CardsNavIcon({ size = 20, className = '', style }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className} style={style}>
+      <rect x="4" y="4" width="18" height="18" rx="3" fill="#f0eef8" stroke="#c4b8e0" strokeWidth="1"/>
+      <rect x="26" y="4" width="18" height="18" rx="3" fill="#f0eef8" stroke="#c4b8e0" strokeWidth="1"/>
+      <rect x="4" y="26" width="18" height="18" rx="3" fill="#f0eef8" stroke="#c4b8e0" strokeWidth="1"/>
+      <rect x="26" y="26" width="18" height="18" rx="3" fill="#f0eef8" stroke="#c4b8e0" strokeWidth="1"/>
+      <rect x="7" y="7" width="12" height="2" rx=".5" fill="#7c3aed" opacity=".5"/>
+      <rect x="29" y="7" width="12" height="2" rx=".5" fill="#7c3aed" opacity=".5"/>
+      <rect x="7" y="29" width="12" height="2" rx=".5" fill="#7c3aed" opacity=".5"/>
+      <rect x="29" y="29" width="12" height="2" rx=".5" fill="#7c3aed" opacity=".5"/>
+    </svg>
+  );
+}
+
+export function StockNavIcon({ size = 20, className = '', style }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className} style={style}>
+      <rect x="6" y="22" width="36" height="22" rx="3" fill="#e8edf2" stroke="#8494a7" strokeWidth="1.2"/>
+      <rect x="10" y="14" width="28" height="10" rx="2" fill="#c7d2e0" stroke="#8494a7" strokeWidth="1"/>
+      <rect x="14" y="8" width="20" height="8" rx="2" fill="#9bafc4" stroke="#5c6f82" strokeWidth="1"/>
+      <circle cx="36" cy="16" r="6" fill="#4caf50" stroke="#388e3c" strokeWidth="1"/>
+      <text x="36" y="19" textAnchor="middle" fill="white" fontSize="8" fontWeight="800" fontFamily="sans-serif">✓</text>
+    </svg>
+  );
+}
+
 // Aliases for backward compatibility
 export const ShelfBoxIcon = BoxIcon;
