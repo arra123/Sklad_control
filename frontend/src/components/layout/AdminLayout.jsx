@@ -1,13 +1,11 @@
 import { useState, useEffect } from 'react';
 import { NavLink, useNavigate, useLocation, useSearchParams, Link } from 'react-router-dom';
 import {
-  LogOut, Menu, X, ChevronRight, ChevronDown
+  LayoutDashboard, Package, Warehouse, ClipboardList,
+  Users, Settings, LogOut, Menu, X, ChevronRight, BarChart3, AlertTriangle, ArrowLeftRight,
+  ChevronDown, LayoutGrid, PackageSearch, Coins
 } from 'lucide-react';
-import {
-  RawMaterialsIcon, DashboardNavIcon, WarehouseNavIcon, TasksNavIcon,
-  AnalyticsNavIcon, EarningsNavIcon, MovementsNavIcon, ErrorsNavIcon,
-  StaffNavIcon, SettingsNavIcon, ProductsNavIcon, CardsNavIcon, StockNavIcon,
-} from '../../components/ui/WarehouseIcons';
+import { RawMaterialsIcon } from '../../components/ui/WarehouseIcons';
 import { useAuth } from '../../context/AuthContext';
 import { cn } from '../../utils/cn';
 import api from '../../api/client';
@@ -78,15 +76,15 @@ function Breadcrumb() {
 }
 
 const ALL_NAV = [
-  { to: '/admin', icon: DashboardNavIcon, label: 'Дашборд', end: true, roles: ['admin', 'manager'], perm: 'dashboard' },
-  { to: '/admin/warehouse', icon: WarehouseNavIcon, label: 'Склады', roles: ['admin', 'manager'], perm: 'warehouse.view' },
-  { to: '/admin/tasks', icon: TasksNavIcon, label: 'Задачи', roles: ['admin', 'manager'], perm: 'tasks.view' },
-  { to: '/admin/analytics', icon: AnalyticsNavIcon, label: 'Аналитика', roles: ['admin'], perm: 'analytics' },
-  { to: '/admin/earnings', icon: EarningsNavIcon, label: 'Заработок', roles: ['admin'], perm: 'analytics' },
-  { to: '/admin/movements', icon: MovementsNavIcon, label: 'Перемещения', roles: ['admin'], perm: 'movements.view' },
-  { to: '/admin/errors', icon: ErrorsNavIcon, label: 'Ошибки', roles: ['admin'], perm: 'errors' },
-  { to: '/admin/staff', icon: StaffNavIcon, label: 'Сотрудники', roles: ['admin'], perm: 'staff.view' },
-  { to: '/admin/settings', icon: SettingsNavIcon, label: 'Настройки', roles: ['admin'], perm: 'settings' },
+  { to: '/admin', icon: LayoutDashboard, label: 'Дашборд', end: true, roles: ['admin', 'manager'], perm: 'dashboard' },
+  { to: '/admin/warehouse', icon: Warehouse, label: 'Склады', roles: ['admin', 'manager'], perm: 'warehouse.view' },
+  { to: '/admin/tasks', icon: ClipboardList, label: 'Задачи', roles: ['admin', 'manager'], perm: 'tasks.view' },
+  { to: '/admin/analytics', icon: BarChart3, label: 'Аналитика', roles: ['admin'], perm: 'analytics' },
+  { to: '/admin/earnings', icon: Coins, label: 'Заработок', roles: ['admin'], perm: 'analytics' },
+  { to: '/admin/movements', icon: ArrowLeftRight, label: 'Перемещения', roles: ['admin'], perm: 'movements.view' },
+  { to: '/admin/errors', icon: AlertTriangle, label: 'Ошибки', roles: ['admin'], perm: 'errors' },
+  { to: '/admin/staff', icon: Users, label: 'Сотрудники', roles: ['admin'], perm: 'staff.view' },
+  { to: '/admin/settings', icon: Settings, label: 'Настройки', roles: ['admin'], perm: 'settings' },
 ];
 
 export default function AdminLayout({ children }) {
@@ -158,7 +156,7 @@ export default function AdminLayout({ children }) {
                 onClick={() => setProductsOpen(v => !v)}
                 className={cn('sidebar-link w-full', isProductsActive && 'active')}
               >
-                <ProductsNavIcon size={18} />
+                <Package size={18} className="flex-shrink-0" />
                 <span className="flex-1 text-left">Товары</span>
                 <ChevronDown size={14} className={cn('transition-transform duration-200 flex-shrink-0', productsOpen && 'rotate-180')} />
               </button>
@@ -169,7 +167,7 @@ export default function AdminLayout({ children }) {
                     className={({ isActive }) => cn('sidebar-link text-[13px] py-1.5', isActive && 'active')}
                     onClick={() => setSidebarOpen(false)}
                   >
-                    <CardsNavIcon size={15} />
+                    <LayoutGrid size={15} className="flex-shrink-0" />
                     <span>Карточки</span>
                   </NavLink>
                   <NavLink
@@ -177,7 +175,7 @@ export default function AdminLayout({ children }) {
                     className={({ isActive }) => cn('sidebar-link text-[13px] py-1.5', isActive && 'active')}
                     onClick={() => setSidebarOpen(false)}
                   >
-                    <StockNavIcon size={15} />
+                    <PackageSearch size={15} className="flex-shrink-0" />
                     <span>Остатки</span>
                   </NavLink>
                   <NavLink
@@ -228,7 +226,7 @@ export default function AdminLayout({ children }) {
             <LogOut className="w-4 h-4" />
             Выйти
           </button>
-          <p className="text-[10px] text-gray-300 dark:text-gray-600 mt-2 text-center">v2.4.3</p>
+          <p className="text-[10px] text-gray-300 dark:text-gray-600 mt-2 text-center">v2.4.4</p>
         </div>
       </aside>
 
