@@ -560,11 +560,6 @@ export function SettingsNavIcon({ size = 20, className = '', style }) {
     <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className} style={style}>
       <circle cx="24" cy="24" r="8" fill="none" stroke="#8494a7" strokeWidth="2.5"/>
       <circle cx="24" cy="24" r="3.5" fill="#8494a7"/>
-      {[0,45,90,135,180,225,270,315].map(a => (
-        <line key={a} x1="24" y1="24" x2={24+Math.cos(a*Math.PI/180)*16} y2={24+Math.sin(a*Math.PI/180)*16}
-          stroke="#8494a7" strokeWidth="3.5" strokeLinecap="round" transform={`rotate(0,24,24)`}
-          style={{transform: 'none'}}/>
-      ))}
       <circle cx="24" cy="6" r="3.5" fill="#8494a7"/>
       <circle cx="24" cy="42" r="3.5" fill="#8494a7"/>
       <circle cx="6" cy="24" r="3.5" fill="#8494a7"/>
@@ -573,6 +568,14 @@ export function SettingsNavIcon({ size = 20, className = '', style }) {
       <circle cx="36.7" cy="11.3" r="3" fill="#8494a7"/>
       <circle cx="11.3" cy="36.7" r="3" fill="#8494a7"/>
       <circle cx="36.7" cy="36.7" r="3" fill="#8494a7"/>
+      <line x1="24" y1="8" x2="24" y2="16" stroke="#8494a7" strokeWidth="3" strokeLinecap="round"/>
+      <line x1="24" y1="32" x2="24" y2="40" stroke="#8494a7" strokeWidth="3" strokeLinecap="round"/>
+      <line x1="8" y1="24" x2="16" y2="24" stroke="#8494a7" strokeWidth="3" strokeLinecap="round"/>
+      <line x1="32" y1="24" x2="40" y2="24" stroke="#8494a7" strokeWidth="3" strokeLinecap="round"/>
+      <line x1="13" y1="13" x2="18" y2="18" stroke="#8494a7" strokeWidth="2.5" strokeLinecap="round"/>
+      <line x1="30" y1="18" x2="35" y2="13" stroke="#8494a7" strokeWidth="2.5" strokeLinecap="round"/>
+      <line x1="13" y1="35" x2="18" y2="30" stroke="#8494a7" strokeWidth="2.5" strokeLinecap="round"/>
+      <line x1="30" y1="30" x2="35" y2="35" stroke="#8494a7" strokeWidth="2.5" strokeLinecap="round"/>
     </svg>
   );
 }
