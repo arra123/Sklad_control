@@ -357,10 +357,17 @@ function InventoryHistorySection({ node }) {
   );
 }
 
-/* ═══════════════════ Overview Panel (no selection or warehouse) ═══════════════════ */
+/* ═══════════════════ Overview Panel (v4 table style) ═══════════════════ */
 
-function OverviewPanel({ data, settings }) {
+function OverviewPanel({ data, settings, singleWarehouse }) {
   const warehouses = data.warehouses || data || [];
+  const isSingle = singleWarehouse && warehouses.length === 1;
+  const wh = isSingle ? warehouses[0] : null;
+
+  // For single warehouse mode, table rows are its racks/rows; for overview, rows are warehouses
+  const tableItems = isSingle
+    ? [...(wh.racks || []).map(r => ({ ...r, _type: 'rack' })), ...(wh.rows || []).map(r => ({ ...r, _type: 'row' }))]
+    : warehouses;
 
   function collectAll(sources) {
     const result = [];
@@ -377,23 +384,12 @@ function OverviewPanel({ data, settings }) {
   }
 
   const allNodes = collectAll(warehouses);
-  const freshH = settings.inventory_fresh_hours || 24;
-  const staleH = settings.inventory_stale_hours || 72;
   const totalQty = allNodes.reduce((s, n) => s + Number(n.current_qty || 0), 0);
   const inventoried = allNodes.filter(n => !!n.last_inventory_at).length;
   const coverage = allNodes.length > 0 ? Math.round((inventoried / allNodes.length) * 100) : 0;
-  const freshCount = allNodes.filter(n => n.last_inventory_at && (Date.now() - new Date(n.last_inventory_at).getTime()) < freshH * 3600000).length;
-  const staleCount = allNodes.filter(n => n.last_inventory_at && (Date.now() - new Date(n.last_inventory_at).getTime()) > staleH * 3600000).length;
-  const notInventoried = allNodes.length - inventoried;
 
-  // Find best employee (most inventory scans)
-  const employeeCounts = {};
-  allNodes.forEach(n => {
-    if (n.last_inventory_by) {
-      employeeCounts[n.last_inventory_by] = (employeeCounts[n.last_inventory_by] || 0) + 1;
-    }
-  });
-  const bestEmployee = Object.entries(employeeCounts).sort((a, b) => b[1] - a[1])[0];
+  // Total time spent
+  const totalDuration = allNodes.reduce((s, n) => s + Number(n.last_inventory_duration_seconds || 0), 0);
 
   // Average speed
   const speeds = allNodes
@@ -401,93 +397,279 @@ function OverviewPanel({ data, settings }) {
     .map(n => Number(n.last_inventory_duration_seconds) / Number(n.last_inventory_qty));
   const avgSpeed = speeds.length > 0 ? (speeds.reduce((a, b) => a + b, 0) / speeds.length).toFixed(1) : null;
 
-  // Last check
-  const lastChecks = allNodes.filter(n => n.last_inventory_at).map(n => new Date(n.last_inventory_at).getTime());
-  const lastCheck = lastChecks.length > 0 ? new Date(Math.max(...lastChecks)) : null;
+  // Accuracy: % of leaf nodes where delta == 0
+  const leafNodes = allNodes.filter(n => n.last_inventory_qty != null);
+  const accurateCount = leafNodes.filter(n => Number(n.last_inventory_qty || 0) === Number(n.current_qty || 0)).length;
+  const accuracy = leafNodes.length > 0 ? ((accurateCount / leafNodes.length) * 100).toFixed(1) : '—';
+
+  // Sort state
+  const [sortCol, setSortCol] = useState(null);
+  const [sortAsc, setSortAsc] = useState(true);
+
+  function handleSort(col) {
+    if (sortCol === col) setSortAsc(!sortAsc);
+    else { setSortCol(col); setSortAsc(true); }
+  }
+
+  function getSortValue(item, col) {
+    switch (col) {
+      case 'name': return getNodeLabel(item).toLowerCase();
+      case 'qty': return Number(item.current_qty || 0);
+      case 'inv': return Number(item.last_inventory_qty || 0);
+      case 'diff': return Math.abs(Number(item.last_inventory_qty || 0) - Number(item.current_qty || 0));
+      case 'time': return Number(item.last_inventory_duration_seconds || 0);
+      case 'speed': {
+        const q = Number(item.last_inventory_qty || 0);
+        const d = Number(item.last_inventory_duration_seconds || 0);
+        return q > 0 && d > 0 ? d / q : 9999;
+      }
+      case 'employee': return (item.last_inventory_by || '').toLowerCase();
+      case 'date': return item.last_inventory_at ? new Date(item.last_inventory_at).getTime() : 0;
+      case 'status': return statusColor(item, settings).label;
+      default: return 0;
+    }
+  }
+
+  const sortedItems = [...tableItems];
+  if (sortCol) {
+    sortedItems.sort((a, b) => {
+      const va = getSortValue(a, sortCol);
+      const vb = getSortValue(b, sortCol);
+      if (va < vb) return sortAsc ? -1 : 1;
+      if (va > vb) return sortAsc ? 1 : -1;
+      return 0;
+    });
+  }
+
+  const headerTitle = isSingle ? getNodeLabel(wh) : 'Обзор всех складов';
+  const headerSubtitle = isSingle
+    ? `${fmtQty(totalQty)} позиций \u00B7 ${tableItems.length} ${tableItems.length === 1 ? 'элемент' : 'элементов'}`
+    : `${fmtQty(totalQty)} позиций \u00B7 ${warehouses.length} ${warehouses.length === 1 ? 'склад' : 'складов'}`;
+  const firstColLabel = isSingle ? 'Стеллаж/Ряд' : 'Склад/Стеллаж';
+
+  function getDiffClass(delta, total) {
+    const pct = total > 0 ? Math.abs(delta) / total * 100 : 0;
+    if (delta === 0) return 'text-[#047857] font-semibold';
+    if (pct < 0.5) return 'text-[#a16207] font-semibold';
+    return 'text-[#b91c1c] font-semibold';
+  }
+
+  function getRowBg(item) {
+    const st = statusColor(item, settings);
+    if (st.label === 'Свежий') return 'bg-[#fafff9]';
+    if (st.label === 'Давно') return 'bg-[#fffdf5]';
+    if (st.label === 'Устарел' || st.label === 'Не было') return 'bg-[#fff8f8]';
+    return '';
+  }
+
+  function getStatusBadge(item) {
+    const st = statusColor(item, settings);
+    if (st.label === 'Свежий') return <span className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#ecfdf5] text-[#047857]">Свежий</span>;
+    if (st.label === 'Давно') return <span className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#fffbeb] text-[#a16207]">Давно</span>;
+    return <span className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#fef2f2] text-[#b91c1c]">Устарел</span>;
+  }
 
   return (
     <div className="animate-fade-up">
-      {/* Hero card */}
-      <div className="rounded-2xl p-6 mb-6 text-white" style={{ background: 'linear-gradient(135deg, #7c3aed, #a78bfa)' }}>
-        <p className="text-lg font-bold mb-1">
-          Всего {fmtQty(totalQty)} позиций на складах
-        </p>
-        <p className="text-sm opacity-80 mb-3">{coverage}% локаций проинвентаризировано</p>
-        <div className="flex items-center gap-6 text-sm opacity-90">
-          <span className="flex items-center gap-1.5"><WarehouseIcon size={16} /> {warehouses.length} {warehouses.length === 1 ? 'склад' : 'складов'}</span>
-          <span className="flex items-center gap-1.5"><CheckCircle2 size={16} /> {freshCount} проверено недавно</span>
-          <span className="flex items-center gap-1.5"><AlertTriangle size={16} /> {notInventoried} не проверено</span>
+      {/* Header card */}
+      <div className="bg-white rounded-2xl border border-gray-100 p-6 mb-5">
+        <div className="flex items-center gap-4 flex-wrap">
+          <div className="flex items-center gap-3.5 flex-1 min-w-0">
+            {isSingle
+              ? <WarehouseIcon size={44} colorIndex={(wh.id || 0) % 10} />
+              : <WarehouseIcon size={44} colorIndex={0} />
+            }
+            <div className="min-w-0">
+              <h1 className="text-[22px] font-extrabold text-gray-900 truncate">{headerTitle}</h1>
+              <p className="text-sm text-gray-500 mt-0.5">{headerSubtitle}</p>
+            </div>
+          </div>
+          <div className="flex-1 min-w-[200px]">
+            <div className="flex justify-between text-xs mb-1">
+              <span className="text-gray-500">Покрытие инвентаризации</span>
+              <span className="font-bold text-[#7c3aed]">{coverage}%</span>
+            </div>
+            <div className="h-3 bg-gray-100 rounded-md overflow-hidden">
+              <div className="h-full rounded-md transition-all duration-700" style={{ width: `${coverage}%`, background: 'linear-gradient(90deg, #7c3aed, #a78bfa)' }} />
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Metric tiles */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        <MetricTile
-          icon={<CheckCircle2 size={20} />}
-          iconBg="#dcfce7"
-          iconColor="#16a34a"
-          value={freshCount}
-          label={`Проверено за последние ${freshH}ч`}
-          bar={allNodes.length > 0 ? (freshCount / allNodes.length) * 100 : 0}
-          barColor="#16a34a"
-        />
-        <MetricTile
-          icon={<AlertTriangle size={20} />}
-          iconBg="#fee2e2"
-          iconColor="#dc2626"
-          value={staleCount}
-          label={`Давно не проверялись (>${staleH}ч)`}
-          bar={allNodes.length > 0 ? (staleCount / allNodes.length) * 100 : 0}
-          barColor="#dc2626"
-        />
-        <MetricTile
-          icon={<Clock size={20} />}
-          iconBg="#fef3c7"
-          iconColor="#d97706"
-          value={notInventoried}
-          label="Ни разу не инвентаризировались"
-          bar={allNodes.length > 0 ? (notInventoried / allNodes.length) * 100 : 0}
-          barColor="#d97706"
-        />
-        <MetricTile
-          icon={<BarChart3 size={20} />}
-          iconBg="#ede9fe"
-          iconColor="#7c3aed"
-          value={avgSpeed ? `${avgSpeed}с` : '—'}
-          label="Среднее время на 1 товар"
-        />
-        <MetricTile
-          icon={<EmployeeIcon size={20} />}
-          iconBg="#dbeafe"
-          iconColor="#2563eb"
-          value={bestEmployee ? bestEmployee[0] : '—'}
-          label={bestEmployee ? `${bestEmployee[1]} проверок выполнено` : 'Лучший сотрудник'}
-          small
-        />
-        <MetricTile
-          icon={<Clock size={20} />}
-          iconBg="#f0fdf4"
-          iconColor="#16a34a"
-          value={lastCheck ? timeAgo(lastCheck.toISOString()) : '—'}
-          label="Когда была последняя проверка"
-        />
+      {/* Table card */}
+      <div className="bg-white rounded-2xl border border-gray-100 mb-5 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-[13px] border-collapse">
+            <thead>
+              <tr>
+                {[
+                  { key: 'name', label: firstColLabel },
+                  { key: 'qty', label: 'Позиций' },
+                  { key: 'inv', label: 'По инвенту' },
+                  { key: 'diff', label: 'Расхожд.' },
+                  { key: 'time', label: 'Время' },
+                  { key: 'speed', label: 'Скорость' },
+                  { key: 'employee', label: 'Сотрудник' },
+                  { key: 'date', label: 'Дата' },
+                  { key: 'status', label: 'Статус' },
+                ].map(col => (
+                  <th
+                    key={col.key}
+                    onClick={() => handleSort(col.key)}
+                    className="text-left px-2.5 py-3 text-[11px] font-bold uppercase tracking-wider text-gray-400 border-b-2 border-gray-100 cursor-pointer hover:text-[#7c3aed] select-none whitespace-nowrap"
+                  >
+                    {col.label} <span className="text-[10px] opacity-40">{sortCol === col.key ? (sortAsc ? '\u2191' : '\u2193') : '\u2195'}</span>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {sortedItems.map((item, i) => {
+                const curQ = Number(item.current_qty || 0);
+                const invQ = Number(item.last_inventory_qty || 0);
+                const delta = invQ - curQ;
+                const dur = Number(item.last_inventory_duration_seconds || 0);
+                const spd = invQ > 0 && dur > 0 ? (dur / invQ).toFixed(1) : '—';
+                const pct = curQ > 0 ? ((Math.abs(delta) / curQ) * 100).toFixed(2) : '0';
+                const itemType = item._type || (isSingle ? 'rack' : 'warehouse');
+                return (
+                  <tr key={item.id || i} className={cn('transition-colors hover:bg-[#faf5ff]', getRowBg(item))}>
+                    <td className="px-2.5 py-3 border-b border-gray-100 whitespace-nowrap">
+                      <div className="flex items-center gap-2 font-semibold">
+                        {getNodeIcon(itemType, 20, isSingle ? 0 : (item.id || i) % 10)}
+                        {getNodeLabel(item)}
+                      </div>
+                    </td>
+                    <td className="px-2.5 py-3 border-b border-gray-100 whitespace-nowrap">{fmtQty(curQ)}</td>
+                    <td className="px-2.5 py-3 border-b border-gray-100 whitespace-nowrap">{fmtQty(invQ)}</td>
+                    <td className={cn('px-2.5 py-3 border-b border-gray-100 whitespace-nowrap', getDiffClass(delta, curQ))}>
+                      {delta > 0 ? '+' : ''}{delta} {curQ > 0 && delta !== 0 ? `(${pct}%)` : ''}
+                    </td>
+                    <td className="px-2.5 py-3 border-b border-gray-100 whitespace-nowrap">{dur > 0 ? fmtDuration(dur) : '—'}</td>
+                    <td className="px-2.5 py-3 border-b border-gray-100 whitespace-nowrap">{spd !== '—' ? `${spd} с/шт` : '—'}</td>
+                    <td className="px-2.5 py-3 border-b border-gray-100 whitespace-nowrap">
+                      {item.last_inventory_by ? <span className="text-[#7c3aed] font-semibold">{item.last_inventory_by}</span> : '—'}
+                    </td>
+                    <td className="px-2.5 py-3 border-b border-gray-100 whitespace-nowrap">{item.last_inventory_at ? fmtDate(item.last_inventory_at) : '—'}</td>
+                    <td className="px-2.5 py-3 border-b border-gray-100 whitespace-nowrap">{getStatusBadge(item)}</td>
+                  </tr>
+                );
+              })}
+              {sortedItems.length === 0 && (
+                <tr><td colSpan={9} className="px-4 py-8 text-center text-gray-400 text-sm">Нет данных</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Bottom 3 cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="bg-white rounded-2xl border border-gray-100 p-5 text-center">
+          <p className="text-[28px] font-extrabold text-[#a16207]">{fmtDuration(totalDuration)}</p>
+          <p className="text-xs text-gray-500 mt-1">Время на инвентаризацию (всего)</p>
+        </div>
+        <div className="bg-white rounded-2xl border border-gray-100 p-5 text-center">
+          <p className="text-[28px] font-extrabold text-[#7c3aed]">{avgSpeed ? `${avgSpeed} с/шт` : '—'}</p>
+          <p className="text-xs text-gray-500 mt-1">Средняя скорость</p>
+        </div>
+        <div className="bg-white rounded-2xl border border-gray-100 p-5 text-center">
+          <p className="text-[28px] font-extrabold text-[#047857]">{accuracy}%</p>
+          <p className="text-xs text-gray-500 mt-1">Точность (% без расхождений)</p>
+        </div>
       </div>
     </div>
   );
 }
 
-function MetricTile({ icon, iconBg, iconColor, value, label, bar, barColor, small }) {
+/* ═══════════════════ Detail Header Card (v2 style) ═══════════════════ */
+
+function DetailHeaderCard({ node, type, breadcrumb, childrenLabel }) {
+  const invQty = Number(node.last_inventory_qty || 0);
+  const curQty = Number(node.current_qty || 0);
+  const delta = invQty - curQty;
+  const dur = Number(node.last_inventory_duration_seconds || 0);
+  const avgPick = invQty > 0 && dur > 0 ? (dur / invQty).toFixed(1) : null;
+  const picksPerMin = invQty > 0 && dur > 0 ? (invQty / (dur / 60)).toFixed(1) : null;
+
+  const iconBgColors = {
+    rack: '#ecfdf5',
+    row: '#fffbeb',
+    shelf: '#eff6ff',
+    pallet: '#fefce8',
+    pallet_box: '#fef3c7',
+    shelf_box: '#fef3c7',
+    box: '#fef3c7',
+  };
+  const iconBg = iconBgColors[type] || '#f3f4f6';
+
+  const deltaColor = delta === 0 ? 'text-[#047857]' : Math.abs(delta) <= 5 ? 'text-[#a16207]' : 'text-[#b91c1c]';
+  const statusBadge = delta === 0
+    ? <span className="text-[11px] font-bold px-3 py-1 rounded-full uppercase tracking-wide bg-[#ecfdf5] text-[#047857]">Сходится</span>
+    : <span className="text-[11px] font-bold px-3 py-1 rounded-full uppercase tracking-wide bg-[#fffbeb] text-[#a16207]">{delta > 0 ? '+' : ''}{delta} расхождение</span>;
+
   return (
-    <div className="bg-white rounded-xl border border-gray-100 p-4 flex items-start gap-3">
-      <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: iconBg, color: iconColor }}>
-        {icon}
+    <div className="bg-white rounded-2xl border border-gray-100 p-6 mb-5">
+      {/* Top row: icon + info + status */}
+      <div className="flex items-center gap-4 mb-4">
+        <div className="w-[72px] h-[72px] rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: iconBg }}>
+          {getNodeIcon(type, 36)}
+        </div>
+        <div className="flex-1 min-w-0">
+          <h3 className="text-[22px] font-extrabold text-gray-900 truncate">{getNodeLabel(node)}</h3>
+          {breadcrumb && <p className="text-xs text-gray-400 font-medium mt-0.5">{breadcrumb}{childrenLabel ? ` \u00B7 ${childrenLabel}` : ''}</p>}
+          {node.barcode_value && <p className="text-[11px] font-mono text-gray-300 tracking-wider mt-0.5">{node.barcode_value}</p>}
+        </div>
+        <div className="flex-shrink-0">
+          {statusBadge}
+        </div>
       </div>
-      <div className="flex-1 min-w-0">
-        <p className={cn('font-black text-gray-900 truncate', small ? 'text-sm' : 'text-xl')}>{value}</p>
-        <p className="text-xs text-gray-400 mt-0.5">{label}</p>
-        {bar != null && (
-          <div className="mt-2 w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
-            <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(bar, 100)}%`, background: barColor }} />
+
+      {/* Stats grid */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+        <div className="bg-gray-50 rounded-xl p-3 border border-gray-100 border-l-[3px] border-l-[#7c3aed]">
+          <p className="text-lg font-extrabold text-gray-900 leading-tight">{fmtQty(invQty)}</p>
+          <p className="text-[11px] text-gray-400 font-medium mt-0.5">Насчитано</p>
+        </div>
+        <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+          <p className="text-lg font-extrabold text-gray-900 leading-tight">{fmtQty(curQty)}</p>
+          <p className="text-[11px] text-gray-400 font-medium mt-0.5">Текущий остаток</p>
+        </div>
+        <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+          <p className={cn('text-lg font-extrabold leading-tight', deltaColor)}>{delta === 0 ? '0' : (delta > 0 ? '+' : '') + delta}</p>
+          <p className="text-[11px] text-gray-400 font-medium mt-0.5">Расхождение</p>
+        </div>
+        {dur > 0 && (
+          <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+            <p className="text-lg font-extrabold text-[#7c3aed] leading-tight">{fmtDuration(dur)}</p>
+            <p className="text-[11px] text-gray-400 font-medium mt-0.5">Потрачено на инвент.</p>
+          </div>
+        )}
+        {avgPick && (
+          <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+            <p className="text-lg font-extrabold text-gray-900 leading-tight">{avgPick} с</p>
+            <p className="text-[11px] text-gray-400 font-medium mt-0.5">Скорость/шт</p>
+          </div>
+        )}
+        {picksPerMin && (
+          <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+            <p className="text-lg font-extrabold text-gray-900 leading-tight">{picksPerMin}</p>
+            <p className="text-[11px] text-gray-400 font-medium mt-0.5">Товаров/мин</p>
+          </div>
+        )}
+        {node.last_inventory_by && (
+          <div className="bg-gray-50 rounded-xl p-3 border border-gray-100 flex items-center gap-2">
+            <EmployeeIcon size={24} />
+            <div className="min-w-0">
+              <p className="text-sm font-extrabold text-gray-900 truncate">{node.last_inventory_by}</p>
+              <p className="text-[11px] text-gray-400 font-medium mt-0.5">Сотрудник</p>
+            </div>
+          </div>
+        )}
+        {node.last_inventory_at && (
+          <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+            <p className="text-sm font-extrabold text-gray-900 leading-tight">{fmtDate(node.last_inventory_at)}</p>
+            <p className="text-[11px] text-gray-400 font-medium mt-0.5">Дата</p>
           </div>
         )}
       </div>
@@ -500,31 +682,15 @@ function MetricTile({ icon, iconBg, iconColor, value, label, bar, barColor, smal
 function RackRowDetail({ node, type, settings }) {
   const childrenData = getChildren(node);
   const items = childrenData?.items || [];
-  const st = statusColor(node, settings);
-  const totalQty = Number(node.current_qty || 0);
-  const invQty = Number(node.last_inventory_qty || 0);
-  const coverage = node.total_leaf_count > 0
-    ? Math.round((node.covered_leaf_count || 0) / node.total_leaf_count * 100)
-    : 0;
 
   return (
     <div className="animate-fade-up">
-      {/* Header tile */}
-      <div className="rounded-2xl p-5 mb-6 text-white" style={{ background: 'linear-gradient(135deg, #7c3aed, #a78bfa)' }}>
-        <div className="flex items-center gap-3 mb-2">
-          {getNodeIcon(type, 24)}
-          <h3 className="text-lg font-bold">{getNodeLabel(node)}</h3>
-        </div>
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-sm opacity-90">
-          <span>{items.length} {childrenData?.label?.toLowerCase() || 'элементов'}</span>
-          <span>{fmtQty(totalQty)} позиций на складе</span>
-          {node.last_inventory_duration_seconds > 0 && <span>Инвентаризация заняла: {fmtDuration(node.last_inventory_duration_seconds)}</span>}
-          {invQty > 0 && Number(node.last_inventory_duration_seconds || 0) > 0 && (
-            <span>Скорость: {(Number(node.last_inventory_duration_seconds) / invQty).toFixed(1)}с на товар</span>
-          )}
-          {node.last_inventory_by && <span>Проверял: {node.last_inventory_by}</span>}
-        </div>
-      </div>
+      {/* Header card (v2 style) */}
+      <DetailHeaderCard
+        node={node}
+        type={type}
+        childrenLabel={items.length > 0 ? `${items.length} ${childrenData?.label?.toLowerCase() || 'элементов'}` : null}
+      />
 
       {/* Child cards */}
       <div className="space-y-3">
@@ -587,77 +753,18 @@ function RackRowDetail({ node, type, settings }) {
 function ShelfPalletDetail({ node, type, settings, onSelectNode }) {
   const childrenData = getChildren(node);
   const hasBoxes = !!childrenData && childrenData.items.length > 0;
-  const st = statusColor(node, settings);
-  const invQty = Number(node.last_inventory_qty || 0);
-  const curQty = Number(node.current_qty || 0);
 
   // Product distribution from node.products if available
   const products = node.products || [];
 
   return (
     <div className="animate-fade-up">
-      {/* Header */}
-      <div className="bg-white rounded-xl border border-gray-100 p-5 mb-5">
-        <div className="flex items-center gap-3 mb-3">
-          <div className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: st.bg }}>
-            {getNodeIcon(type, 24)}
-          </div>
-          <div className="flex-1">
-            <h3 className="text-lg font-bold text-gray-900">{getNodeLabel(node)}</h3>
-            <div className="flex items-center gap-2 mt-0.5">
-              <span className="text-xs font-semibold px-2 py-0.5 rounded-lg" style={{ background: st.bg, color: st.text }}>{st.label}</span>
-              {node.last_inventory_at && <span className="text-xs text-gray-400">{timeAgo(node.last_inventory_at)}</span>}
-              {node.last_inventory_by && <span className="text-xs text-gray-400 flex items-center gap-1"><EmployeeIcon size={11} />{node.last_inventory_by}</span>}
-            </div>
-          </div>
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-          <div className="bg-gray-50 rounded-lg p-3">
-            <p className="text-xl font-black text-gray-900">{fmtQty(invQty)}</p>
-            <p className="text-[10px] text-gray-500">Насчитано при инвентаризации</p>
-          </div>
-          <div className="bg-gray-50 rounded-lg p-3">
-            <p className="text-xl font-black text-gray-900">{fmtQty(curQty)}</p>
-            <p className="text-[10px] text-gray-500">Текущий остаток на складе</p>
-          </div>
-          <div className="bg-gray-50 rounded-lg p-3">
-            <p className={cn('text-xl font-black', (invQty - curQty) > 0 ? 'text-green-600' : (invQty - curQty) < 0 ? 'text-red-600' : 'text-gray-400')}>
-              {(invQty - curQty) > 0 ? '+' : ''}{invQty - curQty}
-            </p>
-            <p className="text-[10px] text-gray-500">Расхождение инвент. vs остаток</p>
-          </div>
-          {Number(node.last_inventory_duration_seconds || 0) > 0 && (
-            <div className="bg-blue-50 rounded-lg p-3">
-              <p className="text-xl font-black text-blue-700">{fmtDuration(node.last_inventory_duration_seconds)}</p>
-              <p className="text-[10px] text-gray-500">Потрачено на инвентаризацию</p>
-            </div>
-          )}
-          {invQty > 0 && Number(node.last_inventory_duration_seconds || 0) > 0 && (
-            <div className="bg-purple-50 rounded-lg p-3">
-              <p className="text-xl font-black text-purple-600">{(Number(node.last_inventory_duration_seconds) / invQty).toFixed(1)}с</p>
-              <p className="text-[10px] text-gray-500">Среднее время на 1 товар</p>
-            </div>
-          )}
-          {invQty > 0 && Number(node.last_inventory_duration_seconds || 0) > 0 && (
-            <div className="bg-amber-50 rounded-lg p-3">
-              <p className="text-xl font-black text-amber-700">{(invQty / (Number(node.last_inventory_duration_seconds) / 60)).toFixed(1)}</p>
-              <p className="text-[10px] text-gray-500">Товаров в минуту (скорость)</p>
-            </div>
-          )}
-          {node.last_inventory_at && (
-            <div className="bg-gray-50 rounded-lg p-3">
-              <p className="text-sm font-bold text-gray-900">{fmtDate(node.last_inventory_at)}</p>
-              <p className="text-[10px] text-gray-500">Дата последней инвентаризации</p>
-            </div>
-          )}
-          {node.last_inventory_by && (
-            <div className="bg-gray-50 rounded-lg p-3">
-              <p className="text-sm font-bold text-gray-900">{node.last_inventory_by}</p>
-              <p className="text-[10px] text-gray-500">Кто проводил инвентаризацию</p>
-            </div>
-          )}
-          </div>
-        </div>
+      {/* Header card (v2 style) */}
+      <DetailHeaderCard
+        node={node}
+        type={type}
+        childrenLabel={hasBoxes ? `${childrenData.items.length} ${childrenData.label?.toLowerCase() || 'элементов'}` : null}
+      />
 
       {/* Boxes tile grid */}
       {hasBoxes && (
@@ -743,29 +850,10 @@ function ShelfPalletDetail({ node, type, settings, onSelectNode }) {
 /* ═══════════════════ Box Detail (leaf) ═══════════════════ */
 
 function BoxDetail({ node, type, settings }) {
-  const st = statusColor(node, settings);
-  const invQty = Number(node.last_inventory_qty || 0);
-  const curQty = Number(node.current_qty || 0);
-  const delta = invQty - curQty;
-
   return (
     <div className="animate-fade-up">
-      {/* Hero card */}
-      <div className="rounded-2xl p-5 mb-5 text-white" style={{ background: 'linear-gradient(135deg, #7c3aed, #a78bfa)' }}>
-        <div className="flex items-center gap-3 mb-3">
-          <BoxIcon size={24} />
-          <div>
-            <h3 className="text-lg font-bold">{getNodeLabel(node)}</h3>
-            {node.barcode_value && <p className="text-sm opacity-80 font-mono">{node.barcode_value}</p>}
-          </div>
-        </div>
-        <p className="text-4xl font-black">{fmtQty(invQty)} <span className="text-base font-medium opacity-80">шт</span></p>
-        <div className="flex items-center gap-4 mt-2 text-sm opacity-90">
-          <span>Текущее: {fmtQty(curQty)}</span>
-          <span className={delta !== 0 ? 'font-bold' : ''}>Дельта: {delta > 0 ? '+' : ''}{delta}</span>
-          {node.last_inventory_at && <span>{timeAgo(node.last_inventory_at)}</span>}
-        </div>
-      </div>
+      {/* Header card (v2 style) */}
+      <DetailHeaderCard node={node} type={type} />
 
       {/* History section — no tabs, history only */}
       <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">История инвентаризаций</p>
@@ -784,7 +872,7 @@ function RightPanelContent({ selectedNode, selectedType, data, settings, onSelec
   }
 
   if (selectedType === 'warehouse') {
-    return <OverviewPanel data={{ warehouses: [selectedNode] }} settings={settings} />;
+    return <OverviewPanel data={{ warehouses: [selectedNode] }} settings={settings} singleWarehouse />;
   }
 
   if (selectedType === 'rack' || selectedType === 'row') {
