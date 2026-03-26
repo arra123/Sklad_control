@@ -373,7 +373,27 @@ router.get('/:id', requireAuth, async (req, res) => {
       [product.id]
     );
 
-    res.json({ ...product, components, shelves: locationsResult.rows });
+    const techCardResult = await pool.query(
+      `SELECT tc.id, tc.name, tc.folder_path, tc.output_quantity
+       FROM tech_cards_s tc
+       WHERE tc.product_id = $1`,
+      [product.id]
+    );
+    let tech_card = null;
+    if (techCardResult.rows.length > 0) {
+      const tc = techCardResult.rows[0];
+      const materialsResult = await pool.query(
+        `SELECT rm.id, rm.name, rm.code, rm.unit, rm.category, tcm.quantity, tcm.sort_order
+         FROM tech_card_materials_s tcm
+         JOIN raw_materials_s rm ON rm.id = tcm.material_id
+         WHERE tcm.tech_card_id = $1
+         ORDER BY tcm.sort_order, rm.name`,
+        [tc.id]
+      );
+      tech_card = { ...tc, materials: materialsResult.rows };
+    }
+
+    res.json({ ...product, components, shelves: locationsResult.rows, tech_card });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

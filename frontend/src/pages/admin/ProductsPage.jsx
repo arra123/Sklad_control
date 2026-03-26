@@ -661,6 +661,41 @@ export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
             </div>
 
             {/* Состав комплекта */}
+            {/* Тех. карта */}
+            {product.tech_card && (
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                    Тех. карта
+                    <span className="text-gray-300 normal-case ml-1.5">
+                      {product.tech_card.materials?.length || 0} материалов · выход {product.tech_card.output_quantity} шт
+                    </span>
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  {(product.tech_card.materials || []).filter(m => m.id).map((m, i) => (
+                    <div key={m.id || i} className="flex items-center gap-3 px-3 py-2 rounded-lg bg-gray-50 border border-gray-100">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-800 truncate">{m.name}</p>
+                        {m.code && <p className="text-[10px] text-gray-400">{m.code}</p>}
+                      </div>
+                      <span className="text-sm font-bold text-gray-900 flex-shrink-0">{m.quantity} {m.unit}</span>
+                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${
+                        m.category === 'packaging'
+                          ? 'bg-blue-50 text-blue-600'
+                          : 'bg-green-50 text-green-600'
+                      }`}>
+                        {m.category === 'packaging' ? 'Упаковка' : 'Ингредиент'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                {product.tech_card.folder_path && (
+                  <p className="text-[10px] text-gray-300 mt-2">{product.tech_card.name} · {product.tech_card.folder_path}</p>
+                )}
+              </div>
+            )}
+
             {isBundle && (
               <div>
                 <div className="flex items-center justify-between mb-2">

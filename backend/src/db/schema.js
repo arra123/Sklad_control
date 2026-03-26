@@ -99,6 +99,70 @@ async function createSchema() {
       )
     `);
 
+    // ─── Raw Materials (ingredients & packaging) ───────────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS raw_materials_s (
+        id SERIAL PRIMARY KEY,
+        external_id VARCHAR(255) UNIQUE,
+        name VARCHAR(500) NOT NULL,
+        code VARCHAR(255),
+        article VARCHAR(255),
+        unit VARCHAR(20) DEFAULT 'шт',
+        category VARCHAR(30) NOT NULL DEFAULT 'ingredient' CHECK (category IN ('ingredient', 'packaging')),
+        folder_path TEXT,
+        stock NUMERIC(15,3) DEFAULT 0,
+        archived BOOLEAN NOT NULL DEFAULT false,
+        source_json JSONB,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_raw_materials_c_external_id ON raw_materials_s(external_id);
+      CREATE INDEX IF NOT EXISTS idx_raw_materials_c_name ON raw_materials_s(name);
+      CREATE INDEX IF NOT EXISTS idx_raw_materials_c_category ON raw_materials_s(category);
+    `);
+
+    // ─── Tech Cards (production recipes) ───────────────────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS tech_cards_s (
+        id SERIAL PRIMARY KEY,
+        product_id INTEGER NOT NULL REFERENCES products_s(id) ON DELETE CASCADE,
+        external_id VARCHAR(255) UNIQUE,
+        name VARCHAR(500) NOT NULL,
+        folder_path TEXT,
+        output_quantity NUMERIC(15,3) DEFAULT 1,
+        cost NUMERIC(18,2),
+        archived BOOLEAN NOT NULL DEFAULT false,
+        source_json JSONB,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+
+    await client.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_tech_cards_c_product_id ON tech_cards_s(product_id);
+      CREATE INDEX IF NOT EXISTS idx_tech_cards_c_external_id ON tech_cards_s(external_id);
+    `);
+
+    // ─── Tech Card Materials (recipe lines) ────────────────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS tech_card_materials_s (
+        id SERIAL PRIMARY KEY,
+        tech_card_id INTEGER NOT NULL REFERENCES tech_cards_s(id) ON DELETE CASCADE,
+        material_id INTEGER NOT NULL REFERENCES raw_materials_s(id) ON DELETE CASCADE,
+        quantity NUMERIC(15,4) NOT NULL DEFAULT 0,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE(tech_card_id, material_id)
+      )
+    `);
+
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_tech_card_materials_c_tech_card_id ON tech_card_materials_s(tech_card_id);
+    `);
+
     await client.query(`
       CREATE TABLE IF NOT EXISTS import_runs_s (
         id SERIAL PRIMARY KEY,
@@ -257,7 +321,8 @@ async function createSchema() {
 
     const tablesWithUpdatedAt = [
       'employees_s', 'users_s', 'product_folders_s', 'products_s',
-      'warehouses_s', 'racks_s', 'shelves_s', 'inventory_tasks_s', 'settings_s'
+      'warehouses_s', 'racks_s', 'shelves_s', 'inventory_tasks_s', 'settings_s',
+      'raw_materials_s', 'tech_cards_s'
     ];
 
     for (const table of tablesWithUpdatedAt) {

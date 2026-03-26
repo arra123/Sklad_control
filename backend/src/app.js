@@ -14,6 +14,7 @@ const settingsRoutes = require('./routes/settings');
 const syserrorsRoutes = require('./routes/syserrors');
 const movementsRoutes = require('./routes/movements');
 const earningsRoutes = require('./routes/earnings');
+const materialsRoutes = require('./routes/materials');
 
 const app = express();
 const siteRouter = express.Router();
@@ -37,6 +38,7 @@ siteRouter.use('/api/settings', settingsRoutes);
 siteRouter.use('/api/errors', syserrorsRoutes);
 siteRouter.use('/api/movements', movementsRoutes);
 siteRouter.use('/api/earnings', earningsRoutes);
+siteRouter.use('/api/materials', materialsRoutes);
 siteRouter.use('/api', (_req, res) => {
   res.status(404).json({ error: 'Not found' });
 });
