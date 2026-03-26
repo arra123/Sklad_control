@@ -553,6 +553,24 @@ async function createSchema() {
     await client.query(`CREATE INDEX IF NOT EXISTS idx_employee_earnings_event_type ON employee_earnings_s(event_type)`);
     await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_employee_earnings_unique_scan ON employee_earnings_s(task_scan_id) WHERE task_scan_id IS NOT NULL`);
 
+    // External earnings fields (sborka site)
+    await client.query(`ALTER TABLE employee_earnings_s ADD COLUMN IF NOT EXISTS source VARCHAR(50)`);
+    await client.query(`ALTER TABLE employee_earnings_s ADD COLUMN IF NOT EXISTS source_marketplace VARCHAR(50)`);
+    await client.query(`ALTER TABLE employee_earnings_s ADD COLUMN IF NOT EXISTS source_store_id VARCHAR(100)`);
+    await client.query(`ALTER TABLE employee_earnings_s ADD COLUMN IF NOT EXISTS source_store_name VARCHAR(255)`);
+    await client.query(`ALTER TABLE employee_earnings_s ADD COLUMN IF NOT EXISTS source_entity_type VARCHAR(50)`);
+    await client.query(`ALTER TABLE employee_earnings_s ADD COLUMN IF NOT EXISTS source_entity_id VARCHAR(100)`);
+    await client.query(`ALTER TABLE employee_earnings_s ADD COLUMN IF NOT EXISTS source_entity_name VARCHAR(500)`);
+    await client.query(`ALTER TABLE employee_earnings_s ADD COLUMN IF NOT EXISTS source_article VARCHAR(255)`);
+    await client.query(`ALTER TABLE employee_earnings_s ADD COLUMN IF NOT EXISTS source_product_name VARCHAR(500)`);
+    await client.query(`ALTER TABLE employee_earnings_s ADD COLUMN IF NOT EXISTS source_marketplace_code VARCHAR(255)`);
+    await client.query(`ALTER TABLE employee_earnings_s ADD COLUMN IF NOT EXISTS source_scanned_code VARCHAR(255)`);
+    await client.query(`ALTER TABLE employee_earnings_s ADD COLUMN IF NOT EXISTS source_task_id VARCHAR(100)`);
+    // Expand event_type constraint
+    await client.query(`ALTER TABLE employee_earnings_s DROP CONSTRAINT IF EXISTS employee_earnings_s_event_type_check`);
+    await client.query(`ALTER TABLE employee_earnings_s ADD CONSTRAINT employee_earnings_s_event_type_check CHECK (event_type IN ('inventory_scan', 'manual_adjustment', 'external_order_pick'))`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_employee_earnings_source ON employee_earnings_s(source) WHERE source IS NOT NULL`);
+
     // Seed new item tables from legacy one-product boxes
     await client.query(`
       INSERT INTO box_items_s (box_id, product_id, quantity, updated_at)

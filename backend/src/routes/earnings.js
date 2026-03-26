@@ -51,7 +51,9 @@ router.get('/summary', requireAuth, requireAdmin, async (_req, res) => {
             COUNT(ee.id) as events_count,
             COALESCE(SUM(CASE WHEN ee.event_type = 'inventory_scan' THEN ee.amount_delta ELSE 0 END), 0) as total_awarded,
             COALESCE(SUM(CASE WHEN ee.event_type = 'manual_adjustment' THEN ee.amount_delta ELSE 0 END), 0) as total_manual_adjustments,
-            COALESCE(SUM(CASE WHEN ee.event_type = 'inventory_scan' THEN ee.reward_units ELSE 0 END), 0) as rewarded_scans
+            COALESCE(SUM(CASE WHEN ee.event_type = 'inventory_scan' THEN ee.reward_units ELSE 0 END), 0) as rewarded_scans,
+            COALESCE(SUM(CASE WHEN ee.event_type = 'external_order_pick' AND ee.source = 'sborka-site' THEN ee.amount_delta ELSE 0 END), 0) as sborka_order_amount,
+            COALESCE(SUM(CASE WHEN ee.event_type = 'external_order_pick' AND ee.source = 'sborka-site' THEN ee.reward_units ELSE 0 END), 0) as sborka_order_units
           FROM employees_s e
           LEFT JOIN employee_earnings_s ee ON ee.employee_id = e.id
           GROUP BY e.id, e.full_name, e.gra_balance
@@ -62,7 +64,9 @@ router.get('/summary', requireAuth, requireAdmin, async (_req, res) => {
           COALESCE(SUM(current_balance) FILTER (WHERE events_count > 0 OR current_balance <> 0), 0) as total_current_balance,
           COALESCE(SUM(total_awarded), 0) as total_awarded,
           COALESCE(SUM(total_manual_adjustments), 0) as total_manual_adjustments,
-          COALESCE(SUM(rewarded_scans), 0) as rewarded_scans
+          COALESCE(SUM(rewarded_scans), 0) as rewarded_scans,
+          COALESCE(SUM(sborka_order_amount), 0) as total_sborka_amount,
+          COALESCE(SUM(sborka_order_units), 0) as total_sborka_units
         FROM employee_stats
       `),
       pool.query(`
@@ -73,6 +77,8 @@ router.get('/summary', requireAuth, requireAdmin, async (_req, res) => {
           COALESCE(SUM(CASE WHEN ee.event_type = 'inventory_scan' THEN ee.amount_delta ELSE 0 END), 0) as total_awarded,
           COALESCE(SUM(CASE WHEN ee.event_type = 'inventory_scan' THEN ee.reward_units ELSE 0 END), 0) as rewarded_scans,
           COUNT(DISTINCT ee.task_id) FILTER (WHERE ee.event_type = 'inventory_scan' AND ee.task_id IS NOT NULL) as rewarded_tasks_count,
+          COALESCE(SUM(CASE WHEN ee.event_type = 'external_order_pick' AND ee.source = 'sborka-site' THEN ee.amount_delta ELSE 0 END), 0) as sborka_amount,
+          COALESCE(SUM(CASE WHEN ee.event_type = 'external_order_pick' AND ee.source = 'sborka-site' THEN ee.reward_units ELSE 0 END), 0) as sborka_units,
           MAX(ee.created_at) as last_earned_at
         FROM employees_s e
         JOIN employee_earnings_s ee ON ee.employee_id = e.id
@@ -125,6 +131,8 @@ router.get('/employees', requireAuth, requireAdmin, async (_req, res) => {
         COALESCE(SUM(CASE WHEN ee.event_type = 'manual_adjustment' THEN ee.amount_delta ELSE 0 END), 0) as total_manual_adjustments,
         COALESCE(SUM(CASE WHEN ee.event_type = 'inventory_scan' THEN ee.reward_units ELSE 0 END), 0) as rewarded_scans,
         COUNT(DISTINCT ee.task_id) FILTER (WHERE ee.event_type = 'inventory_scan' AND ee.task_id IS NOT NULL) as rewarded_tasks_count,
+        COALESCE(SUM(CASE WHEN ee.event_type = 'external_order_pick' AND ee.source = 'sborka-site' THEN ee.amount_delta ELSE 0 END), 0) as sborka_amount,
+        COALESCE(SUM(CASE WHEN ee.event_type = 'external_order_pick' AND ee.source = 'sborka-site' THEN ee.reward_units ELSE 0 END), 0) as sborka_units,
         MAX(ee.created_at) as last_earned_at
       FROM employees_s e
       JOIN employee_earnings_s ee ON ee.employee_id = e.id
@@ -143,7 +151,7 @@ router.get('/employees/:employeeId', requireAuth, requireAdmin, async (req, res)
     const employeeId = Number(req.params.employeeId);
     if (!Number.isFinite(employeeId)) return res.status(400).json({ error: 'Некорректный employeeId' });
 
-    const [employeeResult, tasksResult, adjustmentsResult] = await Promise.all([
+    const [employeeResult, tasksResult, adjustmentsResult, sborkaResult] = await Promise.all([
       pool.query(`
         SELECT
           e.id as employee_id,
@@ -153,6 +161,8 @@ router.get('/employees/:employeeId', requireAuth, requireAdmin, async (req, res)
           COALESCE(SUM(CASE WHEN ee.event_type = 'manual_adjustment' THEN ee.amount_delta ELSE 0 END), 0) as total_manual_adjustments,
           COALESCE(SUM(CASE WHEN ee.event_type = 'inventory_scan' THEN ee.reward_units ELSE 0 END), 0) as rewarded_scans,
           COUNT(DISTINCT ee.task_id) FILTER (WHERE ee.event_type = 'inventory_scan' AND ee.task_id IS NOT NULL) as rewarded_tasks_count,
+          COALESCE(SUM(CASE WHEN ee.event_type = 'external_order_pick' AND ee.source = 'sborka-site' THEN ee.amount_delta ELSE 0 END), 0) as sborka_amount,
+          COALESCE(SUM(CASE WHEN ee.event_type = 'external_order_pick' AND ee.source = 'sborka-site' THEN ee.reward_units ELSE 0 END), 0) as sborka_units,
           MAX(ee.created_at) as last_earned_at
         FROM employees_s e
         LEFT JOIN employee_earnings_s ee ON ee.employee_id = e.id
@@ -210,6 +220,28 @@ router.get('/employees/:employeeId', requireAuth, requireAdmin, async (req, res)
         ORDER BY ee.created_at DESC
         LIMIT 50
       `, [employeeId]),
+      pool.query(`
+        SELECT
+          ee.id,
+          ee.created_at,
+          ee.amount_delta,
+          ee.reward_units,
+          ee.rate_per_unit,
+          ee.source_marketplace,
+          ee.source_store_name,
+          ee.source_entity_name,
+          ee.source_article,
+          ee.source_product_name,
+          ee.source_marketplace_code,
+          ee.source_scanned_code,
+          ee.source_task_id
+        FROM employee_earnings_s ee
+        WHERE ee.employee_id = $1
+          AND ee.event_type = 'external_order_pick'
+          AND ee.source = 'sborka-site'
+        ORDER BY ee.created_at DESC
+        LIMIT 200
+      `, [employeeId]),
     ]);
 
     if (!employeeResult.rows.length) return res.status(404).json({ error: 'Сотрудник не найден' });
@@ -218,6 +250,7 @@ router.get('/employees/:employeeId', requireAuth, requireAdmin, async (req, res)
       employee: employeeResult.rows[0],
       tasks: tasksResult.rows,
       adjustments: adjustmentsResult.rows,
+      sborka_picks: sborkaResult.rows,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

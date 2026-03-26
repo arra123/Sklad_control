@@ -4,9 +4,11 @@ import {
   BarChart3,
   ChevronRight,
   ClipboardList,
+  Package,
   RefreshCw,
   ScanLine,
   Settings,
+  ShoppingCart,
   Users,
 } from 'lucide-react';
 import api from '../../api/client';
@@ -208,6 +210,7 @@ export default function EarningsPage() {
   useEffect(() => {
     setSelectedTaskId(null);
     setTaskDetails(null);
+    setDetailTab('sklad');
     if (selectedEmployeeId) loadEmployeeDetails(selectedEmployeeId);
   }, [selectedEmployeeId, loadEmployeeDetails]);
   useEffect(() => {
@@ -278,6 +281,8 @@ export default function EarningsPage() {
   const recentAdjustments = summary?.recent_adjustments || [];
   const employeeTasks = employeeDetails?.tasks || [];
   const employeeAdjustments = employeeDetails?.adjustments || [];
+  const sborkaPicks = employeeDetails?.sborka_picks || [];
+  const [detailTab, setDetailTab] = useState('sklad');
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
@@ -304,11 +309,12 @@ export default function EarningsPage() {
 
       {tab === 'summary' && (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-4 mb-6">
             <StatCard icon={Users} label="Сотрудников с активностью" value={overview.employees_with_activity || 0} />
             <StatCard icon={BarChart3} label="Текущий баланс всего" value={`${fmtGra(overview.total_current_balance)} GRA`} tone="primary" />
             <StatCard icon={ScanLine} label="Оплаченных сканов" value={fmtGra(overview.rewarded_scans || 0)} tone="green" />
-            <StatCard icon={ClipboardList} label="Начислено за всё время" value={`${fmtGra(overview.total_awarded)} GRA`} tone="blue" />
+            <StatCard icon={ClipboardList} label="Начислено за сканы" value={`${fmtGra(overview.total_awarded)} GRA`} tone="blue" />
+            <StatCard icon={ShoppingCart} label="Заработок на сборках" value={`${fmtGra(overview.total_sborka_amount)} GRA`} hint={`${fmtGra(overview.total_sborka_units || 0)} пиков`} tone="green" />
             <StatCard icon={Settings} label="Текущая ставка" value={`${fmtGra(summary?.settings?.gra_inventory_scan_rate || 0)} GRA`} hint="за 1 успешный скан" tone="amber" />
           </div>
 
@@ -343,7 +349,10 @@ export default function EarningsPage() {
                       </div>
                       <div className="text-right flex-shrink-0">
                         <p className="text-sm font-bold text-primary-600">{fmtGra(item.current_balance)} GRA</p>
-                        <p className="text-xs text-gray-400">всего: {fmtGra(item.total_awarded)} GRA</p>
+                        <p className="text-xs text-gray-400">склад: {fmtGra(item.total_awarded)} GRA</p>
+                        {Number(item.sborka_amount) > 0 && (
+                          <p className="text-xs text-green-500">сборки: {fmtGra(item.sborka_amount)} GRA</p>
+                        )}
                       </div>
                       <ChevronRight size={16} className="text-gray-300" />
                     </button>
@@ -404,6 +413,9 @@ export default function EarningsPage() {
                         <p className="text-xs text-gray-400">
                           {fmtGra(item.rewarded_scans || 0)} сканов · {item.rewarded_tasks_count || 0} задач
                         </p>
+                        {Number(item.sborka_amount) > 0 && (
+                          <p className="text-xs text-green-500">сборки: {fmtGra(item.sborka_amount)} GRA</p>
+                        )}
                       </div>
                       <div className="text-right flex-shrink-0">
                         <p className="text-sm font-bold text-primary-600">{fmtGra(item.current_balance)} GRA</p>
@@ -439,9 +451,9 @@ export default function EarningsPage() {
 
                         <div className="grid grid-cols-2 gap-3">
                           <StatCard icon={BarChart3} label="Текущий баланс" value={`${fmtGra(employeeDetails?.employee?.current_balance ?? selectedEmployee.current_balance)} GRA`} tone="primary" />
-                          <StatCard icon={ScanLine} label="Оплаченных сканов" value={fmtGra(employeeDetails?.employee?.rewarded_scans || 0)} tone="green" />
-                          <StatCard icon={ClipboardList} label="Заработано всего" value={`${fmtGra(employeeDetails?.employee?.total_awarded || 0)} GRA`} tone="blue" />
-                          <StatCard icon={AlertTriangle} label="Ручные корректировки" value={`${fmtGra(employeeDetails?.employee?.total_manual_adjustments || 0)} GRA`} tone="amber" />
+                          <StatCard icon={ScanLine} label="Склад: инвентаризация" value={`${fmtGra(employeeDetails?.employee?.total_awarded || 0)} GRA`} hint={`${fmtGra(employeeDetails?.employee?.rewarded_scans || 0)} сканов`} tone="blue" />
+                          <StatCard icon={ShoppingCart} label="Заказы OZ/WB" value={`${fmtGra(employeeDetails?.employee?.sborka_amount || 0)} GRA`} hint={`${fmtGra(employeeDetails?.employee?.sborka_units || 0)} пиков`} tone="green" />
+                          <StatCard icon={AlertTriangle} label="Корректировки" value={`${fmtGra(employeeDetails?.employee?.total_manual_adjustments || 0)} GRA`} tone="amber" />
                         </div>
                       </>
                     )}
@@ -474,6 +486,12 @@ export default function EarningsPage() {
                   </div>
                 </div>
 
+                <div className="flex gap-2 mb-4">
+                  <TabButton active={detailTab === 'sklad'} onClick={() => setDetailTab('sklad')}>Склад</TabButton>
+                  <TabButton active={detailTab === 'orders'} onClick={() => setDetailTab('orders')}>Заказы</TabButton>
+                </div>
+
+                {detailTab === 'sklad' && (
                 <div className="grid grid-cols-1 2xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-5">
                   <div className="card overflow-hidden">
                     <div className="px-5 py-4 border-b border-gray-50">
@@ -582,6 +600,50 @@ export default function EarningsPage() {
                     )}
                   </div>
                 </div>
+                )}
+
+                {detailTab === 'orders' && (
+                  <div className="card overflow-hidden">
+                    <div className="px-5 py-4 border-b border-gray-50">
+                      <h3 className="font-semibold text-gray-900">Заказы (сборка OZ/WB)</h3>
+                      <p className="text-xs text-gray-400 mt-0.5">Начисления за пики при сборке заказов</p>
+                    </div>
+                    {employeeLoading && !employeeDetails ? (
+                      <div className="flex items-center justify-center h-40"><Spinner size="md" /></div>
+                    ) : sborkaPicks.length === 0 ? (
+                      <SectionEmpty title="Нет начислений за сборку" />
+                    ) : (
+                      <div className="overflow-x-auto max-h-[70vh] overflow-y-auto">
+                        <table className="w-full text-sm">
+                          <thead className="bg-gray-50 sticky top-0">
+                            <tr>
+                              <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500">Дата</th>
+                              <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500">Маркетплейс</th>
+                              <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500">Магазин</th>
+                              <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500">Товар</th>
+                              <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500">Артикул</th>
+                              <th className="text-right px-4 py-2.5 text-xs font-semibold text-gray-500">Сумма</th>
+                              <th className="text-right px-4 py-2.5 text-xs font-semibold text-gray-500">Пики</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-50">
+                            {sborkaPicks.map(pick => (
+                              <tr key={pick.id} className="hover:bg-gray-50 transition-colors">
+                                <td className="px-4 py-2.5 text-gray-600 whitespace-nowrap">{fmtDateTime(pick.created_at)}</td>
+                                <td className="px-4 py-2.5 text-gray-900 font-medium">{pick.source_marketplace || '—'}</td>
+                                <td className="px-4 py-2.5 text-gray-600 truncate max-w-[160px]">{pick.source_store_name || '—'}</td>
+                                <td className="px-4 py-2.5 text-gray-600 truncate max-w-[200px]">{pick.source_product_name || pick.source_entity_name || '—'}</td>
+                                <td className="px-4 py-2.5 text-gray-500 font-mono text-xs">{pick.source_article || '—'}</td>
+                                <td className="px-4 py-2.5 text-right font-bold text-primary-600 whitespace-nowrap">+{fmtGra(pick.amount_delta)} GRA</td>
+                                <td className="px-4 py-2.5 text-right text-gray-600">{fmtGra(pick.reward_units)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                )}
               </>
             )}
           </div>
