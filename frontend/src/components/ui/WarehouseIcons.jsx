@@ -411,5 +411,87 @@ export function RawMaterialsIcon({ size = 20, className = '', style }) {
   );
 }
 
+// ─── Material group icons ────────────────────────────────────────────────────
+
+export function PowderIcon({ size = 20, className = '', style }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className} style={style}>
+      {/* Jar/container */}
+      <rect x="10" y="14" width="28" height="28" rx="4" fill="#f0e8d0" stroke="#a88520" strokeWidth="1.3"/>
+      {/* Lid */}
+      <rect x="12" y="10" width="24" height="6" rx="2.5" fill="#d4b870" stroke="#a88520" strokeWidth="1"/>
+      {/* Powder level */}
+      <path d="M14 28c2-2 4 1 7-1s5 2 8 0 5 1 5 1v12a2 2 0 01-2 2H16a2 2 0 01-2-2V28z" fill="#c9a94e" opacity=".5"/>
+      {/* Particles */}
+      <circle cx="20" cy="32" r="1" fill="#a88520" opacity=".4"/>
+      <circle cx="28" cy="30" r=".8" fill="#a88520" opacity=".3"/>
+      <circle cx="24" cy="34" r=".6" fill="#a88520" opacity=".35"/>
+      {/* Label */}
+      <rect x="16" y="18" width="16" height="6" rx="1" fill="white" opacity=".5"/>
+      <rect x="18" y="20" width="10" height="1.5" rx=".4" fill="#a88520" opacity=".3"/>
+    </svg>
+  );
+}
+
+export function SemiProductIcon({ size = 20, className = '', style }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className} style={style}>
+      {/* Capsule shape — two-tone */}
+      <rect x="12" y="6" width="24" height="36" rx="12" fill="#e8dff0" stroke="#8060b0" strokeWidth="1.3"/>
+      {/* Top half (colored) */}
+      <rect x="12" y="6" width="24" height="18" rx="12" fill="#a880d0" stroke="#8060b0" strokeWidth="1.3"/>
+      {/* Divider line */}
+      <line x1="12" y1="24" x2="36" y2="24" stroke="#8060b0" strokeWidth="1"/>
+      {/* Shine */}
+      <path d="M30 12v16" stroke="white" strokeWidth="1.5" opacity=".3" strokeLinecap="round"/>
+      {/* Powder dots inside bottom */}
+      <circle cx="20" cy="30" r="1.2" fill="#c4b0e0" opacity=".5"/>
+      <circle cx="26" cy="32" r=".8" fill="#c4b0e0" opacity=".4"/>
+      <circle cx="22" cy="34" r="1" fill="#c4b0e0" opacity=".45"/>
+    </svg>
+  );
+}
+
+export function LabelIcon({ size = 20, className = '', style }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className} style={style}>
+      {/* Label/sticker sheet */}
+      <rect x="6" y="8" width="36" height="32" rx="3" fill="#fff8e8" stroke="#c49a40" strokeWidth="1.3"/>
+      {/* Peeling corner */}
+      <path d="M36 8h3a3 3 0 013 3v3L36 8z" fill="#e8d8a0" stroke="#c49a40" strokeWidth="1"/>
+      {/* Brand stripe */}
+      <rect x="10" y="14" width="28" height="5" rx="1" fill="#c49a40" opacity=".7"/>
+      <text x="24" y="18.5" textAnchor="middle" fill="white" fontSize="4" fontWeight="700" fontFamily="sans-serif">LABEL</text>
+      {/* Text lines */}
+      <rect x="10" y="22" width="20" height="2" rx=".5" fill="#c49a40" opacity=".25"/>
+      <rect x="10" y="26" width="16" height="1.5" rx=".5" fill="#c49a40" opacity=".2"/>
+      <rect x="10" y="30" width="22" height="1.5" rx=".5" fill="#c49a40" opacity=".15"/>
+      {/* Barcode hint */}
+      <rect x="10" y="34" width="14" height="4" rx=".5" fill="#c49a40" opacity=".15"/>
+    </svg>
+  );
+}
+
+export function SuppliesIcon({ size = 20, className = '', style }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className} style={style}>
+      {/* Jar/bottle shape */}
+      <rect x="14" y="12" width="20" height="30" rx="3" fill="#e0e8f0" stroke="#6080a0" strokeWidth="1.3"/>
+      {/* Neck */}
+      <rect x="18" y="6" width="12" height="8" rx="2" fill="#c0d0e0" stroke="#6080a0" strokeWidth="1"/>
+      {/* Cap */}
+      <rect x="16" y="4" width="16" height="4" rx="2" fill="#6080a0"/>
+      {/* Lid ring */}
+      <rect x="20" y="5" width="8" height="1.5" rx=".5" fill="#8aa0b8" opacity=".5"/>
+      {/* Label area */}
+      <rect x="16" y="20" width="16" height="14" rx="1.5" fill="white" stroke="#c0d0e0" strokeWidth=".7"/>
+      <rect x="18" y="22" width="12" height="2" rx=".5" fill="#6080a0" opacity=".3"/>
+      <rect x="18" y="26" width="8" height="1.5" rx=".5" fill="#6080a0" opacity=".2"/>
+      {/* Shine */}
+      <path d="M30 14v24" stroke="white" strokeWidth="1.5" opacity=".25" strokeLinecap="round"/>
+    </svg>
+  );
+}
+
 // Aliases for backward compatibility
 export const ShelfBoxIcon = BoxIcon;

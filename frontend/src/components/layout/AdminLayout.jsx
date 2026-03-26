@@ -225,7 +225,7 @@ export default function AdminLayout({ children }) {
             <LogOut className="w-4 h-4" />
             Выйти
           </button>
-          <p className="text-[10px] text-gray-300 dark:text-gray-600 mt-2 text-center">v2.5.1</p>
+          <p className="text-[10px] text-gray-300 dark:text-gray-600 mt-2 text-center">v2.5.2</p>
         </div>
       </aside>
 

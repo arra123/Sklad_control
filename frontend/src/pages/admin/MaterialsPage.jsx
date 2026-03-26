@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Search, Package, X, ChevronRight, Save, Pencil } from 'lucide-react';
-import { RawMaterialsIcon, IngredientIcon, PackagingMaterialIcon, TechCardIcon } from '../../components/ui/WarehouseIcons';
+import { RawMaterialsIcon, IngredientIcon, PackagingMaterialIcon, TechCardIcon, PowderIcon, SemiProductIcon, LabelIcon, SuppliesIcon } from '../../components/ui/WarehouseIcons';
 import api from '../../api/client';
 import Spinner from '../../components/ui/Spinner';
 
@@ -17,12 +17,18 @@ function fmtPrice(val) {
 }
 
 const GROUP_LABELS = {
-  'порошки': { label: 'Порошки', color: 'bg-green-50 text-green-700' },
-  'полуфабрикаты': { label: 'Полуфабрикаты', color: 'bg-purple-50 text-purple-700' },
-  'этикетки': { label: 'Этикетки', color: 'bg-amber-50 text-amber-700' },
-  'расходники': { label: 'Расходники', color: 'bg-blue-50 text-blue-700' },
-  'другое': { label: 'Другое', color: 'bg-gray-100 text-gray-600' },
+  'порошки': { label: 'Порошки', color: 'bg-green-50 text-green-700', Icon: PowderIcon },
+  'полуфабрикаты': { label: 'Полуфабрикаты', color: 'bg-purple-50 text-purple-700', Icon: SemiProductIcon },
+  'этикетки': { label: 'Этикетки', color: 'bg-amber-50 text-amber-700', Icon: LabelIcon },
+  'расходники': { label: 'Расходники', color: 'bg-blue-50 text-blue-700', Icon: SuppliesIcon },
+  'другое': { label: 'Другое', color: 'bg-gray-100 text-gray-600', Icon: PackagingMaterialIcon },
 };
+
+function groupIcon(group, size = 18) {
+  const g = GROUP_LABELS[group] || GROUP_LABELS['другое'];
+  const Icon = g.Icon;
+  return <Icon size={size} />;
+}
 
 function groupBadge(group) {
   const g = GROUP_LABELS[group] || GROUP_LABELS['другое'];
@@ -89,7 +95,7 @@ function MaterialDetailModal({ materialId, onClose, onUpdated }) {
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-gray-50">
-                  {data.category === 'packaging' ? <PackagingMaterialIcon size={28} /> : <IngredientIcon size={28} />}
+                  {groupIcon(data.material_group, 28)}
                 </div>
                 <div>
                   <h2 className="text-lg font-bold text-gray-900">{data.name}</h2>
@@ -340,7 +346,7 @@ export default function MaterialsPage() {
                   <tr key={m.id} onClick={() => setSelectedId(m.id)} className="border-b border-gray-50 hover:bg-purple-50/30 cursor-pointer transition-colors">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
-                        {m.category === 'packaging' ? <PackagingMaterialIcon size={18} /> : <IngredientIcon size={18} />}
+                        {groupIcon(m.material_group)}
                         <span className="font-medium text-gray-800">{m.name}</span>
                       </div>
                     </td>
