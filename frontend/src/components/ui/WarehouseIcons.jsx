@@ -413,6 +413,25 @@ export function RawMaterialsIcon({ size = 20, className = '', style }) {
 
 // ─── Material group icons ────────────────────────────────────────────────────
 
+export function MixIcon({ size = 20, className = '', style }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className} style={style}>
+      {/* Bowl */}
+      <path d="M6 20c0 12 8 20 18 20s18-8 18-20H6z" fill="#f5e6d0" stroke="#c07830" strokeWidth="1.3"/>
+      <ellipse cx="24" cy="20" rx="18" ry="5" fill="#fae8d0" stroke="#c07830" strokeWidth="1"/>
+      {/* Swirl pattern inside */}
+      <path d="M14 26c3-2 6 2 10 0s7-2 10 0" stroke="#d89050" strokeWidth="1.5" strokeLinecap="round" fill="none" opacity=".5"/>
+      <path d="M16 30c2-1.5 5 1.5 8 0s5-1.5 8 0" stroke="#c07830" strokeWidth="1.2" strokeLinecap="round" fill="none" opacity=".4"/>
+      {/* Mixing stick */}
+      <line x1="32" y1="6" x2="22" y2="22" stroke="#8a6a40" strokeWidth="2.5" strokeLinecap="round"/>
+      {/* Particles flying */}
+      <circle cx="18" cy="14" r="1.2" fill="#d89050" opacity=".5"/>
+      <circle cx="28" cy="12" r="1" fill="#c07830" opacity=".4"/>
+      <circle cx="22" cy="10" r=".8" fill="#d89050" opacity=".45"/>
+    </svg>
+  );
+}
+
 export function PowderIcon({ size = 20, className = '', style }) {
   return (
     <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className} style={style}>

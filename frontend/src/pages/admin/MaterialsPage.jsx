@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Search, Package, X, ChevronRight, Save, Pencil } from 'lucide-react';
-import { RawMaterialsIcon, IngredientIcon, PackagingMaterialIcon, TechCardIcon, PowderIcon, SemiProductIcon, LabelIcon, SuppliesIcon } from '../../components/ui/WarehouseIcons';
+import { RawMaterialsIcon, IngredientIcon, PackagingMaterialIcon, TechCardIcon, PowderIcon, SemiProductIcon, LabelIcon, SuppliesIcon, MixIcon } from '../../components/ui/WarehouseIcons';
 import api from '../../api/client';
 import Spinner from '../../components/ui/Spinner';
 
@@ -20,7 +20,7 @@ const GROUP_LABELS = {
   'порошки': { label: 'Порошки', color: 'bg-green-50 text-green-700', Icon: PowderIcon },
   'полуфабрикаты': { label: 'Полуфабрикаты', color: 'bg-purple-50 text-purple-700', Icon: SemiProductIcon },
   'этикетки': { label: 'Этикетки', color: 'bg-amber-50 text-amber-700', Icon: LabelIcon },
-  'смеси': { label: 'Смеси', color: 'bg-orange-50 text-orange-700', Icon: PowderIcon },
+  'смеси': { label: 'Смеси', color: 'bg-orange-50 text-orange-700', Icon: MixIcon },
   'расходники': { label: 'Расходники', color: 'bg-blue-50 text-blue-700', Icon: SuppliesIcon },
   'другое': { label: 'Другое', color: 'bg-gray-100 text-gray-600', Icon: PackagingMaterialIcon },
 };
