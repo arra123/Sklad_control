@@ -416,7 +416,8 @@ function OverviewPanel({ data, settings, singleWarehouse, onSelectNode }) {
       case 'name': return getNodeLabel(item).toLowerCase();
       case 'qty': return Number(item.current_qty || 0);
       case 'inv': return Number(item.last_inventory_qty || 0);
-      case 'diff': return Math.abs(Number(item.last_inventory_qty || 0) - Number(item.current_qty || 0));
+      case 'diff': return item.last_inventory_qty != null && item.previous_inventory_qty != null
+        ? Math.abs(Number(item.last_inventory_qty) - Number(item.previous_inventory_qty)) : -1;
       case 'time': return Number(item.last_inventory_duration_seconds || 0);
       case 'speed': {
         const q = Number(item.last_inventory_qty || 0);
@@ -533,10 +534,14 @@ function OverviewPanel({ data, settings, singleWarehouse, onSelectNode }) {
                 const invQ = hasFullInv ? Number(item.last_inventory_qty) : hasPartialInv ? Number(item.partial_inventory_qty) : null;
                 const isPartial = hasPartialInv;
                 const hasAnyInv = hasFullInv || hasPartialInv;
-                const delta = hasFullInv ? invQ - curQ : null;
-                const totalDur = Number(item.last_inventory_duration_seconds || item.partial_inventory_duration_seconds || 0);
+                const hasPrevInv = item.previous_inventory_qty != null;
+                const prevQ = hasPrevInv ? Number(item.previous_inventory_qty) : null;
+                const delta = hasFullInv && hasPrevInv ? invQ - prevQ : null;
+                const totalDur = hasFullInv
+                  ? Number(item.last_inventory_duration_seconds || 0)
+                  : Number(item.partial_inventory_duration_seconds || 0);
                 const spd = hasAnyInv && invQ > 0 && totalDur > 0 ? (totalDur / invQ).toFixed(1) : '—';
-                const pct = hasFullInv && curQ > 0 && delta !== 0 ? ((Math.abs(delta) / curQ) * 100).toFixed(2) : '0';
+                const pct = delta != null && prevQ > 0 && delta !== 0 ? ((Math.abs(delta) / prevQ) * 100).toFixed(2) : '0';
                 const itemType = item._type || (isSingle ? 'rack' : 'warehouse');
                 const covInfo = item.covered_leaf_count != null && item.total_leaf_count > 0
                   ? `${item.covered_leaf_count}/${item.total_leaf_count}`
@@ -555,8 +560,8 @@ function OverviewPanel({ data, settings, singleWarehouse, onSelectNode }) {
                         <span>{fmtQty(invQ)}{isPartial && covInfo && <span className="text-[10px] text-gray-400 ml-1">({covInfo})</span>}</span>
                       ) : '—'}
                     </td>
-                    <td className={cn('px-2.5 py-3 border-b border-gray-100 whitespace-nowrap', hasFullInv ? getDiffClass(delta, curQ) : 'text-gray-400')}>
-                      {hasFullInv ? (<>{delta > 0 ? '+' : ''}{delta} {curQ > 0 && delta !== 0 ? `(${pct}%)` : ''}</>) : isPartial ? 'частично' : '—'}
+                    <td className={cn('px-2.5 py-3 border-b border-gray-100 whitespace-nowrap', delta != null ? getDiffClass(delta, prevQ || 1) : 'text-gray-400')}>
+                      {delta != null ? (<>{delta > 0 ? '+' : ''}{delta} {delta !== 0 ? `(${pct}%)` : ''}</>) : hasAnyInv ? '1 инвент' : '—'}
                     </td>
                     <td className="px-2.5 py-3 border-b border-gray-100 whitespace-nowrap">{totalDur > 0 ? fmtDuration(totalDur) : '—'}</td>
                     <td className="px-2.5 py-3 border-b border-gray-100 whitespace-nowrap">{spd !== '—' ? `${spd} с/шт` : '—'}</td>
@@ -603,8 +608,12 @@ function DetailHeaderCard({ node, type, breadcrumb, childrenLabel }) {
   const hasPartialInv = !hasFullInv && node.partial_inventory_qty != null;
   const hasAnyInv = hasFullInv || hasPartialInv;
   const invQty = hasFullInv ? Number(node.last_inventory_qty) : hasPartialInv ? Number(node.partial_inventory_qty) : null;
-  const delta = hasFullInv ? invQty - curQty : null;
-  const dur = Number(node.last_inventory_duration_seconds || node.partial_inventory_duration_seconds || 0);
+  const hasPrevInv = node.previous_inventory_qty != null;
+  const prevQty = hasPrevInv ? Number(node.previous_inventory_qty) : null;
+  const delta = hasFullInv && hasPrevInv ? invQty - prevQty : null;
+  const dur = hasFullInv
+    ? Number(node.last_inventory_duration_seconds || 0)
+    : Number(node.partial_inventory_duration_seconds || 0);
   const avgPick = hasAnyInv && invQty > 0 && dur > 0 ? (dur / invQty).toFixed(1) : null;
   const picksPerMin = hasAnyInv && invQty > 0 && dur > 0 ? (invQty / (dur / 60)).toFixed(1) : null;
   const covInfo = node.covered_leaf_count != null && node.total_leaf_count > 0
@@ -626,9 +635,11 @@ function DetailHeaderCard({ node, type, breadcrumb, childrenLabel }) {
     ? <span className="text-[11px] font-bold px-3 py-1 rounded-full uppercase tracking-wide bg-[#fffbeb] text-[#a16207]">Не было</span>
     : hasPartialInv
       ? <span className="text-[11px] font-bold px-3 py-1 rounded-full uppercase tracking-wide bg-[#fffbeb] text-[#a16207]">Частично {covInfo}</span>
-      : delta === 0
-        ? <span className="text-[11px] font-bold px-3 py-1 rounded-full uppercase tracking-wide bg-[#ecfdf5] text-[#047857]">Сходится</span>
-        : <span className="text-[11px] font-bold px-3 py-1 rounded-full uppercase tracking-wide bg-[#fffbeb] text-[#a16207]">{delta > 0 ? '+' : ''}{delta} расхождение</span>;
+      : delta == null
+        ? <span className="text-[11px] font-bold px-3 py-1 rounded-full uppercase tracking-wide bg-[#fffbeb] text-[#a16207]">1 инвент</span>
+        : delta === 0
+          ? <span className="text-[11px] font-bold px-3 py-1 rounded-full uppercase tracking-wide bg-[#ecfdf5] text-[#047857]">Сходится</span>
+          : <span className="text-[11px] font-bold px-3 py-1 rounded-full uppercase tracking-wide bg-[#fffbeb] text-[#a16207]">{delta > 0 ? '+' : ''}{delta} расхождение</span>;
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 p-6 mb-5">
@@ -658,10 +669,10 @@ function DetailHeaderCard({ node, type, breadcrumb, childrenLabel }) {
           <p className="text-[11px] text-gray-400 font-medium mt-0.5">Текущий остаток</p>
         </div>
         <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
-          <p className={cn('text-lg font-extrabold leading-tight', hasFullInv ? (delta === 0 ? 'text-[#047857]' : Math.abs(delta) <= 5 ? 'text-[#a16207]' : 'text-[#b91c1c]') : 'text-gray-300')}>
-            {hasFullInv ? (delta === 0 ? '0' : (delta > 0 ? '+' : '') + delta) : hasPartialInv ? 'частично' : '—'}
+          <p className={cn('text-lg font-extrabold leading-tight', delta != null ? (delta === 0 ? 'text-[#047857]' : Math.abs(delta) <= 5 ? 'text-[#a16207]' : 'text-[#b91c1c]') : 'text-gray-300')}>
+            {delta != null ? (delta === 0 ? '0' : (delta > 0 ? '+' : '') + delta) : hasAnyInv ? '1 инвент' : '—'}
           </p>
-          <p className="text-[11px] text-gray-400 font-medium mt-0.5">Расхождение</p>
+          <p className="text-[11px] text-gray-400 font-medium mt-0.5">Расхожд. между инвентами</p>
         </div>
         {dur > 0 && (
           <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
@@ -725,8 +736,12 @@ function RackRowDetail({ node, type, settings, onSelectNode }) {
           const cHasAny = cHasInv || cHasPartial;
           const cInv = cHasInv ? Number(child.last_inventory_qty) : cHasPartial ? Number(child.partial_inventory_qty) : null;
           const cCur = Number(child.current_qty || 0);
-          const cDelta = cHasInv ? cInv - cCur : null;
-          const cDur = Number(child.last_inventory_duration_seconds || child.partial_inventory_duration_seconds || 0);
+          const cHasPrev = child.previous_inventory_qty != null;
+          const cPrev = cHasPrev ? Number(child.previous_inventory_qty) : null;
+          const cDelta = cHasInv && cHasPrev ? cInv - cPrev : null;
+          const cDur = cHasInv
+            ? Number(child.last_inventory_duration_seconds || 0)
+            : Number(child.partial_inventory_duration_seconds || 0);
           const cAvgPick = cHasAny && cInv > 0 && cDur > 0 ? (cDur / cInv).toFixed(1) : null;
           return (
             <div key={child.id || i} className="bg-white rounded-xl border border-gray-100 p-4 hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer" style={{ borderLeft: `4px solid ${cst.text}` }} onClick={() => onSelectNode?.(child, getChildType(child), nodeId(child, getChildType(child)))}>
@@ -747,10 +762,10 @@ function RackRowDetail({ node, type, settings, onSelectNode }) {
                   <p className="text-[10px] text-gray-400">сейчас</p>
                 </div>
                 <div>
-                  <p className={cn('text-sm font-black', cHasInv ? (cDelta > 0 ? 'text-green-600' : cDelta < 0 ? 'text-red-600' : 'text-gray-400') : 'text-gray-300')}>
-                    {cHasInv ? ((cDelta > 0 ? '+' : '') + cDelta) : '—'}
+                  <p className={cn('text-sm font-black', cDelta != null ? (cDelta > 0 ? 'text-green-600' : cDelta < 0 ? 'text-red-600' : 'text-gray-400') : 'text-gray-300')}>
+                    {cDelta != null ? ((cDelta > 0 ? '+' : '') + cDelta) : cHasAny ? '1 инв.' : '—'}
                   </p>
-                  <p className="text-[10px] text-gray-400">разница</p>
+                  <p className="text-[10px] text-gray-400">расхожд.</p>
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-gray-400">
