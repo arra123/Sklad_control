@@ -27,12 +27,12 @@ const GROUP_LABELS = {
 };
 
 const SUPPLY_ICONS = {
+  'мембран': MembraneIcon,
   'крышк':   JarLidIcon,
-  'банк':    PetJarIcon,
+  'капсул':  CapsuleEmptyIcon,
   'флакон':  VacuumFlaskIcon,
   'дозатор': VacuumFlaskIcon,
-  'мембран': MembraneIcon,
-  'капсул':  CapsuleEmptyIcon,
+  'банк':    PetJarIcon,
 };
 
 function getSupplyIcon(name) {
