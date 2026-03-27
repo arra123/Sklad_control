@@ -563,7 +563,7 @@ export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
                   {!product.shelves?.length ? (
                     <p className="text-sm text-gray-400 italic">Не размещён</p>
                   ) : (
-                    <div className="space-y-1.5">
+                    <div className="max-h-[200px] overflow-y-auto space-y-1.5 pr-1">
                       {product.shelves.map((s, i) => (
                         <div key={i} className="flex items-center justify-between px-3 py-2 bg-gray-50 rounded-xl">
                           <div>
