@@ -1,5 +1,7 @@
 const express = require('express');
 const cors = require('cors');
+const compression = require('compression');
+const rateLimit = require('express-rate-limit');
 const path = require('path');
 const config = require('./config');
 
@@ -20,13 +22,32 @@ const app = express();
 const siteRouter = express.Router();
 
 app.use(cors());
-app.use(express.json({ limit: '10mb' }));
+app.use(compression());
+app.use(express.json({ limit: '1mb' }));
+
+// Rate limiting for sensitive endpoints
+const loginLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 15,
+  message: { error: 'Слишком много попыток, попробуйте через минуту' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+const errorReportLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  message: { error: 'Rate limit exceeded' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 // API routes
 siteRouter.get('/api/health', (_req, res) => {
   res.json({ ok: true });
 });
 
+siteRouter.use('/api/auth/login', loginLimiter);
+siteRouter.use('/api/errors/system', errorReportLimiter);
 siteRouter.use('/api/auth', authRoutes);
 siteRouter.use('/api/products', productsRoutes);
 siteRouter.use('/api/warehouse', warehouseRoutes);

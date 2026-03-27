@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import api from '../api/client';
 
 // ─── Дефолтные значения всех настроек ──────────────────────────────────────
@@ -113,8 +113,11 @@ export function AppSettingsProvider({ children }) {
     } catch {}
   }, []);
 
+  const value = useMemo(() => ({ settings, updateSetting, updateSettings, loadSettings }),
+    [settings, updateSetting, updateSettings, loadSettings]);
+
   return (
-    <AppSettingsContext.Provider value={{ settings, updateSetting, updateSettings, loadSettings }}>
+    <AppSettingsContext.Provider value={value}>
       {children}
     </AppSettingsContext.Provider>
   );

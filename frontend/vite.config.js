@@ -18,6 +18,17 @@ export default defineConfig(({ mode }) => {
   return {
     base: appBasePath ? `${appBasePath}/` : '/',
     plugins: [react()],
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            vendor: ['react', 'react-dom', 'react-router-dom'],
+            icons: ['lucide-react'],
+            barcode: ['jsbarcode'],
+          },
+        },
+      },
+    },
     server: {
       port: 5174,
       proxy: {

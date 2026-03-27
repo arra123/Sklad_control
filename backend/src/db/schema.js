@@ -315,6 +315,28 @@ async function createSchema() {
     await client.query(`ALTER TABLE scan_errors_s ADD COLUMN IF NOT EXISTS resolved_at TIMESTAMPTZ`);
     await client.query(`ALTER TABLE scan_errors_s ADD COLUMN IF NOT EXISTS resolved_by INTEGER REFERENCES users_s(id) ON DELETE SET NULL`);
 
+    // ─── Performance indexes ─────────────────────────────────────────
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_task_scans_task_id ON inventory_task_scans_s(task_id);
+      CREATE INDEX IF NOT EXISTS idx_task_scans_task_product ON inventory_task_scans_s(task_id, product_id);
+      CREATE INDEX IF NOT EXISTS idx_task_scans_task_box ON inventory_task_scans_s(task_box_id);
+      CREATE INDEX IF NOT EXISTS idx_scan_errors_task_id ON scan_errors_s(task_id);
+      CREATE INDEX IF NOT EXISTS idx_inv_tasks_status ON inventory_tasks_s(status);
+      CREATE INDEX IF NOT EXISTS idx_inv_tasks_employee ON inventory_tasks_s(employee_id);
+      CREATE INDEX IF NOT EXISTS idx_inv_tasks_shelf ON inventory_tasks_s(shelf_id);
+      CREATE INDEX IF NOT EXISTS idx_inv_tasks_target_pallet ON inventory_tasks_s(target_pallet_id);
+      CREATE INDEX IF NOT EXISTS idx_shelf_movements_shelf_created ON shelf_movements_s(shelf_id, created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_shelf_items_product ON shelf_items_s(product_id);
+      CREATE INDEX IF NOT EXISTS idx_boxes_pallet ON boxes_s(pallet_id);
+      CREATE INDEX IF NOT EXISTS idx_boxes_task ON boxes_s(task_id);
+      CREATE INDEX IF NOT EXISTS idx_boxes_status ON boxes_s(status);
+      CREATE INDEX IF NOT EXISTS idx_shelf_boxes_shelf ON shelf_boxes_s(shelf_id);
+      CREATE INDEX IF NOT EXISTS idx_box_items_box ON box_items_s(box_id);
+      CREATE INDEX IF NOT EXISTS idx_shelf_box_items_shelf_box ON shelf_box_items_s(shelf_box_id);
+      CREATE INDEX IF NOT EXISTS idx_pallet_items_pallet ON pallet_items_s(pallet_id);
+      CREATE INDEX IF NOT EXISTS idx_employee_inventory_employee ON employee_inventory_s(employee_id);
+    `);
+
     // External employee link
     await client.query(`ALTER TABLE employees_s ADD COLUMN IF NOT EXISTS external_employee_id INTEGER UNIQUE`);
     await client.query(`ALTER TABLE employees_s ADD COLUMN IF NOT EXISTS department VARCHAR(255)`);

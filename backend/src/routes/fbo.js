@@ -431,30 +431,53 @@ router.post('/visual/move', requireAuth, async (req, res) => {
 router.get('/visual/:warehouseId', requireAuth, async (req, res) => {
   try {
     const { warehouseId } = req.params;
-    const { rows: rowsData } = await pool.query(
-      `SELECT id, name, number FROM pallet_rows_s WHERE warehouse_id=$1 ORDER BY number`,
-      [warehouseId]
-    );
-    const result = [];
-    for (const row of rowsData) {
-      const { rows: palletsData } = await pool.query(
-        `SELECT id, name, number, barcode_value FROM pallets_s WHERE row_id=$1 ORDER BY number`,
-        [row.id]
-      );
-      const pallets = [];
-      for (const pallet of palletsData) {
-        const { rows: boxes } = await pool.query(
-          `SELECT b.id, b.barcode_value, b.quantity, b.status, b.product_id,
-                  p.name as product_name, p.code as product_code
-           FROM boxes_s b
-           LEFT JOIN products_s p ON p.id = b.product_id
-           WHERE b.pallet_id=$1 ORDER BY b.id`,
-          [pallet.id]
-        );
-        pallets.push({ ...pallet, boxes });
-      }
-      result.push({ ...row, pallets });
+
+    // Single query with JOINs instead of N+1 loop
+    const [rowsRes, palletsRes, boxesRes] = await Promise.all([
+      pool.query(
+        `SELECT id, name, number FROM pallet_rows_s WHERE warehouse_id=$1 ORDER BY number`,
+        [warehouseId]
+      ),
+      pool.query(
+        `SELECT pl.id, pl.name, pl.number, pl.barcode_value, pl.row_id
+         FROM pallets_s pl
+         JOIN pallet_rows_s pr ON pr.id = pl.row_id
+         WHERE pr.warehouse_id=$1
+         ORDER BY pl.number`,
+        [warehouseId]
+      ),
+      pool.query(
+        `SELECT b.id, b.barcode_value, b.quantity, b.status, b.product_id, b.pallet_id,
+                p.name as product_name, p.code as product_code
+         FROM boxes_s b
+         LEFT JOIN products_s p ON p.id = b.product_id
+         JOIN pallets_s pl ON pl.id = b.pallet_id
+         JOIN pallet_rows_s pr ON pr.id = pl.row_id
+         WHERE pr.warehouse_id=$1
+         ORDER BY b.id`,
+        [warehouseId]
+      ),
+    ]);
+
+    // Group boxes by pallet_id
+    const boxesByPallet = {};
+    for (const box of boxesRes.rows) {
+      if (!boxesByPallet[box.pallet_id]) boxesByPallet[box.pallet_id] = [];
+      boxesByPallet[box.pallet_id].push(box);
     }
+
+    // Group pallets by row_id
+    const palletsByRow = {};
+    for (const pl of palletsRes.rows) {
+      if (!palletsByRow[pl.row_id]) palletsByRow[pl.row_id] = [];
+      palletsByRow[pl.row_id].push({ ...pl, boxes: boxesByPallet[pl.id] || [] });
+    }
+
+    const result = rowsRes.rows.map(row => ({
+      ...row,
+      pallets: palletsByRow[row.id] || [],
+    }));
+
     res.json({ rows: result });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });

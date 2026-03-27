@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useMemo } from 'react';
 
 const THEMES = ['purple', 'blue', 'green', 'orange', 'rose'];
 const ThemeContext = createContext(null);
@@ -21,8 +21,10 @@ export function ThemeProvider({ children }) {
     localStorage.setItem('theme_mode', mode);
   }, [mode]);
 
+  const value = useMemo(() => ({ color, setColor, mode, setMode, THEMES }), [color, mode]);
+
   return (
-    <ThemeContext.Provider value={{ color, setColor, mode, setMode, THEMES }}>
+    <ThemeContext.Provider value={value}>
       {children}
     </ThemeContext.Provider>
   );

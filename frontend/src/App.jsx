@@ -1,5 +1,5 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { useEffect } from 'react';
+import { useEffect, lazy, Suspense } from 'react';
 import { initGlobalErrorHandlers } from './utils/errorReporter';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
@@ -10,25 +10,26 @@ import { PageLoader } from './components/ui/Spinner';
 import AdminLayout from './components/layout/AdminLayout';
 import EmployeeLayout from './components/layout/EmployeeLayout';
 
-import LoginPage from './pages/LoginPage';
-import DashboardPage from './pages/admin/DashboardPage';
-import ProductsPage from './pages/admin/ProductsPage';
-import ProductStockPage from './pages/admin/ProductStockPage';
-import WarehousePage from './pages/admin/WarehousePage';
-import TasksPage from './pages/admin/TasksPage';
-import StaffPage from './pages/admin/StaffPage';
-import SettingsPage from './pages/admin/SettingsPage';
-import AnalyticsPage from './pages/admin/AnalyticsPage';
-import EarningsPage from './pages/admin/EarningsPage';
-import ErrorsPage from './pages/admin/ErrorsPage';
-import MyTasksPage from './pages/employee/MyTasksPage';
-import TaskScanPage from './pages/employee/TaskScanPage';
-import PackagingPage from './pages/employee/PackagingPage';
-import MovePage from './pages/employee/MovePage';
-import MyInventoryPage from './pages/employee/MyInventoryPage';
-import FBOPage from './pages/admin/FBOPage';
-import MovementsPage from './pages/admin/MovementsPage';
-import MaterialsPage from './pages/admin/MaterialsPage';
+// Lazy-loaded pages for code splitting
+const LoginPage = lazy(() => import('./pages/LoginPage'));
+const DashboardPage = lazy(() => import('./pages/admin/DashboardPage'));
+const ProductsPage = lazy(() => import('./pages/admin/ProductsPage'));
+const ProductStockPage = lazy(() => import('./pages/admin/ProductStockPage'));
+const WarehousePage = lazy(() => import('./pages/admin/WarehousePage'));
+const TasksPage = lazy(() => import('./pages/admin/TasksPage'));
+const StaffPage = lazy(() => import('./pages/admin/StaffPage'));
+const SettingsPage = lazy(() => import('./pages/admin/SettingsPage'));
+const AnalyticsPage = lazy(() => import('./pages/admin/AnalyticsPage'));
+const EarningsPage = lazy(() => import('./pages/admin/EarningsPage'));
+const ErrorsPage = lazy(() => import('./pages/admin/ErrorsPage'));
+const MyTasksPage = lazy(() => import('./pages/employee/MyTasksPage'));
+const TaskScanPage = lazy(() => import('./pages/employee/TaskScanPage'));
+const PackagingPage = lazy(() => import('./pages/employee/PackagingPage'));
+const MovePage = lazy(() => import('./pages/employee/MovePage'));
+const MyInventoryPage = lazy(() => import('./pages/employee/MyInventoryPage'));
+const FBOPage = lazy(() => import('./pages/admin/FBOPage'));
+const MovementsPage = lazy(() => import('./pages/admin/MovementsPage'));
+const MaterialsPage = lazy(() => import('./pages/admin/MaterialsPage'));
 
 function hasAdminAccess(user) {
   if (!user) return false;
@@ -62,6 +63,7 @@ function RootRedirect() {
 
 function AppRoutes() {
   return (
+    <Suspense fallback={<PageLoader />}>
     <Routes>
       <Route path="/" element={<RootRedirect />} />
       <Route path="/login" element={<LoginPage />} />
@@ -97,6 +99,7 @@ function AppRoutes() {
         </div>
       } />
     </Routes>
+    </Suspense>
   );
 }
 
