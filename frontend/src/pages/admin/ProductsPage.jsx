@@ -466,10 +466,14 @@ export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
     } catch (err) { toast.error(err.response?.data?.error || 'Ошибка добавления'); }
   };
 
-  // Sort barcodes: labeled (ozon/wb) first, then unknown
+  // Sort barcodes: verified (with storeKey) first, then labeled, then unknown
   const barcodes = (product ? parseBarcodes(product) : []).sort((a, b) => {
-    const order = { ozon: 0, wb: 1, yandex: 2, sber: 3, prod: 4, unknown: 5 };
-    return (order[a.kind] ?? 5) - (order[b.kind] ?? 5);
+    const rank = (bc) => {
+      if (bc.storeKey) return 0; // verified: ozon_1, ozon_2, wb_1, wb_2
+      if (bc.kind !== 'unknown') return 1; // labeled but not verified
+      return 2; // unknown
+    };
+    return rank(a) - rank(b);
   });
   const prices = product ? parsePrices(product.source_json) : [];
   const isBundle = product?.entity_type === 'bundle';
