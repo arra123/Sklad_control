@@ -150,6 +150,7 @@ export default function EarningsPage() {
   const [savingRate, setSavingRate] = useState(false);
   const [adjustModalOpen, setAdjustModalOpen] = useState(false);
   const [savingBalance, setSavingBalance] = useState(false);
+  const [detailTab, setDetailTab] = useState('sklad');
 
   const loadBase = useCallback(async (background = false) => {
     if (background) setRefreshing(true);
@@ -282,7 +283,6 @@ export default function EarningsPage() {
   const employeeTasks = employeeDetails?.tasks || [];
   const employeeAdjustments = employeeDetails?.adjustments || [];
   const sborkaPicks = employeeDetails?.sborka_picks || [];
-  const [detailTab, setDetailTab] = useState('sklad');
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
