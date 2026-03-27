@@ -575,19 +575,20 @@ export function VacuumFlaskIcon({ size = 20, className = '', style }) {
 export function MembraneIcon({ size = 20, className = '', style }) {
   return (
     <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className} style={style}>
-      {/* Membrane disc — top view */}
-      <ellipse cx="24" cy="26" rx="18" ry="10" fill="#f0f0f0" stroke="#b0b0b0" strokeWidth="1.2"/>
-      {/* Inner foil ring */}
-      <ellipse cx="24" cy="25" rx="14" ry="7.5" fill="#e8e0d4" stroke="#c0b090" strokeWidth=".8"/>
-      {/* Foil surface — metallic */}
-      <ellipse cx="24" cy="24.5" rx="14" ry="7.5" fill="#d8d0c0" stroke="#b0a080" strokeWidth="1"/>
-      {/* Pull tab */}
-      <rect x="32" y="16" width="8" height="5" rx="2" fill="#c0b090" stroke="#a09070" strokeWidth=".8"/>
-      <line x1="34" y1="21" x2="34" y2="24" stroke="#a09070" strokeWidth=".7"/>
-      {/* Seal pattern */}
-      <ellipse cx="24" cy="24.5" rx="8" ry="4" fill="none" stroke="#c0b090" strokeWidth=".5" opacity=".5"/>
+      {/* Aluminium foil circle — side angle */}
+      <ellipse cx="24" cy="28" rx="18" ry="5" fill="#c8c0b0" stroke="#a09080" strokeWidth="1"/>
+      <ellipse cx="24" cy="26" rx="18" ry="5" fill="#e8e0d0" stroke="#b0a090" strokeWidth="1.2"/>
+      {/* Foil texture — concentric rings */}
+      <ellipse cx="24" cy="26" rx="14" ry="3.8" fill="none" stroke="#c0b8a0" strokeWidth=".5"/>
+      <ellipse cx="24" cy="26" rx="9" ry="2.4" fill="none" stroke="#c0b8a0" strokeWidth=".4"/>
+      {/* Pull tab — red/orange */}
+      <path d="M34 24l8-8" stroke="#c06040" strokeWidth="2" strokeLinecap="round"/>
+      <circle cx="42" cy="16" r="3" fill="#d07050" stroke="#a05030" strokeWidth=".8"/>
+      <circle cx="42" cy="16" r="1.2" fill="none" stroke="#a05030" strokeWidth=".6"/>
+      {/* Peeling edge */}
+      <path d="M34 24c2-1 3-3 3-5" stroke="#b0a090" strokeWidth=".8" fill="none" strokeLinecap="round"/>
       {/* Shine */}
-      <path d="M16 22c4-1.5 12-1.5 16 0" stroke="white" strokeWidth=".8" opacity=".35" fill="none"/>
+      <path d="M14 24.5c5-1.5 14-1.5 18 0" stroke="white" strokeWidth="1" opacity=".4" fill="none"/>
     </svg>
   );
 }

@@ -60,17 +60,39 @@ function groupBadge(group) {
 /* ═══════════════════ Material Detail Modal ═══════════════════ */
 
 function MaterialDetailModal({ materialId, onClose, onUpdated }) {
+  const [stack, setStack] = useState([]);
+  const [currentId, setCurrentId] = useState(materialId);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({});
   const [saving, setSaving] = useState(false);
 
+  // Reset stack when modal opens with new materialId
   useEffect(() => {
-    if (!materialId) return;
+    setStack([]);
+    setCurrentId(materialId);
+  }, [materialId]);
+
+  const navigateTo = (id) => {
+    setStack(prev => [...prev, currentId]);
+    setCurrentId(id);
+  };
+
+  const navigateBack = () => {
+    setStack(prev => {
+      const next = [...prev];
+      const prevId = next.pop();
+      setCurrentId(prevId);
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    if (!currentId) return;
     setLoading(true);
     setEditing(false);
-    api.get(`/materials/${materialId}`)
+    api.get(`/materials/${currentId}`)
       .then(r => {
         const d = r.data;
         setData(d);
@@ -85,7 +107,7 @@ function MaterialDetailModal({ materialId, onClose, onUpdated }) {
       })
       .catch(() => setData(null))
       .finally(() => setLoading(false));
-  }, [materialId]);
+  }, [currentId]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -94,9 +116,9 @@ function MaterialDetailModal({ materialId, onClose, onUpdated }) {
       if (body.buy_price === '') body.buy_price = null;
       if (body.stock === '') body.stock = 0;
       if (body.min_stock === '') body.min_stock = 0;
-      await api.put(`/materials/${materialId}`, body);
+      await api.put(`/materials/${currentId}`, body);
       setEditing(false);
-      const res = await api.get(`/materials/${materialId}`);
+      const res = await api.get(`/materials/${currentId}`);
       setData(res.data);
       onUpdated?.();
     } catch {}
@@ -114,6 +136,11 @@ function MaterialDetailModal({ materialId, onClose, onUpdated }) {
           <div className="p-6 text-center text-gray-400">Не найдено</div>
         ) : (
           <div className="p-6 space-y-4">
+            {stack.length > 0 && (
+              <button onClick={navigateBack} className="flex items-center gap-1 text-xs text-purple-600 hover:text-purple-800 font-medium -mb-2">
+                <ChevronRight size={14} className="rotate-180" /> Назад
+              </button>
+            )}
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-gray-50">
@@ -210,13 +237,14 @@ function MaterialDetailModal({ materialId, onClose, onUpdated }) {
                 </p>
                 <div className="space-y-1.5">
                   {data.recipe.map((r, i) => (
-                    <div key={r.recipe_id || i} className="flex items-center gap-3 px-3 py-2 rounded-lg bg-gray-50 border border-gray-100">
+                    <div key={r.recipe_id || i} className="flex items-center gap-3 px-3 py-2 rounded-lg bg-gray-50 border border-gray-100 cursor-pointer hover:bg-purple-50/30 transition-colors" onClick={() => r.id && navigateTo(r.id)}>
                       <span className="flex-shrink-0">{groupIcon(r.material_group, 16, r.name)}</span>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-800 truncate">{r.name}</p>
+                        <p className="text-sm font-medium text-purple-700 truncate">{r.name}</p>
                         {r.code && <p className="text-[10px] text-gray-400">{r.code}</p>}
                       </div>
                       <span className="text-sm font-bold text-gray-900 flex-shrink-0">{fmtQty(r.quantity)} {r.unit || 'шт'}</span>
+                      <ChevronRight size={14} className="text-gray-300 flex-shrink-0" />
                     </div>
                   ))}
                 </div>
@@ -231,13 +259,14 @@ function MaterialDetailModal({ materialId, onClose, onUpdated }) {
                 </p>
                 <div className="space-y-1.5">
                   {data.used_in_materials.map((m, i) => (
-                    <div key={m.id || i} className="flex items-center gap-3 px-3 py-2 rounded-lg bg-gray-50 border border-gray-100 cursor-pointer hover:bg-purple-50/30" onClick={() => { onClose(); setTimeout(() => setSelectedId?.(m.id), 100); }}>
+                    <div key={m.id || i} className="flex items-center gap-3 px-3 py-2 rounded-lg bg-gray-50 border border-gray-100 cursor-pointer hover:bg-purple-50/30 transition-colors" onClick={() => m.id && navigateTo(m.id)}>
                       <span className="flex-shrink-0">{groupIcon(m.material_group, 16, m.name)}</span>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-[#7c3aed] truncate">{m.name}</p>
+                        <p className="text-sm font-medium text-purple-700 truncate">{m.name}</p>
                         {m.code && <p className="text-[10px] text-gray-400">{m.code}</p>}
                       </div>
                       <span className="text-sm font-bold text-gray-900 flex-shrink-0">{fmtQty(m.quantity)} {data.unit || 'шт'}</span>
+                      <ChevronRight size={14} className="text-gray-300 flex-shrink-0" />
                     </div>
                   ))}
                 </div>
