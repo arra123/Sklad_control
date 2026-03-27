@@ -467,105 +467,156 @@ router.get('/barcode/:value', requireAuth, async (req, res) => {
   }
 });
 
-// POST /api/products/wb-check — check barcode on Wildberries (READ ONLY)
-router.post('/wb-check', requireAuth, requireAdmin, async (req, res) => {
-  const { barcode } = req.body;
-  if (!barcode?.trim()) return res.status(400).json({ error: 'Штрих-код обязателен' });
+// ─── Marketplace stores config ───────────────────────────────────────────────
+const OZON_STORES = {
+  ozon_1: { envClientId: 'OZON_CLIENT_ID', envApiKey: 'OZON_API_KEY', label: 'Ozon ИП И.' },
+  ozon_2: { envClientId: 'OZON2_CLIENT_ID', envApiKey: 'OZON2_API_KEY', label: 'Ozon ИП Е.' },
+};
 
-  const config = require('../config');
-  const token = config.wbToken;
-  if (!token) return res.status(500).json({ error: 'WB_TOKEN не настроен' });
+const WB_STORES = {
+  wb_1: { envToken: 'WB_TOKEN_1', label: 'WB ИП Ирина' },
+  wb_2: { envToken: 'WB_TOKEN_2', label: 'WB ИП Евгений' },
+};
 
+function getWbToken(storeKey) {
+  const store = WB_STORES[storeKey];
+  if (!store) return null;
+  const token = process.env[store.envToken];
+  if (!token) return null;
+  return { token, label: store.label, key: storeKey };
+}
+
+function wbPost(token, body) {
   const https = require('https');
-
-  function wbPost(body) {
-    return new Promise((resolve, reject) => {
-      const data = JSON.stringify(body);
-      const req = https.request({
-        hostname: 'content-api.wildberries.ru',
-        path: '/content/v2/get/cards/list',
-        method: 'POST',
-        headers: {
-          'Authorization': token,
-          'Content-Type': 'application/json',
-        },
-      }, resp => {
-        let buf = '';
-        resp.on('data', c => buf += c);
-        resp.on('end', () => { try { resolve(JSON.parse(buf)); } catch { reject(new Error('Invalid JSON from WB')); } });
-      });
-      req.on('error', reject);
-      req.write(data);
-      req.end();
+  return new Promise((resolve, reject) => {
+    const data = JSON.stringify(body);
+    const req = https.request({
+      hostname: 'content-api.wildberries.ru',
+      path: '/content/v2/get/cards/list',
+      method: 'POST',
+      headers: { 'Authorization': token, 'Content-Type': 'application/json' },
+    }, resp => {
+      let buf = '';
+      resp.on('data', c => buf += c);
+      resp.on('end', () => { try { resolve(JSON.parse(buf)); } catch { reject(new Error('Invalid JSON from WB')); } });
     });
-  }
+    req.on('error', reject);
+    req.write(data);
+    req.end();
+  });
+}
 
-  const bc = barcode.trim();
-
-  try {
-    // Try textSearch first (faster)
-    const searchResult = await wbPost({
-      settings: { cursor: { limit: 100 }, filter: { withPhoto: -1, textSearch: bc } },
-    });
-
-    const cards = searchResult?.cards || searchResult?.data?.cards || [];
+async function fetchWbBarcodeMap(token) {
+  const map = new Map();
+  let cursor = { limit: 100 };
+  for (let page = 0; page < 100; page++) {
+    const result = await wbPost(token, { settings: { cursor, filter: { withPhoto: -1 } } });
+    const cards = result?.cards || result?.data?.cards || [];
+    if (cards.length === 0) break;
     for (const card of cards) {
       for (const size of (card.sizes || [])) {
-        if ((size.skus || []).includes(bc)) {
-          return res.json({
-            found: true,
-            nmID: card.nmID,
-            vendorCode: card.vendorCode,
-            title: card.title,
-            barcode: bc,
-            wbSize: size.techSize || size.wbSize || '',
-          });
+        for (const sku of (size.skus || [])) {
+          map.set(sku, { nmID: card.nmID, vendorCode: card.vendorCode, title: card.title, wbSize: size.techSize || size.wbSize || '' });
         }
       }
     }
+    const updatedCursor = result?.cursor || result?.data?.cursor;
+    if (!updatedCursor?.updatedAt || cards.length < 100) break;
+    cursor = { limit: 100, updatedAt: updatedCursor.updatedAt, nmID: updatedCursor.nmID };
+  }
+  return map;
+}
 
-    // Fallback: paginate through all cards
-    let cursor = { limit: 100 };
-    for (let page = 0; page < 100; page++) {
-      const result = await wbPost({
-        settings: { cursor, filter: { withPhoto: -1 } },
-      });
+// GET /api/products/wb-stores — list configured WB stores
+router.get('/wb-stores', requireAuth, requireAdmin, (req, res) => {
+  const stores = [];
+  for (const [key, cfg] of Object.entries(WB_STORES)) {
+    const creds = getWbToken(key);
+    stores.push({ key, label: cfg.label, configured: !!creds });
+  }
+  res.json(stores);
+});
 
-      const allCards = result?.cards || result?.data?.cards || [];
-      if (allCards.length === 0) break;
+// POST /api/products/check-wb — check barcodes on a specific WB store (READ ONLY)
+router.post('/check-wb', requireAuth, requireAdmin, async (req, res) => {
+  const { barcodes: inputBarcodes, store = 'wb_1' } = req.body;
+  const bcList = Array.isArray(inputBarcodes) ? inputBarcodes.map(b => String(b).trim()).filter(Boolean) : [];
+  if (bcList.length === 0) return res.status(400).json({ error: 'Штрих-коды обязательны' });
 
-      for (const card of allCards) {
-        for (const size of (card.sizes || [])) {
-          if ((size.skus || []).includes(bc)) {
-            return res.json({
-              found: true,
-              nmID: card.nmID,
-              vendorCode: card.vendorCode,
-              title: card.title,
-              barcode: bc,
-              wbSize: size.techSize || size.wbSize || '',
-            });
-          }
-        }
-      }
+  const creds = getWbToken(store);
+  if (!creds) return res.status(500).json({ error: `${WB_STORES[store]?.label || store} API не настроен` });
 
-      const updatedCursor = result?.cursor || result?.data?.cursor;
-      if (!updatedCursor?.updatedAt || allCards.length < 100) break;
-      cursor = { limit: 100, updatedAt: updatedCursor.updatedAt, nmID: updatedCursor.nmID };
+  try {
+    const wbMap = await fetchWbBarcodeMap(creds.token);
+    const results = {};
+    for (const bc of bcList) {
+      const found = wbMap.get(bc);
+      results[bc] = found ? { found: true, wb_product: found } : { found: false };
     }
-
-    res.json({ found: false });
+    res.json({ results });
   } catch (err) {
     res.status(500).json({ error: 'Ошибка WB API: ' + err.message });
   }
 });
 
-// POST /api/products/check-ozon — check barcode on Ozon marketplace (READ ONLY)
-// ─── Ozon stores config ──────────────────────────────────────────────────────
-const OZON_STORES = {
-  ozon_1: { envClientId: 'OZON_CLIENT_ID', envApiKey: 'OZON_API_KEY', label: 'Ozon ИП И.' },
-  ozon_2: { envClientId: 'OZON2_CLIENT_ID', envApiKey: 'OZON2_API_KEY', label: 'Ozon ИП Е.' },
-};
+// POST /api/products/check-wb-all — check ALL products against a specific WB store
+router.post('/check-wb-all', requireAuth, requireAdmin, async (req, res) => {
+  const { store = 'wb_1' } = req.body;
+  const creds = getWbToken(store);
+  if (!creds) return res.status(500).json({ error: `${WB_STORES[store]?.label || store} API не настроен` });
+
+  try {
+    const wbMap = await fetchWbBarcodeMap(creds.token);
+    const productsResult = await pool.query(
+      `SELECT id, name, code, barcode_list, production_barcode, marketplace_barcodes_json
+       FROM products_s WHERE archived = false`
+    );
+
+    const matched = [];
+    const notFound = [];
+
+    for (const product of productsResult.rows) {
+      const allBc = new Set();
+      if (product.production_barcode) allBc.add(product.production_barcode);
+      (product.barcode_list || '').split(';').map(s => s.trim()).filter(Boolean).forEach(bc => allBc.add(bc));
+      const mbj = Array.isArray(product.marketplace_barcodes_json) ? product.marketplace_barcodes_json : [];
+      mbj.forEach(b => { if (b.value) allBc.add(b.value); });
+
+      let foundOnWb = false;
+      const productMatches = [];
+      for (const bc of allBc) {
+        if (wbMap.has(bc)) {
+          foundOnWb = true;
+          productMatches.push({ barcode: bc, wb: wbMap.get(bc) });
+          const existing = mbj.find(m => m.value === bc);
+          if (existing) { existing.type = store; }
+          else { mbj.push({ value: bc, type: store }); }
+        }
+      }
+
+      if (foundOnWb) {
+        await pool.query(
+          'UPDATE products_s SET marketplace_barcodes_json=$1, updated_at=NOW() WHERE id=$2',
+          [JSON.stringify(mbj), product.id]
+        );
+        matched.push({ id: product.id, name: product.name, code: product.code, matches: productMatches });
+      } else {
+        notFound.push({ id: product.id, name: product.name, code: product.code, barcodes: [...allBc] });
+      }
+    }
+
+    res.json({
+      store, label: creds.label,
+      wb_products_count: wbMap.size,
+      our_products_count: productsResult.rows.length,
+      matched_count: matched.length,
+      not_found_count: notFound.length,
+      matched, not_found: notFound,
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Ошибка WB API: ' + err.message });
+  }
+});
 
 function getOzonCredentials(storeKey) {
   const store = OZON_STORES[storeKey];

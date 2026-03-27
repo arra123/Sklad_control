@@ -582,6 +582,99 @@ function OzonBulkCheck() {
   );
 }
 
+// ─── WB Bulk Check ──────────────────────────────────────────────────────────
+function WbBulkCheck() {
+  const toast = useToast();
+  const STORES = [
+    { key: 'wb_1', label: 'WB ИП Ирина' },
+    { key: 'wb_2', label: 'WB ИП Евгений' },
+  ];
+  const [loadingStore, setLoadingStore] = useState(null);
+  const [results, setResults] = useState({});
+
+  const runCheck = async (storeKey, storeLabel) => {
+    setLoadingStore(storeKey);
+    try {
+      const res = await api.post('/products/check-wb-all', { store: storeKey });
+      setResults(prev => ({ ...prev, [storeKey]: res.data }));
+      toast.success(`${storeLabel}: найдено ${res.data.matched_count} из ${res.data.our_products_count}`);
+    } catch (err) {
+      toast.error(`Ошибка ${storeLabel}: ` + (err.response?.data?.error || err.message));
+    } finally {
+      setLoadingStore(null);
+    }
+  };
+
+  return (
+    <div className="card p-6">
+      <div className="flex items-center gap-2 mb-1">
+        <Search className="w-5 h-5 text-violet-500" />
+        <h2 className="font-semibold text-gray-900 dark:text-white">Проверка Wildberries магазинов</h2>
+      </div>
+      <p className="text-xs text-gray-400 mb-4">Проверяет ШК всех товаров и автоматически присваивает метки найденным.</p>
+      <div className="flex gap-2 mb-4">
+        {STORES.map(store => (
+          <Button
+            key={store.key}
+            variant="outline"
+            size="sm"
+            icon={<Search size={14} className={loadingStore === store.key ? 'animate-spin' : ''} />}
+            onClick={() => runCheck(store.key, store.label)}
+            loading={loadingStore === store.key}
+            disabled={!!loadingStore}
+          >
+            {loadingStore === store.key ? `${store.label}...` : store.label}
+          </Button>
+        ))}
+      </div>
+
+      {STORES.map(store => {
+        const result = results[store.key];
+        if (!result) return null;
+        return (
+          <div key={store.key} className="mb-5">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">{store.label}</p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
+              <div className="bg-violet-50 rounded-xl p-3 text-center">
+                <p className="text-lg font-black text-violet-600">{result.wb_products_count}</p>
+                <p className="text-[10px] text-gray-400 uppercase">На {store.label}</p>
+              </div>
+              <div className="bg-gray-50 rounded-xl p-3 text-center">
+                <p className="text-lg font-black text-gray-900">{result.our_products_count}</p>
+                <p className="text-[10px] text-gray-400 uppercase">Наших</p>
+              </div>
+              <div className="bg-green-50 rounded-xl p-3 text-center">
+                <p className="text-lg font-black text-green-600">{result.matched_count}</p>
+                <p className="text-[10px] text-gray-400 uppercase">Совпали</p>
+              </div>
+              <div className="bg-red-50 rounded-xl p-3 text-center">
+                <p className="text-lg font-black text-red-600">{result.not_found_count}</p>
+                <p className="text-[10px] text-gray-400 uppercase">Не найдены</p>
+              </div>
+            </div>
+            {result.not_found?.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-red-500 mb-2">Не найдены ({result.not_found.length})</p>
+                <div className="max-h-[200px] overflow-y-auto space-y-1">
+                  {result.not_found.map(p => (
+                    <div key={p.id} className="flex items-center gap-3 px-3 py-2 bg-red-50 rounded-xl border border-red-100">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-800 truncate">{p.name}</p>
+                        {p.code && <p className="text-[10px] text-gray-400">{p.code}</p>}
+                      </div>
+                      <p className="text-[10px] text-gray-400 flex-shrink-0">{p.barcodes?.length || 0} ШК</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ─── Main Component ──────────────────────────────────────────────────────────
 export default function SettingsPage() {
   const toast = useToast();
@@ -859,6 +952,7 @@ export default function SettingsPage() {
           </div>
 
           <OzonBulkCheck />
+          <WbBulkCheck />
         </div>
       )}
 

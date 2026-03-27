@@ -30,7 +30,8 @@ module.exports = {
   },
   catalogSourceDir: process.env.CATALOG_SOURCE_DIR || 'C:\\ARRA\\Work\\moiskladimport',
   moySkladToken: process.env.MOYSKLAD_TOKEN || '',
-  wbToken: process.env.WB_TOKEN || '',
+  wbToken1: process.env.WB_TOKEN_1 || '',
+  wbToken2: process.env.WB_TOKEN_2 || '',
   moySkladApiBase: 'https://api.moysklad.ru/api/remap/1.2',
   externalDb: {
     host: process.env.EXT_DB_HOST || '5.42.100.180',

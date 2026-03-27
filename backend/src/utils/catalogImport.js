@@ -43,9 +43,9 @@ function extractBarcodes(item) {
       marketplaceBarcodes.push({ type: 'ozon', value: val });
     }
 
-    // Wildberries barcode: starts with 20 or 40
+    // Wildberries barcode: starts with 20 or 40 (store determined later via check-wb)
     if (/^(?:20\d{10,11}|40\d{9,10})$/.test(val)) {
-      marketplaceBarcodes.push({ type: 'wb', value: val });
+      marketplaceBarcodes.push({ type: 'wb', value: val });  // generic wb, refined by bulk check
     }
   }
 
