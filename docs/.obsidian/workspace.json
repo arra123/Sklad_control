@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "Модули/Claude Code Skills.md",
+                "file": "Главная.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "Claude Code Skills"
+              "title": "Главная"
             }
           }
         ]
@@ -94,7 +94,7 @@
             "state": {
               "type": "backlink",
               "state": {
-                "file": "Модули/Claude Code Skills.md",
+                "file": "Главная.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -104,7 +104,7 @@
                 "unlinkedCollapsed": true
               },
               "icon": "links-coming-in",
-              "title": "Обратные ссылки для Claude Code Skills"
+              "title": "Обратные ссылки для Главная"
             }
           },
           {
@@ -113,12 +113,12 @@
             "state": {
               "type": "outgoing-link",
               "state": {
-                "file": "Модули/Claude Code Skills.md",
+                "file": "Главная.md",
                 "linksCollapsed": false,
                 "unlinkedCollapsed": true
               },
               "icon": "links-going-out",
-              "title": "Исходящие ссылки из Claude Code Skills"
+              "title": "Исходящие ссылки из Главная"
             }
           },
           {
@@ -156,13 +156,13 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "Модули/Claude Code Skills.md",
+                "file": "Главная.md",
                 "followCursor": false,
                 "showSearch": false,
                 "searchQuery": ""
               },
               "icon": "lucide-list",
-              "title": "Структура Claude Code Skills"
+              "title": "Структура Главная"
             }
           }
         ]
@@ -185,16 +185,20 @@
   },
   "active": "7882241d60643aca",
   "lastOpenFiles": [
-    "Модули/Товары.md",
+    "Модули/Настройки.md",
+    "Модули/Сотрудники.md",
+    "Модули/Аналитика.md",
+    "Интеграции/Wildberries API.md",
+    "Changelog.md",
+    "Главная.md",
+    "Словарь.md",
     "Модули/Claude Code Skills.md",
+    "Модули/Товары.md",
     "Модули/Сырьё.md",
     "Модули/Стеллажный склад.md",
     "Модули/Перемещения.md",
     "Модули/Паллетный склад.md",
     "Модули/Задачи.md",
-    "Главная.md",
-    "Changelog.md",
-    "Словарь.md",
     "Словарь.md.tmp.12512.1774606045845",
     "Модули/FBS склад.md",
     "Модули/FBO паллеты.md",

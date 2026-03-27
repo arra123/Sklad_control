@@ -2,192 +2,194 @@
 
 Все роуты под префиксом `/api/`. Авторизация через JWT Bearer token.
 
-## Auth (`/api/auth`)
-| Метод | Путь | Описание |
-|---|---|---|
-| POST | /login | Логин (username + password) |
-| GET | /me | Текущий пользователь |
-| POST | /change-password | Смена пароля |
+Базовый health check: `GET /api/health` → `{ ok: true }`
 
-## Products (`/api/products`)
-| Метод | Путь | Описание |
-|---|---|---|
-| GET | / | Список товаров (поиск, фильтры, пагинация) |
-| GET | /stats | Статистика каталога |
-| GET | /:id | Детали товара с компонентами |
-| POST | / | Создать товар |
-| PUT | /:id | Обновить товар |
-| DELETE | /:id | Удалить товар |
-| POST | /:id/components | Добавить компонент в бандл |
-| PUT | /:id/components/:compId | Обновить компонент бандла |
-| DELETE | /:id/components/:compId | Удалить компонент бандла |
-| GET | /barcode/:value | Найти товар по штрихкоду |
-| POST | /wb-check | Проверка на Wildberries |
-| GET | /ozon-stores | Список магазинов OZON |
-| POST | /check-ozon | Проверка на OZON |
-| POST | /check-ozon-all | Проверка всех товаров OZON |
-| PUT | /:id/barcode-type | Тип штрихкода |
-| POST | /:id/barcode | Добавить штрихкод |
-| DELETE | /:id/barcode | Удалить штрихкод |
-| POST | /sync | Синхронизация каталога |
-| GET | /import/history | История импорта |
+## Auth (`/api/auth`) — `backend/src/routes/auth.js`
+| Метод | Путь | Доступ | Описание |
+|---|---|---|---|
+| POST | /login | public (rate limit 15/мин) | Логин (username + password) → token + user |
+| GET | /me | auth | Текущий пользователь с ролью и правами |
+| POST | /change-password | auth | Смена пароля (current + new) |
 
-## Materials (`/api/materials`)
-| Метод | Путь | Описание |
-|---|---|---|
-| GET | / | Список сырья (фильтры) |
-| GET | /stats | Статистика по категориям |
-| GET | /:id | Детали материала с рецептами |
-| POST | / | Создать материал |
-| PUT | /:id | Обновить материал |
-| DELETE | /:id | Удалить материал |
-| POST | /:id/recipe | Добавить ингредиент |
-| DELETE | /:id/recipe/:recipeId | Удалить ингредиент |
+## Products (`/api/products`) — `backend/src/routes/products.js`
+| Метод | Путь | Доступ | Описание |
+|---|---|---|---|
+| GET | / | auth | Список товаров (поиск, фильтры, пагинация) |
+| GET | /stats | auth | Статистика каталога (кол-во, бандлы, архивные) |
+| GET | /:id | auth | Детали товара с компонентами бандла |
+| POST | / | admin | Создать товар |
+| PUT | /:id | admin | Обновить товар |
+| DELETE | /:id | admin | Удалить товар |
+| POST | /:id/components | admin | Добавить компонент в бандл |
+| PUT | /:id/components/:compId | admin | Обновить компонент бандла |
+| DELETE | /:id/components/:compId | admin | Удалить компонент бандла |
+| GET | /barcode/:value | auth | Найти товар по штрихкоду |
+| POST | /wb-check | admin | Проверка штрихкода на Wildberries |
+| GET | /ozon-stores | admin | Список настроенных магазинов OZON |
+| POST | /check-ozon | admin | Проверка штрихкодов на OZON (по магазину) |
+| POST | /check-ozon-all | admin | Проверка всех товаров на OZON |
+| PUT | /:id/barcode-type | admin | Изменить тип штрихкода |
+| POST | /:id/barcode | admin | Добавить штрихкод |
+| DELETE | /:id/barcode | admin | Удалить штрихкод |
+| POST | /sync | admin | Синхронизация каталога из МойСклад |
+| GET | /import/history | admin | История импорта (последние 10) |
 
-## Стеллажный склад (`/api/warehouse`)
-| Метод | Путь | Описание |
-|---|---|---|
-| GET | /warehouses | Список складов |
-| GET | /warehouses/:id | Склад со стеллажами и полками |
-| POST | /warehouses | Создать склад |
-| PUT | /warehouses/:id | Обновить склад |
-| DELETE | /warehouses/:id | Удалить склад |
-| GET | /racks | Список стеллажей |
-| GET | /racks/:id | Стеллаж с полками |
-| POST | /racks | Создать стеллаж |
-| PUT | /racks/:id | Обновить стеллаж |
-| DELETE | /racks/:id | Удалить стеллаж |
-| GET | /shelves/:id | Детали полки |
-| GET | /shelves/barcode/:value | Полка по штрихкоду |
-| POST | /shelves | Создать полку |
-| PUT | /shelves/:id | Обновить полку |
-| DELETE | /shelves/:id | Удалить полку |
-| POST | /shelves/:id/set | Установить содержимое полки |
-| GET | /shelf-boxes/:id | Коробки полки |
-| POST | /shelves/:id/box | Создать коробку на полке |
-| PUT | /shelf-boxes/:id | Обновить коробку |
-| DELETE | /shelf-boxes/:id | Удалить коробку |
-| GET | /stats | Статистика склада |
-| GET | /movements | История движений |
-| GET | /visual/:warehouseId | Визуальный склад |
-| GET | /visual-fbs/:warehouseId | Визуальный стеллажный склад |
-| POST | /visual-fbs/move | Перемещение в визуальном стеллажном складе |
+## Materials (`/api/materials`) — `backend/src/routes/materials.js`
+| Метод | Путь | Доступ | Описание |
+|---|---|---|---|
+| GET | / | auth | Список сырья (фильтры по category, material_group, поиск) |
+| GET | /stats | auth | Статистика по категориям |
+| GET | /:id | auth | Детали материала с рецептами и техкартами |
+| POST | / | admin | Создать материал |
+| PUT | /:id | admin | Обновить материал |
+| DELETE | /:id | admin | Удалить материал |
+| POST | /:id/recipe | admin | Добавить ингредиент в рецепт |
+| DELETE | /:id/recipe/:recipeId | admin | Удалить ингредиент из рецепта |
 
-## Паллетный склад (`/api/fbo`)
-| Метод | Путь | Описание |
-|---|---|---|
-| GET | /warehouses | Список Паллетный складов |
-| POST | /warehouses | Создать Паллетный склад |
-| DELETE | /warehouses/:id | Удалить Паллетный склад |
-| GET | /warehouses/:id | Склад с рядами и паллетами |
-| POST | /rows | Создать ряд |
-| PUT | /rows/:id | Обновить ряд |
-| DELETE | /rows/:id | Удалить ряд |
-| GET | /rows/:id | Ряд с паллетами |
-| POST | /pallets | Создать паллет |
-| DELETE | /pallets/:id | Удалить паллет |
-| GET | /pallets/:id | Детали паллета |
-| POST | /pallets/:id/box | Создать коробку на паллете |
-| POST | /pallets/:id/item | Россыпь на паллет |
-| PUT | /pallets/:palletId/item/:productId | Обновить кол-во россыпи |
-| GET | /boxes/:id | Детали коробки |
-| PUT | /boxes/:id | Обновить коробку |
-| DELETE | /boxes/:id | Удалить коробку |
-| GET | /pallets-list | Список паллетов для выбора |
-| POST | /visual/move | Перемещение в визуальном паллетном складе |
-| GET | /visual/:warehouseId | Визуальный паллетный склад |
+## Стеллажный склад (`/api/warehouse`) — `backend/src/routes/warehouse.js`
+| Метод | Путь | Доступ | Описание |
+|---|---|---|---|
+| GET | /warehouses | auth | Список складов (со счётчиками) |
+| GET | /warehouses/:id | auth | Склад со стеллажами и полками |
+| POST | /warehouses | admin | Создать склад |
+| PUT | /warehouses/:id | admin | Обновить склад |
+| DELETE | /warehouses/:id | admin | Удалить склад |
+| GET | /racks | auth | Список стеллажей (фильтр по warehouse_id) |
+| GET | /racks/:id | auth | Стеллаж с полками и содержимым |
+| POST | /racks | admin | Создать стеллаж |
+| PUT | /racks/:id | admin | Обновить стеллаж |
+| DELETE | /racks/:id | admin | Удалить стеллаж |
+| GET | /shelves/barcode/:value | auth | Полка по штрихкоду |
+| GET | /shelves/:id | auth | Детали полки с товарами и коробками |
+| POST | /shelves | admin | Создать полку |
+| PUT | /shelves/:id | admin | Обновить полку |
+| DELETE | /shelves/:id | admin | Удалить полку |
+| POST | /shelves/:id/set | auth | Установить содержимое полки (inventory) |
+| GET | /shelf-boxes/:id | auth | Детали коробки на полке |
+| POST | /shelves/:id/box | admin | Создать коробку на полке |
+| PUT | /shelf-boxes/:id | admin | Обновить коробку на полке |
+| DELETE | /shelf-boxes/:id | admin | Удалить коробку с полки |
+| GET | /stats | auth | Статистика склада |
+| GET | /movements | auth | История движений (shelf_movements_s) |
+| GET | /visual/:warehouseId | auth | Визуальный склад (для visual warehouse) |
+| GET | /visual-fbs/:warehouseId | auth | Визуальный стеллажный склад |
+| POST | /visual-fbs/move | auth | Перемещение в визуальном стеллажном складе |
 
-## Tasks (`/api/tasks`)
-| Метод | Путь | Описание |
-|---|---|---|
-| GET | / | Список задач (фильтры) |
-| GET | /stats/summary | Сводка статистики |
-| GET | /analytics/summary | Аналитика |
-| GET | /analytics/inventory-overview | Обзор инвентаризации |
-| GET | /analytics/inventory-history | История инвентаризации |
-| GET | /analytics/audit-report | Аудит-отчёт |
-| GET | /analytics/table-report | Табличный отчёт |
-| GET | /errors | Ошибки сканирования |
-| PUT | /errors/:id/resolve | Разрешить ошибку |
-| GET | /busy-targets | Занятые цели |
-| GET | /:id | Детали задачи |
-| GET | /:id/analytics | Аналитика задачи |
-| POST | / | Создать задачу |
-| PUT | /:id | Обновить задачу |
-| DELETE | /:id | Удалить задачу |
-| POST | /:id/start | Начать выполнение |
-| POST | /:id/scan | Записать сканирование |
-| POST | /:id/report-error | Сообщить об ошибке |
-| POST | /:id/abandon-box | Бросить коробку |
-| POST | /:id/next-shelf | Следующая полка (мульти-полка) |
-| POST | /:id/complete | Завершить задачу |
+## Паллетный склад (`/api/fbo`) — `backend/src/routes/fbo.js`
+| Метод | Путь | Доступ | Описание |
+|---|---|---|---|
+| GET | /warehouses | auth | Список FBO складов |
+| POST | /warehouses | admin/manager | Создать FBO склад |
+| DELETE | /warehouses/:id | admin/manager | Удалить FBO склад |
+| GET | /warehouses/:id | auth | Склад с рядами и статистикой |
+| POST | /rows | admin/manager | Создать ряд |
+| PUT | /rows/:id | admin/manager | Обновить ряд |
+| DELETE | /rows/:id | admin/manager | Удалить ряд |
+| GET | /rows/:id | auth | Ряд с паллетами и статистикой |
+| POST | /pallets | admin/manager | Создать паллет |
+| DELETE | /pallets/:id | admin/manager | Удалить паллет |
+| GET | /pallets/:id | auth | Паллет с коробками и россыпью |
+| POST | /pallets/:id/box | admin/manager | Добавить коробку на паллет |
+| POST | /pallets/:id/item | admin/manager | Добавить товар россыпью на паллет |
+| PUT | /pallets/:palletId/item/:productId | admin/manager | Обновить кол-во россыпи |
+| GET | /boxes/:id | auth | Детали коробки с товарами |
+| PUT | /boxes/:id | admin/manager | Обновить коробку |
+| DELETE | /boxes/:id | admin/manager | Удалить коробку |
+| GET | /pallets-list | auth | Плоский список паллетов (для выбора) |
+| POST | /visual/move | auth | Перемещение коробки между паллетами |
+| GET | /visual/:warehouseId | auth | Визуальный паллетный склад |
 
-## Packing (`/api/packing`)
-| Метод | Путь | Описание |
-|---|---|---|
-| GET | /:taskId | Состояние задачи упаковки |
-| POST | /:taskId/start | Начать упаковку |
-| POST | /:taskId/open-box | Открыть коробку |
-| POST | /:taskId/confirm-box | Подтвердить коробку |
-| POST | /:taskId/scan | Сканировать товар |
-| POST | /:taskId/close-box | Закрыть коробку |
-| POST | /:taskId/close-remainder | Закрыть остаток |
-| POST | /:taskId/complete | Завершить упаковку |
-| GET | /:taskId/remainder-shelf | Полка остатков |
-| GET | /:taskId/boxes | Коробки задачи |
-| POST | /:taskId/cancel-box | Отменить коробку |
+## Tasks (`/api/tasks`) — `backend/src/routes/tasks.js`
+| Метод | Путь | Доступ | Описание |
+|---|---|---|---|
+| GET | / | auth | Список задач (фильтры по status, task_type, employee_id) |
+| GET | /stats/summary | admin | Сводка статистики задач |
+| GET | /analytics/summary | admin | Аналитика по задачам |
+| GET | /analytics/inventory-overview | admin | Обзор инвентаризации |
+| GET | /analytics/inventory-history | admin | История инвентаризации |
+| GET | /analytics/audit-report | admin | Аудит-отчёт |
+| GET | /analytics/table-report | admin | Табличный отчёт (дерево: склад→стеллаж→полка) |
+| GET | /errors | admin | Ошибки сканирования |
+| PUT | /errors/:id/resolve | admin | Разрешить ошибку |
+| GET | /busy-targets | admin/manager | Занятые цели (полки/паллеты с активными задачами) |
+| GET | /:id | auth | Детали задачи |
+| GET | /:id/analytics | auth | Аналитика конкретной задачи |
+| POST | / | admin/manager | Создать задачу |
+| POST | /:id/next-shelf | auth | Перейти к следующей полке (мульти-полка) |
+| PUT | /:id | admin/manager | Обновить задачу |
+| DELETE | /:id | admin/manager | Удалить задачу |
+| POST | /:id/start | auth | Начать выполнение |
+| POST | /:id/scan | auth | Записать сканирование |
+| POST | /:id/report-error | auth | Сообщить об ошибке сканирования |
+| POST | /:id/abandon-box | auth | Бросить коробку |
+| POST | /:id/complete | auth | Завершить задачу |
 
-## Movements (`/api/movements`)
-| Метод | Путь | Описание |
-|---|---|---|
-| POST | /scan | Распознать штрихкод (паллет/полка/коробка/товар) |
-| POST | /move | Универсальное перемещение |
-| GET | /history | История перемещений |
-| GET | /stats | Статистика перемещений |
-| GET | /employee-inventory/:employeeId | Инвентарь сотрудника |
-| GET | /my-inventory | Мой инвентарь |
-| GET | /all-employee-inventory | Инвентарь всех сотрудников |
-| PUT | /employee-inventory/:employeeId/:productId | Обновить инвентарь |
-| DELETE | /employee-inventory/:employeeId/:productId | Удалить из инвентаря |
-| POST | /employee-inventory/:employeeId | Добавить в инвентарь |
+## Packing (`/api/packing`) — `backend/src/routes/packing.js`
+| Метод | Путь | Доступ | Описание |
+|---|---|---|---|
+| GET | /:taskId | auth | Состояние задачи упаковки |
+| POST | /:taskId/start | auth | Начать упаковку |
+| POST | /:taskId/open-box | auth | Открыть коробку |
+| POST | /:taskId/confirm-box | auth | Подтвердить коробку |
+| POST | /:taskId/scan | auth | Сканировать товар в коробку |
+| POST | /:taskId/close-box | auth | Закрыть коробку |
+| POST | /:taskId/close-remainder | auth | Закрыть остаток |
+| POST | /:taskId/complete | auth | Завершить упаковку |
+| GET | /:taskId/remainder-shelf | auth | Полка для остатков |
+| GET | /:taskId/boxes | auth | Коробки задачи |
+| POST | /:taskId/cancel-box | auth | Отменить коробку |
 
-## Staff (`/api/staff`)
-| Метод | Путь | Описание |
-|---|---|---|
-| GET | /employees | Список сотрудников |
-| GET | /external-employees | Сотрудники из внешней БД |
-| POST | /employees | Создать сотрудника |
-| GET | /employees/:id/credentials | Учётные данные |
-| PUT | /employees/:id | Обновить сотрудника |
-| DELETE | /employees/:id | Удалить сотрудника |
-| GET | /roles | Список ролей |
-| POST | /roles | Создать роль |
-| PUT | /roles/:id | Обновить роль |
-| DELETE | /roles/:id | Удалить роль |
-| GET | /users | Список пользователей |
-| POST | /users | Создать учётную запись |
-| PUT | /users/:id | Обновить пользователя |
-| DELETE | /users/:id | Удалить пользователя |
+## Movements (`/api/movements`) — `backend/src/routes/movements.js`
+| Метод | Путь | Доступ | Описание |
+|---|---|---|---|
+| POST | /scan | auth | Распознать штрихкод (паллет/полка/коробка/товар) |
+| POST | /move | auth | Универсальное перемещение товара |
+| GET | /history | auth | История перемещений (пагинация, фильтры) |
+| GET | /stats | auth | Статистика перемещений |
+| GET | /employee-inventory/:employeeId | auth | Инвентарь сотрудника |
+| GET | /my-inventory | auth | Мой инвентарь (текущий пользователь) |
+| GET | /all-employee-inventory | admin | Инвентарь всех сотрудников |
+| PUT | /employee-inventory/:employeeId/:productId | admin | Обновить количество в инвентаре |
+| DELETE | /employee-inventory/:employeeId/:productId | admin | Удалить из инвентаря |
+| POST | /employee-inventory/:employeeId | admin | Добавить в инвентарь сотрудника |
 
-## Earnings (`/api/earnings`)
-| Метод | Путь | Описание |
-|---|---|---|
-| GET | /summary | Сводка начислений |
-| GET | /employees | Список заработков сотрудников |
-| GET | /employees/:employeeId | Детали заработка сотрудника |
-| GET | /tasks/:taskId | Заработок по задаче |
-| POST | /employees/:employeeId/set-balance | Установить баланс |
+## Staff (`/api/staff`) — `backend/src/routes/staff.js`
+| Метод | Путь | Доступ | Описание |
+|---|---|---|---|
+| GET | /employees | admin | Список сотрудников |
+| GET | /external-employees | admin | Сотрудники из внешней БД (для привязки) |
+| POST | /employees | admin | Создать сотрудника (+ опционально учётную запись) |
+| GET | /employees/:id/credentials | admin | Учётные данные сотрудника |
+| PUT | /employees/:id | admin | Обновить сотрудника |
+| DELETE | /employees/:id | admin | Удалить сотрудника |
+| GET | /roles | auth | Список ролей с правами |
+| POST | /roles | admin | Создать роль |
+| PUT | /roles/:id | admin | Обновить роль (имя, права) |
+| DELETE | /roles/:id | admin | Удалить роль |
+| GET | /users | admin | Список пользователей |
+| POST | /users | admin | Создать учётную запись |
+| PUT | /users/:id | admin | Обновить пользователя |
+| DELETE | /users/:id | admin | Удалить пользователя |
 
-## Errors (`/api/errors`)
-| Метод | Путь | Описание |
-|---|---|---|
-| POST | /system | Логировать ошибку фронтенда |
-| GET | /system | Список ошибок (admin) |
-| DELETE | /system/:id | Удалить запись ошибки |
-| DELETE | /system | Очистить все ошибки |
+## Earnings (`/api/earnings`) — `backend/src/routes/earnings.js`
+| Метод | Путь | Доступ | Описание |
+|---|---|---|---|
+| GET | /summary | admin | Сводка начислений (общий баланс, за сегодня/неделю) |
+| GET | /employees | admin | Список заработков всех сотрудников |
+| GET | /employees/:employeeId | admin | Детали заработка сотрудника (с пагинацией) |
+| GET | /tasks/:taskId | admin | Заработок по задаче |
+| POST | /employees/:employeeId/set-balance | admin | Установить баланс GRACoin |
 
-## Settings (`/api/settings`)
-| Метод | Путь | Описание |
-|---|---|---|
-| GET | / | Получить все настройки |
-| PUT | / | Обновить настройки (admin) |
+## Errors (`/api/errors`) — `backend/src/routes/syserrors.js`
+| Метод | Путь | Доступ | Описание |
+|---|---|---|---|
+| POST | /system | public (rate limit 30/мин) | Логировать ошибку фронтенда |
+| GET | /system | admin | Список ошибок |
+| DELETE | /system/:id | admin | Удалить запись ошибки |
+| DELETE | /system | admin | Очистить все ошибки |
+
+## Settings (`/api/settings`) — `backend/src/routes/settings.js`
+| Метод | Путь | Доступ | Описание |
+|---|---|---|---|
+| GET | / | auth | Получить все настройки |
+| PUT | / | admin | Обновить настройки (UPSERT по ключам) |
