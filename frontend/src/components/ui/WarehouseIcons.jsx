@@ -511,6 +511,106 @@ export function SuppliesIcon({ size = 20, className = '', style }) {
   );
 }
 
+// ─── Individual supply/consumable icons ──────────────────────────────────────
+
+export function JarLidIcon({ size = 20, className = '', style }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className} style={style}>
+      {/* Lid — top view */}
+      <ellipse cx="24" cy="24" rx="18" ry="8" fill="#5a8ab0" stroke="#3a6a90" strokeWidth="1.3"/>
+      {/* Lid top surface */}
+      <ellipse cx="24" cy="22" rx="18" ry="8" fill="#7aaad0" stroke="#5a8ab0" strokeWidth="1.2"/>
+      {/* Grip ridges */}
+      <ellipse cx="24" cy="22" rx="14" ry="5.5" fill="none" stroke="#5a8ab0" strokeWidth=".6" opacity=".4"/>
+      <ellipse cx="24" cy="22" rx="10" ry="3.5" fill="none" stroke="#5a8ab0" strokeWidth=".5" opacity=".3"/>
+      {/* Center dimple */}
+      <ellipse cx="24" cy="21.5" rx="5" ry="2" fill="#5a8ab0" opacity=".25"/>
+      {/* Shine */}
+      <path d="M14 19c4-2 12-2 16 0" stroke="white" strokeWidth="1.2" opacity=".3" strokeLinecap="round" fill="none"/>
+    </svg>
+  );
+}
+
+export function PetJarIcon({ size = 20, className = '', style }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className} style={style}>
+      {/* Jar body — transparent PET */}
+      <rect x="10" y="14" width="28" height="28" rx="4" fill="#e8f4f8" stroke="#80b8d0" strokeWidth="1.3"/>
+      {/* Jar neck */}
+      <rect x="16" y="8" width="16" height="8" rx="2" fill="#d0ecf4" stroke="#80b8d0" strokeWidth="1"/>
+      {/* Thread ridges */}
+      <line x1="16" y1="10" x2="32" y2="10" stroke="#80b8d0" strokeWidth=".5" opacity=".5"/>
+      <line x1="16" y1="12" x2="32" y2="12" stroke="#80b8d0" strokeWidth=".5" opacity=".4"/>
+      {/* Bottom curve */}
+      <path d="M12 40c0 1.5 2 2.5 5 2.5h14c3 0 5-1 5-2.5" stroke="#80b8d0" strokeWidth=".6" fill="none" opacity=".5"/>
+      {/* Shine */}
+      <path d="M33 16v22" stroke="white" strokeWidth="2" opacity=".35" strokeLinecap="round"/>
+      <path d="M15 18v16" stroke="white" strokeWidth="1" opacity=".15" strokeLinecap="round"/>
+    </svg>
+  );
+}
+
+export function VacuumFlaskIcon({ size = 20, className = '', style }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className} style={style}>
+      {/* Flask body — tall narrow */}
+      <rect x="16" y="16" width="16" height="26" rx="8" fill="#f0e8f4" stroke="#9070b0" strokeWidth="1.3"/>
+      {/* Neck */}
+      <rect x="20" y="10" width="8" height="8" rx="1.5" fill="#e0d4ec" stroke="#9070b0" strokeWidth="1"/>
+      {/* Pump dispenser top */}
+      <rect x="18" y="4" width="12" height="3" rx="1.5" fill="#9070b0"/>
+      {/* Pump nozzle */}
+      <rect x="30" y="5" width="8" height="2" rx="1" fill="#a888c0"/>
+      <circle cx="38" cy="6" r="1.5" fill="#9070b0"/>
+      {/* Pump tube */}
+      <line x1="24" y1="7" x2="24" y2="10" stroke="#9070b0" strokeWidth="1.2"/>
+      {/* Fill level */}
+      <rect x="17" y="28" width="14" height="13" rx="7" fill="#d4c0e8" opacity=".4"/>
+      {/* Shine */}
+      <path d="M28 18v18" stroke="white" strokeWidth="1.2" opacity=".3" strokeLinecap="round"/>
+    </svg>
+  );
+}
+
+export function MembraneIcon({ size = 20, className = '', style }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className} style={style}>
+      {/* Membrane disc — top view */}
+      <ellipse cx="24" cy="26" rx="18" ry="10" fill="#f0f0f0" stroke="#b0b0b0" strokeWidth="1.2"/>
+      {/* Inner foil ring */}
+      <ellipse cx="24" cy="25" rx="14" ry="7.5" fill="#e8e0d4" stroke="#c0b090" strokeWidth=".8"/>
+      {/* Foil surface — metallic */}
+      <ellipse cx="24" cy="24.5" rx="14" ry="7.5" fill="#d8d0c0" stroke="#b0a080" strokeWidth="1"/>
+      {/* Pull tab */}
+      <rect x="32" y="16" width="8" height="5" rx="2" fill="#c0b090" stroke="#a09070" strokeWidth=".8"/>
+      <line x1="34" y1="21" x2="34" y2="24" stroke="#a09070" strokeWidth=".7"/>
+      {/* Seal pattern */}
+      <ellipse cx="24" cy="24.5" rx="8" ry="4" fill="none" stroke="#c0b090" strokeWidth=".5" opacity=".5"/>
+      {/* Shine */}
+      <path d="M16 22c4-1.5 12-1.5 16 0" stroke="white" strokeWidth=".8" opacity=".35" fill="none"/>
+    </svg>
+  );
+}
+
+export function CapsuleEmptyIcon({ size = 20, className = '', style }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className} style={style}>
+      {/* Bottom half — transparent/cream */}
+      <rect x="14" y="4" width="20" height="40" rx="10" fill="#f8f4e8" stroke="#c0b898" strokeWidth="1.2"/>
+      {/* Top half — translucent clear */}
+      <rect x="14" y="4" width="20" height="20" rx="10" fill="#f0ece0" stroke="#c8c0a8" strokeWidth="1.2"/>
+      {/* Join line — separation visible */}
+      <line x1="14" y1="24" x2="34" y2="24" stroke="#c0b898" strokeWidth="1.2"/>
+      {/* Empty inside hint — dashed */}
+      <ellipse cx="24" cy="24" rx="6" ry="12" fill="none" stroke="#d0c8b0" strokeWidth=".5" strokeDasharray="2 2" opacity=".4"/>
+      {/* Shine on top */}
+      <path d="M29 10v8" stroke="white" strokeWidth="1.5" opacity=".35" strokeLinecap="round"/>
+      {/* Shine on bottom */}
+      <path d="M29 28v8" stroke="white" strokeWidth="1" opacity=".2" strokeLinecap="round"/>
+    </svg>
+  );
+}
+
 // ─── Sidebar navigation icons ────────────────────────────────────────────────
 
 export function NavDashboardIcon({ size = 20, className = '', style }) {

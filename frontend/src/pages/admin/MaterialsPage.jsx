@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Search, Package, X, ChevronRight, Save, Pencil } from 'lucide-react';
-import { RawMaterialsIcon, IngredientIcon, PackagingMaterialIcon, TechCardIcon, PowderIcon, SemiProductIcon, LabelIcon, SuppliesIcon, MixIcon } from '../../components/ui/WarehouseIcons';
+import { RawMaterialsIcon, IngredientIcon, PackagingMaterialIcon, TechCardIcon, PowderIcon, SemiProductIcon, LabelIcon, SuppliesIcon, MixIcon, JarLidIcon, PetJarIcon, VacuumFlaskIcon, MembraneIcon, CapsuleEmptyIcon } from '../../components/ui/WarehouseIcons';
 import api from '../../api/client';
 import Spinner from '../../components/ui/Spinner';
 
@@ -25,7 +25,28 @@ const GROUP_LABELS = {
   'другое': { label: 'Другое', color: 'bg-gray-100 text-gray-600', Icon: PackagingMaterialIcon },
 };
 
-function groupIcon(group, size = 18) {
+const SUPPLY_ICONS = {
+  'крышк':   JarLidIcon,
+  'банк':    PetJarIcon,
+  'флакон':  VacuumFlaskIcon,
+  'дозатор': VacuumFlaskIcon,
+  'мембран': MembraneIcon,
+  'капсул':  CapsuleEmptyIcon,
+};
+
+function getSupplyIcon(name) {
+  const lower = (name || '').toLowerCase();
+  for (const [key, Icon] of Object.entries(SUPPLY_ICONS)) {
+    if (lower.includes(key)) return Icon;
+  }
+  return SuppliesIcon;
+}
+
+function groupIcon(group, size = 18, materialName) {
+  if (group === 'расходники') {
+    const Icon = getSupplyIcon(materialName);
+    return <Icon size={size} />;
+  }
   const g = GROUP_LABELS[group] || GROUP_LABELS['другое'];
   const Icon = g.Icon;
   return <Icon size={size} />;
@@ -96,7 +117,7 @@ function MaterialDetailModal({ materialId, onClose, onUpdated }) {
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-gray-50">
-                  {groupIcon(data.material_group, 28)}
+                  {groupIcon(data.material_group, 28, data.name)}
                 </div>
                 <div>
                   <h2 className="text-lg font-bold text-gray-900">{data.name}</h2>
@@ -190,7 +211,7 @@ function MaterialDetailModal({ materialId, onClose, onUpdated }) {
                 <div className="space-y-1.5">
                   {data.recipe.map((r, i) => (
                     <div key={r.recipe_id || i} className="flex items-center gap-3 px-3 py-2 rounded-lg bg-gray-50 border border-gray-100">
-                      <span className="flex-shrink-0">{groupIcon(r.material_group, 16)}</span>
+                      <span className="flex-shrink-0">{groupIcon(r.material_group, 16, r.name)}</span>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-800 truncate">{r.name}</p>
                         {r.code && <p className="text-[10px] text-gray-400">{r.code}</p>}
@@ -211,7 +232,7 @@ function MaterialDetailModal({ materialId, onClose, onUpdated }) {
                 <div className="space-y-1.5">
                   {data.used_in_materials.map((m, i) => (
                     <div key={m.id || i} className="flex items-center gap-3 px-3 py-2 rounded-lg bg-gray-50 border border-gray-100 cursor-pointer hover:bg-purple-50/30" onClick={() => { onClose(); setTimeout(() => setSelectedId?.(m.id), 100); }}>
-                      <span className="flex-shrink-0">{groupIcon(m.material_group, 16)}</span>
+                      <span className="flex-shrink-0">{groupIcon(m.material_group, 16, m.name)}</span>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-[#7c3aed] truncate">{m.name}</p>
                         {m.code && <p className="text-[10px] text-gray-400">{m.code}</p>}
@@ -389,7 +410,7 @@ export default function MaterialsPage() {
                   <tr key={m.id} onClick={() => setSelectedId(m.id)} className="border-b border-gray-50 hover:bg-purple-50/30 cursor-pointer transition-colors">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
-                        {groupIcon(m.material_group)}
+                        {groupIcon(m.material_group, 18, m.name)}
                         <span className="font-medium text-gray-800">{m.name}</span>
                       </div>
                     </td>
