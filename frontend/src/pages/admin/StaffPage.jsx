@@ -992,7 +992,11 @@ export default function StaffPage() {
   const [editEmployee, setEditEmployee] = useState(null);
   const [showUserModal, setShowUserModal] = useState(false);
   const [editUser, setEditUser] = useState(null);
-  const [drillEmployee, setDrillEmployee] = useState(null);
+  const drillId = searchParams.get('employee');
+  const setDrillEmployee = (emp) => {
+    if (emp) setSearchParams({ tab, employee: emp.id });
+    else setSearchParams({ tab });
+  };
 
   const loadAll = useCallback(async () => {
     setLoading(true);
@@ -1071,8 +1075,8 @@ export default function StaffPage() {
         ))}
       </div>
 
-      {drillEmployee ? (
-        <EmployeeDetailView employee={drillEmployee} onBack={() => { setDrillEmployee(null); loadAll(); }} />
+      {drillId && employees.find(e => String(e.id) === drillId) ? (
+        <EmployeeDetailView employee={employees.find(e => String(e.id) === drillId)} onBack={() => { setDrillEmployee(null); loadAll(); }} />
       ) : loading ? (
         <div className="flex items-center justify-center h-48"><Spinner size="lg" /></div>
       ) : tab === 'employees' ? (

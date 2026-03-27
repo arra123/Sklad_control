@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Search, Package, X, ChevronRight, Save, Pencil } from 'lucide-react';
 import { RawMaterialsIcon, IngredientIcon, PackagingMaterialIcon, TechCardIcon, PowderIcon, SemiProductIcon, LabelIcon, SuppliesIcon, MixIcon, JarLidIcon, PetJarIcon, VacuumFlaskIcon, MembraneIcon, CapsuleEmptyIcon } from '../../components/ui/WarehouseIcons';
 import api from '../../api/client';
@@ -299,8 +300,27 @@ function MaterialDetailModal({ materialId, onClose, onUpdated }) {
 /* ═══════════════════ Main Page ═══════════════════ */
 
 export default function MaterialsPage() {
-  const [search, setSearch] = useState('');
-  const [group, setGroup] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const selectedId = searchParams.get('id') ? parseInt(searchParams.get('id')) : null;
+  const search = searchParams.get('search') || '';
+  const group = searchParams.get('group') || '';
+
+  const setSelectedId = (id) => {
+    const p = new URLSearchParams(searchParams);
+    if (id) p.set('id', id); else p.delete('id');
+    setSearchParams(p);
+  };
+  const setSearch = (val) => {
+    const p = new URLSearchParams(searchParams);
+    if (val) p.set('search', val); else p.delete('search');
+    setSearchParams(p);
+  };
+  const setGroup = (val) => {
+    const p = new URLSearchParams(searchParams);
+    if (val) p.set('group', val); else p.delete('group');
+    setSearchParams(p);
+  };
+
   const [archived, setArchived] = useState(false);
   const [page, setPage] = useState(1);
   const limit = 50;
@@ -309,7 +329,6 @@ export default function MaterialsPage() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({ total: 0, groups: [] });
-  const [selectedId, setSelectedId] = useState(null);
   const [sortBy, setSortBy] = useState('stock');
   const [sortDir, setSortDir] = useState('desc');
 

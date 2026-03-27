@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Plus, ClipboardList, Clock, CheckCircle2, XCircle, X,
   AlertTriangle, ScanLine, RefreshCw, Package, Box, MapPin
@@ -1076,15 +1077,47 @@ function TaskCard({ task, onClick }) {
 
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 export default function TasksPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
-  const [selectedTask, setSelectedTask] = useState(null);
+
+  // URL-backed state
+  const selectedTaskId = searchParams.get('id');
+  const filterEmployee = searchParams.get('employee') || '';
+  const filterStatus = searchParams.get('status') || '';
+
+  const selectedTask = useMemo(
+    () => (selectedTaskId ? items.find(t => String(t.id) === selectedTaskId) || null : null),
+    [selectedTaskId, items]
+  );
+
+  const setSelectedTask = useCallback((task) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      if (task) { next.set('id', String(task.id)); } else { next.delete('id'); }
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+
+  const setFilterEmployee = useCallback((val) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      if (val) { next.set('employee', val); } else { next.delete('employee'); }
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+
+  const setFilterStatus = useCallback((val) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      if (val) { next.set('status', val); } else { next.delete('status'); }
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
 
   // Inline filters (client-side)
   const [searchText, setSearchText] = useState('');
-  const [filterEmployee, setFilterEmployee] = useState('');
-  const [filterStatus, setFilterStatus] = useState('');
   const [filterLocation, setFilterLocation] = useState('');
 
   const load = useCallback(async () => {

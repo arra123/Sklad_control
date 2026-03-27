@@ -1,10 +1,12 @@
-import { useState } from 'react';
 import { LayoutGrid, FolderTree } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import InventoryAnalyticsView from './InventoryAnalyticsView';
 import InventoryAnalyticsV2 from './InventoryAnalyticsV2';
 
 export default function AnalyticsPage() {
-  const [version, setVersion] = useState('v2');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const version = searchParams.get('v') || 'v2';
+  const setVersion = (v) => setSearchParams({ v });
 
   return (
     <>

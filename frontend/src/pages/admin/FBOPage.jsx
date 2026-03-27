@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Warehouse, Plus, Pencil, Trash2, Package, Layers,
   ChevronRight, ArrowLeft, Box, Boxes, Printer
@@ -649,10 +650,18 @@ function PalletDetailModal({ open, onClose, palletId, onReload }) {
 // ─── Pallet List View (drill: row → pallets) ──────────────────────────────────
 function PalletListView({ row, onBack }) {
   const toast = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [pallets, setPallets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddPallet, setShowAddPallet] = useState(false);
-  const [detailPalletId, setDetailPalletId] = useState(null);
+  const detailPalletId = searchParams.get('pallet') ? Number(searchParams.get('pallet')) : null;
+  const setDetailPalletId = useCallback((id) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      if (id) { next.set('pallet', String(id)); } else { next.delete('pallet'); }
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -807,12 +816,35 @@ function PalletListView({ row, onBack }) {
 // ─── Row List View (main warehouse view) ──────────────────────────────────────
 function RowListView({ warehouse }) {
   const toast = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddRow, setShowAddRow] = useState(false);
-  const [drillRow, setDrillRow] = useState(null);
 
-  useEffect(() => { setDrillRow(null); }, [warehouse?.id]);
+  const drillRowId = searchParams.get('row') ? Number(searchParams.get('row')) : null;
+  const drillRow = useMemo(() => rows.find(r => r.id === drillRowId) || null, [rows, drillRowId]);
+
+  const setDrillRow = useCallback((row) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      if (row) {
+        next.set('row', String(row.id));
+      } else {
+        next.delete('row');
+        next.delete('pallet');
+      }
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+
+  useEffect(() => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      next.delete('row');
+      next.delete('pallet');
+      return next;
+    }, { replace: true });
+  }, [warehouse?.id]);
 
   const loadRows = useCallback(async () => {
     if (!warehouse) return;

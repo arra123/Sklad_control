@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   AlertTriangle,
   BarChart3,
@@ -135,22 +136,61 @@ function BalanceAdjustModal({ employee, onClose, onSubmit, saving }) {
 
 export default function EarningsPage() {
   const toast = useToast();
-  const [tab, setTab] = useState('summary');
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const tab = searchParams.get('tab') || 'summary';
+  const selectedEmployeeId = searchParams.get('employee') || null;
+  const selectedTaskId = searchParams.get('task') || null;
+  const detailTab = searchParams.get('dtab') || 'sklad';
+
+  const setTab = useCallback((v) => setSearchParams(prev => {
+    const p = new URLSearchParams(prev);
+    p.set('tab', v);
+    return p;
+  }, { replace: true }), [setSearchParams]);
+
+  const setSelectedEmployeeId = useCallback((v) => {
+    if (typeof v === 'function') {
+      setSearchParams(prev => {
+        const p = new URLSearchParams(prev);
+        const cur = p.get('employee') || null;
+        const next = v(cur);
+        if (next) p.set('employee', next); else p.delete('employee');
+        return p;
+      }, { replace: true });
+    } else {
+      setSearchParams(prev => {
+        const p = new URLSearchParams(prev);
+        if (v) p.set('employee', v); else p.delete('employee');
+        return p;
+      }, { replace: true });
+    }
+  }, [setSearchParams]);
+
+  const setSelectedTaskId = useCallback((v) => setSearchParams(prev => {
+    const p = new URLSearchParams(prev);
+    if (v) p.set('task', v); else p.delete('task');
+    return p;
+  }, { replace: true }), [setSearchParams]);
+
+  const setDetailTab = useCallback((v) => setSearchParams(prev => {
+    const p = new URLSearchParams(prev);
+    p.set('dtab', v);
+    return p;
+  }, { replace: true }), [setSearchParams]);
+
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [summary, setSummary] = useState(null);
   const [employees, setEmployees] = useState([]);
-  const [selectedEmployeeId, setSelectedEmployeeId] = useState(null);
   const [employeeDetails, setEmployeeDetails] = useState(null);
   const [employeeLoading, setEmployeeLoading] = useState(false);
-  const [selectedTaskId, setSelectedTaskId] = useState(null);
   const [taskDetails, setTaskDetails] = useState(null);
   const [taskLoading, setTaskLoading] = useState(false);
   const [rateDraft, setRateDraft] = useState('10');
   const [savingRate, setSavingRate] = useState(false);
   const [adjustModalOpen, setAdjustModalOpen] = useState(false);
   const [savingBalance, setSavingBalance] = useState(false);
-  const [detailTab, setDetailTab] = useState('sklad');
 
   const loadBase = useCallback(async (background = false) => {
     if (background) setRefreshing(true);
@@ -209,11 +249,15 @@ export default function EarningsPage() {
 
   useEffect(() => { loadBase(); }, [loadBase]);
   useEffect(() => {
-    setSelectedTaskId(null);
+    setSearchParams(prev => {
+      const p = new URLSearchParams(prev);
+      p.delete('task');
+      p.set('dtab', 'sklad');
+      return p;
+    }, { replace: true });
     setTaskDetails(null);
-    setDetailTab('sklad');
     if (selectedEmployeeId) loadEmployeeDetails(selectedEmployeeId);
-  }, [selectedEmployeeId, loadEmployeeDetails]);
+  }, [selectedEmployeeId, loadEmployeeDetails, setSearchParams]);
   useEffect(() => {
     if (selectedTaskId) loadTaskDetails(selectedTaskId);
   }, [selectedTaskId, loadTaskDetails]);
@@ -332,8 +376,12 @@ export default function EarningsPage() {
                     <button
                       key={item.employee_id}
                       onClick={() => {
-                        setTab('history');
-                        setSelectedEmployeeId(item.employee_id);
+                        setSearchParams(prev => {
+                          const p = new URLSearchParams(prev);
+                          p.set('tab', 'history');
+                          if (item.employee_id) p.set('employee', item.employee_id); else p.delete('employee');
+                          return p;
+                        }, { replace: true });
                       }}
                       className="w-full flex items-center gap-3 px-5 py-3 hover:bg-gray-50 transition-colors text-left"
                     >
