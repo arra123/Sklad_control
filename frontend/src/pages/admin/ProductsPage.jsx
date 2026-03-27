@@ -77,7 +77,7 @@ function parsePrices(sourceJson) {
     }));
 }
 
-function BarcodeRow({ label, value, kind, onDelete, ozonStatus, onOzonClick, wbStatus, onWbClick }) {
+function BarcodeRow({ label, value, kind, onDelete }) {
   const [copied, setCopied] = useState(false);
   const colors = MARKETPLACE_COLORS[kind] || MARKETPLACE_COLORS.unknown;
   return (
@@ -87,16 +87,6 @@ function BarcodeRow({ label, value, kind, onDelete, ozonStatus, onOzonClick, wbS
                : <span className="text-xs text-gray-300 italic">—</span>}
       </div>
       <span className="flex-1 text-xs font-mono text-gray-700 min-w-0 truncate">{value}</span>
-      {wbStatus === 'found' && (
-        <button onClick={onWbClick} className="flex-shrink-0 w-5 h-5 rounded-full bg-violet-100 flex items-center justify-center hover:bg-violet-200 transition-colors" title="Найден на WB">
-          <Check size={11} className="text-violet-600" />
-        </button>
-      )}
-      {ozonStatus === 'found' && (
-        <button onClick={onOzonClick} className="flex-shrink-0 w-5 h-5 rounded-full bg-green-100 flex items-center justify-center hover:bg-green-200 transition-colors" title="Найден на Ozon">
-          <Check size={11} className="text-green-600" />
-        </button>
-      )}
       <button onClick={() => { navigator.clipboard.writeText(value); setCopied(true); setTimeout(() => setCopied(false), 1500); }}
         className="flex-shrink-0 text-gray-300 hover:text-gray-600 transition-colors">
         {copied ? <Check size={13} className="text-green-500" /> : <Copy size={13} />}
@@ -476,73 +466,11 @@ export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
     } catch (err) { toast.error(err.response?.data?.error || 'Ошибка добавления'); }
   };
 
-  const OZON_STORES = [
-    { key: 'ozon_1', label: 'Ozon ИП И.' },
-    { key: 'ozon_2', label: 'Ozon ИП Е.' },
-  ];
-  const [ozonResults, setOzonResults] = useState({});
-  const [ozonLoadingStore, setOzonLoadingStore] = useState(null);
-  const [expandedOzon, setExpandedOzon] = useState(null);
-
-  const WB_STORES = [
-    { key: 'wb_1', label: 'WB ИП И.' },
-    { key: 'wb_2', label: 'WB ИП Е.' },
-  ];
-  const [wbResults, setWbResults] = useState({});
-  const [wbLoadingStore, setWbLoadingStore] = useState(null);
-  const [expandedWb, setExpandedWb] = useState(null);
-
-  const checkWbStore = async (storeKey, storeLabel) => {
-    const allBc = (product ? parseBarcodes(product) : []).map(b => b.value);
-    if (allBc.length === 0) return;
-    setWbLoadingStore(storeKey);
-    try {
-      const res = await api.post('/products/check-wb', { barcodes: allBc, store: storeKey });
-      const results = res.data.results || {};
-      setWbResults(prev => ({ ...prev, ...Object.fromEntries(Object.entries(results).map(([bc, r]) => [bc + ':' + storeKey, r])) }));
-      const foundBarcodes = Object.entries(results).filter(([_, r]) => r.found).map(([bc]) => bc);
-      for (const bc of foundBarcodes) {
-        await api.put(`/products/${productId}/barcode-type`, { value: bc, type: storeKey }).catch(() => {});
-      }
-      if (foundBarcodes.length > 0) {
-        loadProduct();
-        toast.success(`${storeLabel}: найдено ${foundBarcodes.length} из ${allBc.length} ШК`);
-      } else {
-        toast.error(`${storeLabel}: ни один ШК не найден`);
-      }
-    } catch (err) {
-      toast.error(`Ошибка ${storeLabel}: ` + (err.response?.data?.error || err.message));
-    } finally {
-      setWbLoadingStore(null);
-    }
-  };
-
-  const checkOzonStore = async (storeKey, storeLabel) => {
-    const allBc = (product ? parseBarcodes(product) : []).map(b => b.value);
-    if (allBc.length === 0) return;
-    setOzonLoadingStore(storeKey);
-    try {
-      const res = await api.post('/products/check-ozon', { barcodes: allBc, store: storeKey });
-      const results = res.data.results || {};
-      setOzonResults(prev => ({ ...prev, ...Object.fromEntries(Object.entries(results).map(([bc, r]) => [bc + ':' + storeKey, r])) }));
-      const foundBarcodes = Object.entries(results).filter(([_, r]) => r.found).map(([bc]) => bc);
-      for (const bc of foundBarcodes) {
-        await api.put(`/products/${productId}/barcode-type`, { value: bc, type: storeKey }).catch(() => {});
-      }
-      if (foundBarcodes.length > 0) {
-        loadProduct();
-        toast.success(`${storeLabel}: найдено ${foundBarcodes.length} из ${allBc.length} ШК`);
-      } else {
-        toast.error(`${storeLabel}: ни один ШК не найден`);
-      }
-    } catch (err) {
-      toast.error(`Ошибка ${storeLabel}: ` + (err.response?.data?.error || err.message));
-    } finally {
-      setOzonLoadingStore(null);
-    }
-  };
-
-  const barcodes = product ? parseBarcodes(product) : [];
+  // Sort barcodes: labeled (ozon/wb) first, then unknown
+  const barcodes = (product ? parseBarcodes(product) : []).sort((a, b) => {
+    const order = { ozon: 0, wb: 1, yandex: 2, sber: 3, prod: 4, unknown: 5 };
+    return (order[a.kind] ?? 5) - (order[b.kind] ?? 5);
+  });
   const prices = product ? parsePrices(product.source_json) : [];
   const isBundle = product?.entity_type === 'bundle';
 
@@ -612,70 +540,9 @@ export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
                 <p className="text-sm text-gray-400 italic">Нет штрих-кодов</p>
               ) : (
                 <div className="space-y-1.5">
-                  {barcodes.map((bc, i) => {
-                    const isOzon1 = bc.storeKey === 'ozon_1' || bc.label === 'Ozon ИП И.';
-                    const isOzon2 = bc.storeKey === 'ozon_2' || bc.label === 'Ozon ИП Е.';
-                    const ozonFound = isOzon1 || isOzon2;
-                    const isWb1 = bc.storeKey === 'wb_1' || bc.label === 'WB ИП И.';
-                    const isWb2 = bc.storeKey === 'wb_2' || bc.label === 'WB ИП Е.';
-                    const wbFound = isWb1 || isWb2;
-                    const isOzExpanded = expandedOzon === bc.value;
-                    const isWbExpanded = expandedWb === bc.value;
-                    const ozData = ozonResults[bc.value + ':ozon_1'] || ozonResults[bc.value + ':ozon_2'];
-                    const wbData = wbResults[bc.value + ':wb_1'] || wbResults[bc.value + ':wb_2'];
-                    return (
-                      <div key={i}>
-                        <BarcodeRow
-                          {...bc}
-                          onDelete={handleDeleteBarcode}
-                          ozonStatus={ozonFound ? 'found' : undefined}
-                          onOzonClick={() => setExpandedOzon(isOzExpanded ? null : bc.value)}
-                          wbStatus={wbFound ? 'found' : undefined}
-                          onWbClick={() => setExpandedWb(isWbExpanded ? null : bc.value)}
-                        />
-                        {isOzExpanded && ozData?.ozon_product && (
-                          <div className="ml-3 mt-1 mb-1 px-3 py-2 bg-green-50 rounded-lg border border-green-100 text-xs">
-                            <p className="font-semibold text-green-700">{ozData.ozon_product.name}</p>
-                            <p className="text-gray-400 mt-0.5">offer: {ozData.ozon_product.offer_id} · id: {ozData.ozon_product.product_id}</p>
-                          </div>
-                        )}
-                        {isWbExpanded && wbData?.wb_product && (
-                          <div className="ml-3 mt-1 mb-1 px-3 py-2 bg-violet-50 rounded-lg border border-violet-100 text-xs">
-                            <p className="font-semibold text-violet-700">{wbData.wb_product.title}</p>
-                            <p className="text-gray-400 mt-0.5">артикул: {wbData.wb_product.vendorCode} · nmID: {wbData.wb_product.nmID}</p>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-              {barcodes.length > 0 && (
-                <div className="mt-3 space-y-2">
-                  <div className="flex gap-2">
-                    {OZON_STORES.map(store => (
-                      <button
-                        key={store.key}
-                        onClick={() => checkOzonStore(store.key, store.label)}
-                        disabled={!!ozonLoadingStore || !!wbLoadingStore}
-                        className="flex-1 py-2 rounded-xl text-xs font-semibold border transition-all bg-blue-50 border-blue-200 text-blue-600 hover:bg-blue-100 disabled:opacity-50"
-                      >
-                        {ozonLoadingStore === store.key ? `${store.label}...` : store.label}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="flex gap-2">
-                    {WB_STORES.map(store => (
-                      <button
-                        key={store.key}
-                        onClick={() => checkWbStore(store.key, store.label)}
-                        disabled={!!ozonLoadingStore || !!wbLoadingStore}
-                        className="flex-1 py-2 rounded-xl text-xs font-semibold border transition-all bg-violet-50 border-violet-200 text-violet-600 hover:bg-violet-100 disabled:opacity-50"
-                      >
-                        {wbLoadingStore === store.key ? `${store.label}...` : store.label}
-                      </button>
-                    ))}
-                  </div>
+                  {barcodes.map((bc, i) => (
+                    <BarcodeRow key={i} {...bc} onDelete={handleDeleteBarcode} />
+                  ))}
                 </div>
               )}
               </div>
