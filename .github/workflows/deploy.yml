@@ -66,7 +66,7 @@ jobs:
             grep -q 'OZON2_CLIENT_ID' "$ENV_FILE" 2>/dev/null || echo 'OZON2_CLIENT_ID=163276' >> "$ENV_FILE"
             grep -q 'OZON2_API_KEY' "$ENV_FILE" 2>/dev/null || echo 'OZON2_API_KEY=35bbfde5-9eb8-47f5-b765-1e0a2d09c58d' >> "$ENV_FILE"
             grep -q 'WB_TOKEN_1' "$ENV_FILE" 2>/dev/null || echo 'WB_TOKEN_1=eyJhbGciOiJFUzI1NiIsImtpZCI6IjIwMjUwOTA0djEiLCJ0eXAiOiJKV1QifQ.eyJhY2MiOjEsImVudCI6MSwiZXhwIjoxNzgxNTc0NzY1LCJpZCI6IjAxOWIyMjQ4LWY2OWQtNzAwMi05MTZkLWIzYWNkYTRlMTg5OSIsImlpZCI6MTgwNTg2Mzc1LCJvaWQiOjQ1NjM4NjMsInMiOjc5MzQsInNpZCI6ImRlMWQ4ZDUwLWViMWQtNDkzZS05MGUwLWU0YWIzZDA1MTFhMyIsInQiOmZhbHNlLCJ1aWQiOjE4MDU4NjM3NX0.BFnrIVVhTFuRAwi3WxFNA_h4O8-nuj1jdtaDoCHGaoluRj7SeyLJmNFyA_DdFEIAPmdAiz_XvxkqaiC7AqTkeg' >> "$ENV_FILE"
-            # WB_TOKEN_2 will be added when available
+            grep -q 'WB_TOKEN_2' "$ENV_FILE" 2>/dev/null || echo 'WB_TOKEN_2=eyJhbGciOiJFUzI1NiIsImtpZCI6IjIwMjUwOTA0djEiLCJ0eXAiOiJKV1QifQ.eyJhY2MiOjEsImVudCI6MSwiZXhwIjoxNzg2MjU4ODAwLCJpZCI6IjAxOWMzOTc5LWE4NzEtNzljMC04MmQyLWM5OTc0Zjg0Zjg3NyIsImlpZCI6MTIxMDIyMTksIm9pZCI6MjE3MDk3LCJzIjo3OTM0LCJzaWQiOiJhODEwYzI0NC0zNTZkLTQwYmUtYjQzMC00NWQ3NWUzZGY5ODgiLCJ0IjpmYWxzZSwidWlkIjoxMjEwMjIxOX0.eVsz6Ya7WXKyuTRLPG1kPOPfHjtzuXc1T9EEIweSHGtKJ_JOXfdjOP3B9Rv-D5q0Fn0jZ_5vz-qgDDzlaZ30Jw' >> "$ENV_FILE"
             grep -q 'WB_TOKEN$' "$ENV_FILE" && sed -i '/^WB_TOKEN=/d' "$ENV_FILE"
 
       - name: Install deps and restart
