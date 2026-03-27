@@ -279,7 +279,9 @@ router.get('/stats', requireAuth, async (req, res) => {
 });
 
 // GET /api/products/:id
-router.get('/:id', requireAuth, async (req, res) => {
+router.get('/:id', requireAuth, async (req, res, next) => {
+  // Skip named routes handled later (wb-stores, ozon-stores, etc.)
+  if (!/^\d+$/.test(req.params.id)) return next();
   try {
     const result = await pool.query(
       'SELECT * FROM products_s WHERE id = $1',
