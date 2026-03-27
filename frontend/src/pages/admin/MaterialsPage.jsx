@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
 import { Search, Package, X, ChevronRight, Save, Pencil } from 'lucide-react';
 import { RawMaterialsIcon, IngredientIcon, PackagingMaterialIcon, TechCardIcon, PowderIcon, SemiProductIcon, LabelIcon, SuppliesIcon, MixIcon, JarLidIcon, PetJarIcon, VacuumFlaskIcon, MembraneIcon, CapsuleEmptyIcon } from '../../components/ui/WarehouseIcons';
@@ -128,7 +129,7 @@ function MaterialDetailModal({ materialId, onClose, onUpdated }) {
 
   if (!materialId) return null;
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         {loading ? (
@@ -293,7 +294,8 @@ function MaterialDetailModal({ materialId, onClose, onUpdated }) {
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -436,7 +438,6 @@ export default function MaterialsPage() {
                     { key: 'name', label: 'Название', align: 'left' },
                     { key: 'code', label: 'Код', align: 'left' },
                     { key: 'material_group', label: 'Группа', align: 'left' },
-                    { key: null, label: 'Ед.', align: 'left' },
                     { key: 'buy_price', label: 'Закупка', align: 'right' },
                     { key: 'stock', label: 'Остаток', align: 'right' },
                   ].map(col => (
@@ -464,7 +465,6 @@ export default function MaterialsPage() {
                     </td>
                     <td className="px-4 py-3 text-gray-500 font-mono text-xs">{m.code || '—'}</td>
                     <td className="px-4 py-3">{groupBadge(m.material_group)}</td>
-                    <td className="px-4 py-3 text-gray-500">{m.unit || '—'}</td>
                     <td className="px-4 py-3 text-right text-gray-600">{fmtPrice(m.buy_price)}</td>
                     <td className="px-4 py-3 text-right font-bold text-gray-900">{fmtQty(m.stock)} <span className="text-gray-400 font-normal text-xs">{m.unit || 'шт'}</span></td>
                     <td className="px-4 py-3"><ChevronRight size={14} className="text-gray-300" /></td>
