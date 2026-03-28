@@ -8,6 +8,7 @@ import api from '../../api/client';
 import { InventoryIcon, PackagingIcon, TransferIcon } from '../../components/ui/WarehouseIcons';
 import Spinner from '../../components/ui/Spinner';
 import Badge from '../../components/ui/Badge';
+import FeedbackButton from '../../components/ui/FeedbackButton';
 import { cn } from '../../utils/cn';
 
 const STATUS_MAP = {
@@ -60,7 +61,10 @@ export default function MyTasksPage() {
           <ClipboardList size={22} className="text-white" />
         </div>
         <div className="flex-1">
-          <h1 className="text-xl font-bold text-gray-900 dark:text-white">Мои задачи</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-bold text-gray-900 dark:text-white">Мои задачи</h1>
+            <FeedbackButton position="employee" />
+          </div>
           <p className="text-xs text-gray-400">
             {activeTasks.length > 0 ? `${activeTasks.length} активных` : 'Нет активных задач'}
           </p>

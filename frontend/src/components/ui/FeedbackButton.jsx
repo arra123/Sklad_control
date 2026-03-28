@@ -4,19 +4,33 @@ import FeedbackModal from '../feedback/FeedbackModal';
 
 export default function FeedbackButton({ position = 'admin' }) {
   const [open, setOpen] = useState(false);
-  const bottom = position === 'employee' ? 'bottom-24' : 'bottom-6';
 
+  if (position === 'admin') {
+    // Admin: tiny dot in sidebar area, very subtle
+    return (
+      <>
+        <button
+          onClick={() => setOpen(true)}
+          className="w-6 h-6 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 hover:bg-primary-100 hover:text-primary-500 transition-all flex items-center justify-center"
+          title="Обратная связь"
+        >
+          <MessageSquarePlus size={12} />
+        </button>
+        <FeedbackModal open={open} onClose={() => setOpen(false)} />
+      </>
+    );
+  }
+
+  // Employee: small subtle button, not floating
   return (
     <>
       <button
         onClick={() => setOpen(true)}
-        className={`fixed ${bottom} right-6 z-30 w-12 h-12 rounded-full bg-primary-600 text-white shadow-lg hover:bg-primary-700 hover:shadow-xl hover:scale-105 active:scale-95 transition-all flex items-center justify-center group`}
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-400 hover:text-primary-500 hover:bg-primary-50 transition-all"
         title="Обратная связь"
       >
-        <MessageSquarePlus size={20} />
-        <span className="absolute right-full mr-3 px-3 py-1.5 rounded-lg bg-gray-900 text-white text-xs font-medium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-          Сообщить об ошибке
-        </span>
+        <MessageSquarePlus size={13} />
+        <span>Обратная связь</span>
       </button>
       <FeedbackModal open={open} onClose={() => setOpen(false)} />
     </>

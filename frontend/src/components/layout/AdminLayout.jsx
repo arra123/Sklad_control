@@ -303,7 +303,10 @@ export default function AdminLayout({ children }) {
             <LogOut className="w-4 h-4" />
             Выйти
           </button>
-          <p className="text-[10px] text-gray-300 dark:text-gray-600 mt-2 text-center">v2.24.0</p>
+          <div className="flex items-center justify-center gap-2 mt-2">
+            <p className="text-[10px] text-gray-300 dark:text-gray-600">v2.24.1</p>
+            <FeedbackButton position="admin" />
+          </div>
         </div>
       </aside>
 
@@ -333,7 +336,6 @@ export default function AdminLayout({ children }) {
           {children}
         </main>
       </div>
-      <FeedbackButton position="admin" />
     </div>
   );
 }

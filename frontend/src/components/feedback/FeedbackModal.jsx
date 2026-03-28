@@ -56,6 +56,7 @@ export default function FeedbackModal({ open, onClose }) {
   const fileRef = useRef(null);
 
   const hasSpeechAPI = typeof window !== 'undefined' && ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window);
+  const isSecureContext = typeof window !== 'undefined' && (window.isSecureContext || window.location.protocol === 'https:' || window.location.hostname === 'localhost');
 
   // Reset form when modal opens
   useEffect(() => {
@@ -67,7 +68,7 @@ export default function FeedbackModal({ open, onClose }) {
     }
   }, [open]);
 
-  // Ctrl+V paste screenshot
+  // Ctrl+V paste screenshot (works from anywhere in modal)
   useEffect(() => {
     if (!open) return;
     const handlePaste = (e) => {
@@ -75,19 +76,20 @@ export default function FeedbackModal({ open, onClose }) {
       if (!items) return;
       for (const item of items) {
         if (item.type.startsWith('image/')) {
+          e.preventDefault();
           const file = item.getAsFile();
           if (file) {
             if (file.size > 5 * 1024 * 1024) { toast.error('Макс. размер 5 МБ'); return; }
             setScreenshot(file);
             setScreenshotPreview(URL.createObjectURL(file));
-            toast.success('Скриншот вставлен из буфера');
+            toast.success('Скриншот вставлен (Ctrl+V)');
           }
           break;
         }
       }
     };
-    document.addEventListener('paste', handlePaste);
-    return () => document.removeEventListener('paste', handlePaste);
+    window.addEventListener('paste', handlePaste, true);
+    return () => window.removeEventListener('paste', handlePaste, true);
   }, [open, toast]);
 
   // Screenshot
@@ -108,6 +110,14 @@ export default function FeedbackModal({ open, onClose }) {
 
   // Voice recording
   const startRecording = useCallback(async () => {
+    if (!isSecureContext) {
+      toast.error('Микрофон доступен только по HTTPS. Используйте текстовое описание.');
+      return;
+    }
+    if (!navigator.mediaDevices?.getUserMedia) {
+      toast.error('Браузер не поддерживает запись с микрофона');
+      return;
+    }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const recorder = new MediaRecorder(stream, { mimeType: MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 'audio/webm' });

@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import FeedbackButton from '../ui/FeedbackButton';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import {
   ClipboardList, LogOut, BarChart3, ArrowRightLeft, Package,
@@ -167,7 +166,6 @@ export default function EmployeeLayout({ children }) {
           ))}
         </div>
       </nav>
-      <FeedbackButton position="employee" />
     </div>
   );
 }
