@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import FeedbackButton from '../ui/FeedbackButton';
 import { NavLink, useNavigate, useLocation, useSearchParams, Link } from 'react-router-dom';
 import {
   LayoutDashboard, Package, Warehouse, ClipboardList,
@@ -302,7 +303,7 @@ export default function AdminLayout({ children }) {
             <LogOut className="w-4 h-4" />
             Выйти
           </button>
-          <p className="text-[10px] text-gray-300 dark:text-gray-600 mt-2 text-center">v2.22.0</p>
+          <p className="text-[10px] text-gray-300 dark:text-gray-600 mt-2 text-center">v2.23.0</p>
         </div>
       </aside>
 
@@ -332,6 +333,7 @@ export default function AdminLayout({ children }) {
           {children}
         </main>
       </div>
+      <FeedbackButton position="admin" />
     </div>
   );
 }
