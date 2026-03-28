@@ -756,7 +756,7 @@ async function getPalletBoxInventoryEvents(client, { boxIds = null, warehouseId 
 
 async function getInventoryOverviewData(client, warehouseId = null) {
   const warehouseParams = [];
-  const warehouseWhere = warehouseId ? 'WHERE w.id = $1' : '';
+  const warehouseWhere = warehouseId ? 'WHERE w.id = $1' : 'WHERE w.active = true';
   if (warehouseId) warehouseParams.push(Number(warehouseId));
 
   const warehousesResult = await client.query(

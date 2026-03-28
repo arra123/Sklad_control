@@ -338,7 +338,7 @@ router.get('/:id', requireAuth, async (req, res, next) => {
         JOIN shelves_s s ON s.id = si.shelf_id
         JOIN racks_s r ON r.id = s.rack_id
         JOIN warehouses_s w ON w.id = r.warehouse_id
-        WHERE si.product_id = $1 AND si.quantity > 0
+        WHERE si.product_id = $1 AND si.quantity > 0 AND w.active = true
         UNION ALL
         -- FBS: коробки на полках
         SELECT sbi.quantity, 'shelf_box' as location_type,
@@ -349,7 +349,7 @@ router.get('/:id', requireAuth, async (req, res, next) => {
         JOIN racks_s r ON r.id = s.rack_id
         JOIN warehouses_s w ON w.id = r.warehouse_id
         JOIN shelf_box_items_s sbi ON sbi.shelf_box_id = sb.id
-        WHERE sbi.product_id = $1 AND sbi.quantity > 0
+        WHERE sbi.product_id = $1 AND sbi.quantity > 0 AND w.active = true
         UNION ALL
         -- FBO: коробки на паллетах
         SELECT bi.quantity, 'box' as location_type,
@@ -360,7 +360,7 @@ router.get('/:id', requireAuth, async (req, res, next) => {
         JOIN pallets_s pa ON b.pallet_id = pa.id
         JOIN pallet_rows_s pr ON pa.row_id = pr.id
         JOIN warehouses_s w ON w.id = pr.warehouse_id
-        WHERE bi.product_id = $1 AND b.status = 'closed' AND bi.quantity > 0
+        WHERE bi.product_id = $1 AND b.status = 'closed' AND bi.quantity > 0 AND w.active = true
         UNION ALL
         -- FBO: товары напрямую на паллетах
         SELECT pi.quantity, 'pallet' as location_type,
@@ -370,7 +370,7 @@ router.get('/:id', requireAuth, async (req, res, next) => {
         JOIN pallets_s pa ON pi.pallet_id = pa.id
         JOIN pallet_rows_s pr ON pa.row_id = pr.id
         JOIN warehouses_s w ON w.id = pr.warehouse_id
-        WHERE pi.product_id = $1 AND pi.quantity > 0
+        WHERE pi.product_id = $1 AND pi.quantity > 0 AND w.active = true
       ) all_locations ORDER BY warehouse_name, rack_name, location_code`,
       [product.id]
     );

@@ -68,8 +68,8 @@ function WarehouseModal({ open, onClose, warehouse, onSuccess }) {
 
   useEffect(() => {
     setForm(warehouse
-      ? { name: warehouse.name, notes: warehouse.notes || '', warehouse_type: warehouse.warehouse_type || 'fbs' }
-      : { name: '', notes: '', warehouse_type: 'fbs' });
+      ? { name: warehouse.name, notes: warehouse.notes || '', warehouse_type: warehouse.warehouse_type || 'fbs', active: warehouse.active !== false }
+      : { name: '', notes: '', warehouse_type: 'fbs', active: true });
   }, [warehouse, open]);
 
   const handleSubmit = async (e) => {
@@ -103,6 +103,16 @@ function WarehouseModal({ open, onClose, warehouse, onSuccess }) {
           onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required />
         <Input label="Примечание" placeholder="Необязательно" value={form.notes}
           onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
+        {warehouse && (
+          <label className="flex items-center gap-3 px-4 py-3 rounded-xl border border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors">
+            <input type="checkbox" checked={!form.active} onChange={() => setForm(f => ({ ...f, active: !f.active }))}
+              className="w-4 h-4 rounded border-gray-300 text-red-500 focus:ring-red-400" />
+            <div>
+              <p className="text-sm font-medium text-gray-700">Скрыть склад</p>
+              <p className="text-xs text-gray-400">Не учитывается в статистике и остатках</p>
+            </div>
+          </label>
+        )}
         {!warehouse && (
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Структура склада</label>
@@ -3100,11 +3110,14 @@ function WarehouseListView({ warehouses, selectedId, onSelect, onReload }) {
                 'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all whitespace-nowrap',
                 selectedId === wh.id
                   ? 'bg-primary-600 text-white shadow-sm'
-                  : 'bg-white border border-gray-200 text-gray-600 hover:border-primary-300'
+                  : wh.active === false
+                    ? 'bg-gray-50 border border-dashed border-gray-300 text-gray-400'
+                    : 'bg-white border border-gray-200 text-gray-600 hover:border-primary-300'
               )}
             >
-              <WarehouseIcon size={18} />
-              {wh.name}
+              <WarehouseIcon size={18} className={wh.active === false ? 'opacity-40' : ''} />
+              <span className={wh.active === false ? 'line-through opacity-60' : ''}>{wh.name}</span>
+              {wh.active === false && <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-200 text-gray-500">скрыт</span>}
               <span className={cn(
                 'text-xs px-1.5 py-0.5 rounded-md',
                 selectedId === wh.id ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'
