@@ -13,3 +13,11 @@ Thumbs.db
 *.log
 dostupy.md
 deploy.js
+
+# Claude Code auto-memory (machine-specific, не нужно в git)
+# Инструкции для Claude хранятся в CLAUDE.md (в git)
+.claude/settings.local.json
+.claude/memory/
+data.db
+test-screenshots/
+frontend/test-screenshots/

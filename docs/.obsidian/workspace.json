@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "Главная.md",
+                "file": "MCP серверы.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "Главная"
+              "title": "MCP серверы"
             }
           }
         ]
@@ -94,7 +94,7 @@
             "state": {
               "type": "backlink",
               "state": {
-                "file": "Главная.md",
+                "file": "Модули/Паллетный склад.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -104,7 +104,7 @@
                 "unlinkedCollapsed": true
               },
               "icon": "links-coming-in",
-              "title": "Обратные ссылки для Главная"
+              "title": "Обратные ссылки для Паллетный склад"
             }
           },
           {
@@ -113,12 +113,12 @@
             "state": {
               "type": "outgoing-link",
               "state": {
-                "file": "Главная.md",
+                "file": "Модули/Паллетный склад.md",
                 "linksCollapsed": false,
                 "unlinkedCollapsed": true
               },
               "icon": "links-going-out",
-              "title": "Исходящие ссылки из Главная"
+              "title": "Исходящие ссылки из Паллетный склад"
             }
           },
           {
@@ -156,13 +156,13 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "Главная.md",
+                "file": "Модули/Паллетный склад.md",
                 "followCursor": false,
                 "showSearch": false,
                 "searchQuery": ""
               },
               "icon": "lucide-list",
-              "title": "Структура Главная"
+              "title": "Структура Паллетный склад"
             }
           }
         ]
@@ -185,27 +185,29 @@
   },
   "active": "7882241d60643aca",
   "lastOpenFiles": [
-    "Модули/Настройки.md",
-    "Модули/Сотрудники.md",
-    "Модули/Аналитика.md",
-    "Интеграции/Wildberries API.md",
     "Changelog.md",
-    "Главная.md",
     "Словарь.md",
+    "Главная.md",
+    "Модули/GRACoin.md",
     "Модули/Claude Code Skills.md",
+    "Модули/Упаковка.md",
     "Модули/Товары.md",
-    "Модули/Сырьё.md",
     "Модули/Стеллажный склад.md",
+    "Модули/Сырьё.md",
+    "Модули/Сотрудники.md",
     "Модули/Перемещения.md",
     "Модули/Паллетный склад.md",
+    "Модули/Настройки.md",
     "Модули/Задачи.md",
+    "Модули/Аналитика.md",
+    "Архитектура/База данных.md",
+    "Архитектура/Деплой.md",
+    "Архитектура/Общая схема.md",
+    "Архитектура/API эндпоинты.md",
+    "Интеграции/МойСклад API.md",
+    "Интеграции/Wildberries API.md",
     "Словарь.md.tmp.12512.1774606045845",
     "Модули/FBS склад.md",
-    "Модули/FBO паллеты.md",
-    "Интеграции/МойСклад API.md",
-    "Архитектура/API эндпоинты.md",
-    "Архитектура/Общая схема.md",
-    "Архитектура/Деплой.md",
-    "Архитектура/База данных.md"
+    "Модули/FBO паллеты.md"
   ]
 }
