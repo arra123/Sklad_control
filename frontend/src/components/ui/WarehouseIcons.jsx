@@ -511,6 +511,81 @@ export function SuppliesIcon({ size = 20, className = '', style }) {
   );
 }
 
+// ─── Earnings / GRACoin icons ────────────────────────────────────────────────
+
+export function GRACoinIcon({ size = 20, className = '', style }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className} style={style}>
+      <circle cx="24" cy="24" r="19" fill="#fef3c7" stroke="#d4a020" strokeWidth="1.5"/>
+      <circle cx="24" cy="24" r="15" fill="#fbbf24" opacity=".3"/>
+      <text x="24" y="30" textAnchor="middle" fill="#b8860b" fontSize="16" fontWeight="900" fontFamily="sans-serif">G</text>
+    </svg>
+  );
+}
+
+export function WalletIcon({ size = 20, className = '', style }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className} style={style}>
+      <rect x="6" y="14" width="36" height="24" rx="4" fill="#ede9fe" stroke="#7c3aed" strokeWidth="1.3"/>
+      <rect x="6" y="14" width="36" height="8" rx="4" fill="#7c3aed" opacity=".15"/>
+      <circle cx="36" cy="28" r="3" fill="#7c3aed"/><circle cx="36" cy="28" r="1.5" fill="#ede9fe"/>
+      <path d="M10 14V12a4 4 0 014-4h20a4 4 0 014 4v2" stroke="#7c3aed" strokeWidth="1" fill="none"/>
+    </svg>
+  );
+}
+
+export function ScannerIcon({ size = 20, className = '', style }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className} style={style}>
+      <rect x="14" y="6" width="20" height="36" rx="3" fill="#e0e7ff" stroke="#6366f1" strokeWidth="1.2"/>
+      <rect x="18" y="10" width="12" height="16" rx="1.5" fill="white" stroke="#6366f1" strokeWidth=".8"/>
+      <line x1="20" y1="14" x2="28" y2="14" stroke="#ef4444" strokeWidth="1.5" opacity=".7"/>
+      <circle cx="24" cy="35" r="3" fill="#6366f1" opacity=".3"/><circle cx="24" cy="35" r="1.5" fill="#6366f1"/>
+    </svg>
+  );
+}
+
+export function OrderPickIcon({ size = 20, className = '', style }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className} style={style}>
+      <path d="M8 16l16-10 16 10v20l-16 8-16-8z" fill="#fce7f3" stroke="#db2777" strokeWidth="1.2"/>
+      <path d="M8 16l16 8 16-8" stroke="#db2777" strokeWidth="1" fill="none"/>
+      <line x1="24" y1="24" x2="24" y2="44" stroke="#db2777" strokeWidth="1"/>
+    </svg>
+  );
+}
+
+export function TrendUpIcon({ size = 20, className = '', style }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className} style={style}>
+      <path d="M6 38L18 22l8 8L42 10" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M32 10h10v10" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+}
+
+export function AdjustIcon({ size = 20, className = '', style }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className} style={style}>
+      <rect x="8" y="10" width="32" height="28" rx="3" fill="#fff7ed" stroke="#ea580c" strokeWidth="1.2"/>
+      <line x1="14" y1="18" x2="34" y2="18" stroke="#ea580c" strokeWidth="1" opacity=".3"/>
+      <line x1="14" y1="24" x2="28" y2="24" stroke="#ea580c" strokeWidth="1" opacity=".3"/>
+      <line x1="14" y1="30" x2="24" y2="30" stroke="#ea580c" strokeWidth="1" opacity=".3"/>
+      <text x="36" y="34" textAnchor="middle" fill="#ea580c" fontSize="14" fontWeight="900" fontFamily="sans-serif">+</text>
+    </svg>
+  );
+}
+
+export function RateGearIcon({ size = 20, className = '', style }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className} style={style}>
+      <circle cx="24" cy="24" r="10" fill="#fef3c7" stroke="#d4a020" strokeWidth="1.2"/>
+      <path d="M24 6v4M24 38v4M6 24h4M38 24h4M11 11l3 3M34 34l3 3M11 37l3-3M34 14l3-3" stroke="#d4a020" strokeWidth="1.5" strokeLinecap="round"/>
+      <circle cx="24" cy="24" r="4" fill="none" stroke="#b8860b" strokeWidth="1"/>
+    </svg>
+  );
+}
+
 // ─── Individual supply/consumable icons ──────────────────────────────────────
 
 export function JarLidIcon({ size = 20, className = '', style }) {

@@ -1,17 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import {
-  AlertTriangle,
-  BarChart3,
-  ChevronRight,
-  ClipboardList,
-  Package,
-  RefreshCw,
-  ScanLine,
-  Settings,
-  ShoppingCart,
-  Users,
-} from 'lucide-react';
+import { ChevronDown, ChevronRight, RefreshCw } from 'lucide-react';
+import { GRACoinIcon, WalletIcon, ScannerIcon, OrderPickIcon, TrendUpIcon, AdjustIcon, RateGearIcon } from '../../components/ui/WarehouseIcons';
 import api from '../../api/client';
 import Button from '../../components/ui/Button';
 import Spinner from '../../components/ui/Spinner';
@@ -19,121 +9,53 @@ import { useToast } from '../../components/ui/Toast';
 
 function fmtGra(value) {
   const amount = Number(value || 0);
-  return new Intl.NumberFormat('ru-RU', {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: amount % 1 === 0 ? 0 : 3,
-  }).format(amount);
+  return new Intl.NumberFormat('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: amount % 1 === 0 ? 0 : 3 }).format(amount);
 }
 
 function fmtDateTime(iso) {
   if (!iso) return '—';
-  return new Date(iso).toLocaleString('ru-RU', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  return new Date(iso).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
-function StatCard({ icon: Icon, label, value, hint, tone = 'primary' }) {
-  const tones = {
-    primary: 'bg-primary-50 text-primary-600',
-    green: 'bg-green-50 text-green-600',
-    blue: 'bg-blue-50 text-blue-600',
-    amber: 'bg-amber-50 text-amber-600',
-    red: 'bg-red-50 text-red-600',
-  };
-
-  return (
-    <div className="card p-4 flex items-start gap-3">
-      <div className={`w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 ${tones[tone]}`}>
-        <Icon size={18} />
-      </div>
-      <div className="min-w-0">
-        <p className="text-xs text-gray-400">{label}</p>
-        <p className="text-lg font-bold text-gray-900 mt-0.5 whitespace-nowrap">{value}</p>
-        {hint ? <p className="text-xs text-gray-400 mt-0.5">{hint}</p> : null}
-      </div>
-    </div>
-  );
+function fmtShort(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' });
 }
 
-function TabButton({ active, onClick, children }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`px-4 py-2.5 rounded-xl text-sm font-semibold border transition-all ${
-        active
-          ? 'bg-primary-600 text-white border-primary-600 shadow-sm'
-          : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
-      }`}
-    >
-      {children}
-    </button>
-  );
-}
-
-function SectionEmpty({ title, hint }) {
-  return (
-    <div className="text-center py-12 text-gray-400">
-      <p className="font-medium">{title}</p>
-      {hint ? <p className="text-sm mt-1">{hint}</p> : null}
-    </div>
-  );
-}
-
+// ─── Balance Modal ───────────────────────────────────────────────────────────
 function BalanceAdjustModal({ employee, onClose, onSubmit, saving }) {
   const [newBalance, setNewBalance] = useState(String(Number(employee?.current_balance || 0)));
   const [notes, setNotes] = useState('');
-
-  useEffect(() => {
-    setNewBalance(String(Number(employee?.current_balance || 0)));
-    setNotes('');
-  }, [employee]);
+  useEffect(() => { setNewBalance(String(Number(employee?.current_balance || 0))); setNotes(''); }, [employee]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div className="w-full max-w-md card p-5" onClick={e => e.stopPropagation()}>
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-5" onClick={e => e.stopPropagation()}>
         <h3 className="text-lg font-bold text-gray-900">Изменить баланс</h3>
         <p className="text-sm text-gray-500 mt-1">{employee?.full_name}</p>
-
         <div className="mt-4 space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Новый текущий баланс</label>
-            <input
-              type="number"
-              min="0"
-              step="0.001"
-              value={newBalance}
-              onChange={e => setNewBalance(e.target.value)}
-              className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-gray-900 focus:border-primary-400 focus:ring-2 focus:ring-primary-100 focus:outline-none"
-            />
+            <input type="number" min="0" step="0.001" value={newBalance} onChange={e => setNewBalance(e.target.value)}
+              className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:border-primary-400 focus:ring-2 focus:ring-primary-100 focus:outline-none" />
           </div>
-
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Причина изменения</label>
-            <textarea
-              rows={3}
-              value={notes}
-              onChange={e => setNotes(e.target.value)}
-              className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-gray-900 focus:border-primary-400 focus:ring-2 focus:ring-primary-100 focus:outline-none resize-none"
-              placeholder="Например: корректировка после внешнего списания"
-            />
+            <textarea rows={3} value={notes} onChange={e => setNotes(e.target.value)}
+              className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:border-primary-400 focus:ring-2 focus:ring-primary-100 focus:outline-none resize-none"
+              placeholder="Например: выплата за март" />
           </div>
         </div>
-
         <div className="mt-5 flex gap-3">
           <Button variant="ghost" className="flex-1" onClick={onClose}>Отмена</Button>
-          <Button className="flex-1" loading={saving} onClick={() => onSubmit({ newBalance, notes })}>
-            Сохранить
-          </Button>
+          <Button className="flex-1" loading={saving} onClick={() => onSubmit({ newBalance, notes })}>Сохранить</Button>
         </div>
       </div>
     </div>
   );
 }
 
+// ─── Main Component ──────────────────────────────────────────────────────────
 export default function EarningsPage() {
   const toast = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -143,41 +65,16 @@ export default function EarningsPage() {
   const selectedTaskId = searchParams.get('task') || null;
   const detailTab = searchParams.get('dtab') || 'sklad';
 
-  const setTab = useCallback((v) => setSearchParams(prev => {
-    const p = new URLSearchParams(prev);
-    p.set('tab', v);
-    return p;
-  }, { replace: true }), [setSearchParams]);
-
+  const setTab = useCallback((v) => setSearchParams(prev => { const p = new URLSearchParams(prev); p.set('tab', v); return p; }, { replace: true }), [setSearchParams]);
   const setSelectedEmployeeId = useCallback((v) => {
     if (typeof v === 'function') {
-      setSearchParams(prev => {
-        const p = new URLSearchParams(prev);
-        const cur = p.get('employee') || null;
-        const next = v(cur);
-        if (next) p.set('employee', next); else p.delete('employee');
-        return p;
-      }, { replace: true });
+      setSearchParams(prev => { const p = new URLSearchParams(prev); const cur = p.get('employee') || null; const next = v(cur); if (next) p.set('employee', next); else p.delete('employee'); return p; }, { replace: true });
     } else {
-      setSearchParams(prev => {
-        const p = new URLSearchParams(prev);
-        if (v) p.set('employee', v); else p.delete('employee');
-        return p;
-      }, { replace: true });
+      setSearchParams(prev => { const p = new URLSearchParams(prev); if (v) p.set('employee', v); else p.delete('employee'); return p; }, { replace: true });
     }
   }, [setSearchParams]);
-
-  const setSelectedTaskId = useCallback((v) => setSearchParams(prev => {
-    const p = new URLSearchParams(prev);
-    if (v) p.set('task', v); else p.delete('task');
-    return p;
-  }, { replace: true }), [setSearchParams]);
-
-  const setDetailTab = useCallback((v) => setSearchParams(prev => {
-    const p = new URLSearchParams(prev);
-    p.set('dtab', v);
-    return p;
-  }, { replace: true }), [setSearchParams]);
+  const setSelectedTaskId = useCallback((v) => setSearchParams(prev => { const p = new URLSearchParams(prev); if (v) p.set('task', v); else p.delete('task'); return p; }, { replace: true }), [setSearchParams]);
+  const setDetailTab = useCallback((v) => setSearchParams(prev => { const p = new URLSearchParams(prev); p.set('dtab', v); return p; }, { replace: true }), [setSearchParams]);
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -191,15 +88,12 @@ export default function EarningsPage() {
   const [savingRate, setSavingRate] = useState(false);
   const [adjustModalOpen, setAdjustModalOpen] = useState(false);
   const [savingBalance, setSavingBalance] = useState(false);
+  const [expandedTask, setExpandedTask] = useState(null);
 
   const loadBase = useCallback(async (background = false) => {
-    if (background) setRefreshing(true);
-    else setLoading(true);
+    if (background) setRefreshing(true); else setLoading(true);
     try {
-      const [summaryRes, employeesRes] = await Promise.all([
-        api.get('/earnings/summary'),
-        api.get('/earnings/employees'),
-      ]);
+      const [summaryRes, employeesRes] = await Promise.all([api.get('/earnings/summary'), api.get('/earnings/employees')]);
       setSummary(summaryRes.data);
       setEmployees(employeesRes.data || []);
       setRateDraft(String(summaryRes.data?.settings?.gra_inventory_scan_rate ?? 10));
@@ -207,60 +101,33 @@ export default function EarningsPage() {
         if (prev && (employeesRes.data || []).some(item => Number(item.employee_id) === Number(prev))) return prev;
         return employeesRes.data?.[0]?.employee_id || null;
       });
-    } catch (err) {
-      toast.error(err.response?.data?.error || 'Не удалось загрузить заработок');
-    } finally {
-      if (background) setRefreshing(false);
-      else setLoading(false);
-    }
+    } catch (err) { toast.error(err.response?.data?.error || 'Не удалось загрузить'); }
+    finally { if (background) setRefreshing(false); else setLoading(false); }
   }, [toast]);
 
   const loadEmployeeDetails = useCallback(async (employeeId) => {
-    if (!employeeId) {
-      setEmployeeDetails(null);
-      return;
-    }
+    if (!employeeId) { setEmployeeDetails(null); return; }
     setEmployeeLoading(true);
-    try {
-      const res = await api.get(`/earnings/employees/${employeeId}`);
-      setEmployeeDetails(res.data);
-    } catch (err) {
-      toast.error(err.response?.data?.error || 'Не удалось загрузить историю сотрудника');
-    } finally {
-      setEmployeeLoading(false);
-    }
+    try { const res = await api.get(`/earnings/employees/${employeeId}`); setEmployeeDetails(res.data); }
+    catch (err) { toast.error(err.response?.data?.error || 'Ошибка'); }
+    finally { setEmployeeLoading(false); }
   }, [toast]);
 
   const loadTaskDetails = useCallback(async (taskId) => {
-    if (!taskId) {
-      setTaskDetails(null);
-      return;
-    }
+    if (!taskId) { setTaskDetails(null); return; }
     setTaskLoading(true);
-    try {
-      const res = await api.get(`/earnings/tasks/${taskId}`);
-      setTaskDetails(res.data);
-    } catch (err) {
-      toast.error(err.response?.data?.error || 'Не удалось загрузить детализацию задачи');
-    } finally {
-      setTaskLoading(false);
-    }
+    try { const res = await api.get(`/earnings/tasks/${taskId}`); setTaskDetails(res.data); }
+    catch (err) { toast.error(err.response?.data?.error || 'Ошибка'); }
+    finally { setTaskLoading(false); }
   }, [toast]);
 
   useEffect(() => { loadBase(); }, [loadBase]);
   useEffect(() => {
-    setSearchParams(prev => {
-      const p = new URLSearchParams(prev);
-      p.delete('task');
-      p.set('dtab', 'sklad');
-      return p;
-    }, { replace: true });
-    setTaskDetails(null);
+    setSearchParams(prev => { const p = new URLSearchParams(prev); p.delete('task'); p.set('dtab', 'sklad'); return p; }, { replace: true });
+    setTaskDetails(null); setExpandedTask(null);
     if (selectedEmployeeId) loadEmployeeDetails(selectedEmployeeId);
   }, [selectedEmployeeId, loadEmployeeDetails, setSearchParams]);
-  useEffect(() => {
-    if (selectedTaskId) loadTaskDetails(selectedTaskId);
-  }, [selectedTaskId, loadTaskDetails]);
+  useEffect(() => { if (selectedTaskId) loadTaskDetails(selectedTaskId); }, [selectedTaskId, loadTaskDetails]);
 
   const selectedEmployee = useMemo(() => {
     if (!selectedEmployeeId) return null;
@@ -269,57 +136,28 @@ export default function EarningsPage() {
 
   const saveRate = async () => {
     const numeric = Number.parseFloat(String(rateDraft).replace(',', '.'));
-    if (!Number.isFinite(numeric) || numeric < 0) {
-      toast.error('Укажите корректную ставку');
-      return;
-    }
+    if (!Number.isFinite(numeric) || numeric < 0) { toast.error('Укажите корректную ставку'); return; }
     setSavingRate(true);
-    try {
-      await api.put('/settings', { gra_inventory_scan_rate: numeric });
-      toast.success('Ставка сохранена. Новая ставка применяется только к новым сканам.');
-      await loadBase(true);
-    } catch (err) {
-      toast.error(err.response?.data?.error || 'Не удалось сохранить ставку');
-    } finally {
-      setSavingRate(false);
-    }
+    try { await api.put('/settings', { gra_inventory_scan_rate: numeric }); toast.success('Ставка сохранена'); await loadBase(true); }
+    catch (err) { toast.error(err.response?.data?.error || 'Ошибка'); }
+    finally { setSavingRate(false); }
   };
 
   const saveBalance = async ({ newBalance, notes }) => {
     const numeric = Number.parseFloat(String(newBalance).replace(',', '.'));
-    if (!Number.isFinite(numeric) || numeric < 0) {
-      toast.error('Укажите корректный баланс');
-      return;
-    }
-    if (!notes.trim()) {
-      toast.error('Укажите причину изменения');
-      return;
-    }
+    if (!Number.isFinite(numeric) || numeric < 0) { toast.error('Укажите корректный баланс'); return; }
+    if (!notes.trim()) { toast.error('Укажите причину'); return; }
     if (!selectedEmployee) return;
-
     setSavingBalance(true);
     try {
-      await api.post(`/earnings/employees/${selectedEmployee.employee_id}/set-balance`, {
-        new_balance: numeric,
-        notes,
-      });
-      toast.success('Баланс обновлён');
-      setAdjustModalOpen(false);
+      await api.post(`/earnings/employees/${selectedEmployee.employee_id}/set-balance`, { new_balance: numeric, notes });
+      toast.success('Баланс обновлён'); setAdjustModalOpen(false);
       await Promise.all([loadBase(true), loadEmployeeDetails(selectedEmployee.employee_id)]);
-    } catch (err) {
-      toast.error(err.response?.data?.error || 'Не удалось обновить баланс');
-    } finally {
-      setSavingBalance(false);
-    }
+    } catch (err) { toast.error(err.response?.data?.error || 'Ошибка'); }
+    finally { setSavingBalance(false); }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Spinner size="lg" />
-      </div>
-    );
-  }
+  if (loading) return <div className="flex items-center justify-center h-64"><Spinner size="lg" /></div>;
 
   const overview = summary?.overview || {};
   const leaders = summary?.leaders || [];
@@ -328,107 +166,112 @@ export default function EarningsPage() {
   const employeeAdjustments = employeeDetails?.adjustments || [];
   const sborkaPicks = employeeDetails?.sborka_picks || [];
 
+  const taskLocation = (t) => t.shelf_code ? `${t.rack_name || t.rack_code || 'Стеллаж'} · ${t.shelf_name || t.shelf_code}` : t.pallet_name ? `${t.pallet_row_name || 'Ряд'} · ${t.pallet_name}` : 'Инвентаризация';
+
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      <div className="flex items-start justify-between gap-4 mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Заработок</h1>
-          <p className="text-gray-500 text-sm mt-1">
-            Начисления сотрудникам за успешные сканы товаров в инвентаризации, текущие балансы и полный аудит изменений.
-          </p>
+    <div className="p-6 max-w-[1400px] mx-auto">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center"><GRACoinIcon size={24} /></div>
+          <div>
+            <h1 className="text-xl font-bold text-gray-900">Заработок</h1>
+            <p className="text-xs text-gray-400">GRACoin — система вознаграждений</p>
+          </div>
         </div>
-        <button
-          onClick={() => loadBase(true)}
-          className="p-2.5 rounded-xl text-gray-400 hover:text-primary-500 hover:bg-primary-50 transition-all flex-shrink-0"
-        >
-          <RefreshCw size={18} className={refreshing ? 'animate-spin' : ''} />
-        </button>
+        <div className="flex items-center gap-3">
+          <div className="flex bg-gray-100 rounded-xl p-1 gap-0.5">
+            {[['summary', 'Сводка'], ['history', 'История'], ['settings', 'Настройки']].map(([k, l]) => (
+              <button key={k} onClick={() => setTab(k)} className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${tab === k ? 'bg-white shadow-sm text-gray-900 font-semibold' : 'text-gray-500 hover:text-gray-700'}`}>{l}</button>
+            ))}
+          </div>
+          <button onClick={() => loadBase(true)} className="p-2 rounded-xl text-gray-400 hover:text-primary-500 hover:bg-primary-50 transition-all">
+            <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />
+          </button>
+        </div>
       </div>
 
-      <div className="flex gap-2 mb-6 flex-wrap">
-        <TabButton active={tab === 'summary'} onClick={() => setTab('summary')}>Сводка</TabButton>
-        <TabButton active={tab === 'history'} onClick={() => setTab('history')}>История</TabButton>
-        <TabButton active={tab === 'settings'} onClick={() => setTab('settings')}>Настройка</TabButton>
-      </div>
-
+      {/* ═══ СВОДКА ═══ */}
       {tab === 'summary' && (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-4 mb-6">
-            <StatCard icon={Users} label="Сотрудников с активностью" value={overview.employees_with_activity || 0} />
-            <StatCard icon={BarChart3} label="Текущий баланс всего" value={`${fmtGra(overview.total_current_balance)} GRA`} tone="primary" />
-            <StatCard icon={ScanLine} label="Оплаченных сканов" value={fmtGra(overview.rewarded_scans || 0)} tone="green" />
-            <StatCard icon={ClipboardList} label="Начислено за сканы" value={`${fmtGra(overview.total_awarded)} GRA`} tone="blue" />
-            <StatCard icon={ShoppingCart} label="Заработок на сборках" value={`${fmtGra(overview.total_sborka_amount)} GRA`} hint={`${fmtGra(overview.total_sborka_units || 0)} пиков`} tone="green" />
-            <StatCard icon={Settings} label="Текущая ставка" value={`${fmtGra(summary?.settings?.gra_inventory_scan_rate || 0)} GRA`} hint="за 1 успешный скан" tone="amber" />
+          <div className="grid grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+            {[
+              { Icon: GRACoinIcon, label: 'Сотрудников', value: overview.employees_with_activity || 0, bg: 'bg-purple-50' },
+              { Icon: WalletIcon, label: 'Баланс GRA', value: fmtGra(overview.total_current_balance), color: 'text-green-600', bg: 'bg-green-50' },
+              { Icon: ScannerIcon, label: 'Сканов', value: fmtGra(overview.rewarded_scans || 0), bg: 'bg-blue-50' },
+              { Icon: TrendUpIcon, label: 'Начислено', value: fmtGra(overview.total_awarded), bg: 'bg-emerald-50' },
+              { Icon: OrderPickIcon, label: 'Сборки', value: fmtGra(overview.total_sborka_amount), hint: `${fmtGra(overview.total_sborka_units || 0)} пиков`, bg: 'bg-pink-50' },
+              { Icon: RateGearIcon, label: 'Ставка', value: fmtGra(summary?.settings?.gra_inventory_scan_rate || 0), color: 'text-amber-600', bg: 'bg-amber-50' },
+            ].map((s, i) => (
+              <div key={i} className="bg-white rounded-2xl p-4 border border-gray-100">
+                <div className={`w-8 h-8 rounded-lg ${s.bg} flex items-center justify-center mb-2`}><s.Icon size={20} /></div>
+                <p className={`text-2xl font-black ${s.color || 'text-gray-900'}`}>{s.value}</p>
+                <p className="text-[10px] text-gray-400 uppercase tracking-wider">{s.label}</p>
+                {s.hint && <p className="text-[9px] text-gray-300">{s.hint}</p>}
+              </div>
+            ))}
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-            <div className="lg:col-span-2 card overflow-hidden">
-              <div className="px-5 py-4 border-b border-gray-50">
-                <h2 className="font-semibold text-gray-900">Лидеры по текущему балансу</h2>
-                <p className="text-xs text-gray-400 mt-0.5">Показываются только сотрудники, у которых уже были начисления или ручные корректировки</p>
+            {/* Leaders table */}
+            <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-100 overflow-hidden">
+              <div className="px-5 py-3.5 border-b border-gray-100 flex items-center gap-2">
+                <GRACoinIcon size={18} />
+                <h2 className="font-bold text-gray-900 text-sm">Лидеры по балансу</h2>
               </div>
               {leaders.length === 0 ? (
-                <SectionEmpty title="Начислений ещё нет" hint="После первых успешных инвентаризационных сканов сотрудники появятся здесь" />
+                <div className="text-center py-12 text-gray-400"><p className="font-medium">Начислений ещё нет</p></div>
               ) : (
-                <div className="divide-y divide-gray-50">
-                  {leaders.map((item, index) => (
-                    <button
-                      key={item.employee_id}
-                      onClick={() => {
-                        setSearchParams(prev => {
-                          const p = new URLSearchParams(prev);
-                          p.set('tab', 'history');
-                          if (item.employee_id) p.set('employee', item.employee_id); else p.delete('employee');
-                          return p;
-                        }, { replace: true });
-                      }}
-                      className="w-full flex items-center gap-3 px-5 py-3 hover:bg-gray-50 transition-colors text-left"
-                    >
-                      <span className={`text-sm font-bold w-6 flex-shrink-0 ${index === 0 ? 'text-amber-500' : index === 1 ? 'text-gray-400' : index === 2 ? 'text-amber-700' : 'text-gray-300'}`}>
-                        {index + 1}
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 truncate">{item.full_name}</p>
-                        <p className="text-xs text-gray-400">
-                          {fmtGra(item.rewarded_scans || 0)} оплаченных сканов
-                          {item.rewarded_tasks_count ? ` · ${item.rewarded_tasks_count} задач` : ''}
-                        </p>
-                      </div>
-                      <div className="text-right flex-shrink-0">
-                        <p className="text-sm font-bold text-primary-600">{fmtGra(item.current_balance)} GRA</p>
-                        <p className="text-xs text-gray-400">склад: {fmtGra(item.total_awarded)} GRA</p>
-                        {Number(item.sborka_amount) > 0 && (
-                          <p className="text-xs text-green-500">сборки: {fmtGra(item.sborka_amount)} GRA</p>
-                        )}
-                      </div>
-                      <ChevronRight size={16} className="text-gray-300" />
-                    </button>
-                  ))}
-                </div>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-gray-50/60">
+                      {['#', 'Сотрудник', 'Сканы', 'Задачи', 'Склад', 'Сборки', 'Баланс'].map((h, i) => (
+                        <th key={h} className={`${i <= 1 ? 'text-left' : 'text-right'} px-3 py-2.5 text-[10px] font-semibold text-gray-400 uppercase ${i === 0 ? 'w-12 px-4' : ''} ${i === 6 ? 'px-4' : ''}`}>{h}</th>
+                      ))}
+                      <th className="w-8"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {leaders.map((item, index) => (
+                      <tr key={item.employee_id} onClick={() => { setSearchParams(prev => { const p = new URLSearchParams(prev); p.set('tab', 'history'); if (item.employee_id) p.set('employee', item.employee_id); return p; }, { replace: true }); }}
+                        className="hover:bg-primary-50/30 cursor-pointer transition-colors">
+                        <td className="px-4 py-3 text-center">
+                          <span className={`inline-flex w-6 h-6 rounded-full items-center justify-center text-xs font-black ${index === 0 ? 'bg-amber-100 text-amber-700' : index === 1 ? 'bg-gray-200 text-gray-600' : index === 2 ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-500'}`}>{index + 1}</span>
+                        </td>
+                        <td className="px-3 py-3 font-semibold text-gray-900">{item.full_name}</td>
+                        <td className="px-3 py-3 text-right text-gray-600">{fmtGra(item.rewarded_scans || 0)}</td>
+                        <td className="px-3 py-3 text-right text-gray-600">{item.rewarded_tasks_count || 0}</td>
+                        <td className="px-3 py-3 text-right text-blue-600 font-semibold">{fmtGra(item.total_awarded)}</td>
+                        <td className="px-3 py-3 text-right text-pink-600 font-semibold">{fmtGra(item.sborka_amount || 0)}</td>
+                        <td className="px-4 py-3 text-right font-black text-green-600">{fmtGra(item.current_balance)}</td>
+                        <td className="pr-3"><ChevronRight size={14} className="text-gray-300" /></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               )}
             </div>
 
-            <div className="card overflow-hidden">
-              <div className="px-5 py-4 border-b border-gray-50">
-                <h2 className="font-semibold text-gray-900">Последние ручные изменения</h2>
+            {/* Adjustments */}
+            <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+              <div className="px-5 py-3.5 border-b border-gray-100 flex items-center gap-2">
+                <AdjustIcon size={18} />
+                <h2 className="font-bold text-gray-900 text-sm">Корректировки</h2>
               </div>
               {recentAdjustments.length === 0 ? (
-                <SectionEmpty title="Ручных правок не было" />
+                <div className="text-center py-12 text-gray-400"><p className="font-medium">Ручных правок не было</p></div>
               ) : (
-                <div className="divide-y divide-gray-50">
+                <div className="divide-y divide-gray-50 max-h-[400px] overflow-y-auto">
                   {recentAdjustments.map(item => (
-                    <div key={item.id} className="px-5 py-3">
-                      <div className="flex items-center justify-between gap-3">
-                        <p className="text-sm font-medium text-gray-900 truncate">{item.employee_name}</p>
-                        <span className={`text-sm font-bold ${Number(item.amount_delta) >= 0 ? 'text-green-600' : 'text-red-500'}`}>
-                          {Number(item.amount_delta) >= 0 ? '+' : ''}{fmtGra(item.amount_delta)} GRA
+                    <div key={item.id} className="px-4 py-3 hover:bg-gray-50/50 transition-colors">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-semibold text-gray-800">{item.employee_name}</p>
+                        <span className={`text-sm font-black ${Number(item.amount_delta) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                          {Number(item.amount_delta) >= 0 ? '+' : ''}{fmtGra(item.amount_delta)}
                         </span>
                       </div>
-                      <p className="text-xs text-gray-400 mt-0.5">
-                        {fmtDateTime(item.created_at)} · {item.changed_by_username || 'система'}
-                      </p>
-                      {item.notes ? <p className="text-xs text-gray-500 mt-1">{item.notes}</p> : null}
+                      <p className="text-[11px] text-gray-400 mt-0.5">{fmtDateTime(item.created_at)} · {item.changed_by_username || 'система'}</p>
+                      {item.notes && <p className="text-[11px] text-gray-500 mt-0.5">{item.notes}</p>}
                     </div>
                   ))}
                 </div>
@@ -437,252 +280,199 @@ export default function EarningsPage() {
           </div>
         </>
       )}
+
+      {/* ═══ ИСТОРИЯ ═══ */}
       {tab === 'history' && (
-        <div className="grid grid-cols-1 xl:grid-cols-[320px_minmax(0,1fr)] gap-5">
-          <div className="card overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-50">
-              <h2 className="font-semibold text-gray-900">Сотрудники</h2>
+        <div className="flex gap-5">
+          {/* Sidebar */}
+          <div className="w-72 flex-shrink-0 bg-white rounded-2xl border border-gray-100 overflow-hidden">
+            <div className="px-4 py-3 border-b border-gray-100">
+              <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Сотрудники</h3>
             </div>
             {employees.length === 0 ? (
-              <SectionEmpty title="Нет сотрудников с начислениями" />
+              <div className="text-center py-12 text-gray-400 text-sm">Нет данных</div>
             ) : (
-              <div className="divide-y divide-gray-50 max-h-[78vh] overflow-y-auto">
+              <div className="max-h-[70vh] overflow-y-auto divide-y divide-gray-50">
                 {employees.map(item => (
-                  <button
-                    key={item.employee_id}
-                    onClick={() => setSelectedEmployeeId(item.employee_id)}
-                    className={`w-full px-5 py-3 text-left transition-colors ${
-                      Number(selectedEmployeeId) === Number(item.employee_id) ? 'bg-primary-50' : 'hover:bg-gray-50'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-gray-900 truncate">{item.full_name}</p>
-                        <p className="text-xs text-gray-400">
-                          {fmtGra(item.rewarded_scans || 0)} сканов · {item.rewarded_tasks_count || 0} задач
-                        </p>
-                        {Number(item.sborka_amount) > 0 && (
-                          <p className="text-xs text-green-500">сборки: {fmtGra(item.sborka_amount)} GRA</p>
-                        )}
-                      </div>
-                      <div className="text-right flex-shrink-0">
-                        <p className="text-sm font-bold text-primary-600">{fmtGra(item.current_balance)} GRA</p>
-                        <p className="text-[11px] text-gray-400">{fmtDateTime(item.last_earned_at)}</p>
-                      </div>
+                  <button key={item.employee_id} onClick={() => setSelectedEmployeeId(item.employee_id)}
+                    className={`w-full px-4 py-3 text-left transition-colors border-l-[3px] ${Number(selectedEmployeeId) === Number(item.employee_id) ? 'bg-primary-50 border-primary-500' : 'border-transparent hover:bg-gray-50'}`}>
+                    <div className="flex justify-between items-baseline">
+                      <p className={`text-sm ${Number(selectedEmployeeId) === Number(item.employee_id) ? 'font-bold text-gray-900' : 'font-medium text-gray-700'}`}>{item.full_name}</p>
+                      <p className="text-sm font-black text-green-600">{fmtGra(item.current_balance)}</p>
                     </div>
+                    <p className="text-[10px] text-gray-400 mt-0.5">
+                      {fmtGra(item.rewarded_scans || 0)} скан · {item.rewarded_tasks_count || 0} задач
+                      {Number(item.sborka_amount) > 0 && ` · сборки: ${fmtGra(item.sborka_amount)}`}
+                    </p>
                   </button>
                 ))}
               </div>
             )}
           </div>
 
-          <div className="space-y-5 min-w-0">
+          {/* Detail */}
+          <div className="flex-1 space-y-4 min-w-0">
             {!selectedEmployee ? (
-              <div className="card">
-                <SectionEmpty title="Выберите сотрудника" hint="Слева откройте историю начислений нужного сотрудника" />
+              <div className="bg-white rounded-2xl border border-gray-100 text-center py-16 text-gray-400">
+                <p className="font-medium">Выберите сотрудника</p>
               </div>
             ) : (
               <>
-                <div className="grid grid-cols-1 2xl:grid-cols-[minmax(0,1fr)_320px] gap-5">
-                  <div className="card p-5">
-                    {employeeLoading && !employeeDetails ? (
-                      <div className="flex items-center justify-center h-32"><Spinner size="md" /></div>
-                    ) : (
-                      <>
-                        <div className="flex items-start justify-between gap-4 mb-4">
-                          <div>
-                            <h2 className="text-xl font-bold text-gray-900">{selectedEmployee.full_name}</h2>
-                            <p className="text-sm text-gray-400 mt-1">Текущий баланс и заработок по инвентаризации</p>
-                          </div>
-                          <Button onClick={() => setAdjustModalOpen(true)}>Изменить баланс</Button>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-3">
-                          <StatCard icon={BarChart3} label="Текущий баланс" value={`${fmtGra(employeeDetails?.employee?.current_balance ?? selectedEmployee.current_balance)} GRA`} tone="primary" />
-                          <StatCard icon={ScanLine} label="Склад: инвентаризация" value={`${fmtGra(employeeDetails?.employee?.total_awarded || 0)} GRA`} hint={`${fmtGra(employeeDetails?.employee?.rewarded_scans || 0)} сканов`} tone="blue" />
-                          <StatCard icon={ShoppingCart} label="Заказы OZ/WB" value={`${fmtGra(employeeDetails?.employee?.sborka_amount || 0)} GRA`} hint={`${fmtGra(employeeDetails?.employee?.sborka_units || 0)} пиков`} tone="green" />
-                          <StatCard icon={AlertTriangle} label="Корректировки" value={`${fmtGra(employeeDetails?.employee?.total_manual_adjustments || 0)} GRA`} tone="amber" />
-                        </div>
-                      </>
-                    )}
-                  </div>
-
-                  <div className="card overflow-hidden">
-                    <div className="px-5 py-4 border-b border-gray-50">
-                      <h3 className="font-semibold text-gray-900">Ручные изменения</h3>
-                    </div>
-                    {employeeAdjustments.length === 0 ? (
-                      <SectionEmpty title="Ручных корректировок нет" />
-                    ) : (
-                      <div className="divide-y divide-gray-50 max-h-[320px] overflow-y-auto">
-                        {employeeAdjustments.map(item => (
-                          <div key={item.id} className="px-5 py-3">
-                            <div className="flex items-center justify-between gap-3">
-                              <span className={`text-sm font-bold ${Number(item.amount_delta) >= 0 ? 'text-green-600' : 'text-red-500'}`}>
-                                {Number(item.amount_delta) >= 0 ? '+' : ''}{fmtGra(item.amount_delta)} GRA
-                              </span>
-                              <span className="text-xs text-gray-400">{fmtDateTime(item.created_at)}</span>
-                            </div>
-                            <p className="text-xs text-gray-500 mt-1">
-                              {fmtGra(item.balance_before)} → {fmtGra(item.balance_after)} GRA · {item.changed_by_username || 'система'}
-                            </p>
-                            {item.notes ? <p className="text-xs text-gray-400 mt-1">{item.notes}</p> : null}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex gap-2 mb-4">
-                  <TabButton active={detailTab === 'sklad'} onClick={() => setDetailTab('sklad')}>Склад</TabButton>
-                  <TabButton active={detailTab === 'orders'} onClick={() => setDetailTab('orders')}>Заказы</TabButton>
-                </div>
-
-                {detailTab === 'sklad' && (
-                <div className="grid grid-cols-1 2xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-5">
-                  <div className="card overflow-hidden">
-                    <div className="px-5 py-4 border-b border-gray-50">
-                      <h3 className="font-semibold text-gray-900">Задачи сотрудника</h3>
-                      <p className="text-xs text-gray-400 mt-0.5">Сколько сотрудник получил за каждую задачу</p>
-                    </div>
-                    {employeeLoading && !employeeDetails ? (
-                      <div className="flex items-center justify-center h-40"><Spinner size="md" /></div>
-                    ) : employeeTasks.length === 0 ? (
-                      <SectionEmpty title="Нет оплаченных задач" />
-                    ) : (
-                      <div className="divide-y divide-gray-50 max-h-[70vh] overflow-y-auto">
-                        {employeeTasks.map(task => (
-                          <button
-                            key={task.task_id}
-                            onClick={() => setSelectedTaskId(task.task_id)}
-                            className={`w-full flex items-center gap-3 px-5 py-3 text-left transition-colors ${
-                              Number(selectedTaskId) === Number(task.task_id) ? 'bg-primary-50' : 'hover:bg-gray-50'
-                            }`}
-                          >
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-gray-900 truncate">{task.title}</p>
-                              <p className="text-xs text-gray-400">
-                                {task.shelf_code
-                                  ? `${task.rack_name || task.rack_code || 'Стеллаж'} · ${task.shelf_name || task.shelf_code}`
-                                  : task.pallet_name
-                                  ? `${task.pallet_row_name || 'Ряд'} · ${task.pallet_name}`
-                                  : 'Инвентаризация'}
-                              </p>
-                              <p className="text-xs text-gray-400 mt-0.5">
-                                {fmtDateTime(task.last_earned_at)}
-                                {task.scopes_count ? ` · зон: ${task.scopes_count}` : ''}
-                              </p>
-                            </div>
-                            <div className="text-right flex-shrink-0">
-                              <p className="text-sm font-bold text-primary-600">{fmtGra(task.amount_earned)} GRA</p>
-                              <p className="text-xs text-gray-400">{fmtGra(task.rewarded_scans)} сканов</p>
-                            </div>
-                            <ChevronRight size={16} className="text-gray-300" />
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="card overflow-hidden">
-                    <div className="px-5 py-4 border-b border-gray-50">
-                      <h3 className="font-semibold text-gray-900">Детализация задачи</h3>
-                      <p className="text-xs text-gray-400 mt-0.5">Разбивка по коробкам или ячейкам и точный список оплаченных сканов</p>
-                    </div>
-                    {taskLoading ? (
-                      <div className="flex items-center justify-center h-48"><Spinner size="md" /></div>
-                    ) : !taskDetails ? (
-                      <SectionEmpty title="Выберите задачу справа" hint="После выбора появится точная раскадровка начислений" />
-                    ) : (
-                      <div className="p-5 space-y-5">
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                          <StatCard icon={BarChart3} label="Всего за задачу" value={`${fmtGra(taskDetails.task.total_earned)} GRA`} tone="primary" />
-                          <StatCard icon={ScanLine} label="Оплаченных сканов" value={fmtGra(taskDetails.task.rewarded_scans)} tone="green" />
-                          <StatCard icon={ClipboardList} label="Событий начисления" value={fmtGra(taskDetails.task.earning_events)} tone="blue" />
-                        </div>
-
+                {/* Employee header card */}
+                <div className="bg-white rounded-2xl border border-gray-100 p-5">
+                  {employeeLoading && !employeeDetails ? (
+                    <div className="flex items-center justify-center h-32"><Spinner size="md" /></div>
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-between mb-4">
                         <div>
-                          <h4 className="text-sm font-semibold text-gray-900 mb-3">Разбивка по коробкам / ячейкам</h4>
-                          {taskDetails.scopes.length === 0 ? (
-                            <SectionEmpty title="Нет начислений в этой задаче" />
-                          ) : (
-                            <div className="space-y-3">
-                              {taskDetails.scopes.map(scope => (
-                                <div key={scope.scope_key} className="rounded-2xl border border-gray-100 bg-gray-50/70 p-4">
-                                  <div className="flex items-start justify-between gap-3 mb-3">
-                                    <div>
-                                      <p className="text-sm font-semibold text-gray-900">{scope.scope_label}</p>
-                                      {scope.box_barcode ? <p className="text-xs text-gray-400 font-mono mt-0.5">{scope.box_barcode}</p> : null}
-                                    </div>
-                                    <div className="text-right">
-                                      <p className="text-sm font-bold text-primary-600">{fmtGra(scope.amount_earned)} GRA</p>
-                                      <p className="text-xs text-gray-400">{fmtGra(scope.rewarded_scans)} сканов</p>
-                                    </div>
-                                  </div>
-
-                                  <div className="space-y-2">
-                                    {scope.scans.map((scan, index) => (
-                                      <div key={scan.earning_id} className="flex items-center gap-3 rounded-xl bg-white px-3 py-2 border border-gray-100">
-                                        <span className="text-xs font-mono text-gray-300 w-5 text-right flex-shrink-0">{index + 1}</span>
-                                        <div className="flex-1 min-w-0">
-                                          <p className="text-sm font-medium text-gray-900 truncate">{scan.product_name || scan.scanned_value}</p>
-                                          <p className="text-xs text-gray-400">
-                                            {scan.product_code || scan.scanned_value}
-                                            {scan.scanned_at ? ` · ${fmtDateTime(scan.scanned_at)}` : ''}
-                                          </p>
-                                        </div>
-                                        <div className="text-right flex-shrink-0">
-                                          <p className="text-sm font-bold text-primary-600">+{fmtGra(scan.amount_delta)} GRA</p>
-                                          <p className="text-xs text-gray-400">{fmtGra(scan.reward_units)} × {fmtGra(scan.rate_per_unit)}</p>
-                                        </div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
+                          <h2 className="text-lg font-bold text-gray-900">{selectedEmployee.full_name}</h2>
+                          <p className="text-xs text-gray-400">Последнее: {fmtDateTime(selectedEmployee.last_earned_at)}</p>
                         </div>
+                        <button onClick={() => setAdjustModalOpen(true)} className="px-3 py-1.5 text-xs font-semibold text-primary-600 bg-primary-50 rounded-lg hover:bg-primary-100 transition-colors">Изменить баланс</button>
                       </div>
-                    )}
-                  </div>
+                      <div className="grid grid-cols-4 gap-3">
+                        {[
+                          { Icon: WalletIcon, label: 'Баланс', value: fmtGra(employeeDetails?.employee?.current_balance ?? selectedEmployee.current_balance), color: 'text-green-600', border: 'border-green-100', bg: 'bg-green-50' },
+                          { Icon: ScannerIcon, label: 'Склад', value: fmtGra(employeeDetails?.employee?.total_awarded || 0), color: 'text-blue-600', border: 'border-blue-100', bg: 'bg-blue-50' },
+                          { Icon: OrderPickIcon, label: 'Сборки', value: fmtGra(employeeDetails?.employee?.sborka_amount || 0), color: 'text-pink-600', border: 'border-pink-100', bg: 'bg-pink-50' },
+                          { Icon: AdjustIcon, label: 'Корректировки', value: fmtGra(employeeDetails?.employee?.total_manual_adjustments || 0), color: 'text-amber-600', border: 'border-amber-100', bg: 'bg-amber-50' },
+                        ].map((s, i) => (
+                          <div key={i} className={`rounded-xl p-3 ${s.bg} border ${s.border}`}>
+                            <div className="flex items-center gap-2 mb-1"><s.Icon size={16} /><span className="text-[10px] text-gray-500 uppercase">{s.label}</span></div>
+                            <p className={`text-xl font-black ${s.color}`}>{s.value} <span className="text-xs font-semibold text-gray-400">GRA</span></p>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
                 </div>
+
+                {/* Sub tabs */}
+                <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit">
+                  {[['sklad', 'Склад'], ['orders', 'Заказы']].map(([k, l]) => (
+                    <button key={k} onClick={() => setDetailTab(k)} className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${detailTab === k ? 'bg-white shadow-sm text-gray-900 font-semibold' : 'text-gray-500'}`}>{l}</button>
+                  ))}
+                </div>
+
+                {/* Warehouse tasks */}
+                {detailTab === 'sklad' && (
+                  <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-gray-50/80">
+                          {['Задача', 'Расположение', 'Зоны', 'Сканы', 'GRA', 'Дата'].map((h, i) => (
+                            <th key={h} className={`${i <= 1 ? 'text-left' : 'text-right'} px-3 py-2.5 text-[10px] font-semibold text-gray-400 uppercase ${i === 0 ? 'px-4' : ''} ${i === 5 ? 'text-left' : ''}`}>{h}</th>
+                          ))}
+                          <th className="w-8"></th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50">
+                        {employeeLoading && !employeeDetails ? (
+                          <tr><td colSpan={7} className="text-center py-16"><Spinner size="md" /></td></tr>
+                        ) : employeeTasks.length === 0 ? (
+                          <tr><td colSpan={7} className="text-center py-12 text-gray-400">Нет оплаченных задач</td></tr>
+                        ) : employeeTasks.map(task => {
+                          const isExpanded = expandedTask === task.task_id;
+                          const isSelected = Number(selectedTaskId) === Number(task.task_id);
+                          return (
+                            <tr key={task.task_id} className="contents">
+                              <tr onClick={() => { setSelectedTaskId(task.task_id); setExpandedTask(isExpanded ? null : task.task_id); }}
+                                className={`cursor-pointer transition-colors ${isSelected ? 'bg-primary-50/40 border-l-[3px] border-l-primary-500' : 'hover:bg-gray-50/50 border-l-[3px] border-l-transparent'}`}>
+                                <td className="px-4 py-3 font-semibold text-gray-800">{task.title}</td>
+                                <td className="px-3 py-3 text-gray-500">{taskLocation(task)}</td>
+                                <td className="px-3 py-3 text-right text-gray-600">{task.scopes_count || 0}</td>
+                                <td className="px-3 py-3 text-right font-bold text-gray-900">{fmtGra(task.rewarded_scans)}</td>
+                                <td className="px-3 py-3 text-right font-black text-green-600">{fmtGra(task.amount_earned)}</td>
+                                <td className="px-3 py-3 text-gray-400 text-xs">{fmtShort(task.last_earned_at)}</td>
+                                <td className="pr-2">
+                                  {isExpanded ? <ChevronDown size={14} className="text-primary-400" /> : <ChevronRight size={14} className="text-gray-300" />}
+                                </td>
+                              </tr>
+                              {isExpanded && (
+                                <tr>
+                                  <td colSpan={7} className="p-0">
+                                    <div className="bg-primary-50/20 px-6 py-4 border-l-[3px] border-l-primary-500">
+                                      {taskLoading ? (
+                                        <div className="flex items-center justify-center py-8"><Spinner size="md" /></div>
+                                      ) : !taskDetails ? null : (
+                                        <>
+                                          <div className="flex gap-3 mb-3">
+                                            <div className="bg-white rounded-lg px-3 py-1.5 border border-gray-100">
+                                              <span className="text-[10px] text-gray-400">Заработано </span><span className="text-sm font-black text-green-600">{fmtGra(taskDetails.task.total_earned)} GRA</span>
+                                            </div>
+                                            <div className="bg-white rounded-lg px-3 py-1.5 border border-gray-100">
+                                              <span className="text-[10px] text-gray-400">Сканов </span><span className="text-sm font-black text-blue-600">{fmtGra(taskDetails.task.rewarded_scans)}</span>
+                                            </div>
+                                            <div className="bg-white rounded-lg px-3 py-1.5 border border-gray-100">
+                                              <span className="text-[10px] text-gray-400">Зон </span><span className="text-sm font-bold text-gray-700">{taskDetails.scopes?.length || 0}</span>
+                                            </div>
+                                          </div>
+                                          <div className="space-y-2">
+                                            {(taskDetails.scopes || []).map(scope => (
+                                              <div key={scope.scope_key} className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+                                                <div className="bg-gray-50 px-4 py-2 flex items-center justify-between">
+                                                  <span className="text-xs font-bold text-gray-600">{scope.scope_label} {scope.box_barcode && <span className="text-gray-300 font-mono ml-2">{scope.box_barcode}</span>}</span>
+                                                  <span className="text-xs font-bold text-green-600">{fmtGra(scope.amount_earned)} GRA · {fmtGra(scope.rewarded_scans)} сканов</span>
+                                                </div>
+                                                <div className="divide-y divide-gray-50 max-h-[150px] overflow-y-auto">
+                                                  {scope.scans.map((scan, idx) => (
+                                                    <div key={scan.earning_id} className="flex items-center gap-3 px-4 py-1.5 text-xs">
+                                                      <span className="text-gray-300 w-5 text-right">#{idx + 1}</span>
+                                                      <span className="flex-1 text-gray-700 truncate">{scan.product_name || scan.scanned_value}</span>
+                                                      <span className="text-gray-400 font-mono">{scan.product_code || ''}</span>
+                                                      <span className="font-bold text-green-600 w-12 text-right">+{fmtGra(scan.amount_delta)}</span>
+                                                      <span className="text-gray-300 w-16 text-right">{fmtGra(scan.reward_units)} x {fmtGra(scan.rate_per_unit)}</span>
+                                                    </div>
+                                                  ))}
+                                                </div>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </>
+                                      )}
+                                    </div>
+                                  </td>
+                                </tr>
+                              )}
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 )}
 
+                {/* Orders */}
                 {detailTab === 'orders' && (
-                  <div className="card overflow-hidden">
-                    <div className="px-5 py-4 border-b border-gray-50">
-                      <h3 className="font-semibold text-gray-900">Заказы (сборка OZ/WB)</h3>
-                      <p className="text-xs text-gray-400 mt-0.5">Начисления за пики при сборке заказов</p>
+                  <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                    <div className="px-5 py-3.5 border-b border-gray-100 flex items-center gap-2">
+                      <OrderPickIcon size={18} />
+                      <h2 className="font-bold text-gray-900 text-sm">Заказы (сборка OZ/WB)</h2>
                     </div>
                     {employeeLoading && !employeeDetails ? (
                       <div className="flex items-center justify-center h-40"><Spinner size="md" /></div>
                     ) : sborkaPicks.length === 0 ? (
-                      <SectionEmpty title="Нет начислений за сборку" />
+                      <div className="text-center py-12 text-gray-400">Нет начислений за сборку</div>
                     ) : (
                       <div className="overflow-x-auto max-h-[70vh] overflow-y-auto">
                         <table className="w-full text-sm">
                           <thead className="bg-gray-50 sticky top-0">
                             <tr>
-                              <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500">Дата</th>
-                              <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500">Маркетплейс</th>
-                              <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500">Магазин</th>
-                              <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500">Товар</th>
-                              <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500">Артикул</th>
-                              <th className="text-right px-4 py-2.5 text-xs font-semibold text-gray-500">Сумма</th>
-                              <th className="text-right px-4 py-2.5 text-xs font-semibold text-gray-500">Пики</th>
+                              {['Дата', 'Маркетплейс', 'Магазин', 'Товар', 'Артикул', 'GRA', 'Пики'].map((h, i) => (
+                                <th key={h} className={`${i >= 5 ? 'text-right' : 'text-left'} px-4 py-2.5 text-[10px] font-semibold text-gray-400 uppercase`}>{h}</th>
+                              ))}
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-gray-50">
                             {sborkaPicks.map(pick => (
                               <tr key={pick.id} className="hover:bg-gray-50 transition-colors">
-                                <td className="px-4 py-2.5 text-gray-600 whitespace-nowrap">{fmtDateTime(pick.created_at)}</td>
+                                <td className="px-4 py-2.5 text-gray-600 whitespace-nowrap">{fmtShort(pick.created_at)}</td>
                                 <td className="px-4 py-2.5 text-gray-900 font-medium">{pick.source_marketplace || '—'}</td>
                                 <td className="px-4 py-2.5 text-gray-600 truncate max-w-[160px]">{pick.source_store_name || '—'}</td>
                                 <td className="px-4 py-2.5 text-gray-600 truncate max-w-[200px]">{pick.source_product_name || pick.source_entity_name || '—'}</td>
                                 <td className="px-4 py-2.5 text-gray-500 font-mono text-xs">{pick.source_article || '—'}</td>
-                                <td className="px-4 py-2.5 text-right font-bold text-primary-600 whitespace-nowrap">+{fmtGra(pick.amount_delta)} GRA</td>
+                                <td className="px-4 py-2.5 text-right font-bold text-green-600">+{fmtGra(pick.amount_delta)}</td>
                                 <td className="px-4 py-2.5 text-right text-gray-600">{fmtGra(pick.reward_units)}</td>
                               </tr>
                             ))}
@@ -692,77 +482,86 @@ export default function EarningsPage() {
                     )}
                   </div>
                 )}
+
+                {/* Adjustments for employee */}
+                {employeeAdjustments.length > 0 && (
+                  <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                    <div className="px-5 py-3.5 border-b border-gray-100 flex items-center gap-2">
+                      <AdjustIcon size={18} />
+                      <h2 className="font-bold text-gray-900 text-sm">Ручные корректировки</h2>
+                    </div>
+                    <div className="divide-y divide-gray-50 max-h-[200px] overflow-y-auto">
+                      {employeeAdjustments.map(item => (
+                        <div key={item.id} className="px-4 py-3">
+                          <div className="flex items-center justify-between">
+                            <span className={`text-sm font-black ${Number(item.amount_delta) >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                              {Number(item.amount_delta) >= 0 ? '+' : ''}{fmtGra(item.amount_delta)} GRA
+                            </span>
+                            <span className="text-xs text-gray-400">{fmtDateTime(item.created_at)}</span>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-0.5">{fmtGra(item.balance_before)} → {fmtGra(item.balance_after)} GRA · {item.changed_by_username || 'система'}</p>
+                          {item.notes && <p className="text-xs text-gray-400 mt-0.5">{item.notes}</p>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </>
             )}
           </div>
         </div>
       )}
 
+      {/* ═══ НАСТРОЙКИ ═══ */}
       {tab === 'settings' && (
         <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-5">
-          <div className="card p-6">
+          <div className="bg-white rounded-2xl border border-gray-100 p-6">
             <div className="flex items-center gap-2 mb-4">
-              <Settings className="w-5 h-5 text-primary-500" />
-              <h2 className="font-semibold text-gray-900">Ставка начисления</h2>
+              <RateGearIcon size={22} />
+              <h2 className="font-bold text-gray-900">Ставка начисления</h2>
             </div>
-
             <div className="max-w-md">
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">GRAcoin за 1 успешный скан товара</label>
-              <input
-                type="number"
-                min="0"
-                step="0.001"
-                value={rateDraft}
-                onChange={e => setRateDraft(e.target.value)}
-                className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-gray-900 focus:border-primary-400 focus:ring-2 focus:ring-primary-100 focus:outline-none"
-              />
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">GRACoin за 1 успешный скан товара</label>
+              <input type="number" min="0" step="0.001" value={rateDraft} onChange={e => setRateDraft(e.target.value)}
+                className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:border-primary-400 focus:ring-2 focus:ring-primary-100 focus:outline-none" />
             </div>
-
             <div className="mt-4 flex gap-3">
               <Button onClick={saveRate} loading={savingRate}>Сохранить ставку</Button>
               <Button variant="ghost" onClick={() => setRateDraft(String(summary?.settings?.gra_inventory_scan_rate ?? 10))}>Сбросить</Button>
             </div>
-
             <div className="mt-5 rounded-2xl bg-primary-50 border border-primary-100 p-4">
               <p className="text-sm font-semibold text-primary-700">Правило применения</p>
               <ul className="text-sm text-primary-700/90 mt-2 space-y-1.5">
-                <li>Начисление идёт только за успешные сканы товаров в задачах инвентаризации.</li>
-                <li>Сканы полок, паллет, коробок и ошибки штрихкода не оплачиваются.</li>
-                <li>Новая ставка влияет только на новые сканы и не пересчитывает старую историю.</li>
+                <li>Начисление только за успешные сканы товаров в инвентаризации.</li>
+                <li>Сканы полок, паллет, коробок и ошибки ШК не оплачиваются.</li>
+                <li>Новая ставка не пересчитывает старую историю.</li>
               </ul>
             </div>
           </div>
 
-          <div className="card overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-50">
-              <h3 className="font-semibold text-gray-900">Текущая конфигурация</h3>
+          <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+            <div className="px-5 py-3.5 border-b border-gray-100">
+              <h3 className="font-bold text-gray-900 text-sm">Конфигурация</h3>
             </div>
-            <div className="p-5 space-y-4">
-              <div className="rounded-2xl bg-gray-50 px-4 py-3">
-                <p className="text-xs text-gray-400">Ставка сейчас</p>
-                <p className="text-lg font-bold text-gray-900">{fmtGra(summary?.settings?.gra_inventory_scan_rate || 0)} GRA</p>
-              </div>
-              <div className="rounded-2xl bg-gray-50 px-4 py-3">
-                <p className="text-xs text-gray-400">Сотрудников в системе заработка</p>
-                <p className="text-lg font-bold text-gray-900">{overview.employees_with_activity || 0}</p>
-              </div>
-              <div className="rounded-2xl bg-gray-50 px-4 py-3">
-                <p className="text-xs text-gray-400">Текущий суммарный баланс</p>
-                <p className="text-lg font-bold text-gray-900">{fmtGra(overview.total_current_balance)} GRA</p>
-              </div>
+            <div className="p-5 space-y-3">
+              {[
+                { label: 'Ставка сейчас', value: `${fmtGra(summary?.settings?.gra_inventory_scan_rate || 0)} GRA` },
+                { label: 'Сотрудников', value: overview.employees_with_activity || 0 },
+                { label: 'Суммарный баланс', value: `${fmtGra(overview.total_current_balance)} GRA` },
+              ].map((s, i) => (
+                <div key={i} className="rounded-xl bg-gray-50 px-4 py-3">
+                  <p className="text-xs text-gray-400">{s.label}</p>
+                  <p className="text-lg font-bold text-gray-900">{s.value}</p>
+                </div>
+              ))}
             </div>
           </div>
         </div>
       )}
 
-      {adjustModalOpen && selectedEmployee ? (
-        <BalanceAdjustModal
-          employee={selectedEmployee}
-          saving={savingBalance}
-          onClose={() => setAdjustModalOpen(false)}
-          onSubmit={saveBalance}
-        />
-      ) : null}
+      {adjustModalOpen && selectedEmployee && (
+        <BalanceAdjustModal employee={selectedEmployee} saving={savingBalance} onClose={() => setAdjustModalOpen(false)} onSubmit={saveBalance} />
+      )}
     </div>
   );
 }
