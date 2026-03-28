@@ -327,13 +327,13 @@ router.get('/:id', requireAuth, async (req, res, next) => {
       }
     }
 
-    // Где хранится товар — все склады
+    // Где хранится товар — все склады (группируем коробки по паллету)
     const locationsResult = await pool.query(
       `SELECT * FROM (
         -- FBS: полки
         SELECT si.quantity, 'shelf' as location_type,
                s.id as location_id, s.code as location_code, s.name as location_name,
-               r.name as rack_name, w.name as warehouse_name
+               r.name as rack_name, w.name as warehouse_name, NULL::int as box_count
         FROM shelf_items_s si
         JOIN shelves_s s ON s.id = si.shelf_id
         JOIN racks_s r ON r.id = s.rack_id
@@ -343,7 +343,7 @@ router.get('/:id', requireAuth, async (req, res, next) => {
         -- FBS: коробки на полках
         SELECT sbi.quantity, 'shelf_box' as location_type,
                s.id as location_id, s.code as location_code, CONCAT('Коробка ', sb.barcode_value) as location_name,
-               r.name as rack_name, w.name as warehouse_name
+               r.name as rack_name, w.name as warehouse_name, NULL::int as box_count
         FROM shelf_boxes_s sb
         JOIN shelves_s s ON s.id = sb.shelf_id
         JOIN racks_s r ON r.id = s.rack_id
@@ -351,21 +351,22 @@ router.get('/:id', requireAuth, async (req, res, next) => {
         JOIN shelf_box_items_s sbi ON sbi.shelf_box_id = sb.id
         WHERE sbi.product_id = $1 AND sbi.quantity > 0
         UNION ALL
-        -- FBO: коробки на паллетах
-        SELECT bi.quantity, 'box' as location_type,
-               pa.id as location_id, pa.name as location_code, CONCAT('Коробка ', b.barcode_value) as location_name,
-               pr.name as rack_name, w.name as warehouse_name
+        -- FBO: коробки на паллетах — группируем по паллету (сумма + кол-во коробок)
+        SELECT SUM(bi.quantity)::numeric as quantity, 'pallet_boxes' as location_type,
+               pa.id as location_id, pa.name as location_code, pa.name as location_name,
+               pr.name as rack_name, w.name as warehouse_name, COUNT(DISTINCT b.id)::int as box_count
         FROM box_items_s bi
         JOIN boxes_s b ON bi.box_id = b.id
         JOIN pallets_s pa ON b.pallet_id = pa.id
         JOIN pallet_rows_s pr ON pa.row_id = pr.id
         JOIN warehouses_s w ON w.id = pr.warehouse_id
         WHERE bi.product_id = $1 AND b.status = 'closed' AND bi.quantity > 0
+        GROUP BY pa.id, pa.name, pr.name, w.name
         UNION ALL
-        -- FBO: товары напрямую на паллетах
+        -- FBO: товары напрямую на паллетах (НЕ в коробках)
         SELECT pi.quantity, 'pallet' as location_type,
                pa.id as location_id, pa.name as location_code, pa.name as location_name,
-               pr.name as rack_name, w.name as warehouse_name
+               pr.name as rack_name, w.name as warehouse_name, NULL::int as box_count
         FROM pallet_items_s pi
         JOIN pallets_s pa ON pi.pallet_id = pa.id
         JOIN pallet_rows_s pr ON pa.row_id = pr.id
