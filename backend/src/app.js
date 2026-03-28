@@ -63,7 +63,7 @@ siteRouter.use('/api/movements', movementsRoutes);
 siteRouter.use('/api/earnings', earningsRoutes);
 siteRouter.use('/api/materials', materialsRoutes);
 siteRouter.use('/api/feedback', feedbackRoutes);
-siteRouter.use('/api/uploads', requireAuth, express.static(path.join(__dirname, '../uploads')));
+siteRouter.use('/api/uploads', express.static(path.join(__dirname, '../uploads')));
 siteRouter.use('/api', (_req, res) => {
   res.status(404).json({ error: 'Not found' });
 });
