@@ -3,6 +3,8 @@ import api from '../../api/client';
 import Spinner from '../ui/Spinner';
 
 const BOX_COLS = 5;
+const BOX_ROWS_VISIBLE = 4;
+const MAX_VISIBLE = BOX_COLS * BOX_ROWS_VISIBLE; // 20 boxes shown on top
 
 function PalletBox({ box }) {
   // Generate barcode bars from barcode_value
@@ -39,18 +41,18 @@ function PalletBox({ box }) {
           background: 'linear-gradient(225deg, rgba(255,255,255,0.25), transparent 60%)', borderRadius: '0 3px 0 0', pointerEvents: 'none' }} />
         {/* Label */}
         <div style={{
-          position: 'absolute', bottom: 6, left: 6, right: 6, height: 38,
-          background: 'white', border: '0.5px solid #d8d0c4', borderRadius: 2,
-          opacity: 0.88, padding: '3px 4px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', zIndex: 2,
+          position: 'absolute', bottom: 3, left: 3, right: 3,
+          background: 'white', border: '0.5px solid #d8d0c4', borderRadius: 1.5,
+          opacity: 0.85, padding: '2px 3px', zIndex: 2,
           boxShadow: '0 0.5px 2px rgba(0,0,0,0.06)',
         }}>
-          <div style={{ fontSize: 7, fontWeight: 700, color: '#3a3020', lineHeight: 1.2,
-            overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', letterSpacing: '-0.01em' }}>
+          <div style={{ fontSize: 6, fontWeight: 700, color: '#3a3020', lineHeight: 1.15,
+            overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
             {name}
           </div>
-          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 3 }}>
-            <div style={{ display: 'flex', gap: 0.5, alignItems: 'flex-end', height: 7, flexShrink: 0 }}>{bars}</div>
-            <div style={{ fontSize: 7, fontWeight: 800, color: '#6a5a40', whiteSpace: 'nowrap' }}>{qty} шт</div>
+          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 2, marginTop: 1 }}>
+            <div style={{ display: 'flex', gap: 0.4, alignItems: 'flex-end', height: 5, flexShrink: 0 }}>{bars}</div>
+            <div style={{ fontSize: 6, fontWeight: 800, color: '#6a5a40', whiteSpace: 'nowrap' }}>{qty}</div>
           </div>
         </div>
       </div>
@@ -59,27 +61,38 @@ function PalletBox({ box }) {
 }
 
 function PalletView({ pallet }) {
-  const boxes = pallet.boxes || [];
-  const rows = Math.ceil(boxes.length / BOX_COLS);
+  const allBoxes = pallet.boxes || [];
+  const visibleBoxes = allBoxes.slice(0, MAX_VISIBLE);
+  const hiddenCount = Math.max(0, allBoxes.length - MAX_VISIBLE);
+  const totalQty = allBoxes.reduce((s, b) => s + Number(b.quantity || 0), 0);
 
   return (
-    <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center' }}>
+    <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', width: 220 }}>
       {/* Wood pallet + boxes */}
       <div style={{
-        padding: 14,
-        background: `repeating-linear-gradient(0deg, #c89838 0px, #bd8d35 18px, #7a5020 18px, #7a5020 20px, #c89838 20px)`,
-        border: '3px solid #8a5c20', borderRadius: 6,
-        boxShadow: '0 2px 0 #6a4818, 0 4px 0 #5a3810, 0 10px 30px rgba(0,0,0,0.2)',
-        width: Math.max(BOX_COLS * 100 + (BOX_COLS - 1) * 5 + 28, 200),
+        padding: 8,
+        background: `repeating-linear-gradient(0deg, #c89838 0px, #bd8d35 14px, #7a5020 14px, #7a5020 15.5px, #c89838 15.5px)`,
+        border: '2.5px solid #8a5c20', borderRadius: 5,
+        boxShadow: '0 2px 0 #6a4818, 0 3px 0 #5a3810, 0 8px 20px rgba(0,0,0,0.18)',
+        width: '100%',
       }}>
-        <div style={{ display: 'grid', gridTemplateColumns: `repeat(${BOX_COLS}, 1fr)`, gap: 5 }}>
-          {boxes.map(box => <PalletBox key={box.id} box={box} />)}
+        <div style={{ display: 'grid', gridTemplateColumns: `repeat(${BOX_COLS}, 1fr)`, gap: 3 }}>
+          {visibleBoxes.map(box => <PalletBox key={box.id} box={box} />)}
+          {/* Empty cells to fill grid */}
+          {visibleBoxes.length < MAX_VISIBLE && visibleBoxes.length > 0 && Array.from({ length: MAX_VISIBLE - visibleBoxes.length }, (_, i) => (
+            <div key={`empty-${i}`} style={{ aspectRatio: '1', borderRadius: 2, background: 'rgba(0,0,0,0.04)', border: '0.5px dashed rgba(0,0,0,0.08)' }} />
+          ))}
         </div>
+        {hiddenCount > 0 && (
+          <div style={{ textAlign: 'center', marginTop: 4, fontSize: 8, color: '#8a7050', fontWeight: 600, opacity: 0.7 }}>
+            +{hiddenCount} ещё снизу
+          </div>
+        )}
       </div>
       {/* Pallet name below */}
-      <div style={{ marginTop: 8, textAlign: 'center' }}>
-        <span style={{ fontSize: 11, fontWeight: 700, color: '#7a6b5a', fontFamily: 'monospace' }}>{pallet.name}</span>
-        <span style={{ fontSize: 10, color: '#b0a090', marginLeft: 6 }}>{boxes.length} кор. · {boxes.reduce((s, b) => s + Number(b.quantity || 0), 0)} шт</span>
+      <div style={{ marginTop: 6, textAlign: 'center' }}>
+        <span style={{ fontSize: 10, fontWeight: 700, color: '#7a6b5a', fontFamily: 'monospace' }}>{pallet.name}</span>
+        <span style={{ fontSize: 9, color: '#b0a090', marginLeft: 4 }}>{allBoxes.length} кор. · {totalQty} шт</span>
       </div>
     </div>
   );
