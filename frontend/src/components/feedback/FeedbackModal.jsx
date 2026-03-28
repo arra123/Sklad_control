@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { Bug, Lightbulb, HelpCircle, Camera, Mic, MicOff, X, Send, ScanLine, Monitor, Database, Warehouse, MoreHorizontal, Sparkles, Wrench, Hand, Play, Square, Trash2 } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { Bug, Lightbulb, HelpCircle, Camera, Mic, X, Send, ScanLine, Monitor, Database, Warehouse, MoreHorizontal, Sparkles, Wrench, Hand, Square, Trash2, Upload } from 'lucide-react';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
 import { useToast } from '../ui/Toast';
@@ -54,6 +55,7 @@ export default function FeedbackModal({ open, onClose }) {
   const recognitionRef = useRef(null);
   const timerRef = useRef(null);
   const fileRef = useRef(null);
+  const audioFileRef = useRef(null);
 
   const hasSpeechAPI = typeof window !== 'undefined' && ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window);
   const isSecureContext = typeof window !== 'undefined' && (window.isSecureContext || window.location.protocol === 'https:' || window.location.hostname === 'localhost');
@@ -206,7 +208,7 @@ export default function FeedbackModal({ open, onClose }) {
 
   const subs = category ? (SUB_CATEGORIES[category] || []) : [];
 
-  return (
+  return createPortal(
     <Modal open={open} onClose={onClose} title="Обратная связь" size="lg" footer={
       <div className="flex items-center justify-between w-full">
         <p className="text-xs text-gray-400">{user?.username || 'Аноним'} · {new Date().toLocaleDateString('ru-RU')}</p>
@@ -296,14 +298,31 @@ export default function FeedbackModal({ open, onClose }) {
             )}
           </div>
 
-          {/* Voice */}
+          {/* Voice: record if HTTPS, upload file if HTTP */}
           <div className="flex-1">
             {!audioBlob && !isRecording && (
-              <button onClick={startRecording}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-dashed border-gray-200 text-sm font-medium text-gray-500 hover:border-primary-300 hover:text-primary-600 transition-colors">
-                <Mic size={16} />
-                Голос
-              </button>
+              isSecureContext ? (
+                <button onClick={startRecording}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-dashed border-gray-200 text-sm font-medium text-gray-500 hover:border-primary-300 hover:text-primary-600 transition-colors">
+                  <Mic size={16} />
+                  Записать голос
+                </button>
+              ) : (
+                <>
+                  <input ref={audioFileRef} type="file" accept="audio/*" className="hidden" onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    if (file.size > 10 * 1024 * 1024) { toast.error('Макс. 10 МБ'); return; }
+                    setAudioBlob(file);
+                    setAudioUrl(URL.createObjectURL(file));
+                  }} />
+                  <button onClick={() => audioFileRef.current?.click()}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-dashed border-gray-200 text-sm font-medium text-gray-500 hover:border-primary-300 hover:text-primary-600 transition-colors">
+                    <Upload size={16} />
+                    Голосовое
+                  </button>
+                </>
+              )
             )}
             {isRecording && (
               <div className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-red-50 border border-red-200">
@@ -317,7 +336,6 @@ export default function FeedbackModal({ open, onClose }) {
             {audioBlob && !isRecording && (
               <div className="w-full flex items-center gap-2 px-3 py-2 rounded-xl bg-green-50 border border-green-200">
                 <audio src={audioUrl} controls className="flex-1 h-8" style={{ minWidth: 0 }} />
-                <span className="text-xs text-green-600 font-semibold flex-shrink-0">{fmtTime(recordDuration)}</span>
                 <button onClick={removeAudio} className="w-6 h-6 rounded-full bg-red-100 text-red-500 flex items-center justify-center hover:bg-red-200 flex-shrink-0">
                   <Trash2 size={11} />
                 </button>
@@ -326,6 +344,7 @@ export default function FeedbackModal({ open, onClose }) {
           </div>
         </div>
       </div>
-    </Modal>
+    </Modal>,
+    document.body
   );
 }
