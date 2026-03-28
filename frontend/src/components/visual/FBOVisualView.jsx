@@ -137,32 +137,58 @@ function PalletDetailPanel({ pallet, onClose }) {
           <button onClick={resetRotation} style={{ ...ctrlBtn, marginLeft: 8 }}><RotateCcw size={12} /></button>
         </div>
 
-        {/* 3D Pallet */}
-        <div style={{ perspective: 800, display: 'flex', justifyContent: 'center' }}>
+        {/* 3D Pallet - isometric with real box faces */}
+        <div style={{ display: 'flex', justifyContent: 'center', perspective: 1000 }}>
           <div style={{
             transform: `rotateX(${rotX}deg) rotateY(${rotY}deg)`,
-            transformStyle: 'preserve-3d', transition: 'transform 0.3s',
-            width: 260,
+            transformStyle: 'preserve-3d', transition: 'transform 0.4s ease',
           }}>
             {layers.map((layer, li) => {
               const isActive = activeLayer === null || activeLayer === li;
               const isAboveActive = activeLayer !== null && li > activeLayer;
+              const BOX_W = 42, BOX_H = 28, GAP = 3;
+              const gridW = BOX_COLS * (BOX_W + GAP);
+              const layerRows = Math.ceil(layer.length / BOX_COLS);
               return (
-                <div key={li} style={{ opacity: isActive ? 1 : 0.12, transition: 'opacity 0.3s', display: isAboveActive ? 'none' : 'block' }}>
+                <div key={li} style={{
+                  opacity: isActive ? 1 : 0.1, transition: 'opacity 0.3s',
+                  display: isAboveActive ? 'none' : 'block',
+                  transformStyle: 'preserve-3d',
+                  marginBottom: 2,
+                }}>
                   {li > 0 && (
-                    <div style={{ height: 3, margin: '2px 4px', borderRadius: 1,
-                      background: 'repeating-linear-gradient(90deg, #c8a050 0, #b08838 5px, #c8a050 6px)', opacity: 0.4 }} />
+                    <div style={{ width: gridW, height: 4, margin: '0 auto 2px',
+                      background: 'repeating-linear-gradient(90deg, #c8a050 0, #b08838 5px, #c8a050 6px)', opacity: 0.5, borderRadius: 1 }} />
                   )}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 2, padding: '2px 4px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: `repeat(${BOX_COLS}, ${BOX_W}px)`, gap: GAP, justifyContent: 'center' }}>
                     {layer.map(box => (
-                      <div key={box.id} style={{
-                        aspectRatio: '1', borderRadius: 2,
-                        background: 'linear-gradient(145deg, #e8dbc4, #d0c0a0)',
-                        border: '1px solid #b8a480', position: 'relative',
-                        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.3), 0 1px 2px rgba(0,0,0,0.08)',
-                      }}>
-                        <div style={{ position: 'absolute', top: 0, bottom: 0, left: '50%', width: 4, transform: 'translateX(-50%)', background: 'rgba(200,180,150,0.2)' }} />
-                        <div style={{ position: 'absolute', left: 0, right: 0, top: '50%', height: 4, transform: 'translateY(-50%)', background: 'rgba(200,180,150,0.2)' }} />
+                      <div key={box.id} style={{ width: BOX_W, height: BOX_H, position: 'relative', transformStyle: 'preserve-3d' }}>
+                        {/* Top face */}
+                        <div style={{
+                          position: 'absolute', width: BOX_W, height: BOX_H,
+                          background: 'linear-gradient(135deg, #e8dbc4, #d8c8a8)',
+                          border: '1px solid #b8a480', borderRadius: 1,
+                          transform: `translateZ(${BOX_H/2}px)`,
+                        }}>
+                          <div style={{ position: 'absolute', top: 0, bottom: 0, left: '50%', width: 4, transform: 'translateX(-50%)', background: 'rgba(190,170,140,0.2)' }} />
+                          <div style={{ position: 'absolute', left: 0, right: 0, top: '50%', height: 4, transform: 'translateY(-50%)', background: 'rgba(190,170,140,0.2)' }} />
+                        </div>
+                        {/* Front face */}
+                        <div style={{
+                          position: 'absolute', width: BOX_W, height: BOX_H/2,
+                          background: 'linear-gradient(180deg, #d4be98, #c4aa80)',
+                          border: '1px solid #b8a480', borderTop: 'none', borderRadius: '0 0 1px 1px',
+                          transform: `rotateX(-90deg) translateZ(${BOX_H/2}px)`,
+                          transformOrigin: 'top center',
+                        }} />
+                        {/* Right face */}
+                        <div style={{
+                          position: 'absolute', width: BOX_H/2, height: BOX_H,
+                          background: 'linear-gradient(180deg, #cbb890, #baa878)',
+                          border: '1px solid #b8a480', borderLeft: 'none', borderRadius: '0 1px 1px 0',
+                          transform: `rotateY(90deg) translateZ(${BOX_W - BOX_H/4}px)`,
+                          transformOrigin: 'left center',
+                        }} />
                       </div>
                     ))}
                   </div>
@@ -170,9 +196,11 @@ function PalletDetailPanel({ pallet, onClose }) {
               );
             })}
             {/* Wood base */}
-            <div style={{ height: 5, margin: '3px 0 0', borderRadius: '0 0 2px 2px',
+            <div style={{ width: BOX_COLS * 45, height: 8, margin: '4px auto 0',
               background: 'repeating-linear-gradient(90deg, #c89838 0, #bd8d35 8px, #7a5020 8px, #7a5020 9.5px, #c89838 9.5px)',
-              border: '1.5px solid #8a5c20', borderTop: 'none' }} />
+              border: '2px solid #8a5c20', borderRadius: '0 0 3px 3px',
+              transformStyle: 'preserve-3d',
+            }} />
           </div>
         </div>
 
