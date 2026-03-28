@@ -56,39 +56,34 @@ function getBoxTopTexture() {
   return _boxTopTex;
 }
 
-// ─── Box front texture (label with name, qty, barcode) ───────────────────────
-function makeBoxFrontTexture(name, qty, barcode) {
+// ─── Box front texture (clean white label: name + qty only) ──────────────────
+function makeBoxFrontTexture(name, qty) {
   const c = document.createElement('canvas');
   c.width = 128; c.height = 128;
   const ctx = c.getContext('2d');
   // Kraft side
   ctx.fillStyle = '#d8c8a8';
   ctx.fillRect(0, 0, 128, 128);
-  // Tape down middle
+  // Tape
   ctx.fillStyle = 'rgba(200,185,155,0.3)';
   ctx.fillRect(58, 0, 12, 128);
-  // White label
+  // White label — clean, centered
   ctx.fillStyle = 'white';
-  ctx.shadowColor = 'rgba(0,0,0,0.06)';
-  ctx.shadowBlur = 2;
-  ctx.fillRect(12, 30, 104, 70);
+  ctx.shadowColor = 'rgba(0,0,0,0.08)';
+  ctx.shadowBlur = 3;
+  ctx.beginPath();
+  ctx.roundRect(10, 28, 108, 72, 4);
+  ctx.fill();
   ctx.shadowBlur = 0;
-  // Name
-  ctx.fillStyle = '#3a3020';
+  // Name — black on white
+  ctx.fillStyle = '#1a1a1a';
   ctx.font = 'bold 13px Arial';
   const short = name.length > 18 ? name.slice(0, 17) + '…' : name;
-  ctx.fillText(short, 16, 50);
-  // Qty
-  ctx.font = 'bold 12px Arial';
-  ctx.fillStyle = '#7a6a50';
-  ctx.fillText(qty + ' шт', 16, 68);
-  // Barcode
-  const bc = String(barcode || '').slice(0, 10);
-  for (let i = 0; i < 18; i++) {
-    const h = 6 + ((bc.charCodeAt(i % bc.length) || 5) % 6) * 1.5;
-    ctx.fillStyle = `rgba(50,40,20,${0.4 + (i % 3) * 0.15})`;
-    ctx.fillRect(16 + i * 5, 100 - h, 2.5, h);
-  }
+  ctx.fillText(short, 16, 52);
+  // Qty — bold
+  ctx.font = 'bold 16px Arial';
+  ctx.fillStyle = '#333';
+  ctx.fillText(qty + ' шт', 16, 78);
   return new THREE.CanvasTexture(c);
 }
 
@@ -180,7 +175,7 @@ function buildPallet(palletData, mats, geo, offsetX, offsetZ) {
       const bGroup = new THREE.Group();
 
       const bName = (box.product_name || '—').replace(/GraFLab,?\s*/i, '').trim();
-      const frontTex = makeBoxFrontTexture(bName, box.quantity || 0, box.barcode_value);
+      const frontTex = makeBoxFrontTexture(bName, box.quantity || 0);
       const topTex = getBoxTopTexture();
       const sideTex = getBoxSideTexture();
 
@@ -339,6 +334,8 @@ export default function FBOVisualView({ warehouse }) {
   const [rows, setRows] = useState([]);
   const [selected, setSelected] = useState(null);
   const [moveMode, setMoveMode] = useState(null);
+  const [cardData, setCardData] = useState(null); // full box detail modal
+  const [cardLoading, setCardLoading] = useState(false);
   const moveModeRef = useRef(null);
   const [activeLayer, setActiveLayer] = useState(-1); // -1 = all
   const [maxLayers, setMaxLayers] = useState(3);
@@ -571,10 +568,13 @@ export default function FBOVisualView({ warehouse }) {
       {moveMode && <MoveBanner boxData={moveMode} onCancel={() => setMoveMode(null)} />}
 
       {!moveMode && <InfoPanel data={selected} onClose={() => setSelected(null)}
-        onNavigate={() => {
-          if (selected?.type === 'box') {
-            // Navigate to box detail page (FBO box)
-            navigate(`/admin/fbo?pallet=${selected.palletId}`);
+        onNavigate={async () => {
+          if (selected?.type === 'box' && selected.boxId) {
+            setCardLoading(true);
+            try {
+              const res = await api.get(`/fbo/boxes/${selected.boxId}`);
+              setCardData(res.data);
+            } catch {} finally { setCardLoading(false); }
           }
           setSelected(null);
         }}
@@ -587,6 +587,60 @@ export default function FBOVisualView({ warehouse }) {
       />}
 
       <LayerControl maxLayers={maxLayers} activeLayer={activeLayer} onChange={setActiveLayer} />
+
+      {/* Box detail modal */}
+      {(cardData || cardLoading) && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          onClick={() => { setCardData(null); setCardLoading(false); }}>
+          <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.3)' }} />
+          <div style={{ position: 'relative', background: 'white', borderRadius: 20, padding: 24, width: 380, maxHeight: '70vh', overflow: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.2)', fontFamily: 'Inter,Arial,sans-serif' }}
+            onClick={e => e.stopPropagation()}>
+            {cardLoading ? (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 120 }}><Spinner size="md" /></div>
+            ) : cardData && (
+              <>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+                  <div>
+                    <p style={{ fontSize: 10, fontWeight: 700, color: '#7c3aed', textTransform: 'uppercase', margin: 0 }}>Коробка</p>
+                    <h3 style={{ fontSize: 18, fontWeight: 800, margin: '4px 0 0', color: '#1c1917' }}>{(cardData.product_name || '—').replace(/GraFLab,?\s*/i, '').trim()}</h3>
+                  </div>
+                  <button onClick={() => setCardData(null)} style={{ width: 28, height: 28, border: '1px solid #eee', borderRadius: 8, background: 'white', cursor: 'pointer', fontSize: 16, color: '#bbb', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
+                  <div style={{ background: '#f5f3ff', borderRadius: 10, padding: '10px 14px' }}>
+                    <p style={{ fontSize: 10, color: '#7c3aed', fontWeight: 600, margin: 0 }}>Кол-во</p>
+                    <p style={{ fontSize: 20, fontWeight: 900, color: '#5b21b6', margin: '2px 0 0' }}>{cardData.quantity} шт</p>
+                  </div>
+                  <div style={{ background: '#f0fdf4', borderRadius: 10, padding: '10px 14px' }}>
+                    <p style={{ fontSize: 10, color: '#16a34a', fontWeight: 600, margin: 0 }}>Статус</p>
+                    <p style={{ fontSize: 14, fontWeight: 700, color: '#15803d', margin: '2px 0 0' }}>{cardData.status === 'closed' ? 'Закрыта' : cardData.status}</p>
+                  </div>
+                </div>
+                <div style={{ fontSize: 12, color: '#888', lineHeight: 1.8 }}>
+                  <p style={{ margin: 0 }}><b style={{ color: '#555' }}>ШК:</b> {cardData.barcode_value || '—'}</p>
+                  {cardData.pallet_name && <p style={{ margin: 0 }}><b style={{ color: '#555' }}>Паллет:</b> {cardData.pallet_name}</p>}
+                  {cardData.row_name && <p style={{ margin: 0 }}><b style={{ color: '#555' }}>Ряд:</b> {cardData.row_name}</p>}
+                  {cardData.warehouse_name && <p style={{ margin: 0 }}><b style={{ color: '#555' }}>Склад:</b> {cardData.warehouse_name}</p>}
+                  {cardData.product_code && <p style={{ margin: 0 }}><b style={{ color: '#555' }}>Код:</b> {cardData.product_code}</p>}
+                </div>
+                {cardData.items && cardData.items.length > 0 && (
+                  <div style={{ marginTop: 14 }}>
+                    <p style={{ fontSize: 10, fontWeight: 700, color: '#aaa', textTransform: 'uppercase', marginBottom: 8 }}>Содержимое ({cardData.items.length})</p>
+                    <div style={{ maxHeight: 200, overflowY: 'auto' }}>
+                      {cardData.items.map((item, i) => (
+                        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid #f5f5f5', fontSize: 12 }}>
+                          <span style={{ color: '#333' }}>{(item.product_name || '—').replace(/GraFLab,?\s*/i, '').trim()}</span>
+                          <span style={{ fontWeight: 700, color: '#555' }}>{item.quantity} шт</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       <p style={{ textAlign: 'center', fontSize: 11, color: '#bbb', marginTop: 6 }}>
         ЛКМ + тянуть = вращение · Скролл = зум · ПКМ = панорама · Клик = инфо
