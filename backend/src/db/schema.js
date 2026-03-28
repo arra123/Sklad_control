@@ -366,7 +366,7 @@ async function createSchema() {
     const tablesWithUpdatedAt = [
       'employees_s', 'users_s', 'product_folders_s', 'products_s',
       'warehouses_s', 'racks_s', 'shelves_s', 'inventory_tasks_s', 'settings_s',
-      'raw_materials_s', 'tech_cards_s', 'feedback_s'
+      'raw_materials_s', 'tech_cards_s'
     ];
 
     for (const table of tablesWithUpdatedAt) {
@@ -427,6 +427,12 @@ async function createSchema() {
     `);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_feedback_created ON feedback_s(created_at DESC)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_feedback_status ON feedback_s(status)`);
+    await client.query(`
+      DROP TRIGGER IF EXISTS trg_feedback_s_updated_at ON feedback_s;
+      CREATE TRIGGER trg_feedback_s_updated_at
+        BEFORE UPDATE ON feedback_s
+        FOR EACH ROW EXECUTE FUNCTION update_updated_at_s();
+    `);
 
     // ─── Migrations ──────────────────────────────────────────────────
 
