@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Паллетный склад — визуал v2</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+body { font-family: 'Inter', sans-serif; background: #f8f9fb; }
+
+/* ═══ 3D Pallet Scene ═══ */
+.scene { perspective: 800px; }
+.pallet-group {
+  transform-style: preserve-3d;
+  transition: transform 0.5s ease;
+}
+.pallet-group.rotated { transform: rotateY(-25deg) rotateX(10deg); }
+
+/* Wood pallet base */
+.pallet-wood {
+  background: linear-gradient(180deg, #c8a050 0%, #b08838 50%, #a07828 100%);
+  border: 1.5px solid #8a6828;
+  border-radius: 3px;
+  position: relative;
+}
+.pallet-wood::before {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  background: repeating-linear-gradient(90deg,
+    rgba(255,255,255,0.08) 0px, transparent 1px, transparent 6px, rgba(255,255,255,0.08) 7px
+  );
+  border-radius: 2px;
+}
+/* Pallet legs */
+.pallet-leg {
+  background: linear-gradient(180deg, #a07828, #886020);
+  border: 1px solid #705018;
+}
+
+/* Box on pallet */
+.pallet-box {
+  background: linear-gradient(145deg, #e8ddd0 0%, #d8ccb8 40%, #c8bca8 100%);
+  border: 1.2px solid #b0a490;
+  border-radius: 3px;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+.pallet-box:hover {
+  transform: translateY(-4px) scale(1.03);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.15);
+  z-index: 10;
+  border-color: #7c3aed;
+}
+.pallet-box::before {
+  content: '';
+  position: absolute;
+  top: 3px; left: 3px; right: 3px;
+  height: 1px;
+  background: rgba(255,255,255,0.4);
+  border-radius: 1px;
+}
+/* Tape on box */
+.pallet-box::after {
+  content: '';
+  position: absolute;
+  top: 0; bottom: 0;
+  left: 50%;
+  width: 6px;
+  transform: translateX(-50%);
+  background: rgba(180,160,130,0.3);
+  border-left: 0.5px solid rgba(160,140,110,0.3);
+  border-right: 0.5px solid rgba(160,140,110,0.3);
+}
+
+/* Layer slice control */
+.layer-slice {
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.layer-slice:hover { background: rgba(124,58,237,0.08); }
+.layer-slice.active { background: rgba(124,58,237,0.12); border-color: #7c3aed; }
+.layer-slice.hidden-layer { opacity: 0.15; pointer-events: none; }
+
+/* Mini pallet in row list */
+.mini-pallet {
+  transition: all 0.2s;
+  cursor: pointer;
+}
+.mini-pallet:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+}
+.mini-pallet.selected {
+  outline: 2.5px solid #7c3aed;
+  outline-offset: 3px;
+}
+</style>
+</head>
+<body class="p-6 max-w-[1500px] mx-auto">
+
+<!-- Header -->
+<div class="flex items-center justify-between mb-5">
+  <div class="flex items-center gap-3">
+    <svg width="28" height="28" viewBox="0 0 48 48" fill="none">
+      <rect x="6" y="18" width="36" height="24" rx="2" fill="#e8e0d4" stroke="#a09080" stroke-width="1.5"/>
+      <path d="M4 20L24 6l20 14" fill="#c8b898" stroke="#a09080" stroke-width="1.5" stroke-linejoin="round"/>
+      <rect x="17" y="28" width="14" height="14" rx="1.5" fill="#b0a088" stroke="#8a7868" stroke-width="1"/>
+    </svg>
+    <div>
+      <h1 class="text-lg font-bold text-gray-900">Наша продукция нов</h1>
+      <p class="text-xs text-gray-400">Ряды + паллеты</p>
+    </div>
+  </div>
+  <div class="flex bg-gray-100 rounded-xl p-1 gap-0.5">
+    <button class="px-3 py-1.5 rounded-lg text-sm font-medium text-gray-500">Список</button>
+    <button class="px-3 py-1.5 bg-white shadow-sm rounded-lg text-sm font-semibold text-gray-900">Визуально</button>
+    <button class="px-3 py-1.5 rounded-lg text-sm font-medium text-gray-500">Карточки</button>
+  </div>
+</div>
+
+<!-- Row selector -->
+<div class="flex gap-2 mb-5">
+  <button class="px-4 py-2 bg-primary-600 text-white rounded-xl text-sm font-semibold" style="background:#7c3aed">Ряд 1 <span class="opacity-60 ml-1">6</span></button>
+  <button class="px-4 py-2 bg-white border border-gray-200 text-gray-600 rounded-xl text-sm font-medium hover:border-gray-300">Ряд 2 <span class="text-gray-400 ml-1">5</span></button>
+  <button class="px-4 py-2 bg-white border border-gray-200 text-gray-600 rounded-xl text-sm font-medium hover:border-gray-300">Ряд 3 <span class="text-gray-400 ml-1">4</span></button>
+</div>
+
+<!-- Main: Pallets row + Detail panel -->
+<div class="flex gap-6">
+
+  <!-- LEFT: All pallets in row -->
+  <div class="flex-1">
+    <div class="flex gap-5 flex-wrap">
+
+      <!-- Pallet 1 (selected) -->
+      <div class="mini-pallet selected rounded-2xl bg-white border border-gray-100 overflow-hidden w-[180px]" style="box-shadow:0 4px 16px rgba(0,0,0,0.08)">
+        <div class="px-3 py-2 border-b border-gray-50">
+          <p class="text-xs font-bold text-gray-800">Паллет 1</p>
+          <p class="text-[10px] text-gray-400">42 кор. · 2,100 шт</p>
+        </div>
+        <!-- Mini 3D pallet preview -->
+        <div class="p-3 bg-gray-50/50">
+          <div class="scene" style="height:110px">
+            <div style="transform:rotateX(30deg) rotateZ(-5deg);transform-style:preserve-3d">
+              <!-- Layer 3 -->
+              <div class="grid grid-cols-5 gap-[2px] mb-[2px]">
+                <div class="pallet-box h-[14px]"></div><div class="pallet-box h-[14px]"></div><div class="pallet-box h-[14px]"></div><div class="pallet-box h-[14px]"></div><div class="pallet-box h-[14px]"></div>
+              </div>
+              <div class="grid grid-cols-5 gap-[2px] mb-[2px]">
+                <div class="pallet-box h-[14px]"></div><div class="pallet-box h-[14px]"></div><div class="pallet-box h-[14px]"></div><div class="pallet-box h-[14px]"></div><div class="pallet-box h-[14px]"></div>
+              </div>
+              <div class="grid grid-cols-5 gap-[2px]">
+                <div class="pallet-box h-[14px]"></div><div class="pallet-box h-[14px]"></div><div class="pallet-box h-[14px]"></div><div class="pallet-box h-[14px]"></div><div class="pallet-box h-[14px]"></div>
+              </div>
+              <!-- Separator -->
+              <div class="h-[3px] my-[2px]" style="background:linear-gradient(90deg,#c8a050,#b08838,#c8a050);border-radius:1px;opacity:0.5"></div>
+              <!-- Layer 2 -->
+              <div class="grid grid-cols-5 gap-[2px] mb-[2px]">
+                <div class="pallet-box h-[14px]"></div><div class="pallet-box h-[14px]"></div><div class="pallet-box h-[14px]"></div><div class="pallet-box h-[14px]"></div><div class="pallet-box h-[14px]"></div>
+              </div>
+              <div class="grid grid-cols-5 gap-[2px] mb-[2px]">
+                <div class="pallet-box h-[14px]"></div><div class="pallet-box h-[14px]"></div><div class="pallet-box h-[14px]"></div><div class="pallet-box h-[14px]"></div><div class="pallet-box h-[14px]"></div>
+              </div>
+              <!-- Wood base -->
+              <div class="pallet-wood h-[5px] mt-[3px]"></div>
+              <div class="flex justify-between mt-[1px] px-1">
+                <div class="pallet-leg w-[12px] h-[4px] rounded-b-sm"></div>
+                <div class="pallet-leg w-[12px] h-[4px] rounded-b-sm"></div>
+                <div class="pallet-leg w-[12px] h-[4px] rounded-b-sm"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pallet 2 -->
+      <div class="mini-pallet rounded-2xl bg-white border border-gray-100 overflow-hidden w-[180px]" style="box-shadow:0 4px 16px rgba(0,0,0,0.08)">
+        <div class="px-3 py-2 border-b border-gray-50">
+          <p class="text-xs font-bold text-gray-800">Паллет 2</p>
+          <p class="text-[10px] text-gray-400">28 кор. · 1,400 шт</p>
+        </div>
+        <div class="p-3 bg-gray-50/50">
+          <div class="scene" style="height:90px">
+            <div style="transform:rotateX(30deg) rotateZ(-5deg);transform-style:preserve-3d">
+              <div class="grid grid-cols-5 gap-[2px] mb-[2px]">
+                <div class="pallet-box h-[14px]"></div><div class="pallet-box h-[14px]"></div><div class="pallet-box h-[14px]"></div><div class="pallet-box h-[14px]"></div><div class="pallet-box h-[14px]"></div>
+              </div>
+              <div class="grid grid-cols-5 gap-[2px] mb-[2px]">
+                <div class="pallet-box h-[14px]"></div><div class="pallet-box h-[14px]"></div><div class="pallet-box h-[14px]"></div><div class="pallet-box h-[14px]"></div><div class="pallet-box h-[14px]"></div>
+              </div>
+              <div class="h-[3px] my-[2px]" style="background:linear-gradient(90deg,#c8a050,#b08838,#c8a050);border-radius:1px;opacity:0.5"></div>
+              <div class="grid grid-cols-5 gap-[2px] mb-[2px]">
+                <div class="pallet-box h-[14px]"></div><div class="pallet-box h-[14px]"></div><div class="pallet-box h-[14px]"></div><div class="pallet-box h-[14px]"></div><div class="pallet-box h-[14px]"></div>
+              </div>
+              <div class="pallet-wood h-[5px] mt-[3px]"></div>
+              <div class="flex justify-between mt-[1px] px-1">
+                <div class="pallet-leg w-[12px] h-[4px] rounded-b-sm"></div>
+                <div class="pallet-leg w-[12px] h-[4px] rounded-b-sm"></div>
+                <div class="pallet-leg w-[12px] h-[4px] rounded-b-sm"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pallet 3 (small) -->
+      <div class="mini-pallet rounded-2xl bg-white border border-gray-100 overflow-hidden w-[180px]" style="box-shadow:0 4px 16px rgba(0,0,0,0.08)">
+        <div class="px-3 py-2 border-b border-gray-50">
+          <p class="text-xs font-bold text-gray-800">Паллет 3</p>
+          <p class="text-[10px] text-gray-400">8 кор. · 400 шт</p>
+        </div>
+        <div class="p-3 bg-gray-50/50">
+          <div class="scene" style="height:60px">
+            <div style="transform:rotateX(30deg) rotateZ(-5deg);transform-style:preserve-3d">
+              <div class="grid grid-cols-5 gap-[2px] mb-[2px]">
+                <div class="pallet-box h-[14px]"></div><div class="pallet-box h-[14px]"></div><div class="pallet-box h-[14px]"></div><div class="pallet-box h-[14px]"></div><div class="pallet-box h-[14px]"></div>
+              </div>
+              <div class="grid grid-cols-5 gap-[2px]">
+                <div class="pallet-box h-[14px]"></div><div class="pallet-box h-[14px]"></div><div class="pallet-box h-[14px]"></div>
+                <div class="h-[14px] rounded-sm border border-dashed border-gray-300 bg-gray-100/30"></div>
+                <div class="h-[14px] rounded-sm border border-dashed border-gray-300 bg-gray-100/30"></div>
+              </div>
+              <div class="pallet-wood h-[5px] mt-[3px]"></div>
+              <div class="flex justify-between mt-[1px] px-1">
+                <div class="pallet-leg w-[12px] h-[4px] rounded-b-sm"></div>
+                <div class="pallet-leg w-[12px] h-[4px] rounded-b-sm"></div>
+                <div class="pallet-leg w-[12px] h-[4px] rounded-b-sm"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Empty pallet -->
+      <div class="mini-pallet rounded-2xl bg-white border border-dashed border-gray-300 overflow-hidden w-[180px] opacity-60">
+        <div class="px-3 py-2 border-b border-gray-50">
+          <p class="text-xs font-medium text-gray-400">Паллет 4</p>
+          <p class="text-[10px] text-gray-300">Пустой</p>
+        </div>
+        <div class="p-3 flex items-center justify-center h-[60px]">
+          <div class="pallet-wood w-full h-[5px]"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- RIGHT: Selected pallet detail (big 3D view) -->
+  <div class="w-[420px] flex-shrink-0">
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-lg overflow-hidden sticky top-4">
+
+      <!-- Header -->
+      <div class="px-5 py-4 border-b border-gray-100">
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="text-lg font-bold text-gray-900">Паллет 1</h3>
+            <p class="text-xs text-gray-400">42 коробки · 3 слоя · 2,100 шт</p>
+          </div>
+          <button class="p-2 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors" title="Повернуть">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- 3D Pallet with layer slicer -->
+      <div class="p-5">
+        <div class="flex gap-4">
+          <!-- Layer slicer (vertical) -->
+          <div class="flex flex-col gap-1 pt-2">
+            <p class="text-[9px] text-gray-400 uppercase tracking-wider mb-1 text-center">Слой</p>
+            <button class="layer-slice active w-10 h-10 rounded-lg border border-purple-200 bg-purple-50 flex items-center justify-center text-xs font-bold text-purple-700" title="Слой 3 (верхний)">3</button>
+            <button class="layer-slice w-10 h-10 rounded-lg border border-gray-200 flex items-center justify-center text-xs font-bold text-gray-500 hover:border-purple-300" title="Слой 2">2</button>
+            <button class="layer-slice w-10 h-10 rounded-lg border border-gray-200 flex items-center justify-center text-xs font-bold text-gray-500 hover:border-purple-300" title="Слой 1 (нижний)">1</button>
+            <div class="border-t border-gray-200 mt-1 pt-1">
+              <button class="w-10 h-10 rounded-lg border border-gray-200 flex items-center justify-center text-[10px] font-medium text-gray-400 hover:border-purple-300 hover:text-purple-500" title="Все слои">Все</button>
+            </div>
+          </div>
+
+          <!-- Big 3D pallet view -->
+          <div class="flex-1 scene">
+            <div class="pallet-group" style="transform:rotateX(22deg) rotateY(-15deg)">
+              <!-- Layer 3 (active/visible) -->
+              <div class="mb-1">
+                <div class="grid grid-cols-5 gap-[3px] mb-[3px]">
+                  <div class="pallet-box h-[32px] flex items-end p-[2px]"><span class="text-[7px] text-gray-500 leading-none truncate w-full">5-HTP</span></div>
+                  <div class="pallet-box h-[32px] flex items-end p-[2px]"><span class="text-[7px] text-gray-500 leading-none truncate w-full">5-HTP</span></div>
+                  <div class="pallet-box h-[32px] flex items-end p-[2px]"><span class="text-[7px] text-gray-500 leading-none truncate w-full">Мелат.</span></div>
+                  <div class="pallet-box h-[32px] flex items-end p-[2px]"><span class="text-[7px] text-gray-500 leading-none truncate w-full">Мелат.</span></div>
+                  <div class="pallet-box h-[32px] flex items-end p-[2px]"><span class="text-[7px] text-gray-500 leading-none truncate w-full">Омега</span></div>
+                </div>
+                <div class="grid grid-cols-5 gap-[3px] mb-[3px]">
+                  <div class="pallet-box h-[32px] flex items-end p-[2px]"><span class="text-[7px] text-gray-500 leading-none truncate w-full">Омега</span></div>
+                  <div class="pallet-box h-[32px] flex items-end p-[2px]"><span class="text-[7px] text-gray-500 leading-none truncate w-full">Колл.</span></div>
+                  <div class="pallet-box h-[32px] flex items-end p-[2px]"><span class="text-[7px] text-gray-500 leading-none truncate w-full">Колл.</span></div>
+                  <div class="pallet-box h-[32px] flex items-end p-[2px]"><span class="text-[7px] text-gray-500 leading-none truncate w-full">Келп</span></div>
+                  <div class="pallet-box h-[32px] flex items-end p-[2px]"><span class="text-[7px] text-gray-500 leading-none truncate w-full">Келп</span></div>
+                </div>
+                <div class="grid grid-cols-5 gap-[3px]">
+                  <div class="pallet-box h-[32px] flex items-end p-[2px]"><span class="text-[7px] text-gray-500 leading-none truncate w-full">5-HTP</span></div>
+                  <div class="pallet-box h-[32px] flex items-end p-[2px]"><span class="text-[7px] text-gray-500 leading-none truncate w-full">Псилл.</span></div>
+                  <div class="pallet-box h-[32px]"></div>
+                  <div class="pallet-box h-[32px]"></div>
+                  <div class="pallet-box h-[32px]"></div>
+                </div>
+              </div>
+
+              <!-- Layer 2 (dimmed — not selected) -->
+              <div class="opacity-25 mb-1">
+                <div class="pallet-wood h-[4px] mb-[3px] rounded-sm"></div>
+                <div class="grid grid-cols-5 gap-[3px] mb-[3px]">
+                  <div class="pallet-box h-[28px]"></div><div class="pallet-box h-[28px]"></div><div class="pallet-box h-[28px]"></div><div class="pallet-box h-[28px]"></div><div class="pallet-box h-[28px]"></div>
+                </div>
+                <div class="grid grid-cols-5 gap-[3px] mb-[3px]">
+                  <div class="pallet-box h-[28px]"></div><div class="pallet-box h-[28px]"></div><div class="pallet-box h-[28px]"></div><div class="pallet-box h-[28px]"></div><div class="pallet-box h-[28px]"></div>
+                </div>
+                <div class="grid grid-cols-5 gap-[3px]">
+                  <div class="pallet-box h-[28px]"></div><div class="pallet-box h-[28px]"></div><div class="pallet-box h-[28px]"></div><div class="pallet-box h-[28px]"></div><div class="pallet-box h-[28px]"></div>
+                </div>
+              </div>
+
+              <!-- Layer 1 (dimmed) -->
+              <div class="opacity-15">
+                <div class="pallet-wood h-[4px] mb-[3px] rounded-sm"></div>
+                <div class="grid grid-cols-5 gap-[3px] mb-[3px]">
+                  <div class="pallet-box h-[28px]"></div><div class="pallet-box h-[28px]"></div><div class="pallet-box h-[28px]"></div><div class="pallet-box h-[28px]"></div><div class="pallet-box h-[28px]"></div>
+                </div>
+                <div class="grid grid-cols-5 gap-[3px] mb-[3px]">
+                  <div class="pallet-box h-[28px]"></div><div class="pallet-box h-[28px]"></div><div class="pallet-box h-[28px]"></div><div class="pallet-box h-[28px]"></div><div class="pallet-box h-[28px]"></div>
+                </div>
+                <div class="grid grid-cols-5 gap-[3px]">
+                  <div class="pallet-box h-[28px]"></div><div class="pallet-box h-[28px]"></div><div class="pallet-box h-[28px]"></div><div class="pallet-box h-[28px]"></div><div class="pallet-box h-[28px]"></div>
+                </div>
+              </div>
+
+              <!-- Wood base -->
+              <div class="pallet-wood h-[6px] mt-[4px]"></div>
+              <div class="flex justify-between mt-[2px] px-2">
+                <div class="pallet-leg w-[18px] h-[8px] rounded-b"></div>
+                <div class="pallet-leg w-[18px] h-[8px] rounded-b"></div>
+                <div class="pallet-leg w-[18px] h-[8px] rounded-b"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Boxes list for active layer -->
+      <div class="border-t border-gray-100">
+        <div class="px-5 py-3 bg-gray-50/50 flex items-center justify-between">
+          <p class="text-xs font-bold text-gray-500 uppercase tracking-wider">Слой 3 — 13 коробок</p>
+          <p class="text-xs text-gray-400">650 шт</p>
+        </div>
+        <div class="max-h-[250px] overflow-y-auto divide-y divide-gray-50">
+          <div class="flex items-center gap-3 px-5 py-2.5 hover:bg-purple-50/30 cursor-pointer transition-colors">
+            <div class="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
+              <!-- mini box icon -->
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="3" y="6" width="18" height="14" rx="2" fill="#d8ccb8" stroke="#b0a490" stroke-width="1.2"/><line x1="12" y1="6" x2="12" y2="20" stroke="#b0a490" stroke-width="0.8" opacity="0.4"/><rect x="5" y="7" width="14" height="1" rx="0.5" fill="white" opacity="0.3"/></svg>
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="text-xs font-semibold text-gray-800 truncate">GraFLab, 5-HTP (5-Гидрокситриптофан), 60 капсул</p>
+              <p class="text-[10px] text-gray-400 font-mono">ШК: 419342479</p>
+            </div>
+            <span class="text-xs font-bold text-gray-700 flex-shrink-0">50 шт</span>
+            <svg class="w-4 h-4 text-gray-300 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+          </div>
+          <div class="flex items-center gap-3 px-5 py-2.5 hover:bg-purple-50/30 cursor-pointer transition-colors">
+            <div class="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="3" y="6" width="18" height="14" rx="2" fill="#d8ccb8" stroke="#b0a490" stroke-width="1.2"/><line x1="12" y1="6" x2="12" y2="20" stroke="#b0a490" stroke-width="0.8" opacity="0.4"/><rect x="5" y="7" width="14" height="1" rx="0.5" fill="white" opacity="0.3"/></svg>
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="text-xs font-semibold text-gray-800 truncate">GraFLab, 5-HTP (5-Гидрокситриптофан), 60 капсул</p>
+              <p class="text-[10px] text-gray-400 font-mono">ШК: 958662138</p>
+            </div>
+            <span class="text-xs font-bold text-gray-700 flex-shrink-0">50 шт</span>
+            <svg class="w-4 h-4 text-gray-300 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+          </div>
+          <div class="flex items-center gap-3 px-5 py-2.5 hover:bg-purple-50/30 cursor-pointer transition-colors">
+            <div class="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="3" y="6" width="18" height="14" rx="2" fill="#d8ccb8" stroke="#b0a490" stroke-width="1.2"/><line x1="12" y1="6" x2="12" y2="20" stroke="#b0a490" stroke-width="0.8" opacity="0.4"/><rect x="5" y="7" width="14" height="1" rx="0.5" fill="white" opacity="0.3"/></svg>
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="text-xs font-semibold text-gray-800 truncate">GraFLab, Мелатонин, 90 капсул</p>
+              <p class="text-[10px] text-gray-400 font-mono">ШК: 228872958</p>
+            </div>
+            <span class="text-xs font-bold text-gray-700 flex-shrink-0">50 шт</span>
+            <svg class="w-4 h-4 text-gray-300 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+          </div>
+          <div class="flex items-center gap-3 px-5 py-2.5 hover:bg-purple-50/30 cursor-pointer transition-colors">
+            <div class="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="3" y="6" width="18" height="14" rx="2" fill="#d8ccb8" stroke="#b0a490" stroke-width="1.2"/><line x1="12" y1="6" x2="12" y2="20" stroke="#b0a490" stroke-width="0.8" opacity="0.4"/><rect x="5" y="7" width="14" height="1" rx="0.5" fill="white" opacity="0.3"/></svg>
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="text-xs font-semibold text-gray-800 truncate">GraFLab, Омега-3, 120 капсул</p>
+              <p class="text-[10px] text-gray-400 font-mono">ШК: 773521990</p>
+            </div>
+            <span class="text-xs font-bold text-gray-700 flex-shrink-0">50 шт</span>
+            <svg class="w-4 h-4 text-gray-300 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+          </div>
+          <div class="flex items-center gap-3 px-5 py-2.5 hover:bg-purple-50/30 cursor-pointer transition-colors">
+            <div class="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="3" y="6" width="18" height="14" rx="2" fill="#d8ccb8" stroke="#b0a490" stroke-width="1.2"/><line x1="12" y1="6" x2="12" y2="20" stroke="#b0a490" stroke-width="0.8" opacity="0.4"/><rect x="5" y="7" width="14" height="1" rx="0.5" fill="white" opacity="0.3"/></svg>
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="text-xs font-semibold text-gray-800 truncate">GraFLab, Коллаген морской, 120 капсул</p>
+              <p class="text-[10px] text-gray-400 font-mono">ШК: 862430426</p>
+            </div>
+            <span class="text-xs font-bold text-gray-700 flex-shrink-0">50 шт</span>
+            <svg class="w-4 h-4 text-gray-300 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<!-- JS: rotate toggle -->
+<script>
+document.querySelector('[title="Повернуть"]').addEventListener('click', function() {
+  const g = document.querySelector('.pallet-group');
+  g.classList.toggle('rotated');
+});
+</script>
+
+</body>
+</html>

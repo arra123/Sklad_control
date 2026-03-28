@@ -17,101 +17,87 @@ function ph(hex)      { return [parseInt(hex.slice(1,3),16),parseInt(hex.slice(3
 function lighten(h,a) { const [r,g,b]=ph(h); return `rgb(${Math.round(r+(255-r)*a)},${Math.round(g+(255-g)*a)},${Math.round(b+(255-b)*a)})`; }
 function darken(h,a)  { const [r,g,b]=ph(h); return `rgb(${Math.round(r*(1-a))},${Math.round(g*(1-a))},${Math.round(b*(1-a))})`; }
 
-// ─── Mini box on pallet floor ─────────────────────────────────────────────────
+// ─── Mini box on pallet (craft cardboard style) ─────────────────────────────
 function MiniBox({ box, isDragging, onPointerDown }) {
   const [hov, setHov] = useState(false);
-  const c = boxColor(box.product_id);
   return (
     <div data-box-id={box.id}
       onPointerDown={e => { e.stopPropagation(); onPointerDown(e); }}
       onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
       style={{ borderRadius:2, cursor:'grab', position:'relative', overflow:'hidden',
-        opacity:isDragging?0.15:1, transition:'opacity .1s, transform .07s',
-        transform:hov&&!isDragging?'scale(1.12)':'scale(1)',
-        background:`linear-gradient(135deg,${lighten(c,.22)},${c})`,
-        border:`1px solid ${darken(c,.18)}`,
-        boxShadow:`inset 0 1px 0 rgba(255,255,255,.3), inset 0 -1px 0 rgba(0,0,0,.12)` }}>
-      <div style={{ position:'absolute', top:0, left:0, right:0, height:'28%',
-        background:'rgba(255,255,255,.18)', pointerEvents:'none' }} />
+        opacity:isDragging?0.15:1, transition:'opacity .1s, transform .12s, box-shadow .12s',
+        transform:hov&&!isDragging?'translateY(-3px) scale(1.05)':'scale(1)',
+        background:'linear-gradient(145deg, #e8ddd0, #d8ccb8)',
+        border:'1px solid #b8a898',
+        boxShadow:hov&&!isDragging?'0 4px 10px rgba(0,0,0,.15)':'0 1px 2px rgba(0,0,0,.08)' }}>
+      {/* Tape stripe */}
+      <div style={{ position:'absolute', top:0, bottom:0, left:'50%', width:4, transform:'translateX(-50%)',
+        background:'rgba(180,160,130,0.25)', pointerEvents:'none' }} />
+      {/* Top shine */}
+      <div style={{ position:'absolute', top:0, left:0, right:0, height:'25%',
+        background:'rgba(255,255,255,.2)', pointerEvents:'none' }} />
     </div>
   );
 }
 
-// ─── Pallet floor cell ────────────────────────────────────────────────────────
-const BOX_COLS = 4, BOX_ROWS = 3, MAX_BOXES = 12;
+// ─── Pallet floor cell (no wrapper card, just pallet on floor) ──────────────
+const BOX_COLS = 5, BOX_ROWS = 3, MAX_BOXES = 15;
 
 function FloorPallet({ pallet, selected, isDragOver, canDrop, dragBoxId, onBoxPointerDown, onPalletPointerDown, onClick }) {
   const [hov, setHov] = useState(false);
   const fill = pallet.boxes.length;
-  const bc = selected?'#4f46e5':isDragOver&&canDrop?'#16a34a':isDragOver?'#ef4444':null;
+  const layers = Math.ceil(fill / (BOX_COLS * BOX_ROWS));
   return (
     <div data-pallet-id={pallet.id} onClick={onClick}
       onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
       style={{ display:'inline-flex', flexDirection:'column', alignItems:'center', cursor:'pointer',
-        outline:bc?`3px solid ${bc}`:'none', outlineOffset:4, borderRadius:6,
-        transform:hov&&!selected?'translateY(-4px)':'none',
-        transition:'transform .14s, outline .08s',
-        filter:selected?'drop-shadow(0 8px 18px rgba(79,70,229,.28))':hov?'drop-shadow(0 5px 14px rgba(0,0,0,.2))':'drop-shadow(0 2px 7px rgba(0,0,0,.12))' }}>
-      {/* Code label / drag handle */}
-      <div data-pallet-header-id={pallet.id}
-        onPointerDown={e => { e.stopPropagation(); onPalletPointerDown(e, pallet); }}
-        style={{ fontSize:9.5, fontWeight:900, fontFamily:'monospace',
-          color:selected?'#4f46e5':'#7a6b5a', marginBottom:5, cursor:'grab',
-          userSelect:'none', letterSpacing:'.04em' }}>
-        {pallet.name}
+        outline:selected?'2.5px solid #7c3aed':'none', outlineOffset:6, borderRadius:4,
+        transform:hov&&!selected?'translateY(-3px)':'none',
+        transition:'transform .15s, outline .1s, filter .15s',
+        filter:selected?'drop-shadow(0 6px 16px rgba(124,58,237,.2))':hov?'drop-shadow(0 4px 12px rgba(0,0,0,.15))':'drop-shadow(0 2px 6px rgba(0,0,0,.1))' }}>
+
+      {/* Boxes on pallet — no card wrapper */}
+      <div style={{ width:150 }}>
+        {/* Box layers */}
+        {Array.from({ length: Math.max(layers, 1) }, (_, layerIdx) => {
+          const layerBoxes = pallet.boxes.slice(layerIdx * BOX_COLS * BOX_ROWS, (layerIdx + 1) * BOX_COLS * BOX_ROWS);
+          const isTopLayer = layerIdx === layers - 1 || layers === 0;
+          return (
+            <div key={layerIdx}>
+              {layerIdx > 0 && (
+                <div style={{ height:2, margin:'1px 4px', background:'linear-gradient(90deg,#c8a050,#b08838,#c8a050)', borderRadius:1, opacity:0.35 }} />
+              )}
+              <div style={{ display:'grid', gridTemplateColumns:`repeat(${BOX_COLS},1fr)`, gap:2, padding:'2px 4px' }}>
+                {Array.from({ length: BOX_COLS * BOX_ROWS }, (_, i) => {
+                  const box = layerBoxes[i];
+                  return box ? (
+                    <MiniBox key={box.id} box={box} isDragging={dragBoxId===box.id}
+                      onPointerDown={e => onBoxPointerDown(e, box, pallet)} />
+                  ) : isTopLayer && i < BOX_COLS * BOX_ROWS ? (
+                    <div key={`e${layerIdx}-${i}`} style={{ borderRadius:2, background:'rgba(0,0,0,.03)', border:'0.5px dashed rgba(0,0,0,.08)', height:18 }} />
+                  ) : null;
+                })}
+              </div>
+            </div>
+          );
+        })}
+        {/* Wood base */}
+        <div style={{ width:'100%', height:5, marginTop:3, borderRadius:'0 0 2px 2px',
+          background:'repeating-linear-gradient(90deg,#c89838 0px,#bd8d35 10px,#7a5020 10px,#7a5020 11.5px,#c89838 11.5px)',
+          border:'1.5px solid #8a5c20', borderTop:'none' }} />
+        <div style={{ display:'flex', justifyContent:'space-between', padding:'0 8px', marginTop:1 }}>
+          <div style={{ width:14, height:5, background:'linear-gradient(180deg,#9a7028,#7a5018)', border:'1px solid #705018', borderTop:'none', borderRadius:'0 0 2px 2px' }} />
+          <div style={{ width:14, height:5, background:'linear-gradient(180deg,#9a7028,#7a5018)', border:'1px solid #705018', borderTop:'none', borderRadius:'0 0 2px 2px' }} />
+          <div style={{ width:14, height:5, background:'linear-gradient(180deg,#9a7028,#7a5018)', border:'1px solid #705018', borderTop:'none', borderRadius:'0 0 2px 2px' }} />
+        </div>
       </div>
 
-      {/* Pallet 3D */}
-      <div style={{ perspective:360, perspectiveOrigin:'50% -20%' }}>
-        <div style={{ transform:'rotateX(32deg)', transformStyle:'preserve-3d', transformOrigin:'bottom center' }}>
-          {/* Top deck */}
-          <div style={{ width:130, position:'relative', borderRadius:'3px 3px 0 0',
-            background:'repeating-linear-gradient(90deg,#c89838 0px,#bd8d35 12px,#7a5020 12px,#7a5020 13.5px,#c89838 13.5px)',
-            border:'2px solid #8a5c20', borderBottom:'none',
-            padding:'5px 5px 4px', boxShadow:'inset 0 2px 0 rgba(255,255,255,.2)' }}>
-            {[.33,.66].map(p =>
-              <div key={p} style={{ position:'absolute',top:4,bottom:3,left:`${p*100}%`,width:1,
-                background:'rgba(0,0,0,.16)',pointerEvents:'none',zIndex:2 }}/>
-            )}
-            {/* Box grid 4×3 */}
-            <div style={{ display:'grid', gridTemplateColumns:`repeat(${BOX_COLS},1fr)`,
-              gridTemplateRows:`repeat(${BOX_ROWS},1fr)`,
-              gap:2.5, width:118, height:74, position:'relative', zIndex:3 }}>
-              {Array.from({length:MAX_BOXES},(_,i) => {
-                const box = pallet.boxes[i];
-                return box ? (
-                  <MiniBox key={box.id} box={box} isDragging={dragBoxId===box.id}
-                    onPointerDown={e => onBoxPointerDown(e, box, pallet)} />
-                ) : (
-                  <div key={`e${i}`} style={{ borderRadius:2, background:'rgba(0,0,0,.055)', border:'0.5px dashed rgba(0,0,0,.1)' }} />
-                );
-              })}
-            </div>
-          </div>
-          {/* Stringers */}
-          <div style={{ width:130, height:17, display:'flex', border:'2px solid #7a5020', borderTop:'none', borderBottom:'none' }}>
-            <div style={{ flex:1.3, background:'linear-gradient(180deg,#9a7028,#7a5018)' }}/>
-            <div style={{ flex:2.2, background:'#c8b898', borderLeft:'2px solid #a08040', borderRight:'2px solid #a08040', boxShadow:'inset 0 4px 6px rgba(0,0,0,.16)' }}/>
-            <div style={{ flex:1, background:'linear-gradient(180deg,#9a7028,#7a5018)' }}/>
-            <div style={{ flex:2.2, background:'#c8b898', borderLeft:'2px solid #a08040', borderRight:'2px solid #a08040', boxShadow:'inset 0 4px 6px rgba(0,0,0,.16)' }}/>
-            <div style={{ flex:1.3, background:'linear-gradient(180deg,#9a7028,#7a5018)' }}/>
-          </div>
-          {/* Bottom deck */}
-          <div style={{ width:130, height:10, overflow:'hidden',
-            background:'repeating-linear-gradient(90deg,#907028 0px,#887028 12px,#6a4818 12px,#6a4818 13.5px,#907028 13.5px)',
-            border:'2px solid #6a4818', borderTop:'none', borderRadius:'0 0 3px 3px',
-            boxShadow:'0 6px 16px rgba(0,0,0,.22)' }}/>
-        </div>
-      </div>
-      {/* Fill bar */}
-      <div style={{ width:130, marginTop:7 }}>
-        <div style={{ height:3.5, background:'#ddd8d0', borderRadius:3, overflow:'hidden' }}>
-          <div style={{ height:'100%', width:`${(fill/MAX_BOXES)*100}%`, borderRadius:3, transition:'width .3s',
-            background:fill/MAX_BOXES>.8?'#16a34a':fill/MAX_BOXES>.4?'#ca8a04':'#94a3b8' }}/>
-        </div>
-        <div style={{ fontSize:8, fontFamily:'monospace', color:'#bbb', textAlign:'center', marginTop:3 }}>
-          {fill}/{MAX_BOXES}
-        </div>
+      {/* Name tooltip on hover */}
+      <div style={{ marginTop:6, textAlign:'center', opacity:hov||selected?1:0, transition:'opacity .15s',
+        fontSize:9, fontWeight:700, fontFamily:'monospace', color:selected?'#7c3aed':'#8a7a6a',
+        letterSpacing:'.03em', userSelect:'none' }}>
+        {pallet.name}
+        {fill > 0 && <span style={{ color:'#b0a090', fontWeight:500 }}> · {fill} кор.</span>}
       </div>
     </div>
   );
