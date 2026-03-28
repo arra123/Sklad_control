@@ -32,49 +32,98 @@ const GROUP_LABEL_MAP = {
   'смеси': 'Смеси', 'расходники': 'Расходники', 'другое': 'Другое',
 };
 
+const SETTINGS_TABS = { appearance: 'Внешний вид', moysklad: 'МойСклад', scanning: 'Сканирование', interface: 'Интерфейс', data: 'Данные', changelog: 'История', about: 'О системе' };
+const STAFF_TABS = { employees: 'Сотрудники', users: 'Пользователи', roles: 'Роли' };
+const EARNINGS_TABS = { summary: 'Сводка', warehouse: 'Склад', assembly: 'Сборки' };
+const ANALYTICS_VERSIONS = { v1: 'Версия 1', v2: 'Версия 2' };
+const ERRORS_TABS = { scan: 'Сканирование', system: 'Система' };
+const MOVEMENTS_VIEWS = { all: 'Все', by_employee: 'По сотрудникам', by_type: 'По типам' };
+
 function Breadcrumb() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
-  const [productName, setProductName] = useState(null);
-  const productId = searchParams.get('id');
-  const materialGroup = searchParams.get('group');
-  const productType = searchParams.get('type');
+  const [entityName, setEntityName] = useState(null);
+  const path = location.pathname;
+  const id = searchParams.get('id');
+  const tab = searchParams.get('tab');
+  const group = searchParams.get('group');
+  const type = searchParams.get('type');
+  const employee = searchParams.get('employee');
+  const view = searchParams.get('view');
+  const v = searchParams.get('v');
+  const row = searchParams.get('row');
+  const pallet = searchParams.get('pallet');
+  const task = searchParams.get('task');
 
   useEffect(() => {
-    if (!productId) { setProductName(null); return; }
-    if (location.pathname.includes('/products/cards') || location.pathname.includes('/products/stock')) {
-      api.get(`/products/${productId}`)
-        .then(r => setProductName(r.data.name))
-        .catch(() => setProductName(null));
-    } else if (location.pathname.includes('/products/materials')) {
-      api.get(`/materials/${productId}`)
-        .then(r => setProductName(r.data.name))
-        .catch(() => setProductName(null));
+    if (!id) { setEntityName(null); return; }
+    if (path.includes('/products/cards') || path.includes('/products/stock')) {
+      api.get(`/products/${id}`).then(r => setEntityName(r.data.name)).catch(() => setEntityName(null));
+    } else if (path.includes('/products/materials')) {
+      api.get(`/materials/${id}`).then(r => setEntityName(r.data.name)).catch(() => setEntityName(null));
     } else {
-      setProductName(null);
+      setEntityName(null);
     }
-  }, [productId, location.pathname]);
+  }, [id, path]);
 
-  const crumbs = buildCrumbs(location.pathname);
+  const crumbs = buildCrumbs(path);
   if (crumbs.length === 0) return null;
 
-  const extraCrumbs = [];
-  // Карточки: тип товара
-  if (location.pathname.includes('/products/cards') && productType) {
-    extraCrumbs.push({ label: productType === 'bundle' ? 'Комплекты' : 'Единичные' });
+  const extra = [];
+
+  // Карточки товаров: тип
+  if (path.includes('/products/cards') && type) {
+    extra.push({ label: type === 'bundle' ? 'Комплекты' : 'Единичные' });
   }
   // Сырьё: группа
-  if (materialGroup && GROUP_LABEL_MAP[materialGroup]) {
-    extraCrumbs.push({ label: GROUP_LABEL_MAP[materialGroup] });
+  if (path.includes('/products/materials') && group && GROUP_LABEL_MAP[group]) {
+    extra.push({ label: GROUP_LABEL_MAP[group] });
   }
-  if (productName) {
-    extraCrumbs.push({ label: productName });
+  // Настройки: вкладка
+  if (path.includes('/settings') && tab && SETTINGS_TABS[tab]) {
+    extra.push({ label: SETTINGS_TABS[tab] });
+  }
+  // Сотрудники: вкладка + drill
+  if (path.includes('/staff')) {
+    if (tab && STAFF_TABS[tab]) extra.push({ label: STAFF_TABS[tab] });
+    if (employee) extra.push({ label: `Сотрудник #${employee}` });
+  }
+  // Заработок: вкладка + сотрудник + задача
+  if (path.includes('/earnings')) {
+    if (tab && EARNINGS_TABS[tab]) extra.push({ label: EARNINGS_TABS[tab] });
+    if (employee) extra.push({ label: `Сотрудник #${employee}` });
+    if (task) extra.push({ label: `Задача #${task}` });
+  }
+  // Аналитика: версия
+  if (path.includes('/analytics') && v && ANALYTICS_VERSIONS[v]) {
+    extra.push({ label: ANALYTICS_VERSIONS[v] });
+  }
+  // Ошибки: вкладка
+  if (path.includes('/errors') && tab && ERRORS_TABS[tab]) {
+    extra.push({ label: ERRORS_TABS[tab] });
+  }
+  // Перемещения: вид
+  if (path.includes('/movements') && view && MOVEMENTS_VIEWS[view]) {
+    extra.push({ label: MOVEMENTS_VIEWS[view] });
+  }
+  // Задачи: выбранная задача
+  if (path.includes('/tasks') && id) {
+    extra.push({ label: `Задача #${id}` });
+  }
+  // Паллетный склад: ряд + паллет
+  if (path.includes('/fbo')) {
+    if (row) extra.push({ label: `Ряд #${row}` });
+    if (pallet) extra.push({ label: `Паллет #${pallet}` });
+  }
+  // Название сущности (товар/материал)
+  if (entityName && !path.includes('/tasks')) {
+    extra.push({ label: entityName });
   }
 
   const allCrumbs = [
     { label: 'Главная', to: '/admin', icon: true },
     ...crumbs,
-    ...extraCrumbs,
+    ...extra,
   ];
 
   return (
@@ -253,7 +302,7 @@ export default function AdminLayout({ children }) {
             <LogOut className="w-4 h-4" />
             Выйти
           </button>
-          <p className="text-[10px] text-gray-300 dark:text-gray-600 mt-2 text-center">v2.13.1</p>
+          <p className="text-[10px] text-gray-300 dark:text-gray-600 mt-2 text-center">v2.13.2</p>
         </div>
       </aside>
 
