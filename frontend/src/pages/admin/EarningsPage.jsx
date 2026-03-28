@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ChevronDown, ChevronRight, RefreshCw } from 'lucide-react';
 import { GRACoinIcon, WalletIcon, ScannerIcon, OrderPickIcon, TrendUpIcon, AdjustIcon, RateGearIcon } from '../../components/ui/WarehouseIcons';
@@ -114,20 +114,37 @@ export default function EarningsPage() {
     finally { if (background) setRefreshing(false); else setLoading(false); }
   }, [toast]);
 
+  const employeeAbort = useRef(null);
+  const taskAbort = useRef(null);
+
   const loadEmployeeDetails = useCallback(async (employeeId) => {
+    if (employeeAbort.current) employeeAbort.current.abort();
     if (!employeeId) { setEmployeeDetails(null); return; }
+    const ctrl = new AbortController();
+    employeeAbort.current = ctrl;
     setEmployeeLoading(true);
-    try { const res = await api.get(`/earnings/employees/${employeeId}`); setEmployeeDetails(res.data); }
-    catch (err) { toast.error(err.response?.data?.error || 'Ошибка'); }
-    finally { setEmployeeLoading(false); }
+    try {
+      const res = await api.get(`/earnings/employees/${employeeId}`, { signal: ctrl.signal });
+      setEmployeeDetails(res.data);
+    } catch (err) {
+      if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
+      toast.error(err.response?.data?.error || 'Ошибка');
+    } finally { if (!ctrl.signal.aborted) setEmployeeLoading(false); }
   }, [toast]);
 
   const loadTaskDetails = useCallback(async (taskId) => {
+    if (taskAbort.current) taskAbort.current.abort();
     if (!taskId) { setTaskDetails(null); return; }
+    const ctrl = new AbortController();
+    taskAbort.current = ctrl;
     setTaskLoading(true);
-    try { const res = await api.get(`/earnings/tasks/${taskId}`); setTaskDetails(res.data); }
-    catch (err) { toast.error(err.response?.data?.error || 'Ошибка'); }
-    finally { setTaskLoading(false); }
+    try {
+      const res = await api.get(`/earnings/tasks/${taskId}`, { signal: ctrl.signal });
+      setTaskDetails(res.data);
+    } catch (err) {
+      if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
+      toast.error(err.response?.data?.error || 'Ошибка');
+    } finally { if (!ctrl.signal.aborted) setTaskLoading(false); }
   }, [toast]);
 
   useEffect(() => { loadBase(); }, [loadBase]);
@@ -324,7 +341,7 @@ export default function EarningsPage() {
           </div>
 
           {/* Detail */}
-          <div className="flex-1 space-y-4 min-w-0">
+          <div className="flex-1 space-y-4 min-w-0 min-h-[70vh]">
             {!selectedEmployee ? (
               <div className="bg-white rounded-2xl border border-gray-100 text-center py-16 text-gray-400">
                 <p className="font-medium">Выберите сотрудника</p>

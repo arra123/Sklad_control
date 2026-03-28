@@ -428,8 +428,9 @@ router.post('/employees/:employeeId/set-balance', requireAuth, requireAdmin, asy
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+    await client.query("SET LOCAL lock_timeout = '5s'");
     const employeeResult = await client.query(
-      'SELECT id, full_name, COALESCE(gra_balance, 0) as gra_balance FROM employees_s WHERE id = $1 FOR UPDATE',
+      'SELECT id, full_name, COALESCE(gra_balance, 0) as gra_balance FROM employees_s WHERE id = $1 FOR UPDATE NOWAIT',
       [employeeId]
     );
     if (!employeeResult.rows.length) {
