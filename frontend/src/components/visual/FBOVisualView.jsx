@@ -165,7 +165,9 @@ function buildPallet(palletData, mats, geo, offsetX, offsetZ) {
     if (li > 0) {
       const bd = new THREE.Mesh(geo.board, mats.boardSep);
       bd.position.y = 0.42 + li * (BOX_H + 0.08) - 0.04;
+      bd.userData = { type: 'separator', layerIndex: li };
       group.add(bd);
+      boxMeshes.push(bd); // include separators so layer filter hides them
     }
     const layerBoxes = boxes.slice(li * LAYER_SIZE, (li + 1) * LAYER_SIZE);
     const baseY = 0.42 + li * (BOX_H + 0.08);
@@ -326,6 +328,125 @@ function LayerControl({ maxLayers, activeLayer, onChange }) {
   );
 }
 
+// ─── Pallet 3D Detail View (fullscreen overlay) ─────────────────────────────
+function PalletDetail3D({ pallet, onClose }) {
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (!ref.current) return;
+    const el = ref.current;
+    const W = el.clientWidth, H = el.clientHeight;
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xe8e0d0);
+    const camera = new THREE.PerspectiveCamera(40, W / H, 0.1, 100);
+    camera.position.set(12, 14, 12);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(W, H);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+    renderer.shadowMap.enabled = true;
+    el.appendChild(renderer.domElement);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
+    controls.target.set(0, 2, 0);
+
+    scene.add(new THREE.AmbientLight(0xfff8e8, 0.7));
+    const dir = new THREE.DirectionalLight(0xfff0d0, 0.9);
+    dir.position.set(10, 20, 8);
+    dir.castShadow = true;
+    dir.shadow.mapSize.set(1024, 1024);
+    scene.add(dir);
+    scene.add(new THREE.HemisphereLight(0xffeedd, 0xd0c8b8, 0.4));
+
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), new THREE.MeshStandardMaterial({ color: 0xe0d8c8, roughness: 0.8 }));
+    floor.rotation.x = -Math.PI / 2;
+    floor.receiveShadow = true;
+    scene.add(floor);
+
+    const mats = {
+      wood: new THREE.MeshStandardMaterial({ color: 0xd4a850, roughness: 0.65 }),
+      woodDark: new THREE.MeshStandardMaterial({ color: 0x9a7430, roughness: 0.75 }),
+      boxSide: new THREE.MeshStandardMaterial({ color: 0xe8d8b8, roughness: 0.55 }),
+      boxTop: new THREE.MeshStandardMaterial({ color: 0xf0e4cc, roughness: 0.45 }),
+      tape: new THREE.MeshStandardMaterial({ color: 0xd8c8a0, roughness: 0.35, transparent: true, opacity: 0.4 }),
+      boardSep: new THREE.MeshStandardMaterial({ color: 0xdcc080, roughness: 0.55 }),
+    };
+    const geo = getSharedGeo();
+    const pg = buildPallet(pallet, mats, geo, 0, 0);
+    scene.add(pg);
+
+    // Raycaster
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+    const allMeshes = pg.userData.boxMeshes || [];
+    const tooltip = document.createElement('div');
+    tooltip.style.cssText = 'position:fixed;display:none;z-index:200;background:#1c1917;color:white;padding:8px 14px;border-radius:10px;font-size:12px;pointer-events:none;box-shadow:0 6px 20px rgba(0,0,0,0.3);font-family:Inter,Arial,sans-serif;';
+    el.appendChild(tooltip);
+
+    const onMove = (e) => {
+      const rect = renderer.domElement.getBoundingClientRect();
+      mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(mouse, camera);
+      const hits = raycaster.intersectObjects(allMeshes, true);
+      if (hits.length > 0) {
+        let obj = hits[0].object;
+        while (obj.parent && !obj.userData.product) obj = obj.parent;
+        if (obj.userData.product) {
+          tooltip.style.display = 'block';
+          tooltip.style.left = (e.clientX + 16) + 'px';
+          tooltip.style.top = (e.clientY - 10) + 'px';
+          tooltip.innerHTML = `<b>${obj.userData.product}</b><br>ШК: ${obj.userData.barcode} · ${obj.userData.qty} шт`;
+          obj.scale.set(1.08, 1.08, 1.08);
+          return;
+        }
+      }
+      allMeshes.forEach(m => m.scale.set(1, 1, 1));
+      tooltip.style.display = 'none';
+    };
+    renderer.domElement.addEventListener('mousemove', onMove);
+
+    let animId;
+    const animate = () => { animId = requestAnimationFrame(animate); controls.update(); renderer.render(scene, camera); };
+    animate();
+
+    const onResize = () => { const w = el.clientWidth, h = el.clientHeight; camera.aspect = w / h; camera.updateProjectionMatrix(); renderer.setSize(w, h); };
+    window.addEventListener('resize', onResize);
+
+    return () => {
+      cancelAnimationFrame(animId);
+      window.removeEventListener('resize', onResize);
+      renderer.dispose();
+      el.innerHTML = '';
+    };
+  }, [pallet]);
+
+  const boxes = pallet.boxes || [];
+  const totalQty = boxes.reduce((s, b) => s + Number(b.quantity || 0), 0);
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 50, background: '#e8e0d0', display: 'flex', flexDirection: 'column' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px', background: 'white', borderBottom: '1px solid #eee' }}>
+        <div>
+          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: '#1c1917' }}>{pallet.name}</h3>
+          <p style={{ margin: 0, fontSize: 12, color: '#aaa' }}>{boxes.length} коробок · {totalQty} шт</p>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 11, color: '#7c3aed', fontWeight: 600 }}>Крути мышкой · Скролл = зум</span>
+          <button onClick={onClose} style={{ padding: '6px 16px', borderRadius: 10, border: 'none', background: '#7c3aed', color: 'white', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+            Назад к складу
+          </button>
+        </div>
+      </div>
+      {/* 3D canvas */}
+      <div ref={ref} style={{ flex: 1 }} />
+    </div>
+  );
+}
+
 // ─── Main Component ──────────────────────────────────────────────────────────
 export default function FBOVisualView({ warehouse }) {
   const navigate = useNavigate();
@@ -335,8 +456,9 @@ export default function FBOVisualView({ warehouse }) {
   const [rows, setRows] = useState([]);
   const [selected, setSelected] = useState(null);
   const [moveMode, setMoveMode] = useState(null);
-  const [cardData, setCardData] = useState(null); // full box detail modal
+  const [cardData, setCardData] = useState(null);
   const [cardLoading, setCardLoading] = useState(false);
+  const [palletDetail, setPalletDetail] = useState(null); // pallet for 3D detail view
   const moveModeRef = useRef(null);
   const [activeLayer, setActiveLayer] = useState(-1); // -1 = all
   const [maxLayers, setMaxLayers] = useState(3);
@@ -357,21 +479,32 @@ export default function FBOVisualView({ warehouse }) {
   useEffect(() => {
     const meshes = allBoxMeshesRef.current;
     if (!meshes || meshes.length === 0) return;
+
+    const setMats = (obj, opacity) => {
+      if (obj.material) {
+        if (Array.isArray(obj.material)) {
+          obj.material.forEach(m => { m.transparent = opacity < 1; m.opacity = opacity; });
+        } else {
+          obj.material.transparent = opacity < 1;
+          obj.material.opacity = opacity;
+        }
+      }
+      if (obj.children) obj.children.forEach(c => setMats(c, opacity));
+    };
+
     meshes.forEach(b => {
       const li = b.userData.layerIndex || 0;
       if (activeLayer === -1) {
         b.visible = true;
+        setMats(b, 1);
+      } else if (li > activeLayer) {
+        b.visible = false;
+      } else if (li === activeLayer) {
+        b.visible = true;
+        setMats(b, 1);
       } else {
-        b.visible = li <= activeLayer;
-        // Dim lower layers
-        if (li < activeLayer) {
-          b.children.forEach(c => { if (c.material && !Array.isArray(c.material)) c.material.opacity = 0.2; else if (Array.isArray(c.material)) c.material.forEach(m => { m.transparent = true; m.opacity = 0.15; }); });
-        } else if (li === activeLayer) {
-          b.children.forEach(c => { if (c.material && !Array.isArray(c.material)) { c.material.opacity = 1; c.material.transparent = false; } else if (Array.isArray(c.material)) c.material.forEach(m => { m.opacity = 1; m.transparent = false; }); });
-        }
-      }
-      if (activeLayer === -1) {
-        b.children.forEach(c => { if (c.material && !Array.isArray(c.material)) { c.material.opacity = 1; c.material.transparent = false; } else if (Array.isArray(c.material)) c.material.forEach(m => { m.opacity = 1; m.transparent = false; }); });
+        b.visible = true;
+        setMats(b, 0.12);
       }
     });
   }, [activeLayer]);
@@ -607,6 +740,8 @@ export default function FBOVisualView({ warehouse }) {
               const res = await api.get(`/fbo/boxes/${selected.boxId}`);
               setCardData(res.data);
             } catch {} finally { setCardLoading(false); }
+          } else if (selected?.type === 'pallet' && selected.palletInfo) {
+            setPalletDetail(selected.palletInfo);
           }
           setSelected(null);
         }}
@@ -673,6 +808,9 @@ export default function FBOVisualView({ warehouse }) {
           </div>
         </div>
       )}
+
+      {/* Pallet 3D detail fullscreen */}
+      {palletDetail && <PalletDetail3D pallet={palletDetail} onClose={() => setPalletDetail(null)} />}
 
       <p style={{ textAlign: 'center', fontSize: 11, color: '#bbb', marginTop: 6 }}>
         ЛКМ + тянуть = вращение · Скролл = зум · ПКМ = панорама · Клик = инфо
