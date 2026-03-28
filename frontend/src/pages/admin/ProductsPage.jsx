@@ -586,7 +586,7 @@ export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
                             <p className="text-xs text-gray-400">
                               {s.warehouse_name} · {s.rack_name}
                               {s.location_type === 'pallet' && ' · паллет'}
-                              {s.location_type === 'pallet_boxes' && ` · ${s.box_count} кор.`}
+                              {s.location_type === 'box' && ' · коробка'}
                             </p>
                           </div>
                           <span className="text-sm font-bold text-primary-700">{fmtQty(s.quantity)} шт.</span>
