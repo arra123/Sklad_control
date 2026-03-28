@@ -8,6 +8,7 @@ import { useToast } from '../ui/Toast';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 const BOX_W = 1.05, BOX_D = 1.05, BOX_H = 0.9;
+const fmtQty = (v) => { const n = parseFloat(v || 0); return Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/\.?0+$/, ''); };
 const COLS = 5, LAYER_SIZE = 25;
 const PALLET_SPACING = 8, ROW_SPACING = 10;
 
@@ -83,7 +84,7 @@ function makeBoxFrontTexture(name, qty) {
   // Qty — bold
   ctx.font = 'bold 16px Arial';
   ctx.fillStyle = '#333';
-  ctx.fillText(qty + ' шт', 16, 78);
+  ctx.fillText(fmtQty(qty) + ' шт', 16, 78);
   return new THREE.CanvasTexture(c);
 }
 
@@ -119,7 +120,7 @@ function makePalletLabel(name, count, qty) {
   // Stats
   ctx.font = '32px Arial';
   ctx.fillStyle = 'rgba(255,255,255,0.85)';
-  ctx.fillText(`${count} коробок · ${qty} шт`, 24, 100);
+  ctx.fillText(`${count} коробок · ${fmtQty(qty)} шт`, 24, 100);
   const tex = new THREE.CanvasTexture(c);
   tex.anisotropy = 4;
   return tex;
@@ -131,7 +132,7 @@ function buildPallet(palletData, mats, geo, offsetX, offsetZ) {
   group.position.set(offsetX, 0, offsetZ);
 
   const boxes = palletData.boxes || [];
-  const totalQty = boxes.reduce((s, b) => s + Number(b.quantity || 0), 0);
+  const totalQty = boxes.reduce((s, b) => s + parseFloat(b.quantity || 0), 0);
 
   // Wood base (5 planks + 3 stringers + 3 bottom)
   for (let i = 0; i < 5; i++) {
@@ -199,7 +200,7 @@ function buildPallet(palletData, mats, geo, offsetX, offsetZ) {
       bGroup.position.set(x, baseY + BOX_H / 2, z);
 
       bGroup.userData = {
-        type: 'box', product: bName, qty: box.quantity || 0,
+        type: 'box', product: bName, qty: fmtQty(box.quantity),
         barcode: box.barcode_value || '—', boxId: box.id,
         palletId: palletData.id, palletName: palletData.name,
         layerIndex: li,
@@ -242,7 +243,7 @@ function InfoPanel({ data, onClose, onNavigate, onStartMove }) {
           <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
             <div style={{ flex: 1, background: '#f5f3ff', borderRadius: 8, padding: '6px 10px' }}>
               <p style={{ fontSize: 9, color: '#7c3aed', margin: 0, fontWeight: 600 }}>Кол-во</p>
-              <p style={{ fontSize: 16, fontWeight: 900, color: '#5b21b6', margin: 0 }}>{data.qty} шт</p>
+              <p style={{ fontSize: 16, fontWeight: 900, color: '#5b21b6', margin: 0 }}>{fmtQty(data.qty)} шт</p>
             </div>
             <div style={{ flex: 1, background: '#f0fdf4', borderRadius: 8, padding: '6px 10px' }}>
               <p style={{ fontSize: 9, color: '#16a34a', margin: 0, fontWeight: 600 }}>Паллет</p>
@@ -269,7 +270,7 @@ function InfoPanel({ data, onClose, onNavigate, onStartMove }) {
             </div>
             <div style={{ flex: 1, background: '#f0fdf4', borderRadius: 8, padding: '6px 10px' }}>
               <p style={{ fontSize: 9, color: '#16a34a', margin: 0, fontWeight: 600 }}>Штук</p>
-              <p style={{ fontSize: 16, fontWeight: 900, color: '#15803d', margin: 0 }}>{(data.palletInfo.boxes || []).reduce((s, b) => s + Number(b.quantity || 0), 0)}</p>
+              <p style={{ fontSize: 16, fontWeight: 900, color: '#15803d', margin: 0 }}>{(data.palletInfo.boxes || []).reduce((s, b) => s + parseFloat(b.quantity || 0), 0)}</p>
             </div>
           </div>
           <button onClick={onNavigate} style={{ width: '100%', padding: '8px 0', borderRadius: 10, border: 'none', background: '#7c3aed', color: 'white', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
@@ -424,7 +425,7 @@ function PalletDetail3D({ pallet, onClose }) {
   }, [pallet]);
 
   const boxes = pallet.boxes || [];
-  const totalQty = boxes.reduce((s, b) => s + Number(b.quantity || 0), 0);
+  const totalQty = boxes.reduce((s, b) => s + parseFloat(b.quantity || 0), 0);
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 50, background: '#e8e0d0', display: 'flex', flexDirection: 'column' }}>
@@ -776,7 +777,7 @@ export default function FBOVisualView({ warehouse }) {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
                   <div style={{ background: '#f5f3ff', borderRadius: 10, padding: '10px 14px' }}>
                     <p style={{ fontSize: 10, color: '#7c3aed', fontWeight: 600, margin: 0 }}>Кол-во</p>
-                    <p style={{ fontSize: 20, fontWeight: 900, color: '#5b21b6', margin: '2px 0 0' }}>{cardData.quantity} шт</p>
+                    <p style={{ fontSize: 20, fontWeight: 900, color: '#5b21b6', margin: '2px 0 0' }}>{fmtQty(cardData.quantity)} шт</p>
                   </div>
                   <div style={{ background: '#f0fdf4', borderRadius: 10, padding: '10px 14px' }}>
                     <p style={{ fontSize: 10, color: '#16a34a', fontWeight: 600, margin: 0 }}>Статус</p>
@@ -797,7 +798,7 @@ export default function FBOVisualView({ warehouse }) {
                       {cardData.items.map((item, i) => (
                         <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid #f5f5f5', fontSize: 12 }}>
                           <span style={{ color: '#333' }}>{(item.product_name || '—').replace(/GraFLab,?\s*/i, '').trim()}</span>
-                          <span style={{ fontWeight: 700, color: '#555' }}>{item.quantity} шт</span>
+                          <span style={{ fontWeight: 700, color: '#555' }}>{fmtQty(item.quantity)} шт</span>
                         </div>
                       ))}
                     </div>
