@@ -200,6 +200,7 @@ function buildPallet(palletData, mats, geo, offsetX, offsetZ) {
         type: 'box', product: bName, qty: box.quantity || 0,
         barcode: box.barcode_value || '—', boxId: box.id,
         palletId: palletData.id, palletName: palletData.name,
+        layerIndex: li,
       };
 
       group.add(bGroup);
@@ -340,7 +341,7 @@ export default function FBOVisualView({ warehouse }) {
   const [activeLayer, setActiveLayer] = useState(-1); // -1 = all
   const [maxLayers, setMaxLayers] = useState(3);
   const rendererRef = useRef(null);
-  const layerGroupsRef = useRef([]);
+  const allBoxMeshesRef = useRef([]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -351,6 +352,29 @@ export default function FBOVisualView({ warehouse }) {
   }, [warehouse.id]);
 
   useEffect(() => { moveModeRef.current = moveMode; }, [moveMode]);
+
+  // Layer visibility
+  useEffect(() => {
+    const meshes = allBoxMeshesRef.current;
+    if (!meshes || meshes.length === 0) return;
+    meshes.forEach(b => {
+      const li = b.userData.layerIndex || 0;
+      if (activeLayer === -1) {
+        b.visible = true;
+      } else {
+        b.visible = li <= activeLayer;
+        // Dim lower layers
+        if (li < activeLayer) {
+          b.children.forEach(c => { if (c.material && !Array.isArray(c.material)) c.material.opacity = 0.2; else if (Array.isArray(c.material)) c.material.forEach(m => { m.transparent = true; m.opacity = 0.15; }); });
+        } else if (li === activeLayer) {
+          b.children.forEach(c => { if (c.material && !Array.isArray(c.material)) { c.material.opacity = 1; c.material.transparent = false; } else if (Array.isArray(c.material)) c.material.forEach(m => { m.opacity = 1; m.transparent = false; }); });
+        }
+      }
+      if (activeLayer === -1) {
+        b.children.forEach(c => { if (c.material && !Array.isArray(c.material)) { c.material.opacity = 1; c.material.transparent = false; } else if (Array.isArray(c.material)) c.material.forEach(m => { m.opacity = 1; m.transparent = false; }); });
+      }
+    });
+  }, [activeLayer]);
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
@@ -440,6 +464,14 @@ export default function FBOVisualView({ warehouse }) {
         allBoxMeshes.push(...(pg.userData.boxMeshes || []));
       });
     });
+
+    // Store ref for layer filtering
+    allBoxMeshesRef.current = allBoxMeshes;
+
+    // Compute max layers
+    let ml = 1;
+    allBoxMeshes.forEach(b => { if ((b.userData.layerIndex || 0) + 1 > ml) ml = b.userData.layerIndex + 1; });
+    setMaxLayers(ml);
 
     // Center camera
     const totalZ = Math.max(0, (rows.length - 1) * ROW_SPACING);
