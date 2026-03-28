@@ -76,13 +76,13 @@ router.get('/', requireAuth, async (req, res) => {
         )`);
       } else {
         conditions.push(`p.id IN (
-          SELECT product_id FROM shelf_items_s WHERE quantity > 0
+          SELECT si.product_id FROM shelf_items_s si JOIN shelves_s s ON si.shelf_id=s.id JOIN racks_s r ON s.rack_id=r.id JOIN warehouses_s w ON r.warehouse_id=w.id WHERE si.quantity > 0 AND w.active=true
           UNION
-          SELECT product_id FROM shelf_box_items_s WHERE quantity > 0
+          SELECT sbi.product_id FROM shelf_box_items_s sbi JOIN shelf_boxes_s sb ON sbi.shelf_box_id=sb.id JOIN shelves_s s ON sb.shelf_id=s.id JOIN racks_s r ON s.rack_id=r.id JOIN warehouses_s w ON r.warehouse_id=w.id WHERE sbi.quantity > 0 AND w.active=true
           UNION
-          SELECT product_id FROM box_items_s WHERE quantity > 0
+          SELECT bi.product_id FROM box_items_s bi JOIN boxes_s b ON bi.box_id=b.id JOIN pallets_s pa ON b.pallet_id=pa.id JOIN pallet_rows_s pr ON pa.row_id=pr.id JOIN warehouses_s w ON pr.warehouse_id=w.id WHERE bi.quantity > 0 AND w.active=true
           UNION
-          SELECT product_id FROM pallet_items_s WHERE quantity > 0
+          SELECT pi.product_id FROM pallet_items_s pi JOIN pallets_s pa ON pi.pallet_id=pa.id JOIN pallet_rows_s pr ON pa.row_id=pr.id JOIN warehouses_s w ON pr.warehouse_id=w.id WHERE pi.quantity > 0 AND w.active=true
         )`);
       }
     }
@@ -153,31 +153,39 @@ router.get('/', requireAuth, async (req, res) => {
           STRING_AGG(DISTINCT loc_code, ', ' ORDER BY loc_code) as shelf_codes,
           SUM(quantity) as warehouse_qty
         FROM (
-          -- FBS: товары на полках
+          -- FBS: товары на полках (только активные склады)
           SELECT si.product_id, si.quantity, s.code as loc_code
           FROM shelf_items_s si
           JOIN shelves_s s ON si.shelf_id = s.id
-          WHERE si.quantity > 0
+          JOIN racks_s r ON s.rack_id = r.id
+          JOIN warehouses_s w ON r.warehouse_id = w.id
+          WHERE si.quantity > 0 AND w.active = true
           UNION ALL
           -- FBS: товары внутри коробок на полках
           SELECT sbi.product_id, sbi.quantity, COALESCE(sb.name, s.code) as loc_code
           FROM shelf_box_items_s sbi
           JOIN shelf_boxes_s sb ON sbi.shelf_box_id = sb.id
           JOIN shelves_s s ON sb.shelf_id = s.id
-          WHERE sbi.quantity > 0
+          JOIN racks_s r ON s.rack_id = r.id
+          JOIN warehouses_s w ON r.warehouse_id = w.id
+          WHERE sbi.quantity > 0 AND w.active = true
           UNION ALL
           -- FBO: закрытые коробки на паллетах
           SELECT bi.product_id, bi.quantity, p.name as loc_code
           FROM box_items_s bi
           JOIN boxes_s b ON bi.box_id = b.id
           JOIN pallets_s p ON b.pallet_id = p.id
-          WHERE bi.quantity > 0 AND b.status = 'closed'
+          JOIN pallet_rows_s pr ON p.row_id = pr.id
+          JOIN warehouses_s w ON pr.warehouse_id = w.id
+          WHERE bi.quantity > 0 AND b.status = 'closed' AND w.active = true
           UNION ALL
           -- FBO: товары напрямую на паллетах
           SELECT pi.product_id, pi.quantity, pa.name as loc_code
           FROM pallet_items_s pi
           JOIN pallets_s pa ON pi.pallet_id = pa.id
-          WHERE pi.quantity > 0
+          JOIN pallet_rows_s pr ON pa.row_id = pr.id
+          JOIN warehouses_s w ON pr.warehouse_id = w.id
+          WHERE pi.quantity > 0 AND w.active = true
         ) combined
         GROUP BY product_id
       )`;
@@ -260,13 +268,13 @@ router.get('/stats', requireAuth, async (req, res) => {
     } else {
       const allResult = await pool.query(
         `SELECT SUM(qty) as warehouse_total FROM (
-           SELECT quantity as qty FROM shelf_items_s WHERE quantity > 0
+           SELECT si.quantity as qty FROM shelf_items_s si JOIN shelves_s s ON si.shelf_id=s.id JOIN racks_s r ON s.rack_id=r.id JOIN warehouses_s w ON r.warehouse_id=w.id WHERE si.quantity > 0 AND w.active=true
            UNION ALL
-           SELECT quantity as qty FROM shelf_box_items_s WHERE quantity > 0
+           SELECT sbi.quantity as qty FROM shelf_box_items_s sbi JOIN shelf_boxes_s sb ON sbi.shelf_box_id=sb.id JOIN shelves_s s ON sb.shelf_id=s.id JOIN racks_s r ON s.rack_id=r.id JOIN warehouses_s w ON r.warehouse_id=w.id WHERE sbi.quantity > 0 AND w.active=true
            UNION ALL
-           SELECT quantity as qty FROM box_items_s WHERE quantity > 0
+           SELECT bi.quantity as qty FROM box_items_s bi JOIN boxes_s b ON bi.box_id=b.id JOIN pallets_s pa ON b.pallet_id=pa.id JOIN pallet_rows_s pr ON pa.row_id=pr.id JOIN warehouses_s w ON pr.warehouse_id=w.id WHERE bi.quantity > 0 AND w.active=true
            UNION ALL
-           SELECT quantity as qty FROM pallet_items_s WHERE quantity > 0
+           SELECT pi.quantity as qty FROM pallet_items_s pi JOIN pallets_s pa ON pi.pallet_id=pa.id JOIN pallet_rows_s pr ON pa.row_id=pr.id JOIN warehouses_s w ON pr.warehouse_id=w.id WHERE pi.quantity > 0 AND w.active=true
          ) combined`
       );
       stats.warehouse_total = allResult.rows[0].warehouse_total || 0;
