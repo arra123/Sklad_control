@@ -9,7 +9,8 @@ import {
 import { WarehouseIcon, RackIcon, ShelfIcon, PalletIcon, RowIcon, BoxIcon, ProductIcon, RackBadge, RowBadge, ShelfBadge, PalletBadge } from '../../components/ui/WarehouseIcons';
 import api from '../../api/client';
 import FBSVisualView from '../../components/visual/FBSVisualView';
-import FBOVisualView from '../../components/visual/FBOVisualView';
+import { lazy, Suspense } from 'react';
+const FBOVisualView = lazy(() => import('../../components/visual/FBOVisualView'));
 
 import Button from '../../components/ui/Button';
 import Modal from '../../components/ui/Modal';
@@ -2493,7 +2494,9 @@ function FBORowListView({ warehouse, initialRowId, initialPalletId, initialBoxId
 
       {/* Visual mode */}
       {vm === 'visual' && (
-        <FBOVisualView warehouse={warehouse} />
+        <Suspense fallback={<div style={{display:'flex',alignItems:'center',justifyContent:'center',height:400}}><Spinner size="lg" /></div>}>
+          <FBOVisualView warehouse={warehouse} />
+        </Suspense>
       )}
 
       {/* Cards mode */}
