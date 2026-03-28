@@ -29,16 +29,13 @@ const upload = multer({
   fileFilter: (_req, file, cb) => {
     if (file.fieldname === 'screenshot') {
       const allowed = /\.(jpg|jpeg|png|gif|webp|bmp)$/i;
-      if (!allowed.test(path.extname(file.originalname))) {
+      if (file.originalname && !allowed.test(path.extname(file.originalname))) {
         return cb(new Error('Допустимы только изображения'));
-      }
-      if (file.size > 5 * 1024 * 1024) {
-        return cb(new Error('Скриншот не более 5MB'));
       }
     }
     if (file.fieldname === 'audio') {
       const allowed = /\.(mp3|wav|ogg|webm|m4a)$/i;
-      if (!allowed.test(path.extname(file.originalname))) {
+      if (file.originalname && !allowed.test(path.extname(file.originalname))) {
         return cb(new Error('Допустимы только аудио-файлы'));
       }
     }
