@@ -85,8 +85,8 @@ function PalletView({ pallet, colorIndex, onClick }) {
 
 // ─── Side panel: 3D pallet detail ────────────────────────────────────────────
 function PalletDetailPanel({ pallet, onClose }) {
-  const [rotX, setRotX] = useState(25);
-  const [rotY, setRotY] = useState(-15);
+  const [rotX, setRotX] = useState(50);
+  const [rotY, setRotY] = useState(-25);
   const [activeLayer, setActiveLayer] = useState(null); // null = all
 
   const allBoxes = pallet.boxes || [];
@@ -102,7 +102,7 @@ function PalletDetailPanel({ pallet, onClose }) {
     return l.length > 0 ? l : [[]];
   }, [allBoxes]);
 
-  const resetRotation = () => { setRotX(25); setRotY(-15); };
+  const resetRotation = () => { setRotX(50); setRotY(-25); };
 
   return (
     <div style={{
@@ -146,7 +146,7 @@ function PalletDetailPanel({ pallet, onClose }) {
             {layers.map((layer, li) => {
               const isActive = activeLayer === null || activeLayer === li;
               const isAboveActive = activeLayer !== null && li > activeLayer;
-              const BOX_W = 42, BOX_H = 28, GAP = 3;
+              const BOX_W = 36, BOX_H = 36, GAP = 2;
               const gridW = BOX_COLS * (BOX_W + GAP);
               const layerRows = Math.ceil(layer.length / BOX_COLS);
               return (
@@ -196,7 +196,7 @@ function PalletDetailPanel({ pallet, onClose }) {
               );
             })}
             {/* Wood base */}
-            <div style={{ width: BOX_COLS * 45, height: 8, margin: '4px auto 0',
+            <div style={{ width: BOX_COLS * (36 + 2), height: 8, margin: '4px auto 0',
               background: 'repeating-linear-gradient(90deg, #c89838 0, #bd8d35 8px, #7a5020 8px, #7a5020 9.5px, #c89838 9.5px)',
               border: '2px solid #8a5c20', borderRadius: '0 0 3px 3px',
               transformStyle: 'preserve-3d',
