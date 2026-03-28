@@ -9,7 +9,7 @@ import {
 import { WarehouseIcon, RackIcon, ShelfIcon, PalletIcon, RowIcon, BoxIcon, ProductIcon, RackBadge, RowBadge, ShelfBadge, PalletBadge } from '../../components/ui/WarehouseIcons';
 import api from '../../api/client';
 import FBSVisualView from '../../components/visual/FBSVisualView';
-import FBOVisualView from '../../components/visual/FBOVisualView';
+
 import Button from '../../components/ui/Button';
 import Modal from '../../components/ui/Modal';
 import Input from '../../components/ui/Input';
@@ -2474,10 +2474,6 @@ function FBORowListView({ warehouse, initialRowId, initialPalletId, initialBoxId
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
                 Список
               </button>
-              <button onClick={() => onViewMode('visual')} style={viewBtnStyle(vm === 'visual')}>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                Визуально
-              </button>
               <button onClick={() => onViewMode('cards')} style={viewBtnStyle(vm === 'cards')}>
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
                 Карточки
@@ -2489,11 +2485,6 @@ function FBORowListView({ warehouse, initialRowId, initialPalletId, initialBoxId
           </Button>
         </div>
       </div>
-
-      {/* Visual mode */}
-      {vm === 'visual' && (
-        <FBOVisualView warehouse={warehouse} onClose={() => onViewMode && onViewMode('list')} />
-      )}
 
       {/* Cards mode */}
       {vm === 'cards' && (
