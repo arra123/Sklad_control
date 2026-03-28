@@ -12,6 +12,12 @@ function fmtGra(value) {
   return new Intl.NumberFormat('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: amount % 1 === 0 ? 0 : 3 }).format(amount);
 }
 
+function fmtRub(value) {
+  const gra = Number(value || 0);
+  const rub = gra / 100;
+  return new Intl.NumberFormat('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(rub);
+}
+
 function fmtDateTime(iso) {
   if (!iso) return '—';
   return new Date(iso).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -89,6 +95,9 @@ export default function EarningsPage() {
   const [adjustModalOpen, setAdjustModalOpen] = useState(false);
   const [savingBalance, setSavingBalance] = useState(false);
   const [expandedTask, setExpandedTask] = useState(null);
+  const [showRub, setShowRub] = useState(false);
+  const fmt = (v) => showRub ? fmtRub(v) : fmtGra(v);
+  const unit = showRub ? '₽' : 'GRA';
 
   const loadBase = useCallback(async (background = false) => {
     if (background) setRefreshing(true); else setLoading(true);
@@ -126,7 +135,8 @@ export default function EarningsPage() {
     setSearchParams(prev => { const p = new URLSearchParams(prev); p.delete('task'); p.set('dtab', 'sklad'); return p; }, { replace: true });
     setTaskDetails(null); setExpandedTask(null);
     if (selectedEmployeeId) loadEmployeeDetails(selectedEmployeeId);
-  }, [selectedEmployeeId, loadEmployeeDetails, setSearchParams]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedEmployeeId, loadEmployeeDetails]);
   useEffect(() => { if (selectedTaskId) loadTaskDetails(selectedTaskId); }, [selectedTaskId, loadTaskDetails]);
 
   const selectedEmployee = useMemo(() => {
@@ -185,6 +195,9 @@ export default function EarningsPage() {
               <button key={k} onClick={() => setTab(k)} className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${tab === k ? 'bg-white shadow-sm text-gray-900 font-semibold' : 'text-gray-500 hover:text-gray-700'}`}>{l}</button>
             ))}
           </div>
+          <button onClick={() => setShowRub(!showRub)} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${showRub ? 'bg-green-50 border-green-200 text-green-700' : 'bg-amber-50 border-amber-200 text-amber-700'}`}>
+            {showRub ? '₽ рубли' : 'G GRACoin'}
+          </button>
           <button onClick={() => loadBase(true)} className="p-2 rounded-xl text-gray-400 hover:text-primary-500 hover:bg-primary-50 transition-all">
             <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />
           </button>
@@ -197,11 +210,11 @@ export default function EarningsPage() {
           <div className="grid grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
             {[
               { Icon: GRACoinIcon, label: 'Сотрудников', value: overview.employees_with_activity || 0, bg: 'bg-purple-50' },
-              { Icon: WalletIcon, label: 'Баланс GRA', value: fmtGra(overview.total_current_balance), color: 'text-green-600', bg: 'bg-green-50' },
+              { Icon: WalletIcon, label: `Баланс ${unit}`, value: fmt(overview.total_current_balance), color: 'text-green-600', bg: 'bg-green-50' },
               { Icon: ScannerIcon, label: 'Сканов', value: fmtGra(overview.rewarded_scans || 0), bg: 'bg-blue-50' },
-              { Icon: TrendUpIcon, label: 'Начислено', value: fmtGra(overview.total_awarded), bg: 'bg-emerald-50' },
-              { Icon: OrderPickIcon, label: 'Сборки', value: fmtGra(overview.total_sborka_amount), hint: `${fmtGra(overview.total_sborka_units || 0)} пиков`, bg: 'bg-pink-50' },
-              { Icon: RateGearIcon, label: 'Ставка', value: fmtGra(summary?.settings?.gra_inventory_scan_rate || 0), color: 'text-amber-600', bg: 'bg-amber-50' },
+              { Icon: TrendUpIcon, label: 'Начислено', value: `${fmt(overview.total_awarded)} ${unit}`, bg: 'bg-emerald-50' },
+              { Icon: OrderPickIcon, label: 'Сборки', value: `${fmt(overview.total_sborka_amount)} ${unit}`, hint: `${fmtGra(overview.total_sborka_units || 0)} пиков`, bg: 'bg-pink-50' },
+              { Icon: RateGearIcon, label: 'Ставка', value: `${fmt(summary?.settings?.gra_inventory_scan_rate || 0)} ${unit}`, color: 'text-amber-600', bg: 'bg-amber-50' },
             ].map((s, i) => (
               <div key={i} className="bg-white rounded-2xl p-4 border border-gray-100">
                 <div className={`w-8 h-8 rounded-lg ${s.bg} flex items-center justify-center mb-2`}><s.Icon size={20} /></div>
@@ -241,9 +254,9 @@ export default function EarningsPage() {
                         <td className="px-3 py-3 font-semibold text-gray-900">{item.full_name}</td>
                         <td className="px-3 py-3 text-right text-gray-600">{fmtGra(item.rewarded_scans || 0)}</td>
                         <td className="px-3 py-3 text-right text-gray-600">{item.rewarded_tasks_count || 0}</td>
-                        <td className="px-3 py-3 text-right text-blue-600 font-semibold">{fmtGra(item.total_awarded)}</td>
-                        <td className="px-3 py-3 text-right text-pink-600 font-semibold">{fmtGra(item.sborka_amount || 0)}</td>
-                        <td className="px-4 py-3 text-right font-black text-green-600">{fmtGra(item.current_balance)}</td>
+                        <td className="px-3 py-3 text-right text-blue-600 font-semibold">{fmt(item.total_awarded)}</td>
+                        <td className="px-3 py-3 text-right text-pink-600 font-semibold">{fmt(item.sborka_amount || 0)}</td>
+                        <td className="px-4 py-3 text-right font-black text-green-600">{fmt(item.current_balance)}</td>
                         <td className="pr-3"><ChevronRight size={14} className="text-gray-300" /></td>
                       </tr>
                     ))}
@@ -267,7 +280,7 @@ export default function EarningsPage() {
                       <div className="flex items-center justify-between">
                         <p className="text-sm font-semibold text-gray-800">{item.employee_name}</p>
                         <span className={`text-sm font-black ${Number(item.amount_delta) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                          {Number(item.amount_delta) >= 0 ? '+' : ''}{fmtGra(item.amount_delta)}
+                          {Number(item.amount_delta) >= 0 ? '+' : ''}{fmt(item.amount_delta)} {unit}
                         </span>
                       </div>
                       <p className="text-[11px] text-gray-400 mt-0.5">{fmtDateTime(item.created_at)} · {item.changed_by_username || 'система'}</p>
@@ -298,11 +311,11 @@ export default function EarningsPage() {
                     className={`w-full px-4 py-3 text-left transition-colors border-l-[3px] ${Number(selectedEmployeeId) === Number(item.employee_id) ? 'bg-primary-50 border-primary-500' : 'border-transparent hover:bg-gray-50'}`}>
                     <div className="flex justify-between items-baseline">
                       <p className={`text-sm ${Number(selectedEmployeeId) === Number(item.employee_id) ? 'font-bold text-gray-900' : 'font-medium text-gray-700'}`}>{item.full_name}</p>
-                      <p className="text-sm font-black text-green-600">{fmtGra(item.current_balance)}</p>
+                      <p className="text-sm font-black text-green-600">{fmt(item.current_balance)}</p>
                     </div>
                     <p className="text-[10px] text-gray-400 mt-0.5">
                       {fmtGra(item.rewarded_scans || 0)} скан · {item.rewarded_tasks_count || 0} задач
-                      {Number(item.sborka_amount) > 0 && ` · сборки: ${fmtGra(item.sborka_amount)}`}
+                      {Number(item.sborka_amount) > 0 && ` · сборки: ${fmt(item.sborka_amount)}`}
                     </p>
                   </button>
                 ))}
@@ -333,14 +346,14 @@ export default function EarningsPage() {
                       </div>
                       <div className="grid grid-cols-4 gap-3">
                         {[
-                          { Icon: WalletIcon, label: 'Баланс', value: fmtGra(employeeDetails?.employee?.current_balance ?? selectedEmployee.current_balance), color: 'text-green-600', border: 'border-green-100', bg: 'bg-green-50' },
-                          { Icon: ScannerIcon, label: 'Склад', value: fmtGra(employeeDetails?.employee?.total_awarded || 0), color: 'text-blue-600', border: 'border-blue-100', bg: 'bg-blue-50' },
-                          { Icon: OrderPickIcon, label: 'Сборки', value: fmtGra(employeeDetails?.employee?.sborka_amount || 0), color: 'text-pink-600', border: 'border-pink-100', bg: 'bg-pink-50' },
-                          { Icon: AdjustIcon, label: 'Корректировки', value: fmtGra(employeeDetails?.employee?.total_manual_adjustments || 0), color: 'text-amber-600', border: 'border-amber-100', bg: 'bg-amber-50' },
+                          { Icon: WalletIcon, label: 'Баланс', value: fmt(employeeDetails?.employee?.current_balance ?? selectedEmployee.current_balance), color: 'text-green-600', border: 'border-green-100', bg: 'bg-green-50' },
+                          { Icon: ScannerIcon, label: 'Склад', value: fmt(employeeDetails?.employee?.total_awarded || 0), color: 'text-blue-600', border: 'border-blue-100', bg: 'bg-blue-50' },
+                          { Icon: OrderPickIcon, label: 'Сборки', value: fmt(employeeDetails?.employee?.sborka_amount || 0), color: 'text-pink-600', border: 'border-pink-100', bg: 'bg-pink-50' },
+                          { Icon: AdjustIcon, label: 'Корректировки', value: fmt(employeeDetails?.employee?.total_manual_adjustments || 0), color: 'text-amber-600', border: 'border-amber-100', bg: 'bg-amber-50' },
                         ].map((s, i) => (
                           <div key={i} className={`rounded-xl p-3 ${s.bg} border ${s.border}`}>
                             <div className="flex items-center gap-2 mb-1"><s.Icon size={16} /><span className="text-[10px] text-gray-500 uppercase">{s.label}</span></div>
-                            <p className={`text-xl font-black ${s.color}`}>{s.value} <span className="text-xs font-semibold text-gray-400">GRA</span></p>
+                            <p className={`text-xl font-black ${s.color}`}>{s.value} <span className="text-xs font-semibold text-gray-400">{unit}</span></p>
                           </div>
                         ))}
                       </div>
@@ -383,7 +396,7 @@ export default function EarningsPage() {
                                 <td className="px-3 py-3 text-gray-500">{taskLocation(task)}</td>
                                 <td className="px-3 py-3 text-right text-gray-600">{task.scopes_count || 0}</td>
                                 <td className="px-3 py-3 text-right font-bold text-gray-900">{fmtGra(task.rewarded_scans)}</td>
-                                <td className="px-3 py-3 text-right font-black text-green-600">{fmtGra(task.amount_earned)}</td>
+                                <td className="px-3 py-3 text-right font-black text-green-600">{fmt(task.amount_earned)}</td>
                                 <td className="px-3 py-3 text-gray-400 text-xs">{fmtShort(task.last_earned_at)}</td>
                                 <td className="pr-2">
                                   {isExpanded ? <ChevronDown size={14} className="text-primary-400" /> : <ChevronRight size={14} className="text-gray-300" />}
@@ -399,7 +412,7 @@ export default function EarningsPage() {
                                         <>
                                           <div className="flex gap-3 mb-3">
                                             <div className="bg-white rounded-lg px-3 py-1.5 border border-gray-100">
-                                              <span className="text-[10px] text-gray-400">Заработано </span><span className="text-sm font-black text-green-600">{fmtGra(taskDetails.task.total_earned)} GRA</span>
+                                              <span className="text-[10px] text-gray-400">Заработано </span><span className="text-sm font-black text-green-600">{fmt(taskDetails.task.total_earned)} {unit}</span>
                                             </div>
                                             <div className="bg-white rounded-lg px-3 py-1.5 border border-gray-100">
                                               <span className="text-[10px] text-gray-400">Сканов </span><span className="text-sm font-black text-blue-600">{fmtGra(taskDetails.task.rewarded_scans)}</span>
@@ -413,7 +426,7 @@ export default function EarningsPage() {
                                               <div key={scope.scope_key} className="bg-white rounded-xl border border-gray-100 overflow-hidden">
                                                 <div className="bg-gray-50 px-4 py-2 flex items-center justify-between">
                                                   <span className="text-xs font-bold text-gray-600">{scope.scope_label} {scope.box_barcode && <span className="text-gray-300 font-mono ml-2">{scope.box_barcode}</span>}</span>
-                                                  <span className="text-xs font-bold text-green-600">{fmtGra(scope.amount_earned)} GRA · {fmtGra(scope.rewarded_scans)} сканов</span>
+                                                  <span className="text-xs font-bold text-green-600">{fmt(scope.amount_earned)} {unit} · {fmtGra(scope.rewarded_scans)} сканов</span>
                                                 </div>
                                                 <div className="divide-y divide-gray-50 max-h-[150px] overflow-y-auto">
                                                   {scope.scans.map((scan, idx) => (
@@ -421,8 +434,8 @@ export default function EarningsPage() {
                                                       <span className="text-gray-300 w-5 text-right">#{idx + 1}</span>
                                                       <span className="flex-1 text-gray-700 truncate">{scan.product_name || scan.scanned_value}</span>
                                                       <span className="text-gray-400 font-mono">{scan.product_code || ''}</span>
-                                                      <span className="font-bold text-green-600 w-12 text-right">+{fmtGra(scan.amount_delta)}</span>
-                                                      <span className="text-gray-300 w-16 text-right">{fmtGra(scan.reward_units)} x {fmtGra(scan.rate_per_unit)}</span>
+                                                      <span className="font-bold text-green-600 w-12 text-right">+{fmt(scan.amount_delta)}</span>
+                                                      <span className="text-gray-300 w-16 text-right">{fmtGra(scan.reward_units)} x {fmt(scan.rate_per_unit)}</span>
                                                     </div>
                                                   ))}
                                                 </div>
@@ -472,7 +485,7 @@ export default function EarningsPage() {
                                 <td className="px-4 py-2.5 text-gray-600 truncate max-w-[160px]">{pick.source_store_name || '—'}</td>
                                 <td className="px-4 py-2.5 text-gray-600 truncate max-w-[200px]">{pick.source_product_name || pick.source_entity_name || '—'}</td>
                                 <td className="px-4 py-2.5 text-gray-500 font-mono text-xs">{pick.source_article || '—'}</td>
-                                <td className="px-4 py-2.5 text-right font-bold text-green-600">+{fmtGra(pick.amount_delta)}</td>
+                                <td className="px-4 py-2.5 text-right font-bold text-green-600">+{fmt(pick.amount_delta)}</td>
                                 <td className="px-4 py-2.5 text-right text-gray-600">{fmtGra(pick.reward_units)}</td>
                               </tr>
                             ))}
@@ -495,11 +508,11 @@ export default function EarningsPage() {
                         <div key={item.id} className="px-4 py-3">
                           <div className="flex items-center justify-between">
                             <span className={`text-sm font-black ${Number(item.amount_delta) >= 0 ? 'text-green-600' : 'text-red-500'}`}>
-                              {Number(item.amount_delta) >= 0 ? '+' : ''}{fmtGra(item.amount_delta)} GRA
+                              {Number(item.amount_delta) >= 0 ? '+' : ''}{fmt(item.amount_delta)} {unit}
                             </span>
                             <span className="text-xs text-gray-400">{fmtDateTime(item.created_at)}</span>
                           </div>
-                          <p className="text-xs text-gray-500 mt-0.5">{fmtGra(item.balance_before)} → {fmtGra(item.balance_after)} GRA · {item.changed_by_username || 'система'}</p>
+                          <p className="text-xs text-gray-500 mt-0.5">{fmt(item.balance_before)} → {fmt(item.balance_after)} {unit} · {item.changed_by_username || 'система'}</p>
                           {item.notes && <p className="text-xs text-gray-400 mt-0.5">{item.notes}</p>}
                         </div>
                       ))}
@@ -545,9 +558,9 @@ export default function EarningsPage() {
             </div>
             <div className="p-5 space-y-3">
               {[
-                { label: 'Ставка сейчас', value: `${fmtGra(summary?.settings?.gra_inventory_scan_rate || 0)} GRA` },
+                { label: 'Ставка сейчас', value: `${fmt(summary?.settings?.gra_inventory_scan_rate || 0)} ${unit}` },
                 { label: 'Сотрудников', value: overview.employees_with_activity || 0 },
-                { label: 'Суммарный баланс', value: `${fmtGra(overview.total_current_balance)} GRA` },
+                { label: 'Суммарный баланс', value: `${fmt(overview.total_current_balance)} ${unit}` },
               ].map((s, i) => (
                 <div key={i} className="rounded-xl bg-gray-50 px-4 py-3">
                   <p className="text-xs text-gray-400">{s.label}</p>
