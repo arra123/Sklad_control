@@ -38,6 +38,7 @@ function Breadcrumb() {
   const [productName, setProductName] = useState(null);
   const productId = searchParams.get('id');
   const materialGroup = searchParams.get('group');
+  const productType = searchParams.get('type');
 
   useEffect(() => {
     if (!productId) { setProductName(null); return; }
@@ -58,6 +59,11 @@ function Breadcrumb() {
   if (crumbs.length === 0) return null;
 
   const extraCrumbs = [];
+  // Карточки: тип товара
+  if (location.pathname.includes('/products/cards') && productType) {
+    extraCrumbs.push({ label: productType === 'bundle' ? 'Комплекты' : 'Единичные' });
+  }
+  // Сырьё: группа
   if (materialGroup && GROUP_LABEL_MAP[materialGroup]) {
     extraCrumbs.push({ label: GROUP_LABEL_MAP[materialGroup] });
   }
@@ -247,7 +253,7 @@ export default function AdminLayout({ children }) {
             <LogOut className="w-4 h-4" />
             Выйти
           </button>
-          <p className="text-[10px] text-gray-300 dark:text-gray-600 mt-2 text-center">v2.13.0</p>
+          <p className="text-[10px] text-gray-300 dark:text-gray-600 mt-2 text-center">v2.13.1</p>
         </div>
       </aside>
 

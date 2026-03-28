@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import {
   Search, Package, Boxes, ChevronLeft, ChevronRight,
   Copy, Check, ArrowRight, Plus, Pencil, Trash2, X, MapPin,
@@ -425,6 +425,7 @@ export function ProductFormModal({ open, onClose, onSuccess, initial }) {
 
 // ─── Product Detail Modal ─────────────────────────────────────────────────────
 export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
+  const navigate = useNavigate();
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [nestedId, setNestedId] = useState(null);
@@ -623,13 +624,14 @@ export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
                 </p>
                 <div className="space-y-1">
                   {(product.tech_card.materials || []).filter(m => m.id).map((m, i) => (
-                    <div key={m.id || i} className="flex items-center gap-3 px-3 py-2 rounded-lg bg-gray-50 border border-gray-100">
+                    <div key={m.id || i} className="flex items-center gap-3 px-3 py-2 rounded-lg bg-gray-50 border border-gray-100 cursor-pointer hover:bg-purple-50/30 transition-colors" onClick={() => { onClose(); navigate(`/admin/products/materials?id=${m.id}`); }}>
                       <span className="flex-shrink-0">{matIcon(m)}</span>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-800 truncate">{m.name}</p>
+                        <p className="text-sm font-medium text-purple-700 truncate">{m.name}</p>
                         {m.code && <p className="text-[10px] text-gray-400">{m.code}</p>}
                       </div>
                       <span className="text-sm font-bold text-gray-900 flex-shrink-0">{fmtQty(m.quantity)} {m.unit}</span>
+                      <ChevronRight size={14} className="text-gray-300 flex-shrink-0" />
                     </div>
                   ))}
                 </div>
