@@ -27,26 +27,48 @@ function buildCrumbs(pathname) {
   return [];
 }
 
+const GROUP_LABEL_MAP = {
+  'порошки': 'Порошки', 'полуфабрикаты': 'Полуфабрикаты', 'этикетки': 'Этикетки',
+  'смеси': 'Смеси', 'расходники': 'Расходники', 'другое': 'Другое',
+};
+
 function Breadcrumb() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const [productName, setProductName] = useState(null);
   const productId = searchParams.get('id');
+  const materialGroup = searchParams.get('group');
 
   useEffect(() => {
     if (!productId) { setProductName(null); return; }
-    api.get(`/products/${productId}`)
-      .then(r => setProductName(r.data.name))
-      .catch(() => setProductName(null));
-  }, [productId]);
+    if (location.pathname.includes('/products/cards') || location.pathname.includes('/products/stock')) {
+      api.get(`/products/${productId}`)
+        .then(r => setProductName(r.data.name))
+        .catch(() => setProductName(null));
+    } else if (location.pathname.includes('/products/materials')) {
+      api.get(`/materials/${productId}`)
+        .then(r => setProductName(r.data.name))
+        .catch(() => setProductName(null));
+    } else {
+      setProductName(null);
+    }
+  }, [productId, location.pathname]);
 
   const crumbs = buildCrumbs(location.pathname);
   if (crumbs.length === 0) return null;
 
+  const extraCrumbs = [];
+  if (materialGroup && GROUP_LABEL_MAP[materialGroup]) {
+    extraCrumbs.push({ label: GROUP_LABEL_MAP[materialGroup] });
+  }
+  if (productName) {
+    extraCrumbs.push({ label: productName });
+  }
+
   const allCrumbs = [
     { label: 'Главная', to: '/admin', icon: true },
     ...crumbs,
-    ...(productName ? [{ label: productName }] : []),
+    ...extraCrumbs,
   ];
 
   return (
@@ -225,7 +247,7 @@ export default function AdminLayout({ children }) {
             <LogOut className="w-4 h-4" />
             Выйти
           </button>
-          <p className="text-[10px] text-gray-300 dark:text-gray-600 mt-2 text-center">v2.12.3</p>
+          <p className="text-[10px] text-gray-300 dark:text-gray-600 mt-2 text-center">v2.13.0</p>
         </div>
       </aside>
 

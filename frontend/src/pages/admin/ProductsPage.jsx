@@ -5,7 +5,7 @@ import {
   Copy, Check, ArrowRight, Plus, Pencil, Trash2, X, MapPin,
   ArrowUp, ArrowDown, Settings2, GripVertical
 } from 'lucide-react';
-import { ProductIcon, BundleIcon } from '../../components/ui/WarehouseIcons';
+import { ProductIcon, BundleIcon, PowderIcon, SemiProductIcon, LabelIcon, SuppliesIcon, MixIcon, PackagingMaterialIcon, JarLidIcon, PetJarIcon, VacuumFlaskIcon, MembraneIcon, CapsuleEmptyIcon } from '../../components/ui/WarehouseIcons';
 import api from '../../api/client';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
@@ -75,6 +75,20 @@ function parsePrices(sourceJson) {
       name: p.priceType.name,
       value: (p.value / 100).toLocaleString('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 }),
     }));
+}
+
+const MAT_GROUP_ICONS = {
+  'порошки': PowderIcon, 'полуфабрикаты': SemiProductIcon, 'этикетки': LabelIcon,
+  'смеси': MixIcon, 'расходники': SuppliesIcon, 'другое': PackagingMaterialIcon,
+};
+const SUPPLY_ICON_KEYS = { 'мембран': MembraneIcon, 'крышк': JarLidIcon, 'капсул': CapsuleEmptyIcon, 'флакон': VacuumFlaskIcon, 'дозатор': VacuumFlaskIcon, 'банк': PetJarIcon };
+function matIcon(m, size = 16) {
+  if (m.material_group === 'расходники') {
+    const lower = (m.name || '').toLowerCase();
+    for (const [k, I] of Object.entries(SUPPLY_ICON_KEYS)) { if (lower.includes(k)) return <I size={size} />; }
+  }
+  const I = MAT_GROUP_ICONS[m.material_group] || PackagingMaterialIcon;
+  return <I size={size} />;
 }
 
 function BarcodeRow({ label, value, kind, onDelete }) {
@@ -563,7 +577,7 @@ export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
                   {!product.shelves?.length ? (
                     <p className="text-sm text-gray-400 italic">Не размещён</p>
                   ) : (
-                    <div className="max-h-[200px] overflow-y-auto space-y-1.5 pr-1">
+                    <div className="max-h-[300px] overflow-y-auto space-y-1.5 pr-1">
                       {product.shelves.map((s, i) => (
                         <div key={i} className="flex items-center justify-between px-3 py-2 bg-gray-50 rounded-xl">
                           <div>
@@ -610,16 +624,12 @@ export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
                 <div className="space-y-1">
                   {(product.tech_card.materials || []).filter(m => m.id).map((m, i) => (
                     <div key={m.id || i} className="flex items-center gap-3 px-3 py-2 rounded-lg bg-gray-50 border border-gray-100">
+                      <span className="flex-shrink-0">{matIcon(m)}</span>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-800 truncate">{m.name}</p>
                         {m.code && <p className="text-[10px] text-gray-400">{m.code}</p>}
                       </div>
                       <span className="text-sm font-bold text-gray-900 flex-shrink-0">{fmtQty(m.quantity)} {m.unit}</span>
-                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${
-                        m.category === 'packaging' ? 'bg-blue-50 text-blue-600' : 'bg-green-50 text-green-600'
-                      }`}>
-                        {m.category === 'packaging' ? 'Упаковка' : 'Ингредиент'}
-                      </span>
                     </div>
                   ))}
                 </div>

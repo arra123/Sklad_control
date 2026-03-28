@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Search, Package, X, ChevronRight, Save, Pencil } from 'lucide-react';
-import { RawMaterialsIcon, IngredientIcon, PackagingMaterialIcon, TechCardIcon, PowderIcon, SemiProductIcon, LabelIcon, SuppliesIcon, MixIcon, JarLidIcon, PetJarIcon, VacuumFlaskIcon, MembraneIcon, CapsuleEmptyIcon } from '../../components/ui/WarehouseIcons';
+import { RawMaterialsIcon, IngredientIcon, PackagingMaterialIcon, TechCardIcon, PowderIcon, SemiProductIcon, LabelIcon, SuppliesIcon, MixIcon, JarLidIcon, PetJarIcon, VacuumFlaskIcon, MembraneIcon, CapsuleEmptyIcon, ProductIcon } from '../../components/ui/WarehouseIcons';
 import api from '../../api/client';
 import Spinner from '../../components/ui/Spinner';
 
@@ -282,6 +282,7 @@ function MaterialDetailModal({ materialId, onClose, onUpdated }) {
                 <div className="space-y-1.5">
                   {data.tech_cards.map((tc, i) => (
                     <div key={tc.id || i} className="flex items-center gap-3 px-3 py-2 rounded-lg bg-gray-50 border border-gray-100 cursor-pointer hover:bg-purple-50/30 transition-colors" onClick={() => { if (tc.product_id) { onClose(); navigate(`/admin/products/cards?id=${tc.product_id}`); } }}>
+                      <span className="flex-shrink-0"><ProductIcon size={16} /></span>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-purple-700 truncate">{tc.product_name}</p>
                         <p className="text-[10px] text-gray-400">{tc.name}</p>
@@ -392,7 +393,10 @@ export default function MaterialsPage() {
           >
             Все ({stats.total})
           </button>
-          {(stats.groups || []).map(g => {
+          {(stats.groups || []).sort((a, b) => {
+            const order = ['полуфабрикаты', 'расходники', 'этикетки', 'смеси', 'порошки', 'другое'];
+            return (order.indexOf(a.group) === -1 ? 99 : order.indexOf(a.group)) - (order.indexOf(b.group) === -1 ? 99 : order.indexOf(b.group));
+          }).map(g => {
             const gl = GROUP_LABELS[g.group] || GROUP_LABELS['другое'];
             return (
               <button
