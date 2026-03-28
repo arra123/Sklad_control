@@ -3,7 +3,8 @@ import { useSearchParams } from 'react-router-dom';
 import {
   Settings, Palette, Sun, Moon, Check, RefreshCw, Info, Search,
   Volume2, VolumeX, Zap, Package, Table2, Bell, ScanLine,
-  Play, ChevronUp, ChevronDown, History, Eye
+  Play, ChevronUp, ChevronDown, History, Eye, MessageSquare,
+  Bug, Lightbulb, HelpCircle, Trash2, ChevronRight, X
 } from 'lucide-react';
 const APP_VERSION = '1.27.0';
 import api from '../../api/client';
@@ -559,12 +560,193 @@ function ChangelogSection() {
   );
 }
 
+// ─── Feedback Admin ──────────────────────────────────────────────────────────
+const STATUS_MAP = { new: { label: 'Новое', color: 'bg-blue-100 text-blue-700' }, in_progress: { label: 'В работе', color: 'bg-amber-100 text-amber-700' }, resolved: { label: 'Решено', color: 'bg-green-100 text-green-700' }, declined: { label: 'Отклонено', color: 'bg-gray-100 text-gray-500' } };
+const CAT_MAP = { bug: { label: 'Баг', icon: Bug, color: 'text-red-500' }, suggestion: { label: 'Предложение', icon: Lightbulb, color: 'text-amber-500' }, question: { label: 'Вопрос', icon: HelpCircle, color: 'text-blue-500' } };
+
+function FeedbackAdmin() {
+  const toast = useToast();
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState('');
+  const [detail, setDetail] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [notes, setNotes] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const loadList = async () => {
+    setLoading(true);
+    try {
+      const q = filter ? `?status=${filter}` : '';
+      const res = await api.get(`/feedback${q}`);
+      setItems(res.data.rows || res.data || []);
+    } catch {} finally { setLoading(false); }
+  };
+
+  useEffect(() => { loadList(); }, [filter]);
+
+  const openDetail = async (id) => {
+    setDetailLoading(true);
+    try {
+      const res = await api.get(`/feedback/${id}`);
+      setDetail(res.data);
+      setNotes(res.data.admin_notes || '');
+    } catch {} finally { setDetailLoading(false); }
+  };
+
+  const updateStatus = async (status) => {
+    if (!detail) return;
+    setSaving(true);
+    try {
+      await api.patch(`/feedback/${detail.id}`, { status, admin_notes: notes });
+      toast.success('Статус обновлён');
+      loadList();
+      openDetail(detail.id);
+    } catch (e) { toast.error(e.response?.data?.error || 'Ошибка'); }
+    finally { setSaving(false); }
+  };
+
+  const deleteFeedback = async (id) => {
+    if (!confirm('Удалить обращение?')) return;
+    try {
+      await api.delete(`/feedback/${id}`);
+      toast.success('Удалено');
+      setDetail(null);
+      loadList();
+    } catch (e) { toast.error(e.response?.data?.error || 'Ошибка'); }
+  };
+
+  const fmtDate = (iso) => iso ? new Date(iso).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
+
+  return (
+    <div className="space-y-4">
+      {/* Filters */}
+      <div className="flex gap-2 flex-wrap">
+        {[{ key: '', label: 'Все' }, { key: 'new', label: 'Новые' }, { key: 'in_progress', label: 'В работе' }, { key: 'resolved', label: 'Решено' }, { key: 'declined', label: 'Отклонено' }].map(f => (
+          <button key={f.key} onClick={() => setFilter(f.key)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${filter === f.key ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+            {f.label}
+          </button>
+        ))}
+      </div>
+
+      {/* List */}
+      {loading ? (
+        <div className="text-center py-12 text-gray-400">Загрузка...</div>
+      ) : items.length === 0 ? (
+        <div className="text-center py-12 text-gray-400">Нет обращений</div>
+      ) : (
+        <div className="space-y-2">
+          {items.map(item => {
+            const cat = CAT_MAP[item.category] || CAT_MAP.bug;
+            const st = STATUS_MAP[item.status] || STATUS_MAP.new;
+            const CatIcon = cat.icon;
+            return (
+              <div key={item.id} onClick={() => openDetail(item.id)}
+                className="flex items-center gap-3 px-4 py-3 bg-white rounded-xl border border-gray-100 hover:border-primary-200 hover:bg-primary-50/30 cursor-pointer transition-colors">
+                <CatIcon size={16} className={cat.color} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-800 truncate">{item.description?.slice(0, 80) || item.transcript?.slice(0, 80) || 'Без описания'}</p>
+                  <p className="text-xs text-gray-400">{item.username || 'Аноним'} · {fmtDate(item.created_at)} {item.subcategory && `· ${item.subcategory}`}</p>
+                </div>
+                {item.audio_path && <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-500">голос</span>}
+                {item.screenshot_path && <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-50 text-green-500">фото</span>}
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${st.color}`}>{st.label}</span>
+                <ChevronRight size={14} className="text-gray-300" />
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Detail modal */}
+      {(detail || detailLoading) && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => { setDetail(null); setDetailLoading(false); }}>
+          <div className="absolute inset-0 bg-black/30" />
+          <div className="relative bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[80vh] overflow-y-auto p-6" onClick={e => e.stopPropagation()}>
+            {detailLoading ? (
+              <div className="text-center py-12 text-gray-400">Загрузка...</div>
+            ) : detail && (() => {
+              const cat = CAT_MAP[detail.category] || CAT_MAP.bug;
+              const st = STATUS_MAP[detail.status] || STATUS_MAP.new;
+              const CatIcon = cat.icon;
+              return (
+                <>
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <CatIcon size={18} className={cat.color} />
+                      <span className="text-sm font-bold text-gray-900">{cat.label}</span>
+                      {detail.subcategory && <span className="text-xs text-gray-400">· {detail.subcategory}</span>}
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${st.color}`}>{st.label}</span>
+                    </div>
+                    <button onClick={() => setDetail(null)} className="text-gray-300 hover:text-gray-500"><X size={18} /></button>
+                  </div>
+
+                  <p className="text-xs text-gray-400 mb-3">{detail.username || 'Аноним'} · {detail.user_role || ''} · {fmtDate(detail.created_at)}</p>
+
+                  {detail.description && <p className="text-sm text-gray-800 mb-4 whitespace-pre-wrap">{detail.description}</p>}
+
+                  {detail.transcript && (
+                    <div className="mb-4 px-3 py-2 bg-blue-50 border border-blue-100 rounded-lg">
+                      <p className="text-xs font-semibold text-blue-500 mb-1">Распознанный текст</p>
+                      <p className="text-sm text-blue-800">{detail.transcript}</p>
+                    </div>
+                  )}
+
+                  {detail.audio_path && (
+                    <div className="mb-4">
+                      <p className="text-xs font-semibold text-gray-500 mb-1">Голосовое сообщение</p>
+                      <audio controls src={`/sklad/api/uploads/feedback/${detail.audio_path.split('/').pop()}`} className="w-full" />
+                    </div>
+                  )}
+
+                  {detail.screenshot_path && (
+                    <div className="mb-4">
+                      <p className="text-xs font-semibold text-gray-500 mb-1">Скриншот</p>
+                      <img src={`/sklad/api/uploads/feedback/${detail.screenshot_path.split('/').pop()}`} alt="Скриншот" className="w-full rounded-lg border border-gray-200" />
+                    </div>
+                  )}
+
+                  {detail.page_url && <p className="text-xs text-gray-400 mb-4 truncate">Страница: {detail.page_url}</p>}
+
+                  {/* Admin notes */}
+                  <div className="mb-4">
+                    <p className="text-xs font-semibold text-gray-500 mb-1">Заметки админа</p>
+                    <textarea rows={2} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Комментарий..."
+                      className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-primary-400 focus:ring-2 focus:ring-primary-100 focus:outline-none resize-none" />
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex gap-2 flex-wrap">
+                    <button onClick={() => updateStatus('in_progress')} disabled={saving}
+                      className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-100 text-amber-700 hover:bg-amber-200 disabled:opacity-50">В работу</button>
+                    <button onClick={() => updateStatus('resolved')} disabled={saving}
+                      className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-green-100 text-green-700 hover:bg-green-200 disabled:opacity-50">Решено</button>
+                    <button onClick={() => updateStatus('declined')} disabled={saving}
+                      className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 disabled:opacity-50">Отклонить</button>
+                    <div className="flex-1" />
+                    <button onClick={() => deleteFeedback(detail.id)}
+                      className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-50 text-red-500 hover:bg-red-100">
+                      <Trash2 size={12} className="inline mr-1" />Удалить
+                    </button>
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Settings Tabs ───────────────────────────────────────────────────────────
 const TABS = [
   { key: 'appearance', label: 'Внешний вид', icon: Palette },
   { key: 'scanning', label: 'Сканирование', icon: ScanLine },
   { key: 'interface', label: 'Интерфейс', icon: Table2 },
   { key: 'data', label: 'Данные', icon: RefreshCw },
+  { key: 'feedback', label: 'Обращения', icon: MessageSquare },
   { key: 'changelog', label: 'История', icon: History },
   { key: 'about', label: 'О системе', icon: Info },
 ];
@@ -1033,6 +1215,17 @@ export default function SettingsPage() {
 
           <OzonBulkCheck />
           <WbBulkCheck />
+        </div>
+      )}
+
+      {/* ═══ Feedback ═══ */}
+      {tab === 'feedback' && (
+        <div>
+          <div className="flex items-center gap-2 mb-5">
+            <MessageSquare className="w-5 h-5 text-primary-500" />
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Обращения</h2>
+          </div>
+          <FeedbackAdmin />
         </div>
       )}
 

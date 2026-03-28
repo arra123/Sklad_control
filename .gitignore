@@ -22,3 +22,4 @@ data.db
 test-screenshots/
 frontend/test-screenshots/
 _trash/
+backend/uploads/

@@ -33,7 +33,7 @@ const GROUP_LABEL_MAP = {
   'смеси': 'Смеси', 'расходники': 'Расходники', 'другое': 'Другое',
 };
 
-const SETTINGS_TABS = { appearance: 'Внешний вид', moysklad: 'МойСклад', scanning: 'Сканирование', interface: 'Интерфейс', data: 'Данные', changelog: 'История', about: 'О системе' };
+const SETTINGS_TABS = { appearance: 'Внешний вид', moysklad: 'МойСклад', scanning: 'Сканирование', interface: 'Интерфейс', data: 'Данные', feedback: 'Обращения', changelog: 'История', about: 'О системе' };
 const STAFF_TABS = { employees: 'Сотрудники', users: 'Пользователи', roles: 'Роли' };
 const EARNINGS_TABS = { summary: 'Сводка', warehouse: 'Склад', assembly: 'Сборки' };
 const ANALYTICS_VERSIONS = { v1: 'Версия 1', v2: 'Версия 2' };
@@ -303,7 +303,7 @@ export default function AdminLayout({ children }) {
             <LogOut className="w-4 h-4" />
             Выйти
           </button>
-          <p className="text-[10px] text-gray-300 dark:text-gray-600 mt-2 text-center">v2.23.0</p>
+          <p className="text-[10px] text-gray-300 dark:text-gray-600 mt-2 text-center">v2.24.0</p>
         </div>
       </aside>
 

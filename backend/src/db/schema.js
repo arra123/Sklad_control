@@ -366,7 +366,7 @@ async function createSchema() {
     const tablesWithUpdatedAt = [
       'employees_s', 'users_s', 'product_folders_s', 'products_s',
       'warehouses_s', 'racks_s', 'shelves_s', 'inventory_tasks_s', 'settings_s',
-      'raw_materials_s', 'tech_cards_s'
+      'raw_materials_s', 'tech_cards_s', 'feedback_s'
     ];
 
     for (const table of tablesWithUpdatedAt) {
@@ -401,6 +401,32 @@ async function createSchema() {
     `);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_system_errors_c_created ON system_errors_s(created_at DESC)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_system_errors_c_type    ON system_errors_s(error_type)`);
+
+    // ─── Feedback ─────────────────────────────────────────────────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS feedback_s (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users_s(id) ON DELETE SET NULL,
+        username VARCHAR(100),
+        user_role VARCHAR(20),
+        category VARCHAR(30) NOT NULL DEFAULT 'bug',
+        subcategory VARCHAR(50),
+        description TEXT,
+        transcript TEXT,
+        screenshot_path VARCHAR(500),
+        audio_path VARCHAR(500),
+        page_url TEXT,
+        browser_info TEXT,
+        status VARCHAR(20) NOT NULL DEFAULT 'new',
+        admin_notes TEXT,
+        resolved_by INTEGER REFERENCES users_s(id) ON DELETE SET NULL,
+        resolved_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_feedback_created ON feedback_s(created_at DESC)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_feedback_status ON feedback_s(status)`);
 
     // ─── Migrations ──────────────────────────────────────────────────
 

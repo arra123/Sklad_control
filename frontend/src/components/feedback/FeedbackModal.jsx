@@ -67,6 +67,29 @@ export default function FeedbackModal({ open, onClose }) {
     }
   }, [open]);
 
+  // Ctrl+V paste screenshot
+  useEffect(() => {
+    if (!open) return;
+    const handlePaste = (e) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (const item of items) {
+        if (item.type.startsWith('image/')) {
+          const file = item.getAsFile();
+          if (file) {
+            if (file.size > 5 * 1024 * 1024) { toast.error('Макс. размер 5 МБ'); return; }
+            setScreenshot(file);
+            setScreenshotPreview(URL.createObjectURL(file));
+            toast.success('Скриншот вставлен из буфера');
+          }
+          break;
+        }
+      }
+    };
+    document.addEventListener('paste', handlePaste);
+    return () => document.removeEventListener('paste', handlePaste);
+  }, [open, toast]);
+
   // Screenshot
   const handleScreenshot = (e) => {
     const file = e.target.files?.[0];
