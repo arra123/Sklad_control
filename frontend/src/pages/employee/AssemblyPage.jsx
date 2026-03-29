@@ -53,21 +53,29 @@ function BarcodePrint({ barcode, productName, onPrinted }) {
 function ScanInput({ onScan, placeholder = 'Сканируйте штрих-код...', disabled }) {
   const [value, setValue] = useState('');
   const ref = useRef(null);
+  const timerRef = useRef(null);
 
   useEffect(() => { if (ref.current && !disabled) ref.current.focus(); }, [disabled]);
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (value.trim() && !disabled) { onScan(value.trim()); setValue(''); }
+  const doScan = useCallback((val) => {
+    if (val.trim() && !disabled) { onScan(val.trim()); setValue(''); setTimeout(() => ref.current?.focus(), 100); }
+  }, [onScan, disabled]);
+
+  const handleChange = (e) => {
+    const val = e.target.value;
+    setValue(val);
+    if (timerRef.current) clearTimeout(timerRef.current);
+    if (val.trim().length >= 4) timerRef.current = setTimeout(() => doScan(val), 350);
   };
 
+  const handleSubmit = (e) => { e.preventDefault(); doScan(value); };
+
   return (
-    <form onSubmit={handleSubmit} className="flex gap-2">
-      <input ref={ref} value={value} onChange={e => setValue(e.target.value)} disabled={disabled}
+    <form onSubmit={handleSubmit}>
+      <input ref={ref} value={value} onChange={handleChange} disabled={disabled}
         placeholder={placeholder}
-        className="flex-1 px-4 py-3 rounded-xl border border-gray-200 text-sm focus:border-primary-400 focus:ring-2 focus:ring-primary-100 focus:outline-none disabled:opacity-50"
+        className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:border-primary-400 focus:ring-2 focus:ring-primary-100 focus:outline-none disabled:opacity-50"
         autoComplete="off" />
-      <Button type="submit" disabled={disabled || !value.trim()} icon={<ScanLine size={14} />}>Ввод</Button>
     </form>
   );
 }
