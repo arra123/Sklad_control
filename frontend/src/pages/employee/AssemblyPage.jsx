@@ -473,32 +473,32 @@ export default function AssemblyPage() {
           )}
 
           {/* Step: Scan items */}
-          {pickStep === 'items' && (scannedBox || scannedPallet?.type === 'shelf') && activeComponent && (() => {
-            const needed = Number(activeComponent.quantity) * task.bundle_qty;
-            const have = pickedMap[activeComponent.component_id] || 0;
-            const done = have >= needed;
-            return (
-              <div className="space-y-2">
-                <div className="bg-primary-50 border border-primary-100 rounded-xl p-3">
-                  <p className="text-sm font-bold text-primary-800">{activeComponent.name?.replace(/GraFLab,?\s*/i,'').trim()}</p>
-                  <p className="text-xs text-primary-600">{scannedPallet?.warehouse || ''} · {scannedPallet?.name || ''}{scannedBox ? ` · Коробка` : ''}</p>
-                  <div className="h-2 bg-primary-100 rounded-full mt-2 overflow-hidden">
-                    <div className="h-full bg-primary-500 rounded-full transition-all" style={{ width: `${Math.min(100, (have / needed) * 100)}%` }} />
-                  </div>
-                  <p className="text-xs text-primary-700 font-bold mt-1">{have} / {needed}</p>
+          {pickStep === 'items' && (scannedBox || scannedPallet?.type === 'shelf') && activeComponent && (
+            <div className="space-y-2">
+              <div className="bg-primary-50 border border-primary-100 rounded-xl p-3">
+                <p className="text-sm font-bold text-primary-800">{activeComponent.name?.replace(/GraFLab,?\s*/i,'').trim()}</p>
+                <p className="text-xs text-primary-600">{scannedPallet?.warehouse || ''} · {scannedPallet?.name || ''}{scannedBox ? ' · Коробка' : ''}</p>
+                <div className="h-2 bg-primary-100 rounded-full mt-2 overflow-hidden">
+                  <div className="h-full bg-primary-500 rounded-full transition-all" style={{ width: `${Math.min(100, ((pickedMap[activeComponent.component_id] || 0) / Math.max(1, Number(activeComponent.quantity) * (task?.bundle_qty || 1))) * 100)}%` }} />
                 </div>
-
-                {!done && <ScanInput onScan={handleScanPick} disabled={actionLoading} placeholder="ШК баночки..." />}
-
-                {done && (
-                  <Button onClick={() => { resetPickScan(); }} size="lg" className="w-full" variant="success">
-                    ✓ {activeComponent.name?.replace(/GraFLab,?\s*/i,'').slice(0,20)} набран — далее
-                  </Button>
-                )}
-                {!done && <button onClick={resetPickScan} className="text-xs text-gray-400 hover:text-gray-600">← Назад к выбору</button>}
+                <p className="text-xs text-primary-700 font-bold mt-1">{pickedMap[activeComponent.component_id] || 0} / {Number(activeComponent.quantity) * (task?.bundle_qty || 1)}</p>
               </div>
-            );
-          })()}
+
+              {(pickedMap[activeComponent.component_id] || 0) < Number(activeComponent.quantity) * (task?.bundle_qty || 1) && (
+                <ScanInput onScan={handleScanPick} disabled={actionLoading} placeholder="ШК баночки..." />
+              )}
+
+              {(pickedMap[activeComponent.component_id] || 0) >= Number(activeComponent.quantity) * (task?.bundle_qty || 1) && (
+                <Button onClick={resetPickScan} size="lg" className="w-full" variant="success">
+                  ✓ Набрано — далее
+                </Button>
+              )}
+
+              {(pickedMap[activeComponent.component_id] || 0) < Number(activeComponent.quantity) * (task?.bundle_qty || 1) && (
+                <button onClick={resetPickScan} className="text-xs text-gray-400 hover:text-gray-600">← Назад к выбору</button>
+              )}
+            </div>
+          )}
 
           {allPicked && (
             <Button onClick={handleStartAssembly} loading={actionLoading} size="lg" className="w-full" variant="success">
