@@ -124,13 +124,30 @@ export default function AssemblyPage() {
   const [actionLoading, setActionLoading] = useState(false);
   const [componentStatus, setComponentStatus] = useState([]);
   const [printBarcode, setPrintBarcode] = useState(null);
-  const [placeDest, setPlaceDest] = useState(null);
-  const [scannedPallet, setScannedPallet] = useState(null);
-  const [scannedBox, setScannedBox] = useState(null);
-  const [pickStep, setPickStep] = useState('choose');
-  const [activeComponent, setActiveComponent] = useState(null);
-  const [expandedComponent, setExpandedComponent] = useState(null);
+  // ─── Restore picking state from sessionStorage ───────────────────────────
+  const ssKey = `assembly_pick_${id}`;
+  const saved = useRef(null);
+  try { const raw = sessionStorage.getItem(ssKey); if (raw) saved.current = JSON.parse(raw); } catch {}
+  const ss = saved.current;
+
+  const [scannedPallet, setScannedPallet] = useState(ss?.scannedPallet || null);
+  const [scannedBox, setScannedBox] = useState(ss?.scannedBox || null);
+  const [pickStep, setPickStep] = useState(ss?.pickStep || 'choose');
+  const [activeComponent, setActiveComponent] = useState(ss?.activeComponent || null);
+  const [expandedComponent, setExpandedComponent] = useState(ss?.expandedComponent || null);
   const [lastPickScan, setLastPickScan] = useState(null);
+  const [placeDest, setPlaceDest] = useState(ss?.placeDest || null);
+
+  // ─── Persist picking state on every change ──────────────────────────────
+  useEffect(() => {
+    const data = { pickStep, scannedPallet, scannedBox, activeComponent, expandedComponent, placeDest };
+    // Only save if there's something meaningful
+    if (pickStep !== 'choose' || scannedPallet || scannedBox || activeComponent || placeDest) {
+      sessionStorage.setItem(ssKey, JSON.stringify(data));
+    } else {
+      sessionStorage.removeItem(ssKey);
+    }
+  }, [pickStep, scannedPallet, scannedBox, activeComponent, expandedComponent, placeDest, ssKey]);
 
   const loadTask = useCallback(async () => {
     try {
@@ -266,12 +283,14 @@ export default function AssemblyPage() {
 
   const resetPickScan = () => {
     setScannedPallet(null); setScannedBox(null); setPickStep('choose'); setActiveComponent(null);
+    sessionStorage.removeItem(ssKey);
   };
 
   const handleStartAssembly = async () => {
     setActionLoading(true);
     try {
       await api.post(`/assembly/${id}/start-assembling`);
+      sessionStorage.removeItem(ssKey);
       await loadTask();
     } catch (err) { toast.error(err.response?.data?.error || 'Ошибка'); }
     finally { setActionLoading(false); }
