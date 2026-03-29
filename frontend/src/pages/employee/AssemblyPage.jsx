@@ -125,21 +125,10 @@ export default function AssemblyPage() {
   const [componentStatus, setComponentStatus] = useState([]);
   const [printBarcode, setPrintBarcode] = useState(null);
   const [placeDest, setPlaceDest] = useState(null);
-  // Persist scan state across page refreshes
-  const storageKey = `assembly_${id}_scan`;
-  const savedScan = useRef((() => { try { return JSON.parse(sessionStorage.getItem(storageKey) || 'null'); } catch { return null; } })());
-  const [scannedPallet, _setScannedPallet] = useState(savedScan.current?.pallet || null);
-  const [scannedBox, _setScannedBox] = useState(savedScan.current?.box || null);
-  const [pickStep, _setPickStep] = useState(savedScan.current?.step || 'choose');
-  const [activeComponent, _setActiveComponent] = useState(savedScan.current?.component || null);
-
-  const saveScanState = (pallet, box, step, component) => {
-    try { sessionStorage.setItem(storageKey, JSON.stringify({ pallet, box, step, component })); } catch {}
-  };
-  const setScannedPallet = (v) => { _setScannedPallet(v); saveScanState(v, scannedBox, pickStep, activeComponent); };
-  const setScannedBox = (v) => { _setScannedBox(v); saveScanState(scannedPallet, v, pickStep, activeComponent); };
-  const setPickStep = (v) => { _setPickStep(v); saveScanState(scannedPallet, scannedBox, v, activeComponent); };
-  const setActiveComponent = (v) => { _setActiveComponent(v); saveScanState(scannedPallet, scannedBox, pickStep, v); };
+  const [scannedPallet, setScannedPallet] = useState(null);
+  const [scannedBox, setScannedBox] = useState(null);
+  const [pickStep, setPickStep] = useState('choose');
+  const [activeComponent, setActiveComponent] = useState(null);
   const [expandedComponent, setExpandedComponent] = useState(null);
 
   const loadTask = useCallback(async () => {
@@ -277,8 +266,7 @@ export default function AssemblyPage() {
   };
 
   const resetPickScan = () => {
-    _setScannedPallet(null); _setScannedBox(null); _setPickStep('choose'); _setActiveComponent(null);
-    try { sessionStorage.removeItem(storageKey); } catch {}
+    setScannedPallet(null); setScannedBox(null); setPickStep('choose'); setActiveComponent(null);
   };
 
   const handleStartAssembly = async () => {
