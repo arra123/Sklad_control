@@ -49,47 +49,69 @@ function BarcodePrint({ barcode, productName, onPrinted }) {
   );
 }
 
-// ─── Scan Input ──────────────────────────────────────────────────────────────
+// ─── Beep sound (same as TaskScanPage) ───────────────────────────────────────
+function playBeep(success = true) {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.frequency.value = success ? 880 : 440;
+    osc.type = 'sine';
+    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + (success ? 0.15 : 0.4));
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + (success ? 0.15 : 0.4));
+  } catch {}
+}
+
+// ─── Scan Input (exact copy of TaskScanPage pattern) ─────────────────────────
 function ScanInput({ onScan, placeholder = 'Сканируйте штрих-код...', disabled }) {
   const [value, setValue] = useState('');
   const ref = useRef(null);
   const timerRef = useRef(null);
+  const loadingRef = useRef(false);
+  const queueRef = useRef(null);
 
   useEffect(() => { if (ref.current && !disabled) ref.current.focus(); }, [disabled]);
+  useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
 
-  const scanningRef = useRef(false);
+  const refocus = useCallback(() => setTimeout(() => ref.current?.focus(), 200), []);
 
   const doScan = useCallback(async (val) => {
-    if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
-    if (scanningRef.current) return;
-    if (val.trim() && !disabled) {
-      scanningRef.current = true;
-      setValue('');
-      try { await onScan(val.trim()); } catch {}
-      setTimeout(() => { scanningRef.current = false; ref.current?.focus(); }, 300);
+    if (!val) return;
+    if (loadingRef.current) { queueRef.current = val; return; }
+    setValue('');
+    loadingRef.current = true;
+    try { await onScan(val); }
+    catch {}
+    finally {
+      loadingRef.current = false;
+      refocus();
+      if (queueRef.current) {
+        const queued = queueRef.current;
+        queueRef.current = null;
+        setTimeout(() => doScan(queued), 50);
+      }
     }
-  }, [onScan, disabled]);
+  }, [onScan, refocus]);
 
   const handleChange = (e) => {
     const val = e.target.value;
     setValue(val);
     if (timerRef.current) clearTimeout(timerRef.current);
-    if (val.trim().length >= 4) timerRef.current = setTimeout(() => doScan(val), 500);
+    if (val.trim().length >= 4) timerRef.current = setTimeout(() => doScan(val.trim()), 300);
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
-    doScan(value);
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); if (timerRef.current) clearTimeout(timerRef.current); doScan(value.trim()); }
   };
 
   return (
-    <form onSubmit={handleSubmit}>
-      <input ref={ref} value={value} onChange={handleChange} disabled={disabled}
-        placeholder={placeholder}
-        className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:border-primary-400 focus:ring-2 focus:ring-primary-100 focus:outline-none disabled:opacity-50"
-        autoComplete="off" />
-    </form>
+    <input ref={ref} value={value} onChange={handleChange} onKeyDown={handleKeyDown} disabled={disabled}
+      placeholder={placeholder}
+      className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:border-primary-400 focus:ring-2 focus:ring-primary-100 focus:outline-none disabled:opacity-50"
+      autoComplete="off" />
   );
 }
 
@@ -217,31 +239,25 @@ export default function AssemblyPage() {
   };
 
   const handleScanPick = async (barcode) => {
-    if (!scannedBox && !scannedPallet?.shelf_id) { toast.error('Сначала отсканируйте место'); return; }
+    if (!scannedBox && !scannedPallet?.shelf_id) { playBeep(false); toast.error('Сначала отсканируйте место'); return; }
 
-    // Check if active component already fully picked
     if (activeComponent) {
       const needed = Number(activeComponent.quantity) * (task?.bundle_qty || 1);
       const have = pickedMap[activeComponent.component_id] || 0;
-      if (have >= needed) {
-        toast.error(`${activeComponent.name} уже набран (${have}/${needed}). Нажмите «Далее»`);
-        return;
-      }
+      if (have >= needed) { playBeep(false); toast.error(`Уже набрано. Нажмите «Далее»`); return; }
     }
 
     setActionLoading(true);
     try {
       const res = await api.post(`/assembly/${id}/scan-pick`, {
-        barcode,
-        box_id: scannedBox?.box_id || null,
-        shelf_id: scannedPallet?.shelf_id || null,
+        barcode, box_id: scannedBox?.box_id || null, shelf_id: scannedPallet?.shelf_id || null,
       });
+      if (res.data.duplicate) { playBeep(true); return; } // idempotent skip
+      playBeep(true);
       toast.success(`✓ ${res.data.product}`);
       await loadTask();
       await loadSourceBoxes();
-
-      // Check if this component is now fully picked → auto show "next" prompt
-    } catch (err) { toast.error(err.response?.data?.error || 'Ошибка сканирования'); }
+    } catch (err) { playBeep(false); toast.error(err.response?.data?.error || 'Ошибка'); }
     finally { setActionLoading(false); }
   };
 
@@ -265,6 +281,7 @@ export default function AssemblyPage() {
     setActionLoading(true);
     try {
       const res = await api.post(`/assembly/${id}/scan-component`, { barcode });
+      playBeep(true);
       toast.success(`✓ ${res.data.product}`);
       setComponentStatus(res.data.components_status || []);
 
@@ -277,7 +294,7 @@ export default function AssemblyPage() {
         setPrintBarcode(bc);
       }
       await loadTask();
-    } catch (err) { toast.error(err.response?.data?.error || 'Ошибка'); }
+    } catch (err) { playBeep(false); toast.error(err.response?.data?.error || 'Ошибка'); }
     finally { setActionLoading(false); }
   };
 
