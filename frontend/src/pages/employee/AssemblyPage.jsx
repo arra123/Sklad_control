@@ -343,13 +343,15 @@ export default function AssemblyPage() {
           {sourceBoxes.length > 0 && (
             <div className="bg-amber-50 border border-amber-100 rounded-xl p-3">
               <p className="text-xs font-semibold text-amber-700 uppercase mb-2">Где можно взять:</p>
-              <div className="max-h-32 overflow-y-auto space-y-1">
+              <div className="max-h-40 overflow-y-auto space-y-2">
                 {sourceBoxes.map((b, i) => (
-                  <div key={i} className="flex items-center gap-2 text-xs py-1">
-                    <MapPin size={11} className="text-amber-500 flex-shrink-0" />
-                    <span className="text-gray-700 flex-1">{b.warehouse_name} → {b.row_name} → {b.pallet_name}</span>
-                    <span className="text-gray-500 truncate max-w-[100px]">{b.product_name?.replace(/GraFLab,?\s*/i,'').slice(0, 18)}</span>
-                    <span className="text-gray-400 flex-shrink-0">{fmtQty(b.quantity)}</span>
+                  <div key={i} className="px-2 py-1.5 bg-white/60 rounded-lg">
+                    <div className="flex items-center gap-1.5 text-xs">
+                      <MapPin size={11} className="text-amber-500 flex-shrink-0" />
+                      <span className="font-medium text-gray-800">{b.warehouse_name} → {b.row_name} → {b.pallet_name}</span>
+                      <span className="text-amber-600 font-bold ml-auto flex-shrink-0">{fmtQty(b.quantity)} шт</span>
+                    </div>
+                    <p className="text-xs text-gray-600 mt-0.5 pl-4">{b.product_name?.replace(/GraFLab,?\s*/i, '').trim()}</p>
                   </div>
                 ))}
               </div>
