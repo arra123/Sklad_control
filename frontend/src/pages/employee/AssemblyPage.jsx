@@ -97,12 +97,14 @@ function ScanInput({ onScan, placeholder = 'Сканируйте штрих-ко
   }, [onScan, refocus]);
 
   const handleChange = (e) => {
-    setValue(e.target.value);
-    // No auto-submit timer — only Enter triggers scan
+    const val = e.target.value;
+    setValue(val);
+    if (timerRef.current) clearTimeout(timerRef.current);
+    if (val.trim().length >= 4) timerRef.current = setTimeout(() => doScan(val.trim()), 300);
   };
 
   const handleKeyDown = (e) => {
-    if (e.key === 'Enter') { e.preventDefault(); doScan(value.trim()); }
+    if (e.key === 'Enter') { e.preventDefault(); if (timerRef.current) clearTimeout(timerRef.current); doScan(value.trim()); }
   };
 
   return (
