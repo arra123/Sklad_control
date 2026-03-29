@@ -13,6 +13,7 @@ import Select from '../../components/ui/Select';
 import Badge from '../../components/ui/Badge';
 import Spinner from '../../components/ui/Spinner';
 import Modal from '../../components/ui/Modal';
+import CopyBadge from '../../components/ui/CopyBadge';
 import { useToast } from '../../components/ui/Toast';
 import { useAppSettings } from '../../context/AppSettingsContext';
 import { cn } from '../../utils/cn';
@@ -95,7 +96,6 @@ function matIcon(m, size = 16) {
 }
 
 function BarcodeRow({ label, value, kind, onDelete }) {
-  const [copied, setCopied] = useState(false);
   const colors = MARKETPLACE_COLORS[kind] || MARKETPLACE_COLORS.unknown;
   return (
     <div className={cn('flex items-center gap-2 px-3 py-2 rounded-xl border group', colors.bg, colors.border)}>
@@ -103,11 +103,7 @@ function BarcodeRow({ label, value, kind, onDelete }) {
         {label ? <span className={cn('text-xs font-semibold', colors.text)}>{label}</span>
                : <span className="text-xs text-gray-300 italic">—</span>}
       </div>
-      <span className="flex-1 text-xs font-mono text-gray-700 min-w-0 truncate">{value}</span>
-      <button onClick={() => { navigator.clipboard.writeText(value); setCopied(true); setTimeout(() => setCopied(false), 1500); }}
-        className="flex-shrink-0 text-gray-300 hover:text-gray-600 transition-colors">
-        {copied ? <Check size={13} className="text-green-500" /> : <Copy size={13} />}
-      </button>
+      <CopyBadge value={value} className="flex-1 min-w-0" />
       {onDelete && (
         <button onClick={() => onDelete(value)}
           className="flex-shrink-0 opacity-0 group-hover:opacity-100 text-red-300 hover:text-red-500 transition-all">
@@ -953,7 +949,7 @@ function ProductTable({ entityType, onSelect, onEdit }) {
                         </td>
                       );
                       if (col.key === 'code') return <td key="code" className="text-gray-500 text-xs font-mono">{item.code || '—'}</td>;
-                      if (col.key === 'barcode') return <td key="barcode" className="text-xs font-mono text-gray-500">{item.barcode_list?.split(';')[0] || item.production_barcode || '—'}</td>;
+                      if (col.key === 'barcode') { const bc = item.barcode_list?.split(';')[0] || item.production_barcode; return <td key="barcode">{bc ? <CopyBadge value={bc} /> : <span className="text-xs text-gray-300">—</span>}</td>; }
                       if (col.key === 'stock') return <td key="stock"><StockBadge stock={Number(item.warehouse_qty || item.stock || 0)} /></td>;
                       if (col.key === 'shelf_codes') return (
                         <td key="shelf_codes">

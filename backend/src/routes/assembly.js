@@ -291,9 +291,9 @@ router.post('/:id/scan-pick', requireAuth, async (req, res) => {
 
     // Record picked item
     await client.query(
-      `INSERT INTO assembly_items_s (task_id, product_id, source_box_id, source_pallet_id, scanned_barcode)
-       VALUES ($1, $2, $3, $4, $5)`,
-      [req.params.id, product.id, box_id || null, null, barcode]);
+      `INSERT INTO assembly_items_s (task_id, product_id, source_box_id, source_pallet_id, source_shelf_id, scanned_barcode)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [req.params.id, product.id, box_id || null, null, shelf_id || null, barcode]);
 
     // Also record in task_scans for chronology
     await client.query(
@@ -529,11 +529,10 @@ router.delete('/:id', requireAuth, requireAdmin, async (req, res) => {
     const task = await client.query('SELECT * FROM inventory_tasks_s WHERE id = $1 AND task_type = $2', [req.params.id, 'bundle_assembly']);
     if (!task.rows.length) { await client.query('ROLLBACK'); client.release(); return res.status(404).json({ error: 'Задача не найдена' }); }
 
-    // Rollback: return all picked items back to their source boxes
+    // Rollback: return all picked items back to their source boxes/shelves
     const items = await client.query('SELECT * FROM assembly_items_s WHERE task_id = $1', [req.params.id]);
     for (const item of items.rows) {
       if (item.source_box_id) {
-        // Return item to box
         const existing = await client.query('SELECT id FROM box_items_s WHERE box_id = $1 AND product_id = $2', [item.source_box_id, item.product_id]);
         if (existing.rows.length) {
           await client.query('UPDATE box_items_s SET quantity = quantity + $1 WHERE box_id = $2 AND product_id = $3',
@@ -541,6 +540,15 @@ router.delete('/:id', requireAuth, requireAdmin, async (req, res) => {
         } else {
           await client.query('INSERT INTO box_items_s (box_id, product_id, quantity) VALUES ($1, $2, $3)',
             [item.source_box_id, item.product_id, Number(item.quantity)]);
+        }
+      } else if (item.source_shelf_id) {
+        const existing = await client.query('SELECT id FROM shelf_items_s WHERE shelf_id = $1 AND product_id = $2', [item.source_shelf_id, item.product_id]);
+        if (existing.rows.length) {
+          await client.query('UPDATE shelf_items_s SET quantity = quantity + $1 WHERE shelf_id = $2 AND product_id = $3',
+            [Number(item.quantity), item.source_shelf_id, item.product_id]);
+        } else {
+          await client.query('INSERT INTO shelf_items_s (shelf_id, product_id, quantity) VALUES ($1, $2, $3)',
+            [item.source_shelf_id, item.product_id, Number(item.quantity)]);
         }
       }
     }

@@ -753,12 +753,14 @@ async function createSchema() {
         product_id INTEGER NOT NULL REFERENCES products_s(id),
         source_box_id INTEGER REFERENCES boxes_s(id),
         source_pallet_id INTEGER REFERENCES pallets_s(id),
+        source_shelf_id INTEGER REFERENCES shelves_s(id),
         scanned_barcode VARCHAR(500),
         quantity NUMERIC(15,3) DEFAULT 1,
         used_in_bundle INTEGER DEFAULT 0,
         created_at TIMESTAMPTZ DEFAULT NOW()
       )
     `);
+    await client.query(`ALTER TABLE assembly_items_s ADD COLUMN IF NOT EXISTS source_shelf_id INTEGER REFERENCES shelves_s(id)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_assembly_items_task ON assembly_items_s(task_id)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_assembly_items_bundle ON assembly_items_s(task_id, used_in_bundle)`);
 

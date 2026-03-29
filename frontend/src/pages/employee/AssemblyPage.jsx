@@ -138,6 +138,7 @@ export default function AssemblyPage() {
   const [activeComponent, setActiveComponent] = useState(ss?.activeComponent || null);
   const [expandedComponent, setExpandedComponent] = useState(ss?.expandedComponent || null);
   const [lastPickScan, setLastPickScan] = useState(null);
+  const [scanHistory, setScanHistory] = useState([]);
   const [placeDest, setPlaceDest] = useState(ss?.placeDest || null);
 
   // ─── Persist picking state on every change ──────────────────────────────
@@ -160,6 +161,13 @@ export default function AssemblyPage() {
     } finally { setLoading(false); }
   }, [id, toast]);
 
+  const loadScans = useCallback(async () => {
+    try {
+      const res = await api.get(`/tasks/${id}/analytics`);
+      setScanHistory((res.data.scans || []).reverse());
+    } catch {}
+  }, [id]);
+
   const loadSourceBoxes = useCallback(async () => {
     try {
       const res = await api.get(`/assembly/${id}/source-boxes`);
@@ -167,7 +175,7 @@ export default function AssemblyPage() {
     } catch {}
   }, [id]);
 
-  useEffect(() => { loadTask(); }, [loadTask]);
+  useEffect(() => { loadTask(); loadScans(); }, [loadTask, loadScans]);
   useEffect(() => {
     if (task?.assembly_phase === 'picking' || task?.status === 'new') loadSourceBoxes();
   }, [task?.assembly_phase, task?.status, loadSourceBoxes]);
@@ -280,6 +288,7 @@ export default function AssemblyPage() {
       }
       loadTask(); // background reload (no await)
       loadSourceBoxes();
+      loadScans();
     } catch (err) { playBeep(false); toast.error(err.response?.data?.error || 'Ошибка'); }
   };
 
@@ -554,11 +563,23 @@ export default function AssemblyPage() {
                 <p className="text-xs text-primary-700 font-bold mt-1">{pickedMap[activeComponent.component_id] || 0} / {Number(activeComponent.quantity) * (task?.bundle_qty || 1)}</p>
               </div>
 
-              {lastPickScan && (
-                <div className="flex items-center gap-3 px-4 py-2.5 bg-green-50 border border-green-200 rounded-xl">
-                  <CheckCircle2 size={16} className="text-green-500 flex-shrink-0" />
-                  <p className="text-sm font-semibold text-green-800 truncate flex-1">{lastPickScan.name}</p>
-                  <p className="text-xs text-green-500">{new Date().toLocaleTimeString('ru-RU', {hour:'2-digit',minute:'2-digit',second:'2-digit'})}</p>
+              {/* Scan chronology — like inventory */}
+              {scanHistory.length > 0 && (
+                <div className="max-h-40 overflow-y-auto space-y-0 rounded-xl border border-gray-100 bg-white">
+                  {scanHistory.map((sc, i) => (
+                    <div key={sc.id} className="flex items-center gap-2 px-3 py-2 border-b border-gray-50 last:border-0">
+                      <span className="text-xs font-mono text-gray-300 w-4 text-right flex-shrink-0">{scanHistory.length - i}</span>
+                      <CheckCircle2 size={14} className="text-green-500 flex-shrink-0" />
+                      <p className="text-xs font-medium text-gray-800 truncate flex-1">{(sc.product_name || '').replace(/GraFLab,?\s*/i, '').trim()}</p>
+                      <div className="text-right flex-shrink-0">
+                        <p className="text-[11px] font-mono text-gray-500">{new Date(sc.created_at).toLocaleTimeString('ru-RU', {hour:'2-digit',minute:'2-digit',second:'2-digit'})}</p>
+                        {sc.seconds_since_prev != null && Number(sc.seconds_since_prev) > 0
+                          ? <p className={`text-[11px] font-mono font-bold ${Number(sc.seconds_since_prev) > 10 ? 'text-red-400' : Number(sc.seconds_since_prev) > 5 ? 'text-amber-400' : 'text-green-500'}`}>+{sc.seconds_since_prev}с</p>
+                          : <p className="text-[11px] text-primary-400 font-mono">старт</p>
+                        }
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
 

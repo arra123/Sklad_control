@@ -653,6 +653,11 @@ function TaskDetailPanel({ task, onClose, onReload }) {
             <Button variant="danger" size="sm" onClick={handleDelete}>Удалить</Button>
           </div>
         )}
+        {isAssembly && (task.status === 'completed' || task.status === 'cancelled') && (
+          <div className="flex gap-2 px-4 py-4 border-t border-gray-100 dark:border-gray-800">
+            <Button variant="danger" size="sm" onClick={handleDelete}>Удалить и откатить</Button>
+          </div>
+        )}
       </div>
     </>
   );
