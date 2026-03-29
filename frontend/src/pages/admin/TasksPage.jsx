@@ -746,7 +746,43 @@ function CreateTaskModal({ open, onClose, onSuccess }) {
   };
 
   const modalTitle = taskType === 'packaging' ? 'Создать задачу оприходования'
+    : taskType === 'bundle_assembly' ? 'Создать задачу сборки комплектов'
     : 'Создать задачу инвентаризации';
+
+  // Bundle assembly state
+  const [bundleSearch, setBundleSearch] = useState('');
+  const [bundleResults, setBundleResults] = useState([]);
+  const [selectedBundle, setSelectedBundle] = useState(null);
+  const [bundleQty, setBundleQty] = useState('10');
+  const [bundleEmployee, setBundleEmployee] = useState('');
+
+  useEffect(() => {
+    if (taskType !== 'bundle_assembly' || bundleSearch.length < 2) { setBundleResults([]); return; }
+    const t = setTimeout(() => {
+      api.get(`/products?search=${encodeURIComponent(bundleSearch)}&type=bundle&limit=10`)
+        .then(r => setBundleResults(r.data.items || []))
+        .catch(() => {});
+    }, 300);
+    return () => clearTimeout(t);
+  }, [bundleSearch, taskType]);
+
+  const handleSubmitAssembly = async (e) => {
+    e.preventDefault();
+    if (!selectedBundle) { toast.error('Выберите комплект'); return; }
+    if (!bundleQty || Number(bundleQty) < 1) { toast.error('Укажите количество'); return; }
+    setLoading(true);
+    try {
+      await api.post('/assembly', {
+        bundle_product_id: selectedBundle.id,
+        bundle_qty: Number(bundleQty),
+        employee_id: bundleEmployee || null,
+      });
+      toast.success('Задача сборки создана');
+      onSuccess();
+      handleClose();
+    } catch (err) { toast.error(err.response?.data?.error || 'Ошибка'); }
+    finally { setLoading(false); }
+  };
 
   return (
     <Modal open={open} onClose={handleClose}
@@ -761,6 +797,7 @@ function CreateTaskModal({ open, onClose, onSuccess }) {
         {[
           { value: 'inventory', label: '📋 Инвентаризация' },
           { value: 'packaging', label: '📦 Оприходование' },
+          { value: 'bundle_assembly', label: '🔧 Сборка комплектов' },
         ].map(({ value, label }) => (
           <button key={value} type="button"
             onClick={() => setTaskType(value)}
@@ -1013,6 +1050,49 @@ function CreateTaskModal({ open, onClose, onSuccess }) {
           />
           <Input label="Примечание" placeholder="Дополнительные инструкции..."
             value={packForm.notes} onChange={e => setPackForm(f => ({ ...f, notes: e.target.value }))} />
+        </form>
+      )}
+
+      {taskType === 'bundle_assembly' && (
+        <form id="task-form" onSubmit={handleSubmitAssembly} className="space-y-4">
+          {/* Bundle selection */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Комплект *</label>
+            {selectedBundle ? (
+              <div className="flex items-center gap-3 p-3 bg-green-50 rounded-xl border border-green-100">
+                <Package size={16} className="text-green-500 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate">{selectedBundle.name}</p>
+                  <p className="text-xs text-gray-400">{selectedBundle.code}</p>
+                </div>
+                <button type="button" onClick={() => { setSelectedBundle(null); setBundleSearch(''); }}
+                  className="text-gray-400 hover:text-red-500"><X size={14} /></button>
+              </div>
+            ) : (
+              <div>
+                <input value={bundleSearch} onChange={e => setBundleSearch(e.target.value)}
+                  placeholder="Найти комплект..." className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:border-primary-400 focus:outline-none" />
+                {bundleResults.length > 0 && (
+                  <div className="mt-1 border border-gray-200 rounded-xl overflow-hidden max-h-40 overflow-y-auto">
+                    {bundleResults.map(p => (
+                      <button key={p.id} type="button" onClick={() => { setSelectedBundle(p); setBundleSearch(''); setBundleResults([]); }}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-primary-50 text-sm">
+                        <span className="font-medium text-gray-800 truncate">{p.name}</span>
+                        <span className="text-xs text-gray-400 flex-shrink-0">{p.code}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <Input label="Количество комплектов *" type="number" min="1" value={bundleQty}
+            onChange={e => setBundleQty(e.target.value)} required />
+
+          <SearchSelect label="Сотрудник" value={bundleEmployee} placeholder="Выберите сотрудника..."
+            onChange={v => setBundleEmployee(v)}
+            options={employees.map(e => ({ value: String(e.id), label: e.full_name }))} />
         </form>
       )}
     </Modal>
