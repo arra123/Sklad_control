@@ -434,4 +434,64 @@ router.post('/:id/complete', requireAuth, async (req, res) => {
   }
 });
 
+// ─── DELETE /:id — Delete task and rollback all picks ────────────────────────
+router.delete('/:id', requireAuth, requireAdmin, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const task = await client.query('SELECT * FROM inventory_tasks_s WHERE id = $1 AND task_type = $2', [req.params.id, 'bundle_assembly']);
+    if (!task.rows.length) { await client.query('ROLLBACK'); client.release(); return res.status(404).json({ error: 'Задача не найдена' }); }
+
+    // Rollback: return all picked items back to their source boxes
+    const items = await client.query('SELECT * FROM assembly_items_s WHERE task_id = $1', [req.params.id]);
+    for (const item of items.rows) {
+      if (item.source_box_id) {
+        // Return item to box
+        const existing = await client.query('SELECT id FROM box_items_s WHERE box_id = $1 AND product_id = $2', [item.source_box_id, item.product_id]);
+        if (existing.rows.length) {
+          await client.query('UPDATE box_items_s SET quantity = quantity + $1 WHERE box_id = $2 AND product_id = $3',
+            [Number(item.quantity), item.source_box_id, item.product_id]);
+        } else {
+          await client.query('INSERT INTO box_items_s (box_id, product_id, quantity) VALUES ($1, $2, $3)',
+            [item.source_box_id, item.product_id, Number(item.quantity)]);
+        }
+      }
+    }
+
+    // Rollback: remove any placed bundles from shelves/pallets
+    if (task.rows[0].placed_count > 0) {
+      const bundleProductId = task.rows[0].bundle_product_id;
+      const placed = task.rows[0].placed_count;
+      // Remove from movements and reverse shelf/pallet additions
+      const placements = await client.query(
+        `SELECT to_shelf_id, to_pallet_id, SUM(quantity) as qty FROM movements_s
+         WHERE product_id = $1 AND movement_type = 'bundle_place' AND source = 'task'
+           AND (notes IS NULL OR notes NOT LIKE '%rollback%')
+         GROUP BY to_shelf_id, to_pallet_id`, [bundleProductId]);
+      for (const p of placements.rows) {
+        if (p.to_shelf_id) {
+          await client.query('UPDATE shelf_items_s SET quantity = GREATEST(0, quantity - $1) WHERE shelf_id = $2 AND product_id = $3',
+            [Number(p.qty), p.to_shelf_id, bundleProductId]);
+        }
+        if (p.to_pallet_id) {
+          await client.query('UPDATE pallet_items_s SET quantity = GREATEST(0, quantity - $1) WHERE pallet_id = $2 AND product_id = $3',
+            [Number(p.qty), p.to_pallet_id, bundleProductId]);
+        }
+      }
+    }
+
+    // Delete assembly items and task
+    await client.query('DELETE FROM assembly_items_s WHERE task_id = $1', [req.params.id]);
+    await client.query('DELETE FROM inventory_tasks_s WHERE id = $1', [req.params.id]);
+
+    await client.query('COMMIT');
+    client.release();
+    res.json({ ok: true, message: 'Задача удалена, все перемещения откачены' });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    client.release();
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

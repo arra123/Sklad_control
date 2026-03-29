@@ -83,7 +83,8 @@ export default function AssemblyPage() {
   const [actionLoading, setActionLoading] = useState(false);
   const [componentStatus, setComponentStatus] = useState([]);
   const [printBarcode, setPrintBarcode] = useState(null);
-  const [placeDest, setPlaceDest] = useState(null); // {shelf_id} or {pallet_id}
+  const [placeDest, setPlaceDest] = useState(null);
+  const [scannedBox, setScannedBox] = useState(null); // {box_id, barcode, pallet_name, product_name, qty}
 
   const loadTask = useCallback(async () => {
     try {
@@ -126,20 +127,23 @@ export default function AssemblyPage() {
     finally { setActionLoading(false); }
   };
 
+  const handleScanPickBox = (barcode) => {
+    // Find box by barcode in source boxes
+    const box = sourceBoxes.find(b => b.box_barcode === barcode);
+    if (box) {
+      setScannedBox(box);
+      toast.success(`Коробка: ${box.pallet_name} · ${box.product_name}`);
+    } else {
+      toast.error('Коробка не найдена среди доступных');
+    }
+  };
+
   const handleScanPick = async (barcode) => {
+    if (!scannedBox) { toast.error('Сначала отсканируйте коробку'); return; }
     setActionLoading(true);
     try {
-      // Try to find which box to pick from (first available)
-      const availableBox = sourceBoxes.find(b => {
-        const product = components.find(c => c.component_id === b.product_id);
-        if (!product) return false;
-        const needed = Number(product.quantity) * task.bundle_qty;
-        const have = pickedMap[b.product_id] || 0;
-        return have < needed && b.quantity > 0;
-      });
-
       const res = await api.post(`/assembly/${id}/scan-pick`, {
-        barcode, box_id: availableBox?.box_id || null
+        barcode, box_id: scannedBox.box_id
       });
       toast.success(`✓ ${res.data.product}`);
       await loadTask();
@@ -283,8 +287,8 @@ export default function AssemblyPage() {
       {phase === 'picking' && task.status === 'in_progress' && (
         <div className="space-y-4">
           <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
-            <p className="text-sm font-bold text-blue-800">Заберите товар с паллетов</p>
-            <p className="text-xs text-blue-600 mt-1">Сканируйте каждую баночку</p>
+            <p className="text-sm font-bold text-blue-800">Заберите товар со склада</p>
+            <p className="text-xs text-blue-600 mt-1">1. Сканируйте коробку → 2. Сканируйте каждую баночку</p>
           </div>
 
           {/* Progress per component */}
@@ -310,22 +314,44 @@ export default function AssemblyPage() {
             })}
           </div>
 
-          {/* Source boxes info */}
-          {sourceBoxes.length > 0 && (
-            <details className="bg-gray-50 rounded-xl">
-              <summary className="px-4 py-2 text-xs font-semibold text-gray-500 cursor-pointer">Где взять ({sourceBoxes.length} коробок)</summary>
-              <div className="px-4 pb-3 space-y-1">
-                {sourceBoxes.slice(0, 10).map((b, i) => (
-                  <div key={i} className="flex justify-between text-xs">
-                    <span className="text-gray-600">{b.product_name?.slice(0, 25)} · {b.pallet_name}</span>
-                    <span className="text-gray-400">{fmtQty(b.quantity)} шт</span>
-                  </div>
-                ))}
+          {/* Step 1: Scan box */}
+          {!scannedBox ? (
+            <div className="space-y-3">
+              <p className="text-xs font-semibold text-gray-500 uppercase">Шаг 1: отсканируйте коробку</p>
+              {/* Available boxes */}
+              {sourceBoxes.length > 0 && (
+                <div className="max-h-36 overflow-y-auto space-y-1">
+                  {sourceBoxes.map((b, i) => (
+                    <div key={i} className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-xl text-xs">
+                      <Box size={13} className="text-gray-400 flex-shrink-0" />
+                      <span className="text-gray-700 flex-1 truncate">{b.warehouse_name} → {b.pallet_name}</span>
+                      <span className="text-gray-500 truncate">{b.product_name?.slice(0, 20)}</span>
+                      <span className="text-gray-400 flex-shrink-0">{fmtQty(b.quantity)} шт</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <ScanInput onScan={handleScanPickBox} disabled={actionLoading} placeholder="Сканируйте ШК коробки..." />
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {/* Scanned box info */}
+              <div className="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-100 rounded-xl">
+                <Box size={14} className="text-green-500 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-green-800">{scannedBox.pallet_name} · {scannedBox.product_name?.slice(0, 25)}</p>
+                  <p className="text-xs text-green-600">{fmtQty(scannedBox.quantity)} шт · ШК: {scannedBox.box_barcode}</p>
+                </div>
+                <button onClick={() => setScannedBox(null)} className="text-gray-400 hover:text-red-500">
+                  <X size={14} />
+                </button>
               </div>
-            </details>
-          )}
 
-          <ScanInput onScan={handleScanPick} disabled={actionLoading} placeholder="Сканируйте баночку..." />
+              {/* Step 2: Scan items from this box */}
+              <p className="text-xs font-semibold text-gray-500 uppercase">Шаг 2: сканируйте баночки из этой коробки</p>
+              <ScanInput onScan={handleScanPick} disabled={actionLoading} placeholder="Сканируйте баночку..." />
+            </div>
+          )}
 
           {allPicked && (
             <Button onClick={handleStartAssembly} loading={actionLoading} size="lg" className="w-full" variant="success">
