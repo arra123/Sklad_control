@@ -198,10 +198,16 @@ router.get('/:id/source-boxes', requireAuth, async (req, res) => {
 // ─── POST /:id/start-picking — Start picking phase ─────────────────────────
 router.post('/:id/start-picking', requireAuth, async (req, res) => {
   try {
+    // Find employee_id from user
+    let employeeId = null;
+    const emp = await pool.query('SELECT id FROM employees_s WHERE user_id = $1 LIMIT 1', [req.user.id]);
+    if (emp.rows.length) employeeId = emp.rows[0].id;
+
     await pool.query(
-      `UPDATE inventory_tasks_s SET status = 'in_progress', assembly_phase = 'picking', started_at = NOW(), employee_id = COALESCE(employee_id, $2)
+      `UPDATE inventory_tasks_s SET status = 'in_progress', assembly_phase = 'picking', started_at = NOW(),
+       employee_id = COALESCE(employee_id, $2)
        WHERE id = $1 AND task_type = 'bundle_assembly'`,
-      [req.params.id, req.user.employee_id || req.user.id]
+      [req.params.id, employeeId]
     );
     res.json({ ok: true });
   } catch (err) {
@@ -239,9 +245,9 @@ router.post('/:id/scan-pick', requireAuth, async (req, res) => {
       // Log movement
       const boxInfo = await client.query('SELECT pallet_id FROM boxes_s WHERE id = $1', [box_id]);
       await client.query(
-        `INSERT INTO movements_s (movement_type, product_id, quantity, from_box_id, from_pallet_id, to_employee_id, performed_by, source)
-         VALUES ('bundle_pick', $1, 1, $2, $3, $4, $5, 'task')`,
-        [product.id, box_id, boxInfo.rows[0]?.pallet_id, task.rows[0].employee_id, req.user.id]);
+        `INSERT INTO movements_s (movement_type, product_id, quantity, from_box_id, from_pallet_id, performed_by, source, notes)
+         VALUES ('bundle_pick', $1, 1, $2, $3, $4, 'task', $5)`,
+        [product.id, box_id, boxInfo.rows[0]?.pallet_id, req.user.id, `task:${req.params.id}`]);
     }
 
     // Record picked item
@@ -396,9 +402,9 @@ router.post('/:id/scan-place', requireAuth, async (req, res) => {
 
     // Log movement
     await client.query(
-      `INSERT INTO movements_s (movement_type, product_id, quantity, to_shelf_id, to_pallet_id, from_employee_id, performed_by, source)
-       VALUES ('bundle_place', $1, 1, $2, $3, $4, $5, 'task')`,
-      [productId, shelf_id || null, pallet_id || null, task.rows[0].employee_id, req.user.id]);
+      `INSERT INTO movements_s (movement_type, product_id, quantity, to_shelf_id, to_pallet_id, performed_by, source, notes)
+       VALUES ('bundle_place', $1, 1, $2, $3, $4, 'task', $5)`,
+      [productId, shelf_id || null, pallet_id || null, req.user.id, `task:${req.params.id}`]);
 
     const newPlaced = task.rows[0].placed_count + 1;
     const phase = newPlaced >= task.rows[0].bundle_qty ? 'completed' : 'placing';

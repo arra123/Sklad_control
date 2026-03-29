@@ -123,28 +123,49 @@ export default function AssemblyPage() {
   const handleStartPicking = async () => {
     setActionLoading(true);
     try {
-      await api.post(`/assembly/${id}/start-picking`);
-      await loadTask();
-    } catch (err) { toast.error(err.response?.data?.error || 'Ошибка'); }
+      const res = await api.post(`/assembly/${id}/start-picking`);
+      if (res.data.ok) {
+        await loadTask();
+        await loadSourceBoxes();
+      }
+    } catch (err) { toast.error(err.response?.data?.error || 'Не удалось начать задачу'); }
     finally { setActionLoading(false); }
   };
 
-  const handleScanPallet = (barcode) => {
-    // Find pallet by barcode or name among source boxes
-    const match = sourceBoxes.find(b => b.pallet_barcode === barcode || b.pallet_name === barcode);
+  const handleScanPallet = async (barcode) => {
+    // 1. Try match in sourceBoxes by pallet_barcode
+    const match = sourceBoxes.find(b => b.pallet_barcode === barcode);
     if (match) {
+      // Check this pallet has needed components
+      const palletBoxes = sourceBoxes.filter(b => b.pallet_id === match.pallet_id);
+      if (palletBoxes.length === 0) {
+        toast.error('На этом паллете нет нужного товара');
+        return;
+      }
       setScannedPallet({ pallet_id: match.pallet_id, name: match.pallet_name, warehouse: match.warehouse_name });
       setPickStep('box');
-      toast.success(`Паллет: ${match.warehouse_name} · ${match.pallet_name}`);
-    } else {
-      // Try via movements/scan API
-      api.post('/movements/scan', { barcode }).then(res => {
-        if (res.data.type === 'pallet') {
-          setScannedPallet({ pallet_id: res.data.pallet.id, name: res.data.pallet.name, warehouse: res.data.pallet.warehouse_name });
-          setPickStep('box');
-          toast.success(`Паллет: ${res.data.pallet.name}`);
-        } else { toast.error('Отсканируйте паллет'); }
-      }).catch(() => toast.error('Паллет не найден'));
+      toast.success(`${match.warehouse_name} · ${match.pallet_name}`);
+      return;
+    }
+
+    // 2. Try via movements/scan API
+    try {
+      const res = await api.post('/movements/scan', { barcode });
+      if (res.data.type === 'pallet') {
+        const palletId = res.data.pallet.id;
+        const palletBoxes = sourceBoxes.filter(b => b.pallet_id === palletId);
+        if (palletBoxes.length === 0) {
+          toast.error('На этом паллете нет нужного товара для комплекта');
+          return;
+        }
+        setScannedPallet({ pallet_id: palletId, name: res.data.pallet.name, warehouse: res.data.pallet.warehouse_name });
+        setPickStep('box');
+        toast.success(`${res.data.pallet.warehouse_name} · ${res.data.pallet.name}`);
+      } else {
+        toast.error('Это не паллет. Отсканируйте штрих-код паллета');
+      }
+    } catch {
+      toast.error('Паллет не найден. Проверьте штрих-код');
     }
   };
 
