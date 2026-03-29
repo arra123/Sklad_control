@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   Plus, ClipboardList, Clock, CheckCircle2, XCircle, X,
-  AlertTriangle, ScanLine, RefreshCw, Package, Box, MapPin
+  AlertTriangle, ScanLine, RefreshCw, Package, Box, MapPin, ChevronRight
 } from 'lucide-react';
 import api from '../../api/client';
 import { qty } from '../../utils/fmt';
