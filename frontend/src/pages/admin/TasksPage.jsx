@@ -893,19 +893,23 @@ function CreateTaskModal({ open, onClose, onSuccess }) {
   // Load destination racks/rows when warehouse selected
   useEffect(() => {
     if (!destPickWh) { setDestRacks([]); setDestShelves([]); setDestRows([]); setDestPallets([]); return; }
-    if (destPickWhData?.warehouse_type === 'fbs' || destPickWhData?.warehouse_type === 'both') {
-      api.get(`/warehouse/warehouses/${destPickWh}`).then(r => setDestRacks(r.data.racks || [])).catch(() => {});
+    const whType = destPickWhData?.warehouse_type;
+    if (whType === 'fbs' || whType === 'both') {
+      api.get(`/warehouse/visual/${destPickWh}`).then(r => setDestRacks(r.data || [])).catch(() => {
+        // fallback: get racks from warehouse detail
+        api.get(`/warehouse/warehouses/${destPickWh}`).then(r2 => setDestRacks(r2.data.racks || [])).catch(() => {});
+      });
     }
-    if (destPickWhData?.warehouse_type === 'fbo' || destPickWhData?.warehouse_type === 'both') {
+    if (whType === 'fbo' || whType === 'both') {
       api.get(`/fbo/warehouses/${destPickWh}`).then(r => setDestRows(r.data.rows || [])).catch(() => {});
     }
   }, [destPickWh, destPickWhData?.warehouse_type]);
 
   useEffect(() => {
     if (!destPickRack) { setDestShelves([]); return; }
-    const rack = destRacks.find(r => String(r.id) === destPickRack);
-    setDestShelves(rack?.shelves || []);
-  }, [destPickRack, destRacks]);
+    // Load shelves from rack detail API
+    api.get(`/warehouse/racks/${destPickRack}`).then(r => setDestShelves(r.data.shelves || [])).catch(() => setDestShelves([]));
+  }, [destPickRack]);
 
   useEffect(() => {
     if (!destPickRow) { setDestPallets([]); return; }
