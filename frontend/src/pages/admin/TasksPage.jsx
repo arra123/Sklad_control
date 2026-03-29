@@ -759,9 +759,19 @@ function CreateTaskModal({ open, onClose, onSuccess }) {
   const [bundleEmployeeChoice, setBundleEmployeeChoice] = useState(false); // на усмотрение сотрудника
   const [bundleNotes, setBundleNotes] = useState('');
   const [bundleDestWh, setBundleDestWh] = useState('');
+  const [bundleSearch, setBundleSearch] = useState('');
+  const [bundleDropOpen, setBundleDropOpen] = useState(false);
   const [bundleSourceWh, setBundleSourceWh] = useState('');
   const [bundleSourcePallets, setBundleSourcePallets] = useState([]);
   const [bundleSourcePallet, setBundleSourcePallet] = useState('');
+
+  // Close bundle dropdown on outside click
+  useEffect(() => {
+    if (!bundleDropOpen) return;
+    const close = () => setBundleDropOpen(false);
+    setTimeout(() => document.addEventListener('click', close), 0);
+    return () => document.removeEventListener('click', close);
+  }, [bundleDropOpen]);
 
   // Load all bundles
   useEffect(() => {
@@ -1095,12 +1105,38 @@ function CreateTaskModal({ open, onClose, onSuccess }) {
           {/* 1. Комплект */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Комплект *</label>
-            <select value={selectedBundle ? String(selectedBundle.id) : ''}
-              onChange={e => setSelectedBundle(bundles.find(x => String(x.id) === e.target.value) || null)}
-              className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:border-primary-400 focus:ring-2 focus:ring-primary-100 focus:outline-none bg-white">
-              <option value="">Выберите комплект...</option>
-              {bundles.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-            </select>
+            {selectedBundle ? (
+              <div className="flex items-center gap-3 p-3 bg-green-50 rounded-xl border border-green-100">
+                <Package size={16} className="text-green-500 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate">{selectedBundle.name}</p>
+                  <p className="text-xs text-gray-400">{selectedBundle.code}</p>
+                </div>
+                <button type="button" onClick={() => { setSelectedBundle(null); setBundleSearch(''); }}
+                  className="text-gray-400 hover:text-red-500"><X size={14} /></button>
+              </div>
+            ) : (
+              <div className="relative">
+                <input value={bundleSearch} onChange={e => setBundleSearch(e.target.value)}
+                  onFocus={() => setBundleDropOpen(true)}
+                  placeholder="Начните вводить или выберите..."
+                  className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:border-primary-400 focus:ring-2 focus:ring-primary-100 focus:outline-none" />
+                {bundleDropOpen && (
+                  <div className="absolute z-20 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-52 overflow-y-auto">
+                    {bundles.filter(b => !bundleSearch || b.name.toLowerCase().includes(bundleSearch.toLowerCase())).length === 0 ? (
+                      <p className="px-3 py-3 text-sm text-gray-400 text-center">Комплекты не найдены</p>
+                    ) : bundles.filter(b => !bundleSearch || b.name.toLowerCase().includes(bundleSearch.toLowerCase())).map(b => (
+                      <button key={b.id} type="button" onClick={() => { setSelectedBundle(b); setBundleSearch(''); setBundleDropOpen(false); }}
+                        className="w-full flex items-center gap-2 px-3 py-2.5 text-left hover:bg-primary-50 text-sm transition-colors border-b border-gray-50 last:border-0">
+                        <Package size={14} className="text-primary-400 flex-shrink-0" />
+                        <span className="font-medium text-gray-800 truncate flex-1">{b.name}</span>
+                        <span className="text-xs text-gray-400 flex-shrink-0">{b.code}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {bundleComponents.length > 0 && (
