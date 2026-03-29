@@ -462,90 +462,138 @@ function TaskDetailPanel({ task, onClose, onReload }) {
         </div>
 
         {/* Assembly detail modal */}
-        {showAssemblyModal && assemblyData && (
+        {showAssemblyModal && assemblyData && (() => {
+          const phase = assemblyData.assembly_phase || 'picking';
+          const phases = ['picking', 'assembling', 'placing', 'completed'];
+          const phaseIdx = phases.indexOf(phase);
+          const phaseNames = { picking: 'Забор', assembling: 'Сборка', placing: 'Размещение', completed: 'Завершено' };
+          const phaseColors = { picking: 'primary', assembling: 'purple', placing: 'blue', completed: 'green' };
+          const totalPicked = (assemblyData.picked_summary || []).reduce((s, p) => s + Number(p.picked_count), 0);
+          const totalNeeded = (assemblyData.components || []).reduce((s, c) => s + Number(c.quantity) * assemblyData.bundle_qty, 0);
+
+          return (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setShowAssemblyModal(false)}>
             <div className="absolute inset-0 bg-black/40" />
-            <div className="relative bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[85vh] overflow-y-auto p-6" onClick={e => e.stopPropagation()}>
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold text-gray-900">Сборка комплектов</h3>
-                <button onClick={() => setShowAssemblyModal(false)} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
+            <div className="relative bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+              {/* Header */}
+              <div className="sticky top-0 bg-white rounded-t-2xl border-b border-gray-100 px-5 py-4 flex items-start justify-between">
+                <div>
+                  <h3 className="text-base font-bold text-gray-900">{assemblyData.bundle_name}</h3>
+                  <p className="text-xs text-gray-400 mt-0.5">{assemblyData.bundle_qty} комплектов · {assemblyData.employee_name || 'Не назначен'}</p>
+                </div>
+                <button onClick={() => setShowAssemblyModal(false)} className="p-1 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600"><X size={18} /></button>
               </div>
 
-              {/* Progress */}
-              <div className="grid grid-cols-3 gap-2 mb-4">
-                <div className="bg-primary-50 rounded-xl p-3 text-center">
-                  <p className="text-sm font-black text-primary-700">{assemblyData.assembly_phase === 'completed' ? '✓ Готово' : assemblyData.assembly_phase === 'picking' ? 'Забор' : assemblyData.assembly_phase === 'assembling' ? 'Сборка' : 'Размещение'}</p>
-                  <p className="text-[10px] text-gray-400 uppercase">Фаза</p>
-                </div>
-                <div className="bg-green-50 rounded-xl p-3 text-center">
-                  <p className="text-lg font-black text-green-700">{assemblyData.assembled_count || 0}/{assemblyData.bundle_qty}</p>
-                  <p className="text-[10px] text-gray-400 uppercase">Собрано</p>
-                </div>
-                <div className="bg-blue-50 rounded-xl p-3 text-center">
-                  <p className="text-lg font-black text-blue-700">{assemblyData.placed_count || 0}/{assemblyData.bundle_qty}</p>
-                  <p className="text-[10px] text-gray-400 uppercase">Размещено</p>
-                </div>
-              </div>
-
-              {/* Bundle info */}
-              <div className="mb-4 p-3 bg-gray-50 rounded-xl">
-                <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Комплект</p>
-                <p className="text-sm font-bold text-gray-900">{assemblyData.bundle_name}</p>
-                {assemblyData.bundle_barcode && <p className="text-xs text-gray-400 font-mono mt-0.5">ШК: {assemblyData.bundle_barcode}</p>}
-                {assemblyData.bundle_barcodes && <p className="text-xs text-gray-400 font-mono">Все ШК: {assemblyData.bundle_barcodes}</p>}
-              </div>
-
-              {/* Components with pick progress */}
-              <div className="mb-4">
-                <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Состав и забор</p>
-                {(assemblyData.components || []).map(c => {
-                  const picked = (assemblyData.picked_summary || []).find(p => p.product_id === c.component_id);
-                  const needed = Number(c.quantity) * assemblyData.bundle_qty;
-                  const have = Number(picked?.picked_count || 0);
-                  return (
-                    <div key={c.component_id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-gray-800">{c.name}</p>
-                        <p className="text-xs text-gray-400 font-mono">{c.code} · ШК: {c.barcode_list || c.production_barcode || '—'}</p>
+              <div className="px-5 py-4 space-y-4">
+                {/* Phase stepper */}
+                <div className="flex items-center gap-1">
+                  {['picking', 'assembling', 'placing'].map((p, i) => {
+                    const done = phaseIdx > i || phase === 'completed';
+                    const active = phase === p;
+                    return (
+                      <div key={p} className="flex items-center gap-1 flex-1">
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                          done ? 'bg-green-500 text-white' : active ? `bg-${phaseColors[p]}-600 text-white` : 'bg-gray-200 text-gray-400'
+                        }`}>{done ? '✓' : i + 1}</div>
+                        <span className={`text-[11px] font-medium ${active ? `text-${phaseColors[p]}-600` : done ? 'text-green-600' : 'text-gray-400'}`}>
+                          {phaseNames[p]}
+                        </span>
+                        {i < 2 && <ChevronRight size={10} className="text-gray-300 ml-auto" />}
                       </div>
-                      <span className={`text-sm font-bold ml-2 ${have >= needed ? 'text-green-600' : 'text-amber-600'}`}>{have}/{needed}</span>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
 
-              {/* Source locations with barcodes */}
-              {assemblySourceBoxes.length > 0 && (
-                <div className="mb-4">
-                  <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Откуда можно взять ({assemblySourceBoxes.length})</p>
-                  <div className="max-h-48 overflow-y-auto space-y-1">
-                    {assemblySourceBoxes.map((b, i) => (
-                      <div key={i} className="px-3 py-2 bg-gray-50 rounded-lg text-xs">
-                        <div className="flex items-center gap-2">
-                          <MapPin size={12} className="text-primary-400 flex-shrink-0" />
-                          <span className="font-medium text-gray-800">
-                            {b.source_type === 'shelf' ? `${b.warehouse_name} → ${b.rack_name} → ${b.shelf_code}` : `${b.warehouse_name} → ${b.row_name} → ${b.pallet_name}`}
-                          </span>
-                        </div>
-                        <div className="pl-5 mt-0.5 text-gray-500 space-y-0.5">
-                          <p>{b.product_name?.replace(/GraFLab,?\s*/i,'').trim()} · {Number(b.quantity)} шт</p>
-                          {b.pallet_barcode && <p className="font-mono">ШК паллета: {b.pallet_barcode}</p>}
-                          {b.box_barcode && <p className="font-mono">ШК коробки: {b.box_barcode}</p>}
-                          {b.shelf_barcode && <p className="font-mono">ШК полки: {b.shelf_barcode}</p>}
-                        </div>
-                      </div>
-                    ))}
+                {/* Stats cards */}
+                <div className="grid grid-cols-4 gap-2">
+                  <div className="bg-primary-50 rounded-xl p-2.5 text-center">
+                    <p className="text-lg font-black text-primary-700">{totalPicked}</p>
+                    <p className="text-[10px] text-primary-400">Забрано</p>
+                  </div>
+                  <div className="bg-gray-50 rounded-xl p-2.5 text-center">
+                    <p className="text-lg font-black text-gray-600">{totalNeeded}</p>
+                    <p className="text-[10px] text-gray-400">Нужно</p>
+                  </div>
+                  <div className="bg-green-50 rounded-xl p-2.5 text-center">
+                    <p className="text-lg font-black text-green-700">{assemblyData.assembled_count || 0}<span className="text-xs font-normal text-green-400">/{assemblyData.bundle_qty}</span></p>
+                    <p className="text-[10px] text-green-400">Собрано</p>
+                  </div>
+                  <div className="bg-blue-50 rounded-xl p-2.5 text-center">
+                    <p className="text-lg font-black text-blue-700">{assemblyData.placed_count || 0}<span className="text-xs font-normal text-blue-400">/{assemblyData.bundle_qty}</span></p>
+                    <p className="text-[10px] text-blue-400">Размещено</p>
                   </div>
                 </div>
-              )}
 
-              {/* Employee */}
-              {assemblyData.employee_name && (
-                <p className="text-xs text-gray-400">Сотрудник: <span className="text-gray-700 font-medium">{assemblyData.employee_name}</span></p>
-              )}
+                {/* Components with progress bars */}
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Состав комплекта</p>
+                  <div className="space-y-2">
+                    {(assemblyData.components || []).map(c => {
+                      const picked = (assemblyData.picked_summary || []).find(p => p.product_id === c.component_id);
+                      const needed = Number(c.quantity) * assemblyData.bundle_qty;
+                      const have = Number(picked?.picked_count || 0);
+                      const pct = Math.min(100, (have / Math.max(1, needed)) * 100);
+                      return (
+                        <div key={c.component_id} className="p-2.5 bg-gray-50 rounded-xl">
+                          <div className="flex items-center justify-between mb-1">
+                            <p className="text-sm font-medium text-gray-800 truncate flex-1">{c.name?.replace(/GraFLab,?\s*/i, '').trim()}</p>
+                            <span className={`text-xs font-bold ml-2 ${have >= needed ? 'text-green-600' : 'text-amber-600'}`}>
+                              {have >= needed ? '✓' : ''} {have}/{needed}
+                            </span>
+                          </div>
+                          <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                            <div className={`h-full rounded-full transition-all ${have >= needed ? 'bg-green-500' : 'bg-amber-400'}`} style={{ width: `${pct}%` }} />
+                          </div>
+                          <p className="text-[10px] text-gray-400 mt-1 font-mono">{c.code} · × {Number(c.quantity)} на комплект</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Source locations */}
+                {assemblySourceBoxes.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Источники ({assemblySourceBoxes.length})</p>
+                    <div className="max-h-40 overflow-y-auto space-y-1">
+                      {assemblySourceBoxes.map((b, i) => (
+                        <div key={i} className="px-3 py-2 bg-gray-50 rounded-lg text-xs flex items-center gap-2">
+                          <MapPin size={12} className="text-primary-400 flex-shrink-0" />
+                          <span className="font-medium text-gray-700 flex-1">
+                            {b.source_type === 'shelf' ? `${b.warehouse_name} → ${b.rack_name} → ${b.shelf_code}` : `${b.warehouse_name} → ${b.row_name} → ${b.pallet_name}`}
+                          </span>
+                          <span className="text-amber-600 font-bold">{Number(b.quantity)} шт</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Bundle barcodes */}
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase mb-1">ШК комплекта</p>
+                  <div className="flex flex-wrap gap-1">
+                    {(assemblyData.bundle_barcodes || '').split(';').filter(Boolean).map(bc => {
+                      const isSystem = /^[124]0{5,}\d+$/.test(bc.trim());
+                      return (
+                        <span key={bc} className={`px-2 py-0.5 rounded text-[11px] font-mono ${isSystem ? 'bg-green-100 text-green-700 font-bold' : 'bg-gray-100 text-gray-500'}`}>
+                          {bc.trim()}
+                        </span>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Timing */}
+                <div className="flex items-center gap-4 text-xs text-gray-400 pt-2 border-t border-gray-100">
+                  {assemblyData.started_at && <span>Начало: {new Date(assemblyData.started_at).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>}
+                  {assemblyData.completed_at && <span>Завершено: {new Date(assemblyData.completed_at).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>}
+                </div>
+              </div>
             </div>
           </div>
-        )}
+          );
+        })()}
 
         {/* Footer actions */}
         {(task.status === 'new' || task.status === 'in_progress') && (
