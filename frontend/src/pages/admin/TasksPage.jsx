@@ -161,22 +161,35 @@ function TaskDetailPanel({ task, onClose, onReload }) {
         </div>
 
         {/* Stats row */}
-        {analytics && (
-          <div className="grid grid-cols-3 divide-x divide-gray-100 dark:divide-gray-800 border-b border-gray-100 dark:border-gray-800">
-            <div className="px-4 py-3 text-center">
+        {analytics && (() => {
+          const gaps = scans.filter(s => s.seconds_since_prev != null && s.seconds_since_prev > 0).map(s => Number(s.seconds_since_prev));
+          const avgGap = gaps.length > 0 ? (gaps.reduce((a, b) => a + b, 0) / gaps.length).toFixed(1) : null;
+          const duration = task.started_at && (task.completed_at || task.status === 'in_progress')
+            ? ((new Date(task.completed_at || Date.now()) - new Date(task.started_at)) / 60000).toFixed(1)
+            : null;
+          return (
+          <div className={`grid ${isAssembly ? 'grid-cols-4' : 'grid-cols-3'} divide-x divide-gray-100 dark:divide-gray-800 border-b border-gray-100 dark:border-gray-800`}>
+            <div className="px-3 py-3 text-center">
               <p className="text-xs text-gray-400 mb-0.5">Сканов</p>
               <p className="text-lg font-bold text-gray-900 dark:text-white">{scans.length}</p>
             </div>
-            <div className="px-4 py-3 text-center">
+            {avgGap && (
+            <div className="px-3 py-3 text-center">
+              <p className="text-xs text-gray-400 mb-0.5">Ср. между</p>
+              <p className="text-lg font-bold text-primary-600">{avgGap}с</p>
+            </div>
+            )}
+            <div className="px-3 py-3 text-center">
               <p className="text-xs text-gray-400 mb-0.5">Ошибок</p>
               <p className={`text-lg font-bold ${errors.length > 0 ? 'text-red-500' : 'text-gray-400'}`}>{errors.length}</p>
             </div>
-            <div className="px-4 py-3 text-center">
-              <p className="text-xs text-gray-400 mb-0.5">Начато</p>
-              <p className="text-xs font-semibold text-gray-700 dark:text-gray-300">{fmtTime(task.started_at)}</p>
+            <div className="px-3 py-3 text-center">
+              <p className="text-xs text-gray-400 mb-0.5">{duration ? 'Время' : 'Начато'}</p>
+              <p className="text-xs font-semibold text-gray-700 dark:text-gray-300">{duration ? `${duration} мин` : fmtTime(task.started_at)}</p>
             </div>
           </div>
-        )}
+          );
+        })()}
 
         {/* Assembly button */}
         {isAssembly && (
@@ -584,10 +597,41 @@ function TaskDetailPanel({ task, onClose, onReload }) {
                   </div>
                 </div>
 
+                {/* Scan chronology */}
+                {scans.length > 0 && (() => {
+                  const gaps = scans.filter(s => s.seconds_since_prev != null && s.seconds_since_prev > 0).map(s => Number(s.seconds_since_prev));
+                  const avgGap = gaps.length > 0 ? (gaps.reduce((a, b) => a + b, 0) / gaps.length).toFixed(1) : null;
+                  return (
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-xs font-semibold text-gray-500 uppercase">Хронология сканов ({scans.length})</p>
+                      {avgGap && <span className="text-xs font-bold text-primary-600">Ср. {avgGap}с между сканами</span>}
+                    </div>
+                    <div className="max-h-48 overflow-y-auto space-y-0.5">
+                      {scans.map((sc, i) => (
+                        <div key={sc.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-50 text-xs">
+                          <span className="text-gray-300 font-mono w-5 text-right flex-shrink-0">{i + 1}</span>
+                          <span className="flex-1 truncate text-gray-700">{(sc.product_name || '').replace(/GraFLab,?\s*/i, '').trim()}</span>
+                          <span className="font-mono text-gray-500 flex-shrink-0">{new Date(sc.created_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+                          {sc.seconds_since_prev != null && sc.seconds_since_prev > 0
+                            ? <span className={`font-mono font-bold flex-shrink-0 w-10 text-right ${Number(sc.seconds_since_prev) > 10 ? 'text-red-400' : Number(sc.seconds_since_prev) > 5 ? 'text-amber-400' : 'text-green-500'}`}>+{sc.seconds_since_prev}с</span>
+                            : <span className="text-primary-400 font-mono flex-shrink-0 w-10 text-right">старт</span>
+                          }
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  );
+                })()}
+
                 {/* Timing */}
                 <div className="flex items-center gap-4 text-xs text-gray-400 pt-2 border-t border-gray-100">
                   {assemblyData.started_at && <span>Начало: {new Date(assemblyData.started_at).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>}
                   {assemblyData.completed_at && <span>Завершено: {new Date(assemblyData.completed_at).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>}
+                  {assemblyData.started_at && assemblyData.completed_at && (() => {
+                    const mins = ((new Date(assemblyData.completed_at) - new Date(assemblyData.started_at)) / 60000).toFixed(1);
+                    return <span className="font-bold text-gray-600">Итого: {mins} мин</span>;
+                  })()}
                 </div>
               </div>
             </div>
@@ -1547,6 +1591,9 @@ function TaskCard({ task, onClick }) {
             {task.task_type === 'inventory' && (
               <span className="font-semibold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-lg">Инвентаризация</span>
             )}
+            {task.task_type === 'bundle_assembly' && (
+              <span className="font-semibold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-lg">Сборка</span>
+            )}
             {task.employee_name && <span>{task.employee_name}</span>}
             {task.shelf_code && <span className="inline-flex items-center gap-1"><ShelfIcon size={12} />{task.rack_name} · {task.shelf_name}</span>}
             {!task.shelf_code && task.pallet_name && <span className="inline-flex items-center gap-1"><PalletIcon size={12} />{task.pallet_row_name || 'Ряд'} · {task.pallet_name}</span>}
@@ -1555,6 +1602,13 @@ function TaskCard({ task, onClick }) {
               <span>Коробки {Number(task.task_boxes_completed || 0)} / {Number(task.task_boxes_total || 0)}</span>
             )}
             {Number(task.scans_count) > 0 && <span>{task.scans_count} сканов</span>}
+            {task.avg_scan_time && <span className="text-primary-500">{Number(task.avg_scan_time).toFixed(1)}с</span>}
+            {task.task_type === 'bundle_assembly' && task.assembled_count != null && (
+              <span className="text-green-600 font-semibold">{task.assembled_count}/{task.bundle_qty} собрано</span>
+            )}
+            {task.duration_minutes && Number(task.duration_minutes) > 0 && (
+              <span>{Number(task.duration_minutes).toFixed(1)} мин</span>
+            )}
             <span className="text-gray-300">{new Date(task.created_at).toLocaleDateString('ru-RU')}</span>
           </div>
 

@@ -1307,6 +1307,13 @@ router.get('/', requireAuth, async (req, res) => {
               COALESCE(sbp.name, bp.name) as box_product_name,
               COALESCE(sbp.code, bp.code) as box_product_code,
               (SELECT COUNT(*) FROM inventory_task_scans_s WHERE task_id = t.id AND product_id IS NOT NULL) as scans_count,
+              (SELECT ROUND(AVG(gap)::numeric, 1) FROM (
+                SELECT EXTRACT(EPOCH FROM (sc.created_at - LAG(sc.created_at) OVER (ORDER BY sc.created_at))) as gap
+                FROM inventory_task_scans_s sc WHERE sc.task_id = t.id AND sc.product_id IS NOT NULL
+              ) g WHERE gap > 0 AND gap < 300) as avg_scan_time,
+              t.assembled_count, t.bundle_qty, t.placed_count, t.assembly_phase,
+              CASE WHEN t.started_at IS NOT NULL AND t.completed_at IS NOT NULL
+                THEN ROUND(EXTRACT(EPOCH FROM (t.completed_at - t.started_at)) / 60.0, 1) END as duration_minutes,
               (SELECT COUNT(*) FROM inventory_task_boxes_s tb WHERE tb.task_id = t.id) as task_boxes_total,
               (SELECT COUNT(*) FROM inventory_task_boxes_s tb WHERE tb.task_id = t.id AND tb.status = 'completed') as task_boxes_completed
        FROM inventory_tasks_s t
