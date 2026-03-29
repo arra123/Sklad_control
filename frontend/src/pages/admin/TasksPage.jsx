@@ -52,6 +52,7 @@ function TaskDetailPanel({ task, onClose, onReload }) {
   const isAssembly = task.task_type === 'bundle_assembly';
   const [assemblyData, setAssemblyData] = useState(null);
   const [assemblySourceBoxes, setAssemblySourceBoxes] = useState([]);
+  const [showAssemblyModal, setShowAssemblyModal] = useState(false);
 
   const loadAnalytics = useCallback(() => {
     api.get(`/tasks/${task.id}/analytics`)
@@ -175,6 +176,15 @@ function TaskDetailPanel({ task, onClose, onReload }) {
               <p className="text-xs font-semibold text-gray-700 dark:text-gray-300">{fmtTime(task.started_at)}</p>
             </div>
           </div>
+        )}
+
+        {/* Assembly button */}
+        {isAssembly && (
+          <button onClick={() => setShowAssemblyModal(true)}
+            className="mx-4 mt-3 w-[calc(100%-2rem)] flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-primary-50 border border-primary-200 text-primary-700 text-sm font-semibold hover:bg-primary-100 transition-colors">
+            <Package size={16} />
+            Детали сборки комплектов
+          </button>
         )}
 
         {/* Tabs */}
@@ -451,61 +461,89 @@ function TaskDetailPanel({ task, onClose, onReload }) {
           )}
         </div>
 
-        {/* Assembly info block */}
-        {isAssembly && assemblyData && (
-          <div className="px-4 py-4 space-y-3 border-t border-gray-100 overflow-y-auto flex-1">
-            <h4 className="text-xs font-bold text-gray-500 uppercase">Сборка комплектов</h4>
-
-            {/* Progress */}
-            <div className="grid grid-cols-3 gap-2">
-              <div className="bg-primary-50 rounded-xl p-2 text-center">
-                <p className="text-lg font-black text-primary-700">{assemblyData.assembly_phase === 'completed' ? '✓' : assemblyData.assembly_phase}</p>
-                <p className="text-[9px] text-gray-400 uppercase">Фаза</p>
+        {/* Assembly detail modal */}
+        {showAssemblyModal && assemblyData && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setShowAssemblyModal(false)}>
+            <div className="absolute inset-0 bg-black/40" />
+            <div className="relative bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[85vh] overflow-y-auto p-6" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-bold text-gray-900">Сборка комплектов</h3>
+                <button onClick={() => setShowAssemblyModal(false)} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
               </div>
-              <div className="bg-green-50 rounded-xl p-2 text-center">
-                <p className="text-lg font-black text-green-700">{assemblyData.assembled_count || 0}/{assemblyData.bundle_qty}</p>
-                <p className="text-[9px] text-gray-400 uppercase">Собрано</p>
-              </div>
-              <div className="bg-blue-50 rounded-xl p-2 text-center">
-                <p className="text-lg font-black text-blue-700">{assemblyData.placed_count || 0}/{assemblyData.bundle_qty}</p>
-                <p className="text-[9px] text-gray-400 uppercase">Размещено</p>
-              </div>
-            </div>
 
-            {/* Components */}
-            <div>
-              <p className="text-xs font-semibold text-gray-500 mb-1">Состав комплекта:</p>
-              {(assemblyData.components || []).map(c => {
-                const picked = (assemblyData.picked_summary || []).find(p => p.product_id === c.component_id);
-                const needed = Number(c.quantity) * assemblyData.bundle_qty;
-                const have = Number(picked?.picked_count || 0);
-                return (
-                  <div key={c.component_id} className="flex justify-between text-xs py-1">
-                    <span className="text-gray-700">{c.name}</span>
-                    <span className={`font-bold ${have >= needed ? 'text-green-600' : 'text-gray-500'}`}>{have}/{needed}</span>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Source locations */}
-            {assemblySourceBoxes.length > 0 && (
-              <div>
-                <p className="text-xs font-semibold text-gray-500 mb-1">Откуда можно взять ({assemblySourceBoxes.length}):</p>
-                <div className="max-h-32 overflow-y-auto space-y-1">
-                  {assemblySourceBoxes.slice(0, 20).map((b, i) => (
-                    <div key={i} className="text-xs px-2 py-1 bg-gray-50 rounded-lg">
-                      <span className="text-gray-700">
-                        {b.source_type === 'shelf' ? `${b.warehouse_name} → ${b.rack_name} → ${b.shelf_code}` : `${b.warehouse_name} → ${b.row_name} → ${b.pallet_name}`}
-                      </span>
-                      {b.source_type === 'pallet' && b.box_barcode && <span className="text-gray-400 ml-1">ШК коробки: {b.box_barcode}</span>}
-                      {b.pallet_barcode && <span className="text-gray-400 ml-1">ШК паллета: {b.pallet_barcode}</span>}
-                      <span className="text-gray-400 ml-1">· {b.product_name?.replace(/GraFLab,?\s*/i,'').slice(0,20)} · {Number(b.quantity)} шт</span>
-                    </div>
-                  ))}
+              {/* Progress */}
+              <div className="grid grid-cols-3 gap-2 mb-4">
+                <div className="bg-primary-50 rounded-xl p-3 text-center">
+                  <p className="text-sm font-black text-primary-700">{assemblyData.assembly_phase === 'completed' ? '✓ Готово' : assemblyData.assembly_phase === 'picking' ? 'Забор' : assemblyData.assembly_phase === 'assembling' ? 'Сборка' : 'Размещение'}</p>
+                  <p className="text-[10px] text-gray-400 uppercase">Фаза</p>
+                </div>
+                <div className="bg-green-50 rounded-xl p-3 text-center">
+                  <p className="text-lg font-black text-green-700">{assemblyData.assembled_count || 0}/{assemblyData.bundle_qty}</p>
+                  <p className="text-[10px] text-gray-400 uppercase">Собрано</p>
+                </div>
+                <div className="bg-blue-50 rounded-xl p-3 text-center">
+                  <p className="text-lg font-black text-blue-700">{assemblyData.placed_count || 0}/{assemblyData.bundle_qty}</p>
+                  <p className="text-[10px] text-gray-400 uppercase">Размещено</p>
                 </div>
               </div>
-            )}
+
+              {/* Bundle info */}
+              <div className="mb-4 p-3 bg-gray-50 rounded-xl">
+                <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Комплект</p>
+                <p className="text-sm font-bold text-gray-900">{assemblyData.bundle_name}</p>
+                {assemblyData.bundle_barcode && <p className="text-xs text-gray-400 font-mono mt-0.5">ШК: {assemblyData.bundle_barcode}</p>}
+                {assemblyData.bundle_barcodes && <p className="text-xs text-gray-400 font-mono">Все ШК: {assemblyData.bundle_barcodes}</p>}
+              </div>
+
+              {/* Components with pick progress */}
+              <div className="mb-4">
+                <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Состав и забор</p>
+                {(assemblyData.components || []).map(c => {
+                  const picked = (assemblyData.picked_summary || []).find(p => p.product_id === c.component_id);
+                  const needed = Number(c.quantity) * assemblyData.bundle_qty;
+                  const have = Number(picked?.picked_count || 0);
+                  return (
+                    <div key={c.component_id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-gray-800">{c.name}</p>
+                        <p className="text-xs text-gray-400 font-mono">{c.code} · ШК: {c.barcode_list || c.production_barcode || '—'}</p>
+                      </div>
+                      <span className={`text-sm font-bold ml-2 ${have >= needed ? 'text-green-600' : 'text-amber-600'}`}>{have}/{needed}</span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Source locations with barcodes */}
+              {assemblySourceBoxes.length > 0 && (
+                <div className="mb-4">
+                  <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Откуда можно взять ({assemblySourceBoxes.length})</p>
+                  <div className="max-h-48 overflow-y-auto space-y-1">
+                    {assemblySourceBoxes.map((b, i) => (
+                      <div key={i} className="px-3 py-2 bg-gray-50 rounded-lg text-xs">
+                        <div className="flex items-center gap-2">
+                          <MapPin size={12} className="text-primary-400 flex-shrink-0" />
+                          <span className="font-medium text-gray-800">
+                            {b.source_type === 'shelf' ? `${b.warehouse_name} → ${b.rack_name} → ${b.shelf_code}` : `${b.warehouse_name} → ${b.row_name} → ${b.pallet_name}`}
+                          </span>
+                        </div>
+                        <div className="pl-5 mt-0.5 text-gray-500 space-y-0.5">
+                          <p>{b.product_name?.replace(/GraFLab,?\s*/i,'').trim()} · {Number(b.quantity)} шт</p>
+                          {b.pallet_barcode && <p className="font-mono">ШК паллета: {b.pallet_barcode}</p>}
+                          {b.box_barcode && <p className="font-mono">ШК коробки: {b.box_barcode}</p>}
+                          {b.shelf_barcode && <p className="font-mono">ШК полки: {b.shelf_barcode}</p>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Employee */}
+              {assemblyData.employee_name && (
+                <p className="text-xs text-gray-400">Сотрудник: <span className="text-gray-700 font-medium">{assemblyData.employee_name}</span></p>
+              )}
+            </div>
           </div>
         )}
 
