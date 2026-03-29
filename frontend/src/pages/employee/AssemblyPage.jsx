@@ -264,7 +264,7 @@ export default function AssemblyPage() {
         // Show barcode for printing
         // Find system barcode (starts with 20000)
         const allBc = (task.bundle_barcodes || '').split(';').map(s => s.trim()).filter(Boolean);
-        const systemBc = allBc.find(b => /^20{4,}\d+$/.test(b));
+        const systemBc = allBc.find(b => /^[24]0{5,}\d+$/.test(b));
         const bc = systemBc || task.bundle_barcode || allBc[0] || '';
         setPrintBarcode(bc);
       }
