@@ -86,7 +86,8 @@ export default function AssemblyPage() {
   const [placeDest, setPlaceDest] = useState(null);
   const [scannedPallet, setScannedPallet] = useState(null); // {pallet_id, name}
   const [scannedBox, setScannedBox] = useState(null); // {box_id, barcode, pallet_name, product_name, qty}
-  const [pickStep, setPickStep] = useState('pallet'); // 'pallet' → 'box' → 'item'
+  const [pickStep, setPickStep] = useState('pallet');
+  const [expandedComponent, setExpandedComponent] = useState(null); // product_id to show locations
 
   const loadTask = useCallback(async () => {
     try {
@@ -150,7 +151,7 @@ export default function AssemblyPage() {
       return;
     }
 
-    // 2. Try via movements/scan API
+    // 2. Try via movements/scan API (pallet or shelf)
     try {
       const res = await api.post('/movements/scan', { barcode });
       if (res.data.type === 'pallet') {
@@ -160,14 +161,25 @@ export default function AssemblyPage() {
           toast.error('На этом паллете нет нужного товара для комплекта');
           return;
         }
-        setScannedPallet({ pallet_id: palletId, name: res.data.pallet.name, warehouse: res.data.pallet.warehouse_name });
+        setScannedPallet({ pallet_id: palletId, name: res.data.pallet.name, warehouse: res.data.pallet.warehouse_name, type: 'pallet' });
         setPickStep('box');
         toast.success(`${res.data.pallet.warehouse_name} · ${res.data.pallet.name}`);
+      } else if (res.data.type === 'shelf') {
+        // Shelf scanned — check if it has needed items
+        const shelfId = res.data.shelf.id;
+        const shelfItems = sourceBoxes.filter(b => b.source_type === 'shelf' && b.shelf_id === shelfId);
+        if (shelfItems.length === 0) {
+          toast.error('На этой полке нет нужного товара для комплекта');
+          return;
+        }
+        setScannedPallet({ shelf_id: shelfId, name: res.data.shelf.code, warehouse: res.data.shelf.warehouse_name, type: 'shelf' });
+        setPickStep('item'); // shelf → skip box step, go straight to items
+        toast.success(`${res.data.shelf.warehouse_name} · ${res.data.shelf.rack_name} · ${res.data.shelf.code}`);
       } else {
-        toast.error('Это не паллет. Отсканируйте штрих-код паллета');
+        toast.error('Отсканируйте паллет или полку');
       }
     } catch {
-      toast.error('Паллет не найден. Проверьте штрих-код');
+      toast.error('Не найдено. Проверьте штрих-код');
     }
   };
 
@@ -183,11 +195,13 @@ export default function AssemblyPage() {
   };
 
   const handleScanPick = async (barcode) => {
-    if (!scannedBox) { toast.error('Сначала отсканируйте коробку'); return; }
+    if (!scannedBox && !scannedPallet?.shelf_id) { toast.error('Сначала отсканируйте коробку или полку'); return; }
     setActionLoading(true);
     try {
       const res = await api.post(`/assembly/${id}/scan-pick`, {
-        barcode, box_id: scannedBox.box_id
+        barcode,
+        box_id: scannedBox?.box_id || null,
+        shelf_id: scannedPallet?.shelf_id || null,
       });
       toast.success(`✓ ${res.data.product}`);
       await loadTask();
@@ -356,24 +370,55 @@ export default function AssemblyPage() {
             <p className="text-xs text-blue-600 mt-1">Паллет → Коробка → Баночка</p>
           </div>
 
-          {/* Progress per component */}
+          {/* Progress per component — clickable to see locations */}
           <div className="space-y-2">
             {components.map(c => {
               const needed = Number(c.quantity) * task.bundle_qty;
               const have = pickedMap[c.component_id] || 0;
               const pct = Math.min(100, (have / needed) * 100);
+              const isExpanded = expandedComponent === c.component_id;
+              const compLocations = sourceBoxes.filter(b => b.product_id === c.component_id);
               return (
-                <div key={c.component_id} className="bg-white border border-gray-100 rounded-xl p-3">
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="font-medium text-gray-800">{c.name}</span>
-                    <span className={`font-bold ${have >= needed ? 'text-green-600' : 'text-gray-600'}`}>
-                      {have >= needed && <CheckCircle2 size={14} className="inline mr-1" />}
-                      {have}/{needed}
-                    </span>
-                  </div>
-                  <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                    <div className={`h-full rounded-full transition-all ${have >= needed ? 'bg-green-500' : 'bg-primary-500'}`} style={{ width: `${pct}%` }} />
-                  </div>
+                <div key={c.component_id} className="bg-white border border-gray-100 rounded-xl overflow-hidden">
+                  <button type="button" onClick={() => setExpandedComponent(isExpanded ? null : c.component_id)}
+                    className="w-full text-left p-3">
+                    <div className="flex justify-between text-sm mb-1">
+                      <span className="font-medium text-gray-800">{c.name}</span>
+                      <span className={`font-bold ${have >= needed ? 'text-green-600' : 'text-gray-600'}`}>
+                        {have >= needed && <CheckCircle2 size={14} className="inline mr-1" />}
+                        {have}/{needed}
+                      </span>
+                    </div>
+                    <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                      <div className={`h-full rounded-full transition-all ${have >= needed ? 'bg-green-500' : 'bg-primary-500'}`} style={{ width: `${pct}%` }} />
+                    </div>
+                    <p className="text-[10px] text-primary-500 mt-1">
+                      {isExpanded ? '▼ Скрыть места' : `▶ Где взять (${compLocations.length})`}
+                    </p>
+                  </button>
+                  {isExpanded && compLocations.length > 0 && (
+                    <div className="px-3 pb-3 space-y-1">
+                      {compLocations.map((loc, i) => (
+                        <div key={i} className="px-2 py-1.5 bg-amber-50 rounded-lg">
+                          <div className="flex items-center gap-1.5 text-xs">
+                            <MapPin size={11} className="text-amber-500 flex-shrink-0" />
+                            <span className="font-medium text-gray-800 flex-1">
+                              {loc.source_type === 'shelf'
+                                ? `${loc.warehouse_name} → ${loc.rack_name} → ${loc.shelf_code}`
+                                : `${loc.warehouse_name} → ${loc.row_name} → ${loc.pallet_name}`}
+                            </span>
+                            <span className="text-amber-600 font-bold flex-shrink-0">{fmtQty(loc.quantity)} шт</span>
+                          </div>
+                        </div>
+                      ))}
+                      {compLocations.length === 0 && (
+                        <p className="text-xs text-red-500 px-2">Не найден на складах</p>
+                      )}
+                    </div>
+                  )}
+                  {isExpanded && compLocations.length === 0 && (
+                    <p className="text-xs text-red-500 px-3 pb-3">Не найден на складах</p>
+                  )}
                 </div>
               );
             })}
@@ -401,8 +446,8 @@ export default function AssemblyPage() {
           {/* Scan steps */}
           {pickStep === 'pallet' && (
             <div className="space-y-2">
-              <p className="text-xs font-semibold text-primary-600 uppercase">Шаг 1 · Отсканируйте паллет</p>
-              <ScanInput onScan={handleScanPallet} disabled={actionLoading} placeholder="ШК паллета..." />
+              <p className="text-xs font-semibold text-primary-600 uppercase">Шаг 1 · Отсканируйте паллет или полку</p>
+              <ScanInput onScan={handleScanPallet} disabled={actionLoading} placeholder="ШК паллета или полки..." />
             </div>
           )}
 

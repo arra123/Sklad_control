@@ -175,10 +175,12 @@ router.get('/:id/source-boxes', requireAuth, async (req, res) => {
     const componentIds = comps.rows.map(c => c.component_id);
     if (componentIds.length === 0) return res.json([]);
 
+    // Pallet boxes
     const boxes = await pool.query(
       `SELECT b.id as box_id, b.barcode_value as box_barcode, b.pallet_id, bi.product_id, bi.quantity,
               p.name as product_name, p.code as product_code,
-              pa.name as pallet_name, pa.barcode_value as pallet_barcode, pr.name as row_name, w.name as warehouse_name
+              pa.name as pallet_name, pa.barcode_value as pallet_barcode, pr.name as row_name, w.name as warehouse_name,
+              'pallet' as source_type
        FROM box_items_s bi
        JOIN boxes_s b ON b.id = bi.box_id
        JOIN products_s p ON p.id = bi.product_id
@@ -189,7 +191,26 @@ router.get('/:id/source-boxes', requireAuth, async (req, res) => {
        ORDER BY p.name, w.name, pa.name`,
       [componentIds]
     );
-    res.json(boxes.rows);
+
+    // Shelf items
+    const shelves = await pool.query(
+      `SELECT si.product_id, si.quantity, si.shelf_id,
+              s.code as shelf_code, s.barcode_value as shelf_barcode,
+              r.name as rack_name, r.id as rack_id,
+              w.name as warehouse_name, w.id as warehouse_id,
+              p.name as product_name, p.code as product_code,
+              'shelf' as source_type
+       FROM shelf_items_s si
+       JOIN shelves_s s ON s.id = si.shelf_id
+       JOIN racks_s r ON r.id = s.rack_id
+       JOIN warehouses_s w ON w.id = r.warehouse_id
+       JOIN products_s p ON p.id = si.product_id
+       WHERE si.product_id = ANY($1) AND si.quantity > 0 AND w.active = true
+       ORDER BY p.name, w.name, r.name, s.code`,
+      [componentIds]
+    );
+
+    res.json([...boxes.rows, ...shelves.rows]);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -214,9 +235,9 @@ router.post('/:id/start-picking', requireAuth, async (req, res) => {
   }
 });
 
-// ─── POST /:id/scan-pick — Scan item from pallet box ───────────────────────
+// ─── POST /:id/scan-pick — Scan item from pallet box or shelf ───────────────
 router.post('/:id/scan-pick', requireAuth, async (req, res) => {
-  const { barcode, box_id } = req.body;
+  const { barcode, box_id, shelf_id } = req.body;
   if (!barcode) return res.status(400).json({ error: 'barcode обязателен' });
 
   const client = await pool.connect();
@@ -234,19 +255,26 @@ router.post('/:id/scan-pick', requireAuth, async (req, res) => {
       [task.rows[0].bundle_product_id, product.id]);
     if (!comp.rows.length) { await client.query('ROLLBACK'); client.release(); return res.status(400).json({ error: `${product.name} не входит в состав комплекта` }); }
 
-    // Decrease quantity in box
+    // Decrease quantity from source
     if (box_id) {
       const upd = await client.query(
         'UPDATE box_items_s SET quantity = quantity - 1 WHERE box_id = $1 AND product_id = $2 AND quantity > 0 RETURNING quantity',
         [box_id, product.id]);
       if (!upd.rows.length) { await client.query('ROLLBACK'); client.release(); return res.status(400).json({ error: 'В коробке нет этого товара' }); }
-
-      // Log movement
       const boxInfo = await client.query('SELECT pallet_id FROM boxes_s WHERE id = $1', [box_id]);
       await client.query(
         `INSERT INTO movements_s (movement_type, product_id, quantity, from_box_id, from_pallet_id, performed_by, source, notes)
          VALUES ('bundle_pick', $1, 1, $2, $3, $4, 'task', $5)`,
         [product.id, box_id, boxInfo.rows[0]?.pallet_id, req.user.id, `task:${req.params.id}`]);
+    } else if (shelf_id) {
+      const upd = await client.query(
+        'UPDATE shelf_items_s SET quantity = quantity - 1 WHERE shelf_id = $1 AND product_id = $2 AND quantity > 0 RETURNING quantity',
+        [shelf_id, product.id]);
+      if (!upd.rows.length) { await client.query('ROLLBACK'); client.release(); return res.status(400).json({ error: 'На полке нет этого товара' }); }
+      await client.query(
+        `INSERT INTO movements_s (movement_type, product_id, quantity, from_shelf_id, performed_by, source, notes)
+         VALUES ('bundle_pick', $1, 1, $2, $3, 'task', $4)`,
+        [product.id, shelf_id, req.user.id, `task:${req.params.id}`]);
     }
 
     // Record picked item
