@@ -766,9 +766,43 @@ function CreateTaskModal({ open, onClose, onSuccess }) {
   const [bundleAvailableLocations, setBundleAvailableLocations] = useState([]);
   const [bundleSelectedSources, setBundleSelectedSources] = useState([]);
   const [bundleSourceLoading, setBundleSourceLoading] = useState(false);
+  // Destination cascading selectors
+  const [destPickWh, setDestPickWh] = useState('');
+  const [destPickRack, setDestPickRack] = useState('');
+  const [destPickShelf, setDestPickShelf] = useState('');
+  const [destPickRow, setDestPickRow] = useState('');
+  const [destPickPallet, setDestPickPallet] = useState('');
+  const [destRacks, setDestRacks] = useState([]);
+  const [destShelves, setDestShelves] = useState([]);
+  const [destRows, setDestRows] = useState([]);
+  const [destPallets, setDestPallets] = useState([]);
+  const destPickWhData = warehouses.find(w => String(w.id) === destPickWh);
   const [bundleSourceWh, setBundleSourceWh] = useState('');
   const [bundleSourcePallets, setBundleSourcePallets] = useState([]);
   const [bundleSourcePallet, setBundleSourcePallet] = useState('');
+
+  // Load destination racks/rows when warehouse selected
+  useEffect(() => {
+    if (!destPickWh) { setDestRacks([]); setDestShelves([]); setDestRows([]); setDestPallets([]); return; }
+    if (destPickWhData?.warehouse_type === 'fbs' || destPickWhData?.warehouse_type === 'both') {
+      api.get(`/warehouse/warehouses/${destPickWh}`).then(r => setDestRacks(r.data.racks || [])).catch(() => {});
+    }
+    if (destPickWhData?.warehouse_type === 'fbo' || destPickWhData?.warehouse_type === 'both') {
+      api.get(`/fbo/warehouses/${destPickWh}`).then(r => setDestRows(r.data.rows || [])).catch(() => {});
+    }
+  }, [destPickWh, destPickWhData?.warehouse_type]);
+
+  useEffect(() => {
+    if (!destPickRack) { setDestShelves([]); return; }
+    const rack = destRacks.find(r => String(r.id) === destPickRack);
+    setDestShelves(rack?.shelves || []);
+  }, [destPickRack, destRacks]);
+
+  useEffect(() => {
+    if (!destPickRow) { setDestPallets([]); return; }
+    const row = destRows.find(r => String(r.id) === destPickRow);
+    setDestPallets(row?.pallets || []);
+  }, [destPickRow, destRows]);
 
   // Close bundle dropdown on outside click
   const bundleDropRef = useRef(null);
@@ -1230,19 +1264,58 @@ function CreateTaskModal({ open, onClose, onSuccess }) {
               </div>
             ))}
 
-            {/* Add destination */}
-            <div className="flex gap-2 mb-2">
-              <div className="flex-1">
-                <SearchSelect value={bundleDestWh} placeholder="Добавить склад..."
-                  onChange={v => {
-                    if (v && !bundleDestList.some(d => d.id === v)) {
-                      const wh = warehouses.find(w => String(w.id) === v);
-                      if (wh) setBundleDestList(prev => [...prev, { id: String(wh.id), label: wh.name }]);
-                    }
-                    setBundleDestWh('');
-                  }}
-                  options={warehouses.filter(w => w.active !== false && !bundleDestList.some(d => d.id === String(w.id))).map(w => ({ value: String(w.id), label: w.name }))} />
-              </div>
+            {/* Cascading selector: warehouse → rack/row → shelf/pallet */}
+            <div className="space-y-2 mb-2">
+              <SearchSelect value={destPickWh} placeholder="Склад..."
+                onChange={v => { setDestPickWh(v); setDestPickRack(''); setDestPickRow(''); setDestPickShelf(''); setDestPickPallet(''); }}
+                options={warehouses.filter(w => w.active !== false).map(w => ({ value: String(w.id), label: w.name }))} />
+
+              {destPickWh && destPickWhData && (destPickWhData.warehouse_type === 'fbs' || destPickWhData.warehouse_type === 'both') && (
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <SearchSelect value={destPickRack} placeholder="Стеллаж..."
+                      onChange={v => { setDestPickRack(v); setDestPickShelf(''); }}
+                      options={destRacks.map(r => ({ value: String(r.id), label: r.name }))} />
+                  </div>
+                  {destPickRack && (
+                    <div className="flex-1">
+                      <SearchSelect value={destPickShelf} placeholder="Полка..."
+                        onChange={v => setDestPickShelf(v)}
+                        options={destShelves.map(s => ({ value: String(s.id), label: s.code || s.name }))} />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {destPickWh && destPickWhData && (destPickWhData.warehouse_type === 'fbo' || destPickWhData.warehouse_type === 'both') && (
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <SearchSelect value={destPickRow} placeholder="Ряд..."
+                      onChange={v => { setDestPickRow(v); setDestPickPallet(''); }}
+                      options={destRows.map(r => ({ value: String(r.id), label: r.name }))} />
+                  </div>
+                  {destPickRow && (
+                    <div className="flex-1">
+                      <SearchSelect value={destPickPallet} placeholder="Паллет..."
+                        onChange={v => setDestPickPallet(v)}
+                        options={destPallets.map(p => ({ value: String(p.id), label: p.name }))} />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {destPickWh && (
+                <Button type="button" variant="outline" size="sm" icon={<Plus size={14} />} onClick={() => {
+                  const wh = warehouses.find(w => String(w.id) === destPickWh);
+                  let label = wh?.name || '';
+                  if (destPickRack) { const r = destRacks.find(x => String(x.id) === destPickRack); if (r) label += ` → ${r.name}`; }
+                  if (destPickShelf) { const s = destShelves.find(x => String(x.id) === destPickShelf); if (s) label += ` → ${s.code || s.name}`; }
+                  if (destPickRow) { const r = destRows.find(x => String(x.id) === destPickRow); if (r) label += ` → ${r.name}`; }
+                  if (destPickPallet) { const p = destPallets.find(x => String(x.id) === destPickPallet); if (p) label += ` → ${p.name}`; }
+                  setBundleDestList(prev => [...prev, { label, warehouse_id: destPickWh, shelf_id: destPickShelf || null, pallet_id: destPickPallet || null }]);
+                  setDestPickWh(''); setDestPickRack(''); setDestPickShelf(''); setDestPickRow(''); setDestPickPallet('');
+                }}>Добавить место</Button>
+              )}
             </div>
 
             <label className="flex items-center gap-2 cursor-pointer">
