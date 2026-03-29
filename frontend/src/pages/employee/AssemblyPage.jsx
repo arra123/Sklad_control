@@ -347,7 +347,7 @@ export default function AssemblyPage() {
                   <div key={i} className="px-2 py-1 bg-white/60 rounded-lg">
                     <div className="flex items-center gap-1.5 text-xs">
                       <MapPin size={11} className="text-amber-500 flex-shrink-0" />
-                      <span className="font-medium text-gray-800">{b.warehouse_name} → {b.row_name} → {b.pallet_name}</span>
+                      <span className="font-medium text-gray-800">{b.warehouse_name} → {b.source_type === 'shelf' ? `${b.rack_name} → ${b.shelf_code}` : `${b.row_name} → ${b.pallet_name}`}</span>
                       <span className="text-amber-600 font-bold ml-auto flex-shrink-0">{fmtQty(b.quantity)} шт</span>
                     </div>
                     <p className="text-xs text-gray-600 mt-0.5 pl-4">{b.product_name?.replace(/GraFLab,?\s*/i, '').trim()}</p>
@@ -433,7 +433,7 @@ export default function AssemblyPage() {
                   <div key={i} className="px-2 py-1.5 bg-white/60 rounded-lg">
                     <div className="flex items-center gap-1.5 text-xs">
                       <MapPin size={11} className="text-amber-500 flex-shrink-0" />
-                      <span className="font-medium text-gray-800">{b.warehouse_name} → {b.row_name} → {b.pallet_name}</span>
+                      <span className="font-medium text-gray-800">{b.warehouse_name} → {b.source_type === 'shelf' ? `${b.rack_name} → ${b.shelf_code}` : `${b.row_name} → ${b.pallet_name}`}</span>
                       <span className="text-amber-600 font-bold ml-auto flex-shrink-0">{fmtQty(b.quantity)} шт</span>
                     </div>
                     <p className="text-xs text-gray-600 mt-0.5 pl-4">{b.product_name?.replace(/GraFLab,?\s*/i, '').trim()}</p>
