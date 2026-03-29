@@ -750,21 +750,27 @@ function CreateTaskModal({ open, onClose, onSuccess }) {
     : 'Создать задачу инвентаризации';
 
   // Bundle assembly state
-  const [bundleSearch, setBundleSearch] = useState('');
-  const [bundleResults, setBundleResults] = useState([]);
+  const [bundles, setBundles] = useState([]);
   const [selectedBundle, setSelectedBundle] = useState(null);
   const [bundleQty, setBundleQty] = useState('10');
   const [bundleEmployee, setBundleEmployee] = useState('');
+  const [bundleComponents, setBundleComponents] = useState([]);
 
+  // Load all bundles when switching to bundle_assembly
   useEffect(() => {
-    if (taskType !== 'bundle_assembly' || bundleSearch.length < 2) { setBundleResults([]); return; }
-    const t = setTimeout(() => {
-      api.get(`/products?search=${encodeURIComponent(bundleSearch)}&type=bundle&limit=10`)
-        .then(r => setBundleResults(r.data.items || []))
-        .catch(() => {});
-    }, 300);
-    return () => clearTimeout(t);
-  }, [bundleSearch, taskType]);
+    if (taskType !== 'bundle_assembly' || !open) return;
+    api.get('/products?type=bundle&limit=200')
+      .then(r => setBundles(r.data.items || []))
+      .catch(() => {});
+  }, [taskType, open]);
+
+  // Load components when bundle selected
+  useEffect(() => {
+    if (!selectedBundle) { setBundleComponents([]); return; }
+    api.get(`/products/${selectedBundle.id}`)
+      .then(r => setBundleComponents(r.data.components || []))
+      .catch(() => {});
+  }, [selectedBundle]);
 
   const handleSubmitAssembly = async (e) => {
     e.preventDefault();
@@ -1055,37 +1061,26 @@ function CreateTaskModal({ open, onClose, onSuccess }) {
 
       {taskType === 'bundle_assembly' && (
         <form id="task-form" onSubmit={handleSubmitAssembly} className="space-y-4">
-          {/* Bundle selection */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Комплект *</label>
-            {selectedBundle ? (
-              <div className="flex items-center gap-3 p-3 bg-green-50 rounded-xl border border-green-100">
-                <Package size={16} className="text-green-500 flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">{selectedBundle.name}</p>
-                  <p className="text-xs text-gray-400">{selectedBundle.code}</p>
+          {/* Bundle select */}
+          <SearchSelect label="Комплект *" value={selectedBundle ? String(selectedBundle.id) : ''} placeholder="Выберите комплект..."
+            onChange={v => {
+              const b = bundles.find(x => String(x.id) === v);
+              setSelectedBundle(b || null);
+            }}
+            options={bundles.map(b => ({ value: String(b.id), label: b.name }))} />
+
+          {/* Show components */}
+          {bundleComponents.length > 0 && (
+            <div className="bg-gray-50 rounded-xl p-3">
+              <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Состав комплекта:</p>
+              {bundleComponents.map(c => (
+                <div key={c.id || c.bc_id} className="flex justify-between py-1 text-sm">
+                  <span className="text-gray-800 truncate">{c.name}</span>
+                  <span className="font-bold text-gray-600 flex-shrink-0">× {Number(c.quantity) || 1}</span>
                 </div>
-                <button type="button" onClick={() => { setSelectedBundle(null); setBundleSearch(''); }}
-                  className="text-gray-400 hover:text-red-500"><X size={14} /></button>
-              </div>
-            ) : (
-              <div>
-                <input value={bundleSearch} onChange={e => setBundleSearch(e.target.value)}
-                  placeholder="Найти комплект..." className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:border-primary-400 focus:outline-none" />
-                {bundleResults.length > 0 && (
-                  <div className="mt-1 border border-gray-200 rounded-xl overflow-hidden max-h-40 overflow-y-auto">
-                    {bundleResults.map(p => (
-                      <button key={p.id} type="button" onClick={() => { setSelectedBundle(p); setBundleSearch(''); setBundleResults([]); }}
-                        className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-primary-50 text-sm">
-                        <span className="font-medium text-gray-800 truncate">{p.name}</span>
-                        <span className="text-xs text-gray-400 flex-shrink-0">{p.code}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+              ))}
+            </div>
+          )}
 
           <Input label="Количество комплектов *" type="number" min="1" value={bundleQty}
             onChange={e => setBundleQty(e.target.value)} required />
