@@ -92,10 +92,11 @@ export default function AssemblyPage() {
   const [componentStatus, setComponentStatus] = useState([]);
   const [printBarcode, setPrintBarcode] = useState(null);
   const [placeDest, setPlaceDest] = useState(null);
-  const [scannedPallet, setScannedPallet] = useState(null); // {pallet_id, name}
-  const [scannedBox, setScannedBox] = useState(null); // {box_id, barcode, pallet_name, product_name, qty}
-  const [pickStep, setPickStep] = useState('pallet');
-  const [expandedComponent, setExpandedComponent] = useState(null); // product_id to show locations
+  const [scannedPallet, setScannedPallet] = useState(null);
+  const [scannedBox, setScannedBox] = useState(null);
+  const [pickStep, setPickStep] = useState('choose'); // 'choose' → 'location' → 'items'
+  const [activeComponent, setActiveComponent] = useState(null); // current component being picked
+  const [expandedComponent, setExpandedComponent] = useState(null);
 
   const loadTask = useCallback(async () => {
     try {
@@ -181,7 +182,7 @@ export default function AssemblyPage() {
           return;
         }
         setScannedPallet({ shelf_id: shelfId, name: d.name, warehouse: d.location, type: 'shelf' });
-        setPickStep('item');
+        setPickStep('items');
         toast.success(d.location + ' · ' + d.name);
       } else {
         toast.error('Отсканируйте паллет или полку');
@@ -195,7 +196,7 @@ export default function AssemblyPage() {
     const box = sourceBoxes.find(b => b.box_barcode === barcode && (!scannedPallet || b.pallet_id === scannedPallet.pallet_id));
     if (box) {
       setScannedBox(box);
-      setPickStep('item');
+      setPickStep('items');
       toast.success(`Коробка: ${box.product_name} · ${fmtQty(box.quantity)} шт`);
     } else {
       toast.error('Коробка не найдена на этом паллете');
@@ -203,7 +204,18 @@ export default function AssemblyPage() {
   };
 
   const handleScanPick = async (barcode) => {
-    if (!scannedBox && !scannedPallet?.shelf_id) { toast.error('Сначала отсканируйте коробку или полку'); return; }
+    if (!scannedBox && !scannedPallet?.shelf_id) { toast.error('Сначала отсканируйте место'); return; }
+
+    // Check if active component already fully picked
+    if (activeComponent) {
+      const needed = Number(activeComponent.quantity) * (task?.bundle_qty || 1);
+      const have = pickedMap[activeComponent.component_id] || 0;
+      if (have >= needed) {
+        toast.error(`${activeComponent.name} уже набран (${have}/${needed}). Нажмите «Далее»`);
+        return;
+      }
+    }
+
     setActionLoading(true);
     try {
       const res = await api.post(`/assembly/${id}/scan-pick`, {
@@ -214,12 +226,14 @@ export default function AssemblyPage() {
       toast.success(`✓ ${res.data.product}`);
       await loadTask();
       await loadSourceBoxes();
+
+      // Check if this component is now fully picked → auto show "next" prompt
     } catch (err) { toast.error(err.response?.data?.error || 'Ошибка сканирования'); }
     finally { setActionLoading(false); }
   };
 
   const resetPickScan = () => {
-    setScannedPallet(null); setScannedBox(null); setPickStep('pallet');
+    setScannedPallet(null); setScannedBox(null); setPickStep('choose'); setActiveComponent(null);
   };
 
   const handleStartAssembly = async () => {
@@ -373,117 +387,118 @@ export default function AssemblyPage() {
       {/* ═══ PICKING ═══ */}
       {phase === 'picking' && task.status === 'in_progress' && (
         <div className="space-y-4">
-          <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
-            <p className="text-sm font-bold text-blue-800">Заберите товар со склада</p>
-            <p className="text-xs text-blue-600 mt-1">Паллет → Коробка → Баночка</p>
-          </div>
-
-          {/* Progress per component — clickable to see locations */}
+          {/* Overall progress */}
           <div className="space-y-2">
             {components.map(c => {
               const needed = Number(c.quantity) * task.bundle_qty;
               const have = pickedMap[c.component_id] || 0;
-              const pct = Math.min(100, (have / needed) * 100);
-              const isExpanded = expandedComponent === c.component_id;
-              const compLocations = sourceBoxes.filter(b => b.product_id === c.component_id);
+              const done = have >= needed;
+              const isActive = activeComponent?.component_id === c.component_id;
               return (
-                <div key={c.component_id} className="bg-white border border-gray-100 rounded-xl overflow-hidden">
-                  <button type="button" onClick={() => setExpandedComponent(isExpanded ? null : c.component_id)}
-                    className="w-full text-left p-3">
-                    <div className="flex justify-between text-sm mb-1">
-                      <span className="font-medium text-gray-800">{c.name}</span>
-                      <span className={`font-bold ${have >= needed ? 'text-green-600' : 'text-gray-600'}`}>
-                        {have >= needed && <CheckCircle2 size={14} className="inline mr-1" />}
-                        {have}/{needed}
-                      </span>
-                    </div>
-                    <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                      <div className={`h-full rounded-full transition-all ${have >= needed ? 'bg-green-500' : 'bg-primary-500'}`} style={{ width: `${pct}%` }} />
-                    </div>
-                    <p className="text-[10px] text-primary-500 mt-1">
-                      {isExpanded ? '▼ Скрыть места' : `▶ Где взять (${compLocations.length})`}
-                    </p>
-                  </button>
-                  {isExpanded && compLocations.length > 0 && (
-                    <div className="px-3 pb-3 space-y-1">
-                      {compLocations.map((loc, i) => (
-                        <div key={i} className="px-2 py-1.5 bg-amber-50 rounded-lg">
-                          <div className="flex items-center gap-1.5 text-xs">
-                            <MapPin size={11} className="text-amber-500 flex-shrink-0" />
-                            <span className="font-medium text-gray-800 flex-1">
-                              {loc.source_type === 'shelf'
-                                ? `${loc.warehouse_name} → ${loc.rack_name} → ${loc.shelf_code}`
-                                : `${loc.warehouse_name} → ${loc.row_name} → ${loc.pallet_name}`}
-                            </span>
-                            <span className="text-amber-600 font-bold flex-shrink-0">{fmtQty(loc.quantity)} шт</span>
-                          </div>
-                        </div>
-                      ))}
-                      {compLocations.length === 0 && (
-                        <p className="text-xs text-red-500 px-2">Не найден на складах</p>
-                      )}
-                    </div>
-                  )}
-                  {isExpanded && compLocations.length === 0 && (
-                    <p className="text-xs text-red-500 px-3 pb-3">Не найден на складах</p>
-                  )}
+                <div key={c.component_id} className={`rounded-xl border overflow-hidden ${isActive ? 'border-primary-300 bg-primary-50/30' : done ? 'border-green-200 bg-green-50/30' : 'border-gray-100 bg-white'}`}>
+                  <div className="flex items-center gap-3 px-3 py-2.5">
+                    {done ? <CheckCircle2 size={18} className="text-green-500 flex-shrink-0" /> : <Package size={18} className="text-gray-300 flex-shrink-0" />}
+                    <span className="text-sm font-medium text-gray-800 flex-1 truncate">{c.name}</span>
+                    <span className={`text-sm font-bold ${done ? 'text-green-600' : 'text-gray-500'}`}>{have}/{needed}</span>
+                  </div>
                 </div>
               );
             })}
           </div>
 
-          {/* Where to find — hidden by default, expand on click */}
-
-          {/* Scan steps */}
-          {pickStep === 'pallet' && (
+          {/* Step: Choose component */}
+          {pickStep === 'choose' && (
             <div className="space-y-2">
-              <p className="text-xs font-semibold text-primary-600 uppercase">Шаг 1 · Отсканируйте паллет или полку</p>
-              <ScanInput onScan={handleScanPallet} disabled={actionLoading} placeholder="ШК паллета или полки..." />
+              <p className="text-xs font-semibold text-primary-600 uppercase">Выберите что забрать:</p>
+              {components.filter(c => (pickedMap[c.component_id] || 0) < Number(c.quantity) * task.bundle_qty).map(c => {
+                const compLocs = sourceBoxes.filter(b => b.product_id === c.component_id);
+                return (
+                  <button key={c.component_id} type="button"
+                    onClick={() => { setActiveComponent(c); setPickStep('location'); setExpandedComponent(null); }}
+                    className="w-full text-left px-4 py-3 rounded-xl border border-gray-200 hover:border-primary-300 hover:bg-primary-50/30 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <Package size={16} className="text-primary-400 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-gray-900">{c.name?.replace(/GraFLab,?\s*/i,'').trim()}</p>
+                        <p className="text-xs text-gray-400">Нужно: {Number(c.quantity) * task.bundle_qty} · Мест: {compLocs.length}</p>
+                      </div>
+                      <ChevronRight size={16} className="text-gray-300" />
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           )}
 
+          {/* Step: Scan location for active component */}
+          {pickStep === 'location' && activeComponent && (
+            <div className="space-y-3">
+              <div className="bg-primary-50 border border-primary-100 rounded-xl p-3">
+                <p className="text-sm font-bold text-primary-800">Забираем: {activeComponent.name?.replace(/GraFLab,?\s*/i,'').trim()}</p>
+                <p className="text-xs text-primary-600">Набрано: {pickedMap[activeComponent.component_id] || 0} / {Number(activeComponent.quantity) * task.bundle_qty}</p>
+              </div>
+
+              {/* Available locations for this component */}
+              <div className="space-y-1">
+                {sourceBoxes.filter(b => b.product_id === activeComponent.component_id).map((loc, i) => (
+                  <div key={i} className="px-2 py-1.5 bg-amber-50 rounded-lg text-xs">
+                    <div className="flex items-center gap-1.5">
+                      <MapPin size={11} className="text-amber-500 flex-shrink-0" />
+                      <span className="font-medium text-gray-800 flex-1">
+                        {loc.source_type === 'shelf' ? `${loc.warehouse_name} → ${loc.rack_name} → ${loc.shelf_code}` : `${loc.warehouse_name} → ${loc.row_name} → ${loc.pallet_name}`}
+                      </span>
+                      <span className="text-amber-600 font-bold">{fmtQty(loc.quantity)} шт</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <p className="text-xs font-semibold text-gray-500 uppercase">Отсканируйте паллет или полку</p>
+              <ScanInput onScan={handleScanPallet} disabled={actionLoading} placeholder="ШК паллета или полки..." />
+              <button onClick={resetPickScan} className="text-xs text-gray-400 hover:text-gray-600">← Назад к выбору</button>
+            </div>
+          )}
+
+          {/* Step: Scan box (only for pallet) */}
           {pickStep === 'box' && scannedPallet && (
             <div className="space-y-2">
-              <div className="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-100 rounded-xl">
-                <MapPin size={14} className="text-green-500" />
-                <span className="text-sm font-medium text-green-800 flex-1">{scannedPallet.warehouse} · {scannedPallet.name}</span>
-                <button onClick={resetPickScan} className="text-gray-400 hover:text-red-500"><X size={14} /></button>
+              <div className="bg-primary-50 border border-primary-100 rounded-xl p-3">
+                <p className="text-sm font-bold text-primary-800">Забираем: {activeComponent?.name?.replace(/GraFLab,?\s*/i,'').trim()}</p>
+                <p className="text-xs text-primary-600">{scannedPallet.warehouse} · {scannedPallet.name}</p>
               </div>
-              <p className="text-xs font-semibold text-primary-600 uppercase">Шаг 2 · Отсканируйте коробку</p>
-              {/* Show boxes on this pallet */}
-              {sourceBoxes.filter(b => b.pallet_id === scannedPallet.pallet_id).length > 0 && (
-                <div className="space-y-1">
-                  {sourceBoxes.filter(b => b.pallet_id === scannedPallet.pallet_id).map((b, i) => (
-                    <div key={i} className="flex items-center gap-2 px-2 py-1 text-xs bg-gray-50 rounded-lg">
-                      <Box size={11} className="text-gray-400" />
-                      <span className="text-gray-600 flex-1">{b.product_name?.replace(/GraFLab,?\s*/i,'').slice(0, 22)}</span>
-                      <span className="text-gray-400">{fmtQty(b.quantity)} шт</span>
-                    </div>
-                  ))}
-                </div>
-              )}
+              <p className="text-xs font-semibold text-gray-500 uppercase">Отсканируйте коробку</p>
               <ScanInput onScan={handleScanPickBox} disabled={actionLoading} placeholder="ШК коробки..." />
+              <button onClick={() => { setScannedPallet(null); setPickStep('location'); }} className="text-xs text-gray-400 hover:text-gray-600">← Другой паллет</button>
             </div>
           )}
 
-          {pickStep === 'item' && (scannedBox || scannedPallet?.type === 'shelf') && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-100 rounded-xl">
-                {scannedPallet?.type === 'shelf' ? <MapPin size={14} className="text-green-500" /> : <Box size={14} className="text-green-500" />}
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-green-800">
-                    {scannedPallet?.type === 'shelf'
-                      ? `${scannedPallet.warehouse} · ${scannedPallet.name}`
-                      : `${scannedPallet?.name} · ${scannedBox?.product_name?.replace(/GraFLab,?\s*/i,'').slice(0, 22)}`}
-                  </p>
-                  {scannedBox && <p className="text-xs text-green-600">{fmtQty(scannedBox.quantity)} шт</p>}
+          {/* Step: Scan items */}
+          {pickStep === 'items' && (scannedBox || scannedPallet?.type === 'shelf') && activeComponent && (() => {
+            const needed = Number(activeComponent.quantity) * task.bundle_qty;
+            const have = pickedMap[activeComponent.component_id] || 0;
+            const done = have >= needed;
+            return (
+              <div className="space-y-2">
+                <div className="bg-primary-50 border border-primary-100 rounded-xl p-3">
+                  <p className="text-sm font-bold text-primary-800">{activeComponent.name?.replace(/GraFLab,?\s*/i,'').trim()}</p>
+                  <p className="text-xs text-primary-600">{scannedPallet?.warehouse || ''} · {scannedPallet?.name || ''}{scannedBox ? ` · Коробка` : ''}</p>
+                  <div className="h-2 bg-primary-100 rounded-full mt-2 overflow-hidden">
+                    <div className="h-full bg-primary-500 rounded-full transition-all" style={{ width: `${Math.min(100, (have / needed) * 100)}%` }} />
+                  </div>
+                  <p className="text-xs text-primary-700 font-bold mt-1">{have} / {needed}</p>
                 </div>
-                <button onClick={resetPickScan} className="text-gray-400 hover:text-red-500"><X size={14} /></button>
+
+                {!done && <ScanInput onScan={handleScanPick} disabled={actionLoading} placeholder="ШК баночки..." />}
+
+                {done && (
+                  <Button onClick={() => { resetPickScan(); }} size="lg" className="w-full" variant="success">
+                    ✓ {activeComponent.name?.replace(/GraFLab,?\s*/i,'').slice(0,20)} набран — далее
+                  </Button>
+                )}
+                {!done && <button onClick={resetPickScan} className="text-xs text-gray-400 hover:text-gray-600">← Назад к выбору</button>}
               </div>
-              <p className="text-xs font-semibold text-primary-600 uppercase">{scannedPallet?.type === 'shelf' ? 'Шаг 2' : 'Шаг 3'} · Сканируйте баночки</p>
-              <ScanInput onScan={handleScanPick} disabled={actionLoading} placeholder="ШК баночки..." />
-            </div>
-          )}
+            );
+          })()}
 
           {allPicked && (
             <Button onClick={handleStartAssembly} loading={actionLoading} size="lg" className="w-full" variant="success">
