@@ -761,6 +761,8 @@ function CreateTaskModal({ open, onClose, onSuccess }) {
   const [bundleDestWh, setBundleDestWh] = useState('');
   const [bundleSearch, setBundleSearch] = useState('');
   const [bundleDropOpen, setBundleDropOpen] = useState(false);
+  const [bundleDestList, setBundleDestList] = useState([]); // [{id, label}]
+  const [bundleDestEmployeeChoice, setBundleDestEmployeeChoice] = useState(false);
   const [bundleSourceWh, setBundleSourceWh] = useState('');
   const [bundleSourcePallets, setBundleSourcePallets] = useState([]);
   const [bundleSourcePallet, setBundleSourcePallet] = useState('');
@@ -1183,9 +1185,36 @@ function CreateTaskModal({ open, onClose, onSuccess }) {
           {/* 5. Куда положить */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Куда положить</label>
-            <SearchSelect value={bundleDestWh} placeholder="Выберите склад..."
-              onChange={v => setBundleDestWh(v)}
-              options={warehouses.filter(w => w.active !== false).map(w => ({ value: String(w.id), label: w.name }))} />
+
+            {/* Selected destinations */}
+            {bundleDestList.map((d, i) => (
+              <div key={i} className="flex items-center gap-2 mb-2 px-3 py-2 bg-blue-50 border border-blue-100 rounded-xl">
+                <MapPin size={14} className="text-blue-500 flex-shrink-0" />
+                <span className="text-sm text-gray-800 flex-1">{d.label}</span>
+                <button type="button" onClick={() => setBundleDestList(prev => prev.filter((_, j) => j !== i))} className="text-gray-400 hover:text-red-500"><X size={14} /></button>
+              </div>
+            ))}
+
+            {/* Add destination */}
+            <div className="flex gap-2 mb-2">
+              <div className="flex-1">
+                <SearchSelect value={bundleDestWh} placeholder="Добавить склад..."
+                  onChange={v => {
+                    if (v && !bundleDestList.some(d => d.id === v)) {
+                      const wh = warehouses.find(w => String(w.id) === v);
+                      if (wh) setBundleDestList(prev => [...prev, { id: String(wh.id), label: wh.name }]);
+                    }
+                    setBundleDestWh('');
+                  }}
+                  options={warehouses.filter(w => w.active !== false && !bundleDestList.some(d => d.id === String(w.id))).map(w => ({ value: String(w.id), label: w.name }))} />
+              </div>
+            </div>
+
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={bundleDestEmployeeChoice} onChange={e => setBundleDestEmployeeChoice(e.target.checked)}
+                className="w-4 h-4 rounded border-gray-300 text-primary-500 focus:ring-primary-400" />
+              <span className="text-sm text-gray-600">Остаток на усмотрение сотрудника</span>
+            </label>
           </div>
 
           {/* 6. Примечание */}
