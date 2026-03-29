@@ -356,7 +356,7 @@ export default function AssemblyPage() {
     if (!placeDest) { toast.error('Сначала отсканируйте место назначения'); return; }
     setActionLoading(true);
     try {
-      const res = await api.post(`/assembly/${id}/scan-place`, placeDest);
+      const res = await api.post(`/assembly/${id}/scan-place`, { ...placeDest, barcode });
       toast.success(`Размещено ${res.data.placed_count}/${res.data.total}`);
       if (res.data.phase === 'completed') {
         toast.success('Задача завершена!');

@@ -245,6 +245,7 @@ router.post('/:id/scan-pick', requireAuth, async (req, res) => {
     await client.query('BEGIN');
     const task = await client.query('SELECT * FROM inventory_tasks_s WHERE id = $1 AND task_type = $2', [req.params.id, 'bundle_assembly']);
     if (!task.rows.length) { await client.query('ROLLBACK'); client.release(); return res.status(404).json({ error: 'Задача не найдена' }); }
+    if (task.rows[0].assembly_phase !== 'picking') { await client.query('ROLLBACK'); client.release(); return res.status(400).json({ error: 'Задача не в фазе забора' }); }
 
     const product = await resolveProduct(client, barcode);
     if (!product) { await client.query('ROLLBACK'); client.release(); return res.status(400).json({ error: 'Товар не найден по ШК' }); }
@@ -309,8 +310,24 @@ router.post('/:id/scan-pick', requireAuth, async (req, res) => {
 // ─── POST /:id/start-assembling — Switch to assembly phase ─────────────────
 router.post('/:id/start-assembling', requireAuth, async (req, res) => {
   try {
+    const task = await pool.query('SELECT * FROM inventory_tasks_s WHERE id = $1 AND task_type = $2', [req.params.id, 'bundle_assembly']);
+    if (!task.rows.length) return res.status(404).json({ error: 'Задача не найдена' });
+    if (task.rows[0].assembly_phase !== 'picking') return res.status(400).json({ error: 'Задача не в фазе забора' });
+
+    // Verify all components are fully picked
+    const comps = await pool.query('SELECT component_id, quantity FROM bundle_components_s WHERE bundle_id = $1', [task.rows[0].bundle_product_id]);
+    const picked = await pool.query('SELECT product_id, COUNT(*) as cnt FROM assembly_items_s WHERE task_id = $1 GROUP BY product_id', [req.params.id]);
+    const pickedMap = {};
+    picked.rows.forEach(r => { pickedMap[r.product_id] = Number(r.cnt); });
+
+    for (const c of comps.rows) {
+      const needed = Number(c.quantity) * task.rows[0].bundle_qty;
+      const have = pickedMap[c.component_id] || 0;
+      if (have < needed) return res.status(400).json({ error: `Не хватает компонентов: набрано ${have}/${needed}` });
+    }
+
     await pool.query(
-      `UPDATE inventory_tasks_s SET assembly_phase = 'assembling' WHERE id = $1 AND task_type = 'bundle_assembly'`,
+      `UPDATE inventory_tasks_s SET assembly_phase = 'assembling' WHERE id = $1`,
       [req.params.id]);
     res.json({ ok: true });
   } catch (err) {
@@ -324,12 +341,13 @@ router.post('/:id/scan-component', requireAuth, async (req, res) => {
   if (!barcode) return res.status(400).json({ error: 'barcode обязателен' });
 
   try {
-    const task = await pool.query('SELECT * FROM inventory_tasks_s WHERE id = $1', [req.params.id]);
+    const task = await pool.query('SELECT * FROM inventory_tasks_s WHERE id = $1 AND task_type = $2', [req.params.id, 'bundle_assembly']);
     if (!task.rows.length) return res.status(404).json({ error: 'Задача не найдена' });
+    if (task.rows[0].assembly_phase !== 'assembling') return res.status(400).json({ error: 'Задача не в фазе сборки' });
 
     const currentBundle = task.rows[0].assembled_count + 1;
     const product = await resolveProduct(pool, barcode);
-    if (!product) return res.status(400).json({ error: 'Товар не найден' });
+    if (!product) return res.status(400).json({ error: 'Товар не найден по ШК' });
 
     // Find unused picked item of this product
     const item = await pool.query(
@@ -370,8 +388,9 @@ router.post('/:id/confirm-bundle', requireAuth, async (req, res) => {
   if (!barcode) return res.status(400).json({ error: 'barcode обязателен' });
 
   try {
-    const task = await pool.query('SELECT * FROM inventory_tasks_s WHERE id = $1', [req.params.id]);
+    const task = await pool.query('SELECT * FROM inventory_tasks_s WHERE id = $1 AND task_type = $2', [req.params.id, 'bundle_assembly']);
     if (!task.rows.length) return res.status(404).json({ error: 'Задача не найдена' });
+    if (task.rows[0].assembly_phase !== 'assembling') return res.status(400).json({ error: 'Задача не в фазе сборки' });
 
     // Verify barcode belongs to the bundle product
     const bundle = await pool.query('SELECT * FROM products_s WHERE id = $1', [task.rows[0].bundle_product_id]);
@@ -407,16 +426,35 @@ router.post('/:id/start-placing', requireAuth, async (req, res) => {
 
 // ─── POST /:id/scan-place — Place assembled bundle on shelf/pallet ──────────
 router.post('/:id/scan-place', requireAuth, async (req, res) => {
-  const { shelf_id, pallet_id } = req.body;
+  const { shelf_id, pallet_id, barcode } = req.body;
   if (!shelf_id && !pallet_id) return res.status(400).json({ error: 'shelf_id или pallet_id обязателен' });
 
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    const task = await client.query('SELECT * FROM inventory_tasks_s WHERE id = $1', [req.params.id]);
+    const task = await client.query('SELECT * FROM inventory_tasks_s WHERE id = $1 AND task_type = $2', [req.params.id, 'bundle_assembly']);
     if (!task.rows.length) { await client.query('ROLLBACK'); client.release(); return res.status(404).json({ error: 'Задача не найдена' }); }
 
+    if (task.rows[0].assembly_phase !== 'placing') {
+      await client.query('ROLLBACK'); client.release();
+      return res.status(400).json({ error: 'Задача не в фазе размещения' });
+    }
+
+    if (task.rows[0].placed_count >= task.rows[0].bundle_qty) {
+      await client.query('ROLLBACK'); client.release();
+      return res.status(400).json({ error: 'Все комплекты уже размещены' });
+    }
+
     const productId = task.rows[0].bundle_product_id;
+
+    // Verify scanned barcode belongs to bundle product (if provided)
+    if (barcode) {
+      const product = await resolveProduct(client, barcode);
+      if (!product || product.id !== productId) {
+        await client.query('ROLLBACK'); client.release();
+        return res.status(400).json({ error: 'ШК не соответствует комплекту' });
+      }
+    }
 
     if (shelf_id) {
       // Add to shelf
