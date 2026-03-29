@@ -499,10 +499,10 @@ router.post('/:id/start-placing', requireAuth, async (req, res) => {
   }
 });
 
-// ─── POST /:id/scan-place — Place assembled bundle on shelf/pallet ──────────
+// ─── POST /:id/scan-place — Place assembled bundle on shelf/pallet/box ──────
 router.post('/:id/scan-place', requireAuth, async (req, res) => {
-  const { shelf_id, pallet_id, barcode } = req.body;
-  if (!shelf_id && !pallet_id) return res.status(400).json({ error: 'shelf_id или pallet_id обязателен' });
+  const { shelf_id, pallet_id, box_id, barcode } = req.body;
+  if (!shelf_id && !pallet_id && !box_id) return res.status(400).json({ error: 'shelf_id, pallet_id или box_id обязателен' });
 
   const client = await pool.connect();
   try {
@@ -530,8 +530,17 @@ router.post('/:id/scan-place', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'ШК не соответствует комплекту. Сканируйте ШК собранного комплекта' });
     }
 
-    if (shelf_id) {
-      // Add to shelf
+    if (box_id) {
+      // Add to box on pallet
+      const existing = await client.query('SELECT id, quantity FROM box_items_s WHERE box_id = $1 AND product_id = $2', [box_id, productId]);
+      if (existing.rows.length) {
+        await client.query('UPDATE box_items_s SET quantity = quantity + 1 WHERE id = $1', [existing.rows[0].id]);
+      } else {
+        await client.query('INSERT INTO box_items_s (box_id, product_id, quantity) VALUES ($1, $2, 1)', [box_id, productId]);
+      }
+      // Also update box quantity
+      await client.query('UPDATE boxes_s SET quantity = quantity + 1 WHERE id = $1', [box_id]);
+    } else if (shelf_id) {
       const existing = await client.query('SELECT id, quantity FROM shelf_items_s WHERE shelf_id = $1 AND product_id = $2', [shelf_id, productId]);
       if (existing.rows.length) {
         await client.query('UPDATE shelf_items_s SET quantity = quantity + 1 WHERE id = $1', [existing.rows[0].id]);
@@ -548,10 +557,11 @@ router.post('/:id/scan-place', requireAuth, async (req, res) => {
     }
 
     // Log movement
+    const boxPalletId = box_id ? (await client.query('SELECT pallet_id FROM boxes_s WHERE id=$1', [box_id])).rows[0]?.pallet_id : null;
     await client.query(
-      `INSERT INTO movements_s (movement_type, product_id, quantity, to_shelf_id, to_pallet_id, performed_by, source, notes)
-       VALUES ('bundle_place', $1, 1, $2, $3, $4, 'task', $5)`,
-      [productId, shelf_id || null, pallet_id || null, req.user.id, `task:${req.params.id}`]);
+      `INSERT INTO movements_s (movement_type, product_id, quantity, to_shelf_id, to_pallet_id, to_box_id, performed_by, source, notes)
+       VALUES ('bundle_place', $1, 1, $2, $3, $4, $5, 'task', $6)`,
+      [productId, shelf_id || null, pallet_id || boxPalletId || null, box_id || null, req.user.id, `task:${req.params.id}`]);
 
     const newPlaced = task.rows[0].placed_count + 1;
     const phase = newPlaced >= task.rows[0].bundle_qty ? 'completed' : 'placing';
@@ -634,16 +644,20 @@ router.delete('/:id', requireAuth, requireAdmin, async (req, res) => {
       const placed = task.rows[0].placed_count;
       // Remove from movements and reverse shelf/pallet additions
       const placements = await client.query(
-        `SELECT to_shelf_id, to_pallet_id, SUM(quantity) as qty FROM movements_s
+        `SELECT to_shelf_id, to_pallet_id, to_box_id, SUM(quantity) as qty FROM movements_s
          WHERE product_id = $1 AND movement_type = 'bundle_place' AND source = 'task'
-           AND (notes IS NULL OR notes NOT LIKE '%rollback%')
-         GROUP BY to_shelf_id, to_pallet_id`, [bundleProductId]);
+           AND notes LIKE $2
+         GROUP BY to_shelf_id, to_pallet_id, to_box_id`, [bundleProductId, `task:${req.params.id}`]);
       for (const p of placements.rows) {
-        if (p.to_shelf_id) {
+        if (p.to_box_id) {
+          await client.query('UPDATE box_items_s SET quantity = GREATEST(0, quantity - $1) WHERE box_id = $2 AND product_id = $3',
+            [Number(p.qty), p.to_box_id, bundleProductId]);
+          await client.query('UPDATE boxes_s SET quantity = GREATEST(0, quantity - $1) WHERE id = $2',
+            [Number(p.qty), p.to_box_id]);
+        } else if (p.to_shelf_id) {
           await client.query('UPDATE shelf_items_s SET quantity = GREATEST(0, quantity - $1) WHERE shelf_id = $2 AND product_id = $3',
             [Number(p.qty), p.to_shelf_id, bundleProductId]);
-        }
-        if (p.to_pallet_id) {
+        } else if (p.to_pallet_id) {
           await client.query('UPDATE pallet_items_s SET quantity = GREATEST(0, quantity - $1) WHERE pallet_id = $2 AND product_id = $3',
             [Number(p.qty), p.to_pallet_id, bundleProductId]);
         }

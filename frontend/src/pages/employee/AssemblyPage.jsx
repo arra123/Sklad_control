@@ -348,28 +348,58 @@ export default function AssemblyPage() {
   };
 
   // ─── PHASE: PLACING ────────────────────────────────────────────────────────
+  const [placeBoxStep, setPlaceBoxStep] = useState(false); // true = waiting for box scan on pallet
+  const [placeBox, setPlaceBox] = useState(null); // { box_id, name }
+
   const handleScanDestination = async (barcode) => {
-    // Resolve barcode to shelf or pallet
     try {
       const res = await api.post('/movements/scan', { barcode });
       const d = res.data;
       if (d.type === 'shelf') {
         setPlaceDest({ shelf_id: d.id, name: `${d.location} · ${d.name}` });
+        setPlaceBoxStep(false); setPlaceBox(null);
         toast.success(`Полка: ${d.name}`);
       } else if (d.type === 'pallet') {
-        setPlaceDest({ pallet_id: d.id, name: `${d.location} · ${d.name}` });
-        toast.success(`Паллет: ${d.name}`);
+        // Check if pallet has boxes
+        const hasBoxes = (d.contents || []).some(c => c.source === 'box');
+        setPlaceDest({ pallet_id: d.id, name: `${d.location} · ${d.name}`, hasBoxes });
+        if (hasBoxes) {
+          setPlaceBoxStep(true);
+          toast.success(`${d.location} · ${d.name} — отсканируйте коробку`);
+        } else {
+          setPlaceBoxStep(false); setPlaceBox(null);
+          toast.success(`Паллет: ${d.name}`);
+        }
       } else {
         toast.error('Отсканируйте полку или паллет');
       }
     } catch (err) { toast.error('Место не найдено'); }
   };
 
+  const handleScanPlaceBox = async (barcode) => {
+    if (!placeDest?.pallet_id) { toast.error('Сначала выберите паллет'); return; }
+    try {
+      const pr = await api.get(`/fbo/pallets/${placeDest.pallet_id}`);
+      const box = (pr.data.boxes || []).find(b => b.barcode_value === barcode);
+      if (box) {
+        setPlaceBox({ box_id: box.id, name: `Коробка · ${box.product_name || ''}`.trim() });
+        setPlaceBoxStep(false);
+        toast.success(`Коробка выбрана`);
+      } else {
+        toast.error('Коробка не найдена на этом паллете');
+      }
+    } catch { toast.error('Ошибка при поиске коробки'); }
+  };
+
   const handleScanPlace = async (barcode) => {
     if (!placeDest) { toast.error('Сначала отсканируйте место назначения'); return; }
     setActionLoading(true);
     try {
-      const res = await api.post(`/assembly/${id}/scan-place`, { ...placeDest, barcode });
+      const body = { barcode };
+      if (placeBox?.box_id) body.box_id = placeBox.box_id;
+      else if (placeDest.shelf_id) body.shelf_id = placeDest.shelf_id;
+      else if (placeDest.pallet_id) body.pallet_id = placeDest.pallet_id;
+      const res = await api.post(`/assembly/${id}/scan-place`, body);
       toast.success(`Размещено ${res.data.placed_count}/${res.data.total}`);
       if (res.data.phase === 'completed') {
         toast.success('Задача завершена!');
@@ -379,7 +409,7 @@ export default function AssemblyPage() {
     finally { setActionLoading(false); }
   };
 
-  const handleChangeDest = () => { setPlaceDest(null); };
+  const handleChangeDest = () => { setPlaceDest(null); setPlaceBox(null); setPlaceBoxStep(false); };
 
   // ─── RENDER ────────────────────────────────────────────────────────────────
   return (
@@ -668,11 +698,28 @@ export default function AssemblyPage() {
               </div>
               <ScanInput onScan={handleScanDestination} disabled={actionLoading} placeholder="Сканируйте полку или паллет..." />
             </div>
-          ) : (
+          ) : placeBoxStep ? (
             <div className="space-y-3">
               <div className="flex items-center gap-2 px-4 py-3 bg-blue-50 border border-blue-100 rounded-xl">
                 <MapPin size={16} className="text-blue-500" />
                 <span className="text-sm font-medium text-blue-800 flex-1">{placeDest.name}</span>
+                <button onClick={handleChangeDest} className="text-xs text-blue-500 hover:text-blue-700">Сменить</button>
+              </div>
+              <div className="bg-amber-50 border border-amber-100 rounded-xl p-3">
+                <p className="text-sm font-medium text-amber-800">Отсканируйте коробку на паллете</p>
+                <p className="text-xs text-amber-600 mt-0.5">Комплекты будут размещены в коробку</p>
+              </div>
+              <ScanInput onScan={handleScanPlaceBox} disabled={actionLoading} placeholder="ШК коробки..." />
+              <button onClick={() => { setPlaceBoxStep(false); }} className="text-xs text-gray-400 hover:text-gray-600">Положить на паллет без коробки</button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 px-4 py-3 bg-blue-50 border border-blue-100 rounded-xl">
+                <MapPin size={16} className="text-blue-500" />
+                <div className="flex-1">
+                  <span className="text-sm font-medium text-blue-800">{placeDest.name}</span>
+                  {placeBox && <p className="text-xs text-blue-500">{placeBox.name}</p>}
+                </div>
                 <button onClick={handleChangeDest} className="text-xs text-blue-500 hover:text-blue-700">Сменить</button>
               </div>
               <ScanInput onScan={handleScanPlace} disabled={actionLoading} placeholder="Сканируйте комплект для размещения..." />
