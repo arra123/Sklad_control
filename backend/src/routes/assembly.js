@@ -57,13 +57,13 @@ router.get('/source-locations', requireAuth, async (req, res) => {
     boxLocs.rows.forEach(r => results.push({
       key: `box-${r.box_id}`,
       path: `${r.warehouse_name} → ${r.row_name} → ${r.pallet_name}`,
-      product_name: r.product_name, qty: Number(r.quantity),
+      product_id: r.product_id, product_name: r.product_name, qty: Number(r.quantity),
       box_id: r.box_id, pallet_id: r.pallet_id, warehouse_id: r.warehouse_id,
     }));
     shelfLocs.rows.forEach(r => results.push({
       key: `shelf-${r.shelf_id}-${r.product_id}`,
       path: `${r.warehouse_name} → ${r.rack_name} → ${r.shelf_code}`,
-      product_name: r.product_name, qty: Number(r.quantity),
+      product_id: r.product_id, product_name: r.product_name, qty: Number(r.quantity),
       shelf_id: r.shelf_id, warehouse_id: r.warehouse_id,
     }));
 

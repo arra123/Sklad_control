@@ -764,7 +764,7 @@ function CreateTaskModal({ open, onClose, onSuccess }) {
   const [bundleDestList, setBundleDestList] = useState([]);
   const [bundleDestEmployeeChoice, setBundleDestEmployeeChoice] = useState(false);
   const [bundleAvailableLocations, setBundleAvailableLocations] = useState([]);
-  const [bundleSelectedSources, setBundleSelectedSources] = useState([]);
+  const [bundleSourceByComponent, setBundleSourceByComponent] = useState({}); // {component_id: location}
   const [bundleSourceLoading, setBundleSourceLoading] = useState(false);
   // Destination cascading selectors
   const [destPickWh, setDestPickWh] = useState('');
@@ -827,7 +827,7 @@ function CreateTaskModal({ open, onClose, onSuccess }) {
 
   // Load components + available locations when bundle selected
   useEffect(() => {
-    if (!selectedBundle) { setBundleComponents([]); setBundleAvailableLocations([]); setBundleSelectedSources([]); return; }
+    if (!selectedBundle) { setBundleComponents([]); setBundleAvailableLocations([]); setBundleSourceByComponent({}); return; }
     api.get(`/products/${selectedBundle.id}`)
       .then(r => {
         setBundleComponents(r.data.components || []);
@@ -1213,36 +1213,56 @@ function CreateTaskModal({ open, onClose, onSuccess }) {
           {/* 3. Откуда брать */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Откуда брать</label>
-            <label className="flex items-center gap-2 mb-2 cursor-pointer">
+            <label className="flex items-center gap-2 mb-3 cursor-pointer">
               <input type="checkbox" checked={bundleEmployeeChoice} onChange={e => setBundleEmployeeChoice(e.target.checked)}
                 className="w-4 h-4 rounded border-gray-300 text-primary-500 focus:ring-primary-400" />
               <span className="text-sm text-gray-600">На усмотрение сотрудника</span>
             </label>
-            {!bundleEmployeeChoice && selectedBundle && (
-              <>
-                {bundleSourceLoading ? (
-                  <p className="text-xs text-gray-400 py-2">Загрузка доступных мест...</p>
-                ) : bundleAvailableLocations.length === 0 ? (
-                  <p className="text-xs text-amber-600 py-2">Товары комплекта не найдены на складах</p>
-                ) : (
-                  <div className="max-h-40 overflow-y-auto space-y-1">
-                    {bundleAvailableLocations.map((loc, i) => (
-                      <label key={i} className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-xl hover:bg-primary-50/30 cursor-pointer">
-                        <input type="checkbox" checked={bundleSelectedSources.includes(loc.key)}
-                          onChange={e => {
-                            if (e.target.checked) setBundleSelectedSources(prev => [...prev, loc.key]);
-                            else setBundleSelectedSources(prev => prev.filter(k => k !== loc.key));
-                          }}
-                          className="w-4 h-4 rounded border-gray-300 text-primary-500 focus:ring-primary-400" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm text-gray-800 truncate">{loc.path}</p>
-                          <p className="text-xs text-gray-400">{loc.product_name} · {loc.qty} шт</p>
-                        </div>
-                      </label>
-                    ))}
-                  </div>
-                )}
-              </>
+            {!bundleEmployeeChoice && selectedBundle && bundleComponents.length > 0 && (
+              <div className="space-y-2">
+                {bundleComponents.map(comp => {
+                  const compId = comp.id;
+                  const compLocs = bundleAvailableLocations.filter(l => l.product_id === compId || l.product_name === comp.name);
+                  const selected = bundleSourceByComponent[compId];
+                  return (
+                    <div key={compId} className="border border-gray-100 rounded-xl overflow-hidden">
+                      {/* Component header */}
+                      <div className="flex items-center gap-2 px-3 py-2 bg-gray-50">
+                        <Package size={14} className="text-primary-400 flex-shrink-0" />
+                        <span className="text-sm font-medium text-gray-800 flex-1 truncate">{comp.name}</span>
+                        <span className="text-xs text-gray-400">× {Number(comp.quantity) || 1}</span>
+                      </div>
+                      {/* Selected source or picker */}
+                      <div className="px-3 py-2">
+                        {selected ? (
+                          <div className="flex items-center gap-2 px-2 py-1.5 bg-green-50 border border-green-100 rounded-lg">
+                            <MapPin size={12} className="text-green-500 flex-shrink-0" />
+                            <span className="text-xs text-green-800 flex-1 truncate">{selected.path}</span>
+                            <span className="text-xs text-green-600">{selected.qty} шт</span>
+                            <button type="button" onClick={() => setBundleSourceByComponent(prev => { const n = { ...prev }; delete n[compId]; return n; })}
+                              className="text-gray-400 hover:text-red-500"><X size={12} /></button>
+                          </div>
+                        ) : bundleSourceLoading ? (
+                          <p className="text-xs text-gray-400">Загрузка...</p>
+                        ) : compLocs.length === 0 ? (
+                          <p className="text-xs text-amber-500">Не найден на складах</p>
+                        ) : (
+                          <div className="max-h-28 overflow-y-auto space-y-1">
+                            {compLocs.map((loc, i) => (
+                              <button key={i} type="button" onClick={() => setBundleSourceByComponent(prev => ({ ...prev, [compId]: loc }))}
+                                className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-primary-50 text-left transition-colors">
+                                <MapPin size={12} className="text-gray-400 flex-shrink-0" />
+                                <span className="text-xs text-gray-700 flex-1 truncate">{loc.path}</span>
+                                <span className="text-xs text-gray-400">{loc.qty} шт</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             )}
           </div>
 
