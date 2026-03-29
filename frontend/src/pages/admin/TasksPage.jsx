@@ -761,8 +761,11 @@ function CreateTaskModal({ open, onClose, onSuccess }) {
   const [bundleDestWh, setBundleDestWh] = useState('');
   const [bundleSearch, setBundleSearch] = useState('');
   const [bundleDropOpen, setBundleDropOpen] = useState(false);
-  const [bundleDestList, setBundleDestList] = useState([]); // [{id, label}]
+  const [bundleDestList, setBundleDestList] = useState([]);
   const [bundleDestEmployeeChoice, setBundleDestEmployeeChoice] = useState(false);
+  const [bundleAvailableLocations, setBundleAvailableLocations] = useState([]);
+  const [bundleSelectedSources, setBundleSelectedSources] = useState([]);
+  const [bundleSourceLoading, setBundleSourceLoading] = useState(false);
   const [bundleSourceWh, setBundleSourceWh] = useState('');
   const [bundleSourcePallets, setBundleSourcePallets] = useState([]);
   const [bundleSourcePallet, setBundleSourcePallet] = useState('');
@@ -788,11 +791,22 @@ function CreateTaskModal({ open, onClose, onSuccess }) {
       .catch(() => {});
   }, [taskType, open]);
 
-  // Load components when bundle selected
+  // Load components + available locations when bundle selected
   useEffect(() => {
-    if (!selectedBundle) { setBundleComponents([]); return; }
+    if (!selectedBundle) { setBundleComponents([]); setBundleAvailableLocations([]); setBundleSelectedSources([]); return; }
     api.get(`/products/${selectedBundle.id}`)
-      .then(r => setBundleComponents(r.data.components || []))
+      .then(r => {
+        setBundleComponents(r.data.components || []);
+        // Load locations where components are stored
+        const componentIds = (r.data.components || []).map(c => c.id);
+        if (componentIds.length > 0) {
+          setBundleSourceLoading(true);
+          api.get(`/assembly/source-locations?component_ids=${componentIds.join(',')}`)
+            .then(lr => { setBundleAvailableLocations(lr.data || []); })
+            .catch(() => setBundleAvailableLocations([]))
+            .finally(() => setBundleSourceLoading(false));
+        }
+      })
       .catch(() => {});
   }, [selectedBundle]);
 
@@ -1170,10 +1184,31 @@ function CreateTaskModal({ open, onClose, onSuccess }) {
                 className="w-4 h-4 rounded border-gray-300 text-primary-500 focus:ring-primary-400" />
               <span className="text-sm text-gray-600">На усмотрение сотрудника</span>
             </label>
-            {!bundleEmployeeChoice && (
-              <SearchSelect value={bundleSourceWh} placeholder="Выберите склад..."
-                onChange={v => setBundleSourceWh(v)}
-                options={warehouses.filter(w => w.active !== false).map(w => ({ value: String(w.id), label: w.name }))} />
+            {!bundleEmployeeChoice && selectedBundle && (
+              <>
+                {bundleSourceLoading ? (
+                  <p className="text-xs text-gray-400 py-2">Загрузка доступных мест...</p>
+                ) : bundleAvailableLocations.length === 0 ? (
+                  <p className="text-xs text-amber-600 py-2">Товары комплекта не найдены на складах</p>
+                ) : (
+                  <div className="max-h-40 overflow-y-auto space-y-1">
+                    {bundleAvailableLocations.map((loc, i) => (
+                      <label key={i} className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-xl hover:bg-primary-50/30 cursor-pointer">
+                        <input type="checkbox" checked={bundleSelectedSources.includes(loc.key)}
+                          onChange={e => {
+                            if (e.target.checked) setBundleSelectedSources(prev => [...prev, loc.key]);
+                            else setBundleSelectedSources(prev => prev.filter(k => k !== loc.key));
+                          }}
+                          className="w-4 h-4 rounded border-gray-300 text-primary-500 focus:ring-primary-400" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-gray-800 truncate">{loc.path}</p>
+                          <p className="text-xs text-gray-400">{loc.product_name} · {loc.qty} шт</p>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </>
             )}
           </div>
 

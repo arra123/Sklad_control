@@ -16,6 +16,63 @@ async function resolveProduct(client, barcode) {
   return r.rows[0] || null;
 }
 
+// ─── GET /source-locations — Find where components are stored ────────────────
+router.get('/source-locations', requireAuth, async (req, res) => {
+  const { component_ids } = req.query;
+  if (!component_ids) return res.json([]);
+  const ids = component_ids.split(',').map(Number).filter(n => n > 0);
+  if (ids.length === 0) return res.json([]);
+
+  try {
+    // Find in pallet boxes
+    const boxLocs = await pool.query(
+      `SELECT bi.product_id, bi.quantity, b.id as box_id, b.barcode_value as box_barcode,
+              pa.id as pallet_id, pa.name as pallet_name,
+              pr.id as row_id, pr.name as row_name,
+              w.id as warehouse_id, w.name as warehouse_name,
+              p.name as product_name
+       FROM box_items_s bi
+       JOIN boxes_s b ON b.id = bi.box_id
+       JOIN pallets_s pa ON pa.id = b.pallet_id
+       JOIN pallet_rows_s pr ON pr.id = pa.row_id
+       JOIN warehouses_s w ON w.id = pr.warehouse_id
+       JOIN products_s p ON p.id = bi.product_id
+       WHERE bi.product_id = ANY($1) AND bi.quantity > 0 AND b.status = 'closed' AND w.active = true
+       ORDER BY p.name, w.name, pr.name, pa.name`, [ids]);
+
+    // Find on shelves
+    const shelfLocs = await pool.query(
+      `SELECT si.product_id, si.quantity, s.id as shelf_id, s.code as shelf_code,
+              r.name as rack_name, w.id as warehouse_id, w.name as warehouse_name,
+              p.name as product_name
+       FROM shelf_items_s si
+       JOIN shelves_s s ON s.id = si.shelf_id
+       JOIN racks_s r ON r.id = s.rack_id
+       JOIN warehouses_s w ON w.id = r.warehouse_id
+       JOIN products_s p ON p.id = si.product_id
+       WHERE si.product_id = ANY($1) AND si.quantity > 0 AND w.active = true
+       ORDER BY p.name, w.name`, [ids]);
+
+    const results = [];
+    boxLocs.rows.forEach(r => results.push({
+      key: `box-${r.box_id}`,
+      path: `${r.warehouse_name} → ${r.row_name} → ${r.pallet_name}`,
+      product_name: r.product_name, qty: Number(r.quantity),
+      box_id: r.box_id, pallet_id: r.pallet_id, warehouse_id: r.warehouse_id,
+    }));
+    shelfLocs.rows.forEach(r => results.push({
+      key: `shelf-${r.shelf_id}-${r.product_id}`,
+      path: `${r.warehouse_name} → ${r.rack_name} → ${r.shelf_code}`,
+      product_name: r.product_name, qty: Number(r.quantity),
+      shelf_id: r.shelf_id, warehouse_id: r.warehouse_id,
+    }));
+
+    res.json(results);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── POST / — Create assembly task (admin) ──────────────────────────────────
 router.post('/', requireAuth, requireAdmin, async (req, res) => {
   const { bundle_product_id, bundle_qty, employee_id, source_boxes, dest_shelf_id, dest_pallet_id, notes } = req.body;
@@ -27,11 +84,28 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
     if (!product.rows.length) return res.status(404).json({ error: 'Товар не найден' });
     if (product.rows[0].entity_type !== 'bundle') return res.status(400).json({ error: 'Товар должен быть комплектом (bundle)' });
 
-    // Get bundle components
-    const comps = await pool.query(
+    // Get bundle components (bundle_components_s first, then source_json fallback)
+    let comps = await pool.query(
       `SELECT bc.component_id, bc.quantity, p.name, p.code
        FROM bundle_components_s bc JOIN products_s p ON p.id = bc.component_id
        WHERE bc.bundle_id = $1`, [bundle_product_id]);
+
+    // Fallback: resolve from source_json if no rows in bundle_components_s
+    if (comps.rows.length === 0) {
+      const fullProduct = await pool.query('SELECT source_json FROM products_s WHERE id = $1', [bundle_product_id]);
+      const rows = fullProduct.rows[0]?.source_json?.components?.rows || [];
+      if (rows.length > 0) {
+        const externalIds = rows.map(r => r.assortmentDetails?.id).filter(Boolean);
+        const quantities = {};
+        rows.forEach(r => { if (r.assortmentDetails?.id) quantities[r.assortmentDetails.id] = r.quantity || 1; });
+        if (externalIds.length > 0) {
+          const resolved = await pool.query(
+            `SELECT id as component_id, name, code, external_id FROM products_s WHERE external_id = ANY($1)`, [externalIds]);
+          comps = { rows: resolved.rows.map(c => ({ ...c, quantity: quantities[c.external_id] || 1 })) };
+        }
+      }
+    }
+
     if (comps.rows.length === 0) return res.status(400).json({ error: 'У комплекта нет компонентов' });
 
     const title = `Сборка: ${product.rows[0].name} × ${bundle_qty}`;
