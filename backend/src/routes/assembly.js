@@ -176,9 +176,9 @@ router.get('/:id/source-boxes', requireAuth, async (req, res) => {
     if (componentIds.length === 0) return res.json([]);
 
     const boxes = await pool.query(
-      `SELECT b.id as box_id, b.barcode_value, b.pallet_id, bi.product_id, bi.quantity,
+      `SELECT b.id as box_id, b.barcode_value as box_barcode, b.pallet_id, bi.product_id, bi.quantity,
               p.name as product_name, p.code as product_code,
-              pa.name as pallet_name, pr.name as row_name, w.name as warehouse_name
+              pa.name as pallet_name, pa.barcode_value as pallet_barcode, pr.name as row_name, w.name as warehouse_name
        FROM box_items_s bi
        JOIN boxes_s b ON b.id = bi.box_id
        JOIN products_s p ON p.id = bi.product_id

@@ -84,7 +84,9 @@ export default function AssemblyPage() {
   const [componentStatus, setComponentStatus] = useState([]);
   const [printBarcode, setPrintBarcode] = useState(null);
   const [placeDest, setPlaceDest] = useState(null);
+  const [scannedPallet, setScannedPallet] = useState(null); // {pallet_id, name}
   const [scannedBox, setScannedBox] = useState(null); // {box_id, barcode, pallet_name, product_name, qty}
+  const [pickStep, setPickStep] = useState('pallet'); // 'pallet' → 'box' → 'item'
 
   const loadTask = useCallback(async () => {
     try {
@@ -127,14 +129,33 @@ export default function AssemblyPage() {
     finally { setActionLoading(false); }
   };
 
+  const handleScanPallet = (barcode) => {
+    // Find pallet by barcode or name among source boxes
+    const match = sourceBoxes.find(b => b.pallet_barcode === barcode || b.pallet_name === barcode);
+    if (match) {
+      setScannedPallet({ pallet_id: match.pallet_id, name: match.pallet_name, warehouse: match.warehouse_name });
+      setPickStep('box');
+      toast.success(`Паллет: ${match.warehouse_name} · ${match.pallet_name}`);
+    } else {
+      // Try via movements/scan API
+      api.post('/movements/scan', { barcode }).then(res => {
+        if (res.data.type === 'pallet') {
+          setScannedPallet({ pallet_id: res.data.pallet.id, name: res.data.pallet.name, warehouse: res.data.pallet.warehouse_name });
+          setPickStep('box');
+          toast.success(`Паллет: ${res.data.pallet.name}`);
+        } else { toast.error('Отсканируйте паллет'); }
+      }).catch(() => toast.error('Паллет не найден'));
+    }
+  };
+
   const handleScanPickBox = (barcode) => {
-    // Find box by barcode in source boxes
-    const box = sourceBoxes.find(b => b.box_barcode === barcode);
+    const box = sourceBoxes.find(b => b.box_barcode === barcode && (!scannedPallet || b.pallet_id === scannedPallet.pallet_id));
     if (box) {
       setScannedBox(box);
-      toast.success(`Коробка: ${box.pallet_name} · ${box.product_name}`);
+      setPickStep('item');
+      toast.success(`Коробка: ${box.product_name} · ${fmtQty(box.quantity)} шт`);
     } else {
-      toast.error('Коробка не найдена среди доступных');
+      toast.error('Коробка не найдена на этом паллете');
     }
   };
 
@@ -150,6 +171,10 @@ export default function AssemblyPage() {
       await loadSourceBoxes();
     } catch (err) { toast.error(err.response?.data?.error || 'Ошибка сканирования'); }
     finally { setActionLoading(false); }
+  };
+
+  const resetPickScan = () => {
+    setScannedPallet(null); setScannedBox(null); setPickStep('pallet');
   };
 
   const handleStartAssembly = async () => {
@@ -288,7 +313,7 @@ export default function AssemblyPage() {
         <div className="space-y-4">
           <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
             <p className="text-sm font-bold text-blue-800">Заберите товар со склада</p>
-            <p className="text-xs text-blue-600 mt-1">1. Сканируйте коробку → 2. Сканируйте каждую баночку</p>
+            <p className="text-xs text-blue-600 mt-1">Паллет → Коробка → Баночка</p>
           </div>
 
           {/* Progress per component */}
@@ -314,42 +339,67 @@ export default function AssemblyPage() {
             })}
           </div>
 
-          {/* Step 1: Scan box */}
-          {!scannedBox ? (
-            <div className="space-y-3">
-              <p className="text-xs font-semibold text-gray-500 uppercase">Шаг 1: отсканируйте коробку</p>
-              {/* Available boxes */}
-              {sourceBoxes.length > 0 && (
-                <div className="max-h-36 overflow-y-auto space-y-1">
-                  {sourceBoxes.map((b, i) => (
-                    <div key={i} className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-xl text-xs">
-                      <Box size={13} className="text-gray-400 flex-shrink-0" />
-                      <span className="text-gray-700 flex-1 truncate">{b.warehouse_name} → {b.pallet_name}</span>
-                      <span className="text-gray-500 truncate">{b.product_name?.slice(0, 20)}</span>
-                      <span className="text-gray-400 flex-shrink-0">{fmtQty(b.quantity)} шт</span>
+          {/* Where to find — always show available locations */}
+          {sourceBoxes.length > 0 && (
+            <div className="bg-amber-50 border border-amber-100 rounded-xl p-3">
+              <p className="text-xs font-semibold text-amber-700 uppercase mb-2">Где можно взять:</p>
+              <div className="max-h-32 overflow-y-auto space-y-1">
+                {sourceBoxes.map((b, i) => (
+                  <div key={i} className="flex items-center gap-2 text-xs py-1">
+                    <MapPin size={11} className="text-amber-500 flex-shrink-0" />
+                    <span className="text-gray-700 flex-1">{b.warehouse_name} → {b.row_name} → {b.pallet_name}</span>
+                    <span className="text-gray-500 truncate max-w-[100px]">{b.product_name?.replace(/GraFLab,?\s*/i,'').slice(0, 18)}</span>
+                    <span className="text-gray-400 flex-shrink-0">{fmtQty(b.quantity)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Scan steps */}
+          {pickStep === 'pallet' && (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-primary-600 uppercase">Шаг 1 · Отсканируйте паллет</p>
+              <ScanInput onScan={handleScanPallet} disabled={actionLoading} placeholder="ШК паллета..." />
+            </div>
+          )}
+
+          {pickStep === 'box' && scannedPallet && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-100 rounded-xl">
+                <MapPin size={14} className="text-green-500" />
+                <span className="text-sm font-medium text-green-800 flex-1">{scannedPallet.warehouse} · {scannedPallet.name}</span>
+                <button onClick={resetPickScan} className="text-gray-400 hover:text-red-500"><X size={14} /></button>
+              </div>
+              <p className="text-xs font-semibold text-primary-600 uppercase">Шаг 2 · Отсканируйте коробку</p>
+              {/* Show boxes on this pallet */}
+              {sourceBoxes.filter(b => b.pallet_id === scannedPallet.pallet_id).length > 0 && (
+                <div className="space-y-1">
+                  {sourceBoxes.filter(b => b.pallet_id === scannedPallet.pallet_id).map((b, i) => (
+                    <div key={i} className="flex items-center gap-2 px-2 py-1 text-xs bg-gray-50 rounded-lg">
+                      <Box size={11} className="text-gray-400" />
+                      <span className="text-gray-600 flex-1">{b.product_name?.replace(/GraFLab,?\s*/i,'').slice(0, 22)}</span>
+                      <span className="text-gray-400">{fmtQty(b.quantity)} шт</span>
                     </div>
                   ))}
                 </div>
               )}
-              <ScanInput onScan={handleScanPickBox} disabled={actionLoading} placeholder="Сканируйте ШК коробки..." />
+              <ScanInput onScan={handleScanPickBox} disabled={actionLoading} placeholder="ШК коробки..." />
             </div>
-          ) : (
-            <div className="space-y-3">
-              {/* Scanned box info */}
-              <div className="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-100 rounded-xl">
-                <Box size={14} className="text-green-500 flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-green-800">{scannedBox.pallet_name} · {scannedBox.product_name?.slice(0, 25)}</p>
-                  <p className="text-xs text-green-600">{fmtQty(scannedBox.quantity)} шт · ШК: {scannedBox.box_barcode}</p>
-                </div>
-                <button onClick={() => setScannedBox(null)} className="text-gray-400 hover:text-red-500">
-                  <X size={14} />
-                </button>
-              </div>
+          )}
 
-              {/* Step 2: Scan items from this box */}
-              <p className="text-xs font-semibold text-gray-500 uppercase">Шаг 2: сканируйте баночки из этой коробки</p>
-              <ScanInput onScan={handleScanPick} disabled={actionLoading} placeholder="Сканируйте баночку..." />
+          {pickStep === 'item' && scannedBox && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-100 rounded-xl">
+                <Box size={14} className="text-green-500" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-green-800">{scannedPallet?.name} · {scannedBox.product_name?.replace(/GraFLab,?\s*/i,'').slice(0, 22)}</p>
+                  <p className="text-xs text-green-600">{fmtQty(scannedBox.quantity)} шт</p>
+                </div>
+                <button onClick={resetPickScan} className="text-gray-400 hover:text-red-500"><X size={14} /></button>
+              </div>
+              <p className="text-xs font-semibold text-primary-600 uppercase">Шаг 3 · Сканируйте баночки</p>
+              <ScanInput onScan={handleScanPick} disabled={actionLoading} placeholder="ШК баночки..." />
             </div>
           )}
 
