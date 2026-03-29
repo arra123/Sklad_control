@@ -758,6 +758,7 @@ function CreateTaskModal({ open, onClose, onSuccess }) {
   const [bundleSourcePaths, setBundleSourcePaths] = useState([]); // [{warehouse_id, pallet_id, label}]
   const [bundleEmployeeChoice, setBundleEmployeeChoice] = useState(false); // на усмотрение сотрудника
   const [bundleNotes, setBundleNotes] = useState('');
+  const [bundleDestWh, setBundleDestWh] = useState('');
   const [bundleSourceWh, setBundleSourceWh] = useState('');
   const [bundleSourcePallets, setBundleSourcePallets] = useState([]);
   const [bundleSourcePallet, setBundleSourcePallet] = useState('');
@@ -1037,7 +1038,7 @@ function CreateTaskModal({ open, onClose, onSuccess }) {
           <Input label="Примечание" placeholder="Дополнительные инструкции..."
             value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
         </form>
-      ) : (
+      ) : taskType === 'packaging' ? (
         <form id="task-form" onSubmit={handleSubmitPackaging} className="space-y-4">
           {/* Product selection */}
           <div>
@@ -1089,14 +1090,18 @@ function CreateTaskModal({ open, onClose, onSuccess }) {
           <Input label="Примечание" placeholder="Дополнительные инструкции..."
             value={packForm.notes} onChange={e => setPackForm(f => ({ ...f, notes: e.target.value }))} />
         </form>
-      )}
-
-      {taskType === 'bundle_assembly' && (
+      ) : taskType === 'bundle_assembly' ? (
         <form id="task-form" onSubmit={handleSubmitAssembly} className="space-y-4">
           {/* 1. Комплект */}
-          <SearchSelect label="Комплект *" value={selectedBundle ? String(selectedBundle.id) : ''} placeholder="Выберите комплект..."
-            onChange={v => { setSelectedBundle(bundles.find(x => String(x.id) === v) || null); }}
-            options={bundles.map(b => ({ value: String(b.id), label: b.name }))} />
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Комплект *</label>
+            <select value={selectedBundle ? String(selectedBundle.id) : ''}
+              onChange={e => setSelectedBundle(bundles.find(x => String(x.id) === e.target.value) || null)}
+              className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:border-primary-400 focus:ring-2 focus:ring-primary-100 focus:outline-none bg-white">
+              <option value="">Выберите комплект...</option>
+              {bundles.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+            </select>
+          </div>
 
           {bundleComponents.length > 0 && (
             <div className="bg-gray-50 rounded-xl p-3">
@@ -1117,43 +1122,15 @@ function CreateTaskModal({ open, onClose, onSuccess }) {
           {/* 3. Откуда брать */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Откуда брать</label>
-
-            <label className="flex items-center gap-2 mb-3 cursor-pointer">
+            <label className="flex items-center gap-2 mb-2 cursor-pointer">
               <input type="checkbox" checked={bundleEmployeeChoice} onChange={e => setBundleEmployeeChoice(e.target.checked)}
                 className="w-4 h-4 rounded border-gray-300 text-primary-500 focus:ring-primary-400" />
               <span className="text-sm text-gray-600">На усмотрение сотрудника</span>
             </label>
-
             {!bundleEmployeeChoice && (
-              <>
-                {/* Added paths */}
-                {bundleSourcePaths.map((sp, i) => (
-                  <div key={i} className="flex items-center gap-2 mb-2 px-3 py-2 bg-green-50 border border-green-100 rounded-xl">
-                    <MapPin size={14} className="text-green-500 flex-shrink-0" />
-                    <span className="text-sm text-gray-800 flex-1 truncate">{sp.label}</span>
-                    <button type="button" onClick={() => removeSourcePath(i)} className="text-gray-400 hover:text-red-500"><X size={14} /></button>
-                  </div>
-                ))}
-
-                {/* Add new path */}
-                <div className="flex gap-2">
-                  <div className="flex-1">
-                    <SearchSelect value={bundleSourceWh} placeholder="Склад..."
-                      onChange={v => { setBundleSourceWh(v); setBundleSourcePallet(''); }}
-                      options={fboWarehouses.map(w => ({ value: String(w.id), label: w.name }))} />
-                  </div>
-                  {bundleSourceWh && (
-                    <div className="flex-1">
-                      <SearchSelect value={bundleSourcePallet} placeholder="Паллет..."
-                        onChange={v => setBundleSourcePallet(v)}
-                        options={bundleSourcePallets.map(p => ({ value: String(p.id), label: `${p.row_name} · ${p.name}` }))} />
-                    </div>
-                  )}
-                  {bundleSourcePallet && (
-                    <Button type="button" variant="outline" size="sm" icon={<Plus size={14} />} onClick={addSourcePath}>Добавить</Button>
-                  )}
-                </div>
-              </>
+              <SearchSelect value={bundleSourceWh} placeholder="Выберите склад..."
+                onChange={v => setBundleSourceWh(v)}
+                options={warehouses.filter(w => w.active !== false).map(w => ({ value: String(w.id), label: w.name }))} />
             )}
           </div>
 
@@ -1162,11 +1139,19 @@ function CreateTaskModal({ open, onClose, onSuccess }) {
             onChange={v => setBundleEmployee(v)}
             options={employees.map(e => ({ value: String(e.id), label: e.full_name }))} />
 
-          {/* 5. Примечание */}
+          {/* 5. Куда положить */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Куда положить</label>
+            <SearchSelect value={bundleDestWh} placeholder="Выберите склад..."
+              onChange={v => setBundleDestWh(v)}
+              options={warehouses.filter(w => w.active !== false).map(w => ({ value: String(w.id), label: w.name }))} />
+          </div>
+
+          {/* 6. Примечание */}
           <Input label="Примечание" placeholder="Инструкции для сотрудника..."
             value={bundleNotes} onChange={e => setBundleNotes(e.target.value)} />
         </form>
-      )}
+      ) : null}
     </Modal>
   );
 }
