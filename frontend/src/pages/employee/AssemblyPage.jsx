@@ -162,27 +162,27 @@ export default function AssemblyPage() {
     // 2. Try via movements/scan API (pallet or shelf)
     try {
       const res = await api.post('/movements/scan', { barcode });
-      if (res.data.type === 'pallet') {
-        const palletId = res.data.pallet.id;
+      const d = res.data;
+      if (d.type === 'pallet') {
+        const palletId = d.id;
         const palletBoxes = sourceBoxes.filter(b => b.pallet_id === palletId);
         if (palletBoxes.length === 0) {
           toast.error('На этом паллете нет нужного товара для комплекта');
           return;
         }
-        setScannedPallet({ pallet_id: palletId, name: res.data.pallet.name, warehouse: res.data.pallet.warehouse_name, type: 'pallet' });
+        setScannedPallet({ pallet_id: palletId, name: d.name, warehouse: d.location, type: 'pallet' });
         setPickStep('box');
-        toast.success(`${res.data.pallet.warehouse_name} · ${res.data.pallet.name}`);
-      } else if (res.data.type === 'shelf') {
-        // Shelf scanned — check if it has needed items
-        const shelfId = res.data.shelf.id;
+        toast.success(d.location + ' · ' + d.name);
+      } else if (d.type === 'shelf') {
+        const shelfId = d.id;
         const shelfItems = sourceBoxes.filter(b => b.source_type === 'shelf' && b.shelf_id === shelfId);
         if (shelfItems.length === 0) {
           toast.error('На этой полке нет нужного товара для комплекта');
           return;
         }
-        setScannedPallet({ shelf_id: shelfId, name: res.data.shelf.code, warehouse: res.data.shelf.warehouse_name, type: 'shelf' });
-        setPickStep('item'); // shelf → skip box step, go straight to items
-        toast.success(`${res.data.shelf.warehouse_name} · ${res.data.shelf.rack_name} · ${res.data.shelf.code}`);
+        setScannedPallet({ shelf_id: shelfId, name: d.name, warehouse: d.location, type: 'shelf' });
+        setPickStep('item');
+        toast.success(d.location + ' · ' + d.name);
       } else {
         toast.error('Отсканируйте паллет или полку');
       }
