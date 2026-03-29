@@ -1,727 +1,296 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import api from '../../api/client';
 import Spinner from '../ui/Spinner';
-import { useToast } from '../ui/Toast';
 
-// ─── Constants ───────────────────────────────────────────────────────────────
 const BOX_W = 1.05, BOX_D = 1.05, BOX_H = 0.9;
-const fmtQty = (v) => { const n = parseFloat(v || 0); return Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/\.?0+$/, ''); };
-const COLS = 5, LAYER_SIZE = 25;
-const PALLET_SPACING = 8, ROW_SPACING = 10;
+const COLS = 5, ROWS = 5, LAYER_SIZE = COLS * ROWS;
+const PALLET_GAP = 8;
+const fmtQ = (v) => { const n = parseFloat(v || 0); return Number.isInteger(n) ? String(n) : n.toFixed(0); };
 
-// ─── Shared geometries (reuse = huge perf win) ──────────────────────────────
-let _sharedGeo = null;
-function getSharedGeo() {
-  if (_sharedGeo) return _sharedGeo;
-  _sharedGeo = {
-    box: new THREE.BoxGeometry(BOX_W, BOX_H, BOX_D),
-    tapeV: new THREE.BoxGeometry(0.06, BOX_H * 0.98, BOX_D * 0.98),
-    tapeH: new THREE.BoxGeometry(BOX_W * 0.98, BOX_H * 0.98, 0.06),
-    plank: new THREE.BoxGeometry(6, 0.15, 0.8),
-    stringer: new THREE.BoxGeometry(0.6, 0.35, 5.6),
-    bottomPlank: new THREE.BoxGeometry(0.8, 0.12, 5.6),
-    board: new THREE.BoxGeometry(5.8, 0.06, 5.8),
-    label: new THREE.PlaneGeometry(0.55, 0.3),
-    namePlane: new THREE.PlaneGeometry(5, 1.25),
-  };
-  return _sharedGeo;
+// Label texture cache — reuse same texture for same name+qty
+const labelCache = new Map();
+function getLabelTexture(name, qty) {
+  const key = `${name}|${qty}`;
+  if (labelCache.has(key)) return labelCache.get(key);
+  const lc = document.createElement('canvas');
+  lc.width = 128; lc.height = 64;
+  const ctx = lc.getContext('2d');
+  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, 128, 64);
+  ctx.fillStyle = '#1a1a1a'; ctx.font = 'bold 14px Arial';
+  const short = name.length > 14 ? name.slice(0, 13) + '…' : name;
+  ctx.fillText(short, 6, 22);
+  ctx.font = 'bold 16px Arial'; ctx.fillStyle = '#333';
+  ctx.fillText(qty + ' шт', 6, 48);
+  const tex = new THREE.CanvasTexture(lc);
+  const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.3 });
+  labelCache.set(key, mat);
+  return mat;
 }
 
-// ─── Box top texture (tape cross + flap lines) ──────────────────────────────
-let _boxTopTex = null;
-function getBoxTopTexture() {
-  if (_boxTopTex) return _boxTopTex;
-  const c = document.createElement('canvas');
-  c.width = 128; c.height = 128;
-  const ctx = c.getContext('2d');
-  // Base kraft color
-  ctx.fillStyle = '#e8dbc4';
-  ctx.fillRect(0, 0, 128, 128);
-  // Tape vertical
-  ctx.fillStyle = 'rgba(200,185,155,0.35)';
-  ctx.fillRect(58, 0, 12, 128);
-  // Tape horizontal
-  ctx.fillRect(0, 58, 128, 12);
-  // Flap lines
-  ctx.strokeStyle = 'rgba(170,150,120,0.2)';
-  ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(32, 0); ctx.lineTo(32, 128); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(96, 0); ctx.lineTo(96, 128); ctx.stroke();
-  // Corner shine
-  ctx.fillStyle = 'rgba(255,255,255,0.15)';
-  ctx.beginPath(); ctx.moveTo(128, 0); ctx.lineTo(128, 50); ctx.lineTo(78, 0); ctx.fill();
-  _boxTopTex = new THREE.CanvasTexture(c);
-  return _boxTopTex;
-}
-
-// ─── Box front texture (clean white label: name + qty only) ──────────────────
-function makeBoxFrontTexture(name, qty) {
-  const c = document.createElement('canvas');
-  c.width = 128; c.height = 128;
-  const ctx = c.getContext('2d');
-  // Kraft side
-  ctx.fillStyle = '#d8c8a8';
-  ctx.fillRect(0, 0, 128, 128);
-  // Tape
-  ctx.fillStyle = 'rgba(200,185,155,0.3)';
-  ctx.fillRect(58, 0, 12, 128);
-  // White label — clean, centered
-  ctx.fillStyle = 'white';
-  ctx.shadowColor = 'rgba(0,0,0,0.08)';
-  ctx.shadowBlur = 3;
-  ctx.beginPath();
-  ctx.roundRect(10, 28, 108, 72, 4);
-  ctx.fill();
-  ctx.shadowBlur = 0;
-  // Name — black on white
-  ctx.fillStyle = '#1a1a1a';
-  ctx.font = 'bold 13px Arial';
-  const short = name.length > 18 ? name.slice(0, 17) + '…' : name;
-  ctx.fillText(short, 16, 52);
-  // Qty — bold
-  ctx.font = 'bold 16px Arial';
-  ctx.fillStyle = '#333';
-  ctx.fillText(fmtQty(qty) + ' шт', 16, 78);
-  return new THREE.CanvasTexture(c);
-}
-
-// ─── Box side texture (kraft with tape) ──────────────────────────────────────
-let _boxSideTex = null;
-function getBoxSideTexture() {
-  if (_boxSideTex) return _boxSideTex;
-  const c = document.createElement('canvas');
-  c.width = 64; c.height = 64;
-  const ctx = c.getContext('2d');
-  ctx.fillStyle = '#ddd0b4';
-  ctx.fillRect(0, 0, 64, 64);
-  ctx.fillStyle = 'rgba(200,185,155,0.25)';
-  ctx.fillRect(28, 0, 8, 64);
-  _boxSideTex = new THREE.CanvasTexture(c);
-  return _boxSideTex;
-}
-
-// ─── Pallet name label ───────────────────────────────────────────────────────
-function makePalletLabel(name, count, qty) {
-  const c = document.createElement('canvas');
-  c.width = 512; c.height = 128;
-  const ctx = c.getContext('2d');
-  // Background
-  ctx.fillStyle = '#7c3aed';
-  ctx.beginPath();
-  ctx.roundRect(0, 0, 512, 128, 16);
-  ctx.fill();
-  // Name
-  ctx.fillStyle = 'white';
-  ctx.font = 'bold 48px Arial';
-  ctx.fillText(name, 24, 55);
-  // Stats
-  ctx.font = '32px Arial';
-  ctx.fillStyle = 'rgba(255,255,255,0.85)';
-  ctx.fillText(`${count} коробок · ${fmtQty(qty)} шт`, 24, 100);
-  const tex = new THREE.CanvasTexture(c);
-  tex.anisotropy = 4;
-  return tex;
-}
-
-// ─── Build pallet ────────────────────────────────────────────────────────────
-function buildPallet(palletData, mats, geo, offsetX, offsetZ) {
-  const group = new THREE.Group();
-  group.position.set(offsetX, 0, offsetZ);
-
+// ─── Build one pallet (exact copy of pallet-3d.html style) ──────────────────
+function buildPallet(palletData, sharedMats, sharedGeo, offsetX, offsetZ) {
+  const pallet = new THREE.Group();
+  pallet.position.set(offsetX, 0, offsetZ);
   const boxes = palletData.boxes || [];
-  const totalQty = boxes.reduce((s, b) => s + parseFloat(b.quantity || 0), 0);
 
-  // Wood base (5 planks + 3 stringers + 3 bottom)
+  // Wood base — top planks
   for (let i = 0; i < 5; i++) {
-    const p = new THREE.Mesh(geo.plank, mats.wood);
+    const p = new THREE.Mesh(sharedGeo.plank, sharedMats.wood);
     p.position.set(0, 0.35, -2.4 + i * 1.2);
     p.castShadow = true;
-    group.add(p);
+    pallet.add(p);
   }
+  // Stringers
   for (let i = -1; i <= 1; i++) {
-    const s = new THREE.Mesh(geo.stringer, mats.woodDark);
+    const s = new THREE.Mesh(sharedGeo.stringer, sharedMats.woodDark);
     s.position.set(i * 2.2, 0.175, 0);
-    group.add(s);
+    s.castShadow = true;
+    pallet.add(s);
   }
+  // Bottom planks
   for (let x = -1; x <= 1; x++) {
-    const bp = new THREE.Mesh(geo.bottomPlank, mats.wood);
+    const bp = new THREE.Mesh(sharedGeo.bottomPlank, sharedMats.wood);
     bp.position.set(x * 2.2, 0.06, 0);
-    group.add(bp);
+    pallet.add(bp);
   }
 
-  // Name label
-  const labelTex = makePalletLabel(palletData.name, boxes.length, totalQty);
-  const nameMesh = new THREE.Mesh(geo.namePlane, new THREE.MeshBasicMaterial({ map: labelTex, transparent: true }));
-  nameMesh.position.set(0, 0.01, 3.5);
-  nameMesh.rotation.x = -Math.PI / 2;
-  group.add(nameMesh);
+  // Pallet name label on floor
+  const nc = document.createElement('canvas');
+  nc.width = 512; nc.height = 96;
+  const nctx = nc.getContext('2d');
+  nctx.fillStyle = '#7c3aed'; nctx.beginPath(); nctx.roundRect(0, 0, 512, 96, 14); nctx.fill();
+  nctx.fillStyle = '#fff'; nctx.font = 'bold 40px Arial'; nctx.fillText(palletData.name, 20, 42);
+  nctx.font = '26px Arial'; nctx.fillStyle = 'rgba(255,255,255,0.8)';
+  const totalQty = boxes.reduce((s, b) => s + parseFloat(b.quantity || 0), 0);
+  nctx.fillText(`${boxes.length} кор. · ${fmtQ(totalQty)} шт`, 20, 78);
+  const nameTex = new THREE.CanvasTexture(nc); nameTex.anisotropy = 4;
+  const nameMesh = new THREE.Mesh(new THREE.PlaneGeometry(4.5, 0.85), new THREE.MeshBasicMaterial({ map: nameTex, transparent: true }));
+  nameMesh.position.set(0, 0.01, 3.6); nameMesh.rotation.x = -Math.PI / 2;
+  pallet.add(nameMesh);
 
-  // Boxes
+  // Boxes — exact same structure as pallet-3d.html
   const boxMeshes = [];
   const layers = Math.ceil(boxes.length / LAYER_SIZE);
-  for (let li = 0; li < layers; li++) {
-    if (li > 0) {
-      const bd = new THREE.Mesh(geo.board, mats.boardSep);
-      bd.position.y = 0.42 + li * (BOX_H + 0.08) - 0.04;
-      bd.userData = { type: 'separator', layerIndex: li };
-      group.add(bd);
-      boxMeshes.push(bd); // include separators so layer filter hides them
-    }
-    const layerBoxes = boxes.slice(li * LAYER_SIZE, (li + 1) * LAYER_SIZE);
+  const layerGroups = [];
+
+  for (let li = 0; li < Math.max(layers, 1); li++) {
+    const lg = new THREE.Group();
     const baseY = 0.42 + li * (BOX_H + 0.08);
+    const layerBoxes = boxes.slice(li * LAYER_SIZE, (li + 1) * LAYER_SIZE);
+
+    // Layer separator board
+    if (li > 0) {
+      const board = new THREE.Mesh(sharedGeo.board, sharedMats.boardSep);
+      board.position.y = baseY - 0.04;
+      board.castShadow = true;
+      lg.add(board);
+    }
 
     layerBoxes.forEach((box, idx) => {
       const row = Math.floor(idx / COLS), col = idx % COLS;
-      const bGroup = new THREE.Group();
+      const g = new THREE.Group();
 
-      const bName = (box.product_name || '—').replace(/GraFLab,?\s*/i, '').trim();
-      const frontTex = makeBoxFrontTexture(bName, box.quantity || 0);
-      const topTex = getBoxTopTexture();
-      const sideTex = getBoxSideTexture();
+      // Box body with 6 materials (sides + lighter top)
+      const mesh = new THREE.Mesh(sharedGeo.box, [
+        sharedMats.boxSide, sharedMats.boxSide,
+        sharedMats.boxTop, sharedMats.boxSide,
+        sharedMats.boxSide, sharedMats.boxSide,
+      ]);
+      mesh.castShadow = true; mesh.receiveShadow = true;
+      g.add(mesh);
 
-      // 6 faces: +X, -X, +Y (top), -Y, +Z (front), -Z
-      const faceMats = [
-        new THREE.MeshStandardMaterial({ map: sideTex, roughness: 0.55 }),
-        new THREE.MeshStandardMaterial({ map: sideTex, roughness: 0.55 }),
-        new THREE.MeshStandardMaterial({ map: topTex, roughness: 0.45 }),
-        mats.boxSide,
-        new THREE.MeshStandardMaterial({ map: frontTex, roughness: 0.4 }),
-        new THREE.MeshStandardMaterial({ map: sideTex, roughness: 0.55 }),
-      ];
-      const mesh = new THREE.Mesh(geo.box, faceMats);
-      mesh.castShadow = true;
-      bGroup.add(mesh);
+      // Tape strips
+      g.add(new THREE.Mesh(sharedGeo.tapeV, sharedMats.tape));
+      g.add(new THREE.Mesh(sharedGeo.tapeH, sharedMats.tape));
 
-      const x = (col - 2) * (BOX_W + 0.05);
-      const z = (row - 2) * (BOX_D + 0.05);
-      bGroup.position.set(x, baseY + BOX_H / 2, z);
+      // Top tape cross
+      const tv = new THREE.Mesh(sharedGeo.topTapeV, sharedMats.tape);
+      tv.rotation.x = -Math.PI / 2; tv.position.y = BOX_H / 2 + 0.005;
+      g.add(tv);
+      const th = new THREE.Mesh(sharedGeo.topTapeH, sharedMats.tape);
+      th.rotation.x = -Math.PI / 2; th.position.y = BOX_H / 2 + 0.005;
+      g.add(th);
 
-      bGroup.userData = {
-        type: 'box', product: bName, qty: fmtQty(box.quantity),
-        barcode: box.barcode_value || '—', boxId: box.id,
-        palletId: palletData.id, palletName: palletData.name,
-        layerIndex: li,
-      };
+      // White label on front face with product name + qty (cached)
+      const name = (box.product_name || '—').replace(/GraFLab,?\s*/i, '').trim();
+      const qty = fmtQ(box.quantity);
+      const labelMat = getLabelTexture(name, qty);
+      const label = new THREE.Mesh(sharedGeo.label, labelMat);
+      label.position.set(0, -0.1, BOX_D / 2 + 0.005);
+      g.add(label);
 
-      group.add(bGroup);
-      boxMeshes.push(bGroup);
+      g.position.set((col - 2) * (BOX_W + 0.05), baseY + BOX_H / 2, (row - 2) * (BOX_D + 0.05));
+      g.userData = { type: 'box', product: name, qty, barcode: box.barcode_value || '—', boxId: box.id, palletName: palletData.name, layerIndex: li };
+
+      lg.add(g);
+      boxMeshes.push(g);
     });
+
+    layerGroups.push(lg);
+    pallet.add(lg);
   }
 
-  group.userData = { type: 'pallet', boxMeshes, palletInfo: palletData };
-  return group;
+  pallet.userData = { type: 'pallet', boxMeshes, layerGroups, palletInfo: palletData };
+  return pallet;
 }
 
-// ─── Info Panel (React overlay, left side) ───────────────────────────────────
-function InfoPanel({ data, onClose, onNavigate, onStartMove }) {
-  if (!data) return null;
-  const isBox = data.type === 'box';
-  return (
-    <div style={{
-      position: 'absolute', top: 16, left: 16, width: 260, zIndex: 20,
-      background: 'white', borderRadius: 16, padding: '16px 18px',
-      boxShadow: '0 8px 30px rgba(0,0,0,0.12)', fontFamily: 'Inter,Arial,sans-serif',
-      animation: 'fadeIn 0.15s ease-out',
-    }}>
-      <style>{`@keyframes fadeIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}`}</style>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
-        <div>
-          <p style={{ fontSize: 9, fontWeight: 700, color: '#7c3aed', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
-            {isBox ? 'Коробка' : 'Паллет'}
-          </p>
-          <h4 style={{ fontSize: 15, fontWeight: 800, color: '#1c1917', margin: '4px 0 0' }}>
-            {isBox ? data.product : data.palletName}
-          </h4>
-        </div>
-        <button onClick={onClose} style={{ width: 24, height: 24, border: '1px solid #eee', borderRadius: 6, background: 'white', cursor: 'pointer', fontSize: 14, color: '#bbb', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
-      </div>
-      {isBox && (
-        <>
-          <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-            <div style={{ flex: 1, background: '#f5f3ff', borderRadius: 8, padding: '6px 10px' }}>
-              <p style={{ fontSize: 9, color: '#7c3aed', margin: 0, fontWeight: 600 }}>Кол-во</p>
-              <p style={{ fontSize: 16, fontWeight: 900, color: '#5b21b6', margin: 0 }}>{fmtQty(data.qty)} шт</p>
-            </div>
-            <div style={{ flex: 1, background: '#f0fdf4', borderRadius: 8, padding: '6px 10px' }}>
-              <p style={{ fontSize: 9, color: '#16a34a', margin: 0, fontWeight: 600 }}>Паллет</p>
-              <p style={{ fontSize: 14, fontWeight: 700, color: '#15803d', margin: 0 }}>{data.palletName}</p>
-            </div>
-          </div>
-          <p style={{ fontSize: 11, color: '#aaa', margin: '0 0 10px', fontFamily: 'monospace' }}>ШК: {data.barcode}</p>
-          <div style={{ display: 'flex', gap: 6 }}>
-            <button onClick={onNavigate} style={{ flex: 1, padding: '8px 0', borderRadius: 10, border: 'none', background: '#7c3aed', color: 'white', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
-              Карточка
-            </button>
-            <button onClick={onStartMove} style={{ flex: 1, padding: '8px 0', borderRadius: 10, border: '1.5px solid #7c3aed', background: 'white', color: '#7c3aed', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
-              Перенести
-            </button>
-          </div>
-        </>
-      )}
-      {!isBox && data.palletInfo && (
-        <>
-          <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-            <div style={{ flex: 1, background: '#f5f3ff', borderRadius: 8, padding: '6px 10px' }}>
-              <p style={{ fontSize: 9, color: '#7c3aed', margin: 0, fontWeight: 600 }}>Коробок</p>
-              <p style={{ fontSize: 16, fontWeight: 900, color: '#5b21b6', margin: 0 }}>{data.palletInfo.boxes?.length || 0}</p>
-            </div>
-            <div style={{ flex: 1, background: '#f0fdf4', borderRadius: 8, padding: '6px 10px' }}>
-              <p style={{ fontSize: 9, color: '#16a34a', margin: 0, fontWeight: 600 }}>Штук</p>
-              <p style={{ fontSize: 16, fontWeight: 900, color: '#15803d', margin: 0 }}>{(data.palletInfo.boxes || []).reduce((s, b) => s + parseFloat(b.quantity || 0), 0)}</p>
-            </div>
-          </div>
-          <button onClick={onNavigate} style={{ width: '100%', padding: '8px 0', borderRadius: 10, border: 'none', background: '#7c3aed', color: 'white', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
-            Перейти в паллет
-          </button>
-        </>
-      )}
-    </div>
-  );
-}
+// ─── Main Component ──────────────────────────────────────────────────────────
+export default function FBOVisualView({ warehouse }) {
+  const containerRef = useRef(null);
+  const [loading, setLoading] = useState(true);
+  const [rows, setRows] = useState([]);
+  const allBoxRef = useRef([]);
 
-// ─── Move mode banner ────────────────────────────────────────────────────────
-function MoveBanner({ boxData, onCancel }) {
-  return (
-    <div style={{
-      position: 'absolute', top: 16, left: '50%', transform: 'translateX(-50%)', zIndex: 20,
-      background: '#fbbf24', borderRadius: 12, padding: '10px 20px',
-      boxShadow: '0 4px 16px rgba(251,191,36,0.3)', fontFamily: 'Inter,Arial,sans-serif',
-      display: 'flex', alignItems: 'center', gap: 12,
-    }}>
-      <span style={{ fontSize: 13, fontWeight: 700, color: '#78350f' }}>
-        Выберите паллет для переноса «{boxData.product}»
-      </span>
-      <button onClick={onCancel} style={{ padding: '4px 12px', borderRadius: 8, border: '1px solid #92400e', background: 'rgba(255,255,255,0.5)', color: '#78350f', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-        Отмена
-      </button>
-    </div>
-  );
-}
+  const load = useCallback(async () => {
+    setLoading(true);
+    try { const r = await api.get(`/fbo/visual/${warehouse.id}`); setRows(r.data.rows || []); }
+    catch {} finally { setLoading(false); }
+  }, [warehouse.id]);
 
-// ─── Layer control (right side) ──────────────────────────────────────────────
-function LayerControl({ maxLayers, activeLayer, onChange }) {
-  return (
-    <div style={{
-      position: 'absolute', top: '50%', right: 16, transform: 'translateY(-50%)', zIndex: 20,
-      background: 'white', borderRadius: 12, padding: '10px 6px',
-      boxShadow: '0 4px 16px rgba(0,0,0,0.1)', fontFamily: 'Inter,Arial,sans-serif',
-      display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'center',
-    }}>
-      <span style={{ fontSize: 8, fontWeight: 700, color: '#aaa', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Слои</span>
-      {Array.from({ length: maxLayers }, (_, i) => maxLayers - 1 - i).map(li => (
-        <button key={li} onClick={() => onChange(activeLayer === li ? -1 : li)} style={{
-          width: 32, height: 28, borderRadius: 6, border: 'none', cursor: 'pointer',
-          fontSize: 11, fontWeight: activeLayer === li ? 700 : 500,
-          background: activeLayer === li ? '#7c3aed' : '#f3f4f6',
-          color: activeLayer === li ? '#fff' : '#888',
-        }}>{li + 1}</button>
-      ))}
-      <button onClick={() => onChange(-1)} style={{
-        width: 32, height: 28, borderRadius: 6, border: 'none', cursor: 'pointer',
-        fontSize: 10, fontWeight: activeLayer === -1 ? 700 : 500,
-        background: activeLayer === -1 ? '#7c3aed' : '#f3f4f6',
-        color: activeLayer === -1 ? '#fff' : '#888',
-      }}>Все</button>
-    </div>
-  );
-}
-
-// ─── Pallet 3D Detail View (fullscreen overlay) ─────────────────────────────
-function PalletDetail3D({ pallet, onClose }) {
-  const ref = useRef(null);
+  useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
-    if (!ref.current) return;
-    const el = ref.current;
-    const W = el.clientWidth, H = el.clientHeight;
+    if (loading || !containerRef.current || rows.length === 0) return;
+    const el = containerRef.current;
+    const W = el.clientWidth, H = Math.max(500, window.innerHeight - 260);
 
+    // ═══ Scene (same as pallet-3d.html) ═══
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0xe8e0d0);
-    const camera = new THREE.PerspectiveCamera(40, W / H, 0.1, 100);
-    camera.position.set(12, 14, 12);
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    scene.background = new THREE.Color(0xf0ede6);
+
+    const camera = new THREE.PerspectiveCamera(40, W / H, 0.1, 500);
+    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     renderer.setSize(W, H);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     renderer.shadowMap.enabled = true;
-    el.appendChild(renderer.domElement);
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText = 'border-radius:12px;overflow:hidden;';
+    wrapper.appendChild(renderer.domElement);
+    el.innerHTML = '';
+    el.appendChild(wrapper);
 
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
-    controls.target.set(0, 2, 0);
+    controls.maxPolarAngle = Math.PI / 2.1;
 
-    scene.add(new THREE.AmbientLight(0xfff8e8, 0.7));
-    const dir = new THREE.DirectionalLight(0xfff0d0, 0.9);
-    dir.position.set(10, 20, 8);
-    dir.castShadow = true;
-    dir.shadow.mapSize.set(1024, 1024);
-    scene.add(dir);
-    scene.add(new THREE.HemisphereLight(0xffeedd, 0xd0c8b8, 0.4));
+    // ═══ Lights (same as pallet-3d.html) ═══
+    scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    dirLight.position.set(10, 20, 8);
+    dirLight.castShadow = true;
+    dirLight.shadow.mapSize.set(1024, 1024);
+    dirLight.shadow.camera.left = -40; dirLight.shadow.camera.right = 40;
+    dirLight.shadow.camera.top = 40; dirLight.shadow.camera.bottom = -40;
+    scene.add(dirLight);
 
-    const floor = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), new THREE.MeshStandardMaterial({ color: 0xe0d8c8, roughness: 0.8 }));
-    floor.rotation.x = -Math.PI / 2;
-    floor.receiveShadow = true;
+    // ═══ Floor (same as pallet-3d.html) ═══
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(120, 120),
+      new THREE.MeshStandardMaterial({ color: 0xe8e4dc, roughness: 0.9 }));
+    floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true;
     scene.add(floor);
+    const grid = new THREE.GridHelper(120, 60, 0xd0ccc4, 0xd0ccc4);
+    grid.position.y = 0.01; grid.material.opacity = 0.4; grid.material.transparent = true;
+    scene.add(grid);
 
+    // ═══ Shared materials (same colors as pallet-3d.html) ═══
     const mats = {
-      wood: new THREE.MeshStandardMaterial({ color: 0xd4a850, roughness: 0.65 }),
-      woodDark: new THREE.MeshStandardMaterial({ color: 0x9a7430, roughness: 0.75 }),
-      boxSide: new THREE.MeshStandardMaterial({ color: 0xe8d8b8, roughness: 0.55 }),
-      boxTop: new THREE.MeshStandardMaterial({ color: 0xf0e4cc, roughness: 0.45 }),
-      tape: new THREE.MeshStandardMaterial({ color: 0xd8c8a0, roughness: 0.35, transparent: true, opacity: 0.4 }),
-      boardSep: new THREE.MeshStandardMaterial({ color: 0xdcc080, roughness: 0.55 }),
+      wood: new THREE.MeshStandardMaterial({ color: 0xc89838, roughness: 0.7 }),
+      woodDark: new THREE.MeshStandardMaterial({ color: 0x8a6828, roughness: 0.8 }),
+      boxSide: new THREE.MeshStandardMaterial({ color: 0xddd0b4, roughness: 0.6 }),
+      boxTop: new THREE.MeshStandardMaterial({ color: 0xe8dbc4, roughness: 0.5 }),
+      tape: new THREE.MeshStandardMaterial({ color: 0xc8b898, roughness: 0.4, transparent: true, opacity: 0.5 }),
+      boardSep: new THREE.MeshStandardMaterial({ color: 0xc89838, roughness: 0.7 }),
     };
-    const geo = getSharedGeo();
-    const pg = buildPallet(pallet, mats, geo, 0, 0);
-    scene.add(pg);
 
-    // Raycaster
+    // ═══ Shared geometries ═══
+    const geo = {
+      plank: new THREE.BoxGeometry(6, 0.15, 0.8),
+      stringer: new THREE.BoxGeometry(0.6, 0.35, 5.6),
+      bottomPlank: new THREE.BoxGeometry(0.8, 0.12, 5.6),
+      box: new THREE.BoxGeometry(BOX_W, BOX_H, BOX_D),
+      tapeV: new THREE.BoxGeometry(0.08, BOX_H + 0.01, BOX_D + 0.01),
+      tapeH: new THREE.BoxGeometry(BOX_W + 0.01, BOX_H + 0.01, 0.08),
+      topTapeV: new THREE.PlaneGeometry(0.1, BOX_D),
+      topTapeH: new THREE.PlaneGeometry(BOX_W, 0.1),
+      board: new THREE.BoxGeometry(5.8, 0.06, 5.8),
+      label: new THREE.PlaneGeometry(0.6, 0.3),
+    };
+
+    // ═══ Place all pallets ═══
+    const allBoxMeshes = [];
+    rows.forEach((row, ri) => {
+      row.pallets.forEach((p, pi) => {
+        const x = pi * PALLET_GAP - ((row.pallets.length - 1) * PALLET_GAP) / 2;
+        const z = ri * 12;
+        const pg = buildPallet(p, mats, geo, x, z);
+        scene.add(pg);
+        allBoxMeshes.push(...(pg.userData.boxMeshes || []));
+      });
+    });
+    allBoxRef.current = allBoxMeshes;
+
+    // Camera position
+    const totalZ = Math.max(0, (rows.length - 1) * 12);
+    controls.target.set(0, 3, totalZ / 2);
+    camera.position.set(20, 20, totalZ / 2 + 22);
+
+    // ═══ Tooltip (same as pallet-3d.html) ═══
+    const tooltip = document.createElement('div');
+    tooltip.style.cssText = 'position:fixed;display:none;z-index:100;background:#1c1917;color:white;padding:8px 14px;border-radius:10px;font-size:12px;pointer-events:none;box-shadow:0 6px 20px rgba(0,0,0,0.3);font-family:Inter,Arial,sans-serif;';
+    el.appendChild(tooltip);
+
+    // ═══ Raycaster (same as pallet-3d.html) ═══
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
-    const allMeshes = pg.userData.boxMeshes || [];
-    const tooltip = document.createElement('div');
-    tooltip.style.cssText = 'position:fixed;display:none;z-index:200;background:#1c1917;color:white;padding:8px 14px;border-radius:10px;font-size:12px;pointer-events:none;box-shadow:0 6px 20px rgba(0,0,0,0.3);font-family:Inter,Arial,sans-serif;';
-    el.appendChild(tooltip);
+    let hovered = null;
 
     const onMove = (e) => {
       const rect = renderer.domElement.getBoundingClientRect();
       mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
       mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
       raycaster.setFromCamera(mouse, camera);
-      const hits = raycaster.intersectObjects(allMeshes, true);
+      const hits = raycaster.intersectObjects(allBoxMeshes, true);
       if (hits.length > 0) {
         let obj = hits[0].object;
-        while (obj.parent && !obj.userData.product) obj = obj.parent;
-        if (obj.userData.product) {
+        while (obj.parent && !obj.userData.type) obj = obj.parent;
+        if (obj.userData.type === 'box') {
+          if (hovered !== obj) { if (hovered) hovered.scale.set(1, 1, 1); hovered = obj; obj.scale.set(1.08, 1.08, 1.08); }
           tooltip.style.display = 'block';
           tooltip.style.left = (e.clientX + 16) + 'px';
           tooltip.style.top = (e.clientY - 10) + 'px';
           tooltip.innerHTML = `<b>${obj.userData.product}</b><br>ШК: ${obj.userData.barcode} · ${obj.userData.qty} шт`;
-          obj.scale.set(1.08, 1.08, 1.08);
+          renderer.domElement.style.cursor = 'pointer';
           return;
         }
       }
-      allMeshes.forEach(m => m.scale.set(1, 1, 1));
+      if (hovered) { hovered.scale.set(1, 1, 1); hovered = null; }
       tooltip.style.display = 'none';
+      renderer.domElement.style.cursor = 'grab';
     };
     renderer.domElement.addEventListener('mousemove', onMove);
 
+    // Resize
+    const onResize = () => {
+      const w = el.clientWidth, h = Math.max(500, window.innerHeight - 260);
+      camera.aspect = w / h; camera.updateProjectionMatrix(); renderer.setSize(w, h);
+    };
+    window.addEventListener('resize', onResize);
+
+    // Animate
     let animId;
     const animate = () => { animId = requestAnimationFrame(animate); controls.update(); renderer.render(scene, camera); };
     animate();
-
-    const onResize = () => { const w = el.clientWidth, h = el.clientHeight; camera.aspect = w / h; camera.updateProjectionMatrix(); renderer.setSize(w, h); };
-    window.addEventListener('resize', onResize);
 
     return () => {
       cancelAnimationFrame(animId);
       window.removeEventListener('resize', onResize);
       renderer.dispose();
       el.innerHTML = '';
-    };
-  }, [pallet]);
-
-  const boxes = pallet.boxes || [];
-  const totalQty = boxes.reduce((s, b) => s + parseFloat(b.quantity || 0), 0);
-
-  return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 50, background: '#e8e0d0', display: 'flex', flexDirection: 'column' }}>
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px', background: 'white', borderBottom: '1px solid #eee' }}>
-        <div>
-          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: '#1c1917' }}>{pallet.name}</h3>
-          <p style={{ margin: 0, fontSize: 12, color: '#aaa' }}>{boxes.length} коробок · {totalQty} шт</p>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 11, color: '#7c3aed', fontWeight: 600 }}>Крути мышкой · Скролл = зум</span>
-          <button onClick={onClose} style={{ padding: '6px 16px', borderRadius: 10, border: 'none', background: '#7c3aed', color: 'white', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
-            Назад к складу
-          </button>
-        </div>
-      </div>
-      {/* 3D canvas */}
-      <div ref={ref} style={{ flex: 1 }} />
-    </div>
-  );
-}
-
-// ─── Main Component ──────────────────────────────────────────────────────────
-export default function FBOVisualView({ warehouse }) {
-  const navigate = useNavigate();
-  const toast = useToast();
-  const containerRef = useRef(null);
-  const [loading, setLoading] = useState(true);
-  const [rows, setRows] = useState([]);
-  const [selected, setSelected] = useState(null);
-  const [moveMode, setMoveMode] = useState(null);
-  const [cardData, setCardData] = useState(null);
-  const [cardLoading, setCardLoading] = useState(false);
-  const [palletDetail, setPalletDetail] = useState(null); // pallet for 3D detail view
-  const moveModeRef = useRef(null);
-  const [activeLayer, setActiveLayer] = useState(-1); // -1 = all
-  const [maxLayers, setMaxLayers] = useState(3);
-  const rendererRef = useRef(null);
-  const allBoxMeshesRef = useRef([]);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const r = await api.get(`/fbo/visual/${warehouse.id}`);
-      setRows(r.data.rows || []);
-    } catch {} finally { setLoading(false); }
-  }, [warehouse.id]);
-
-  useEffect(() => { moveModeRef.current = moveMode; }, [moveMode]);
-
-  // Layer visibility
-  useEffect(() => {
-    const meshes = allBoxMeshesRef.current;
-    if (!meshes || meshes.length === 0) return;
-
-    const setMats = (obj, opacity) => {
-      if (obj.material) {
-        if (Array.isArray(obj.material)) {
-          obj.material.forEach(m => { m.transparent = opacity < 1; m.opacity = opacity; });
-        } else {
-          obj.material.transparent = opacity < 1;
-          obj.material.opacity = opacity;
-        }
-      }
-      if (obj.children) obj.children.forEach(c => setMats(c, opacity));
-    };
-
-    meshes.forEach(b => {
-      const li = b.userData.layerIndex || 0;
-      if (activeLayer === -1) {
-        b.visible = true;
-        setMats(b, 1);
-      } else if (li > activeLayer) {
-        b.visible = false;
-      } else if (li === activeLayer) {
-        b.visible = true;
-        setMats(b, 1);
-      } else {
-        b.visible = true;
-        setMats(b, 0.12);
-      }
-    });
-  }, [activeLayer]);
-  useEffect(() => { load(); }, [load]);
-
-  useEffect(() => {
-    if (loading || !containerRef.current || rows.length === 0) return;
-
-    const container = containerRef.current;
-    const W = container.clientWidth;
-    const H = Math.max(500, window.innerHeight - 280);
-
-    // Scene — warm bright warehouse
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0xf5f0e8);
-
-    // Camera
-    const camera = new THREE.PerspectiveCamera(40, W / H, 0.1, 200);
-
-    // Renderer
-    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-    renderer.setSize(W, H);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5)); // cap for perf
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-
-    const wrapper = container.querySelector('.three-canvas') || document.createElement('div');
-    wrapper.className = 'three-canvas';
-    wrapper.style.cssText = 'width:100%;border-radius:12px;overflow:hidden;';
-    wrapper.innerHTML = '';
-    wrapper.appendChild(renderer.domElement);
-    if (!container.querySelector('.three-canvas')) container.prepend(wrapper);
-
-    rendererRef.current = renderer;
-
-    // Controls
-    const controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.06;
-    controls.maxPolarAngle = Math.PI / 2.1;
-    controls.minDistance = 5;
-    controls.maxDistance = 60;
-
-    // Lights — warm warehouse lighting
-    scene.add(new THREE.AmbientLight(0xfff8e8, 0.7));
-    const dir = new THREE.DirectionalLight(0xfff0d0, 0.9);
-    dir.position.set(15, 30, 12);
-    dir.castShadow = true;
-    dir.shadow.mapSize.set(1024, 1024);
-    dir.shadow.camera.left = -25; dir.shadow.camera.right = 25;
-    dir.shadow.camera.top = 25; dir.shadow.camera.bottom = -25;
-    scene.add(dir);
-    // Fill light from other side
-    const fill = new THREE.DirectionalLight(0xe8f0ff, 0.3);
-    fill.position.set(-10, 15, -8);
-    scene.add(fill);
-    // Hemisphere for sky feel
-    scene.add(new THREE.HemisphereLight(0xffeedd, 0xd0c8b8, 0.4));
-
-    // Floor — warm polished concrete (big enough)
-    const floorGeo = new THREE.PlaneGeometry(100, 100);
-    const floorMat = new THREE.MeshStandardMaterial({ color: 0xe0d8c8, roughness: 0.8, metalness: 0.05 });
-    const floor = new THREE.Mesh(floorGeo, floorMat);
-    floor.rotation.x = -Math.PI / 2;
-    floor.receiveShadow = true;
-    scene.add(floor);
-
-    // Materials (shared)
-    const mats = {
-      wood: new THREE.MeshStandardMaterial({ color: 0xd4a850, roughness: 0.65 }),
-      woodDark: new THREE.MeshStandardMaterial({ color: 0x9a7430, roughness: 0.75 }),
-      boxSide: new THREE.MeshStandardMaterial({ color: 0xe8d8b8, roughness: 0.55 }),
-      boxTop: new THREE.MeshStandardMaterial({ color: 0xf0e4cc, roughness: 0.45 }),
-      tape: new THREE.MeshStandardMaterial({ color: 0xd8c8a0, roughness: 0.35, transparent: true, opacity: 0.4 }),
-      boardSep: new THREE.MeshStandardMaterial({ color: 0xdcc080, roughness: 0.55 }),
-    };
-    const geo = getSharedGeo();
-
-    // Build pallets
-    const allBoxMeshes = [];
-    const palletGroups = [];
-
-    rows.forEach((row, ri) => {
-      row.pallets.forEach((pallet, pi) => {
-        const x = pi * PALLET_SPACING - ((row.pallets.length - 1) * PALLET_SPACING) / 2;
-        const z = ri * ROW_SPACING;
-        const pg = buildPallet(pallet, mats, geo, x, z);
-        scene.add(pg);
-        palletGroups.push(pg);
-        allBoxMeshes.push(...(pg.userData.boxMeshes || []));
-      });
-    });
-
-    // Store ref for layer filtering
-    allBoxMeshesRef.current = allBoxMeshes;
-
-    // Compute max layers
-    let ml = 1;
-    allBoxMeshes.forEach(b => { if ((b.userData.layerIndex || 0) + 1 > ml) ml = b.userData.layerIndex + 1; });
-    setMaxLayers(ml);
-
-    // Center camera
-    const totalZ = Math.max(0, (rows.length - 1) * ROW_SPACING);
-    controls.target.set(0, 3, totalZ / 2);
-    camera.position.set(18, 18, totalZ / 2 + 18);
-
-    // Raycaster
-    const raycaster = new THREE.Raycaster();
-    const mouse = new THREE.Vector2();
-    let hoveredObj = null;
-
-    const onMouseMove = (e) => {
-      const rect = renderer.domElement.getBoundingClientRect();
-      mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-      mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-
-      raycaster.setFromCamera(mouse, camera);
-      const intersects = raycaster.intersectObjects(allBoxMeshes, true);
-
-      if (intersects.length > 0) {
-        let obj = intersects[0].object;
-        while (obj.parent && !obj.userData.type) obj = obj.parent;
-        if (obj.userData.type === 'box') {
-          if (hoveredObj !== obj) {
-            if (hoveredObj) hoveredObj.scale.set(1, 1, 1);
-            hoveredObj = obj;
-            obj.scale.set(1.08, 1.08, 1.08);
-          }
-          renderer.domElement.style.cursor = 'pointer';
-          return;
-        }
-      }
-      if (hoveredObj) { hoveredObj.scale.set(1, 1, 1); hoveredObj = null; }
-      renderer.domElement.style.cursor = 'grab';
-    };
-
-    const onClick = async (e) => {
-      const rect = renderer.domElement.getBoundingClientRect();
-      mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-      mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-
-      raycaster.setFromCamera(mouse, camera);
-
-      // Move mode: click on pallet to transfer box
-      if (moveModeRef.current) {
-        const palletHits = raycaster.intersectObjects(palletGroups, true);
-        if (palletHits.length > 0) {
-          let obj = palletHits[0].object;
-          while (obj.parent && !obj.userData.type) obj = obj.parent;
-          if (obj.userData.type === 'pallet') {
-            const toPalletId = obj.userData.palletInfo.id;
-            if (toPalletId !== moveModeRef.current.fromPalletId) {
-              try {
-                await api.post('/fbo/visual/move', { box_id: moveModeRef.current.boxId, to_pallet_id: toPalletId });
-                setMoveMode(null);
-                load(); // reload scene
-              } catch (err) {
-                // toast not available in closure, use alert
-                alert('Ошибка переноса: ' + (err.response?.data?.error || err.message));
-              }
-            }
-            return;
-          }
-        }
-        return;
-      }
-
-      const intersects = raycaster.intersectObjects(allBoxMeshes, true);
-      if (intersects.length > 0) {
-        let obj = intersects[0].object;
-        while (obj.parent && !obj.userData.type) obj = obj.parent;
-        if (obj.userData.type === 'box') {
-          setSelected(obj.userData);
-          return;
-        }
-      }
-      // Check pallet click
-      const palletIntersects = raycaster.intersectObjects(palletGroups, true);
-      if (palletIntersects.length > 0) {
-        let obj = palletIntersects[0].object;
-        while (obj.parent && !obj.userData.type) obj = obj.parent;
-        if (obj.userData.type === 'pallet') {
-          setSelected({ type: 'pallet', palletName: obj.userData.palletInfo.name, palletInfo: obj.userData.palletInfo });
-        }
-      }
-    };
-
-    renderer.domElement.addEventListener('mousemove', onMouseMove);
-    renderer.domElement.addEventListener('click', onClick);
-
-    // Resize
-    const onResize = () => {
-      const w = container.clientWidth;
-      const h = Math.max(500, window.innerHeight - 280);
-      camera.aspect = w / h;
-      camera.updateProjectionMatrix();
-      renderer.setSize(w, h);
-    };
-    window.addEventListener('resize', onResize);
-
-    // Animate
-    let animId;
-    const animate = () => {
-      animId = requestAnimationFrame(animate);
-      controls.update();
-      renderer.render(scene, camera);
-    };
-    animate();
-
-    return () => {
-      cancelAnimationFrame(animId);
-      window.removeEventListener('resize', onResize);
-      renderer.domElement.removeEventListener('mousemove', onMouseMove);
-      renderer.domElement.removeEventListener('click', onClick);
-      renderer.dispose();
-      wrapper.innerHTML = '';
     };
   }, [loading, rows]);
 
@@ -730,91 +299,8 @@ export default function FBOVisualView({ warehouse }) {
   return (
     <div ref={containerRef} style={{ width: '100%', position: 'relative' }}>
       {rows.length === 0 && <div style={{ textAlign: 'center', padding: 80, color: '#bbb' }}>Нет данных</div>}
-
-      {moveMode && <MoveBanner boxData={moveMode} onCancel={() => setMoveMode(null)} />}
-
-      {!moveMode && <InfoPanel data={selected} onClose={() => setSelected(null)}
-        onNavigate={async () => {
-          if (selected?.type === 'box' && selected.boxId) {
-            setCardLoading(true);
-            try {
-              const res = await api.get(`/fbo/boxes/${selected.boxId}`);
-              setCardData(res.data);
-            } catch {} finally { setCardLoading(false); }
-          } else if (selected?.type === 'pallet' && selected.palletInfo) {
-            setPalletDetail(selected.palletInfo);
-          }
-          setSelected(null);
-        }}
-        onStartMove={() => {
-          if (selected?.type === 'box') {
-            setMoveMode({ boxId: selected.boxId, product: selected.product, fromPalletId: selected.palletId, fromPalletName: selected.palletName });
-            setSelected(null);
-          }
-        }}
-      />}
-
-      <LayerControl maxLayers={maxLayers} activeLayer={activeLayer} onChange={setActiveLayer} />
-
-      {/* Box detail modal */}
-      {(cardData || cardLoading) && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-          onClick={() => { setCardData(null); setCardLoading(false); }}>
-          <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.3)' }} />
-          <div style={{ position: 'relative', background: 'white', borderRadius: 20, padding: 24, width: 380, maxHeight: '70vh', overflow: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.2)', fontFamily: 'Inter,Arial,sans-serif' }}
-            onClick={e => e.stopPropagation()}>
-            {cardLoading ? (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 120 }}><Spinner size="md" /></div>
-            ) : cardData && (
-              <>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-                  <div>
-                    <p style={{ fontSize: 10, fontWeight: 700, color: '#7c3aed', textTransform: 'uppercase', margin: 0 }}>Коробка</p>
-                    <h3 style={{ fontSize: 18, fontWeight: 800, margin: '4px 0 0', color: '#1c1917' }}>{(cardData.product_name || '—').replace(/GraFLab,?\s*/i, '').trim()}</h3>
-                  </div>
-                  <button onClick={() => setCardData(null)} style={{ width: 28, height: 28, border: '1px solid #eee', borderRadius: 8, background: 'white', cursor: 'pointer', fontSize: 16, color: '#bbb', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
-                  <div style={{ background: '#f5f3ff', borderRadius: 10, padding: '10px 14px' }}>
-                    <p style={{ fontSize: 10, color: '#7c3aed', fontWeight: 600, margin: 0 }}>Кол-во</p>
-                    <p style={{ fontSize: 20, fontWeight: 900, color: '#5b21b6', margin: '2px 0 0' }}>{fmtQty(cardData.quantity)} шт</p>
-                  </div>
-                  <div style={{ background: '#f0fdf4', borderRadius: 10, padding: '10px 14px' }}>
-                    <p style={{ fontSize: 10, color: '#16a34a', fontWeight: 600, margin: 0 }}>Статус</p>
-                    <p style={{ fontSize: 14, fontWeight: 700, color: '#15803d', margin: '2px 0 0' }}>{cardData.status === 'closed' ? 'Закрыта' : cardData.status}</p>
-                  </div>
-                </div>
-                <div style={{ fontSize: 12, color: '#888', lineHeight: 1.8 }}>
-                  <p style={{ margin: 0 }}><b style={{ color: '#555' }}>ШК:</b> {cardData.barcode_value || '—'}</p>
-                  {cardData.pallet_name && <p style={{ margin: 0 }}><b style={{ color: '#555' }}>Паллет:</b> {cardData.pallet_name}</p>}
-                  {cardData.row_name && <p style={{ margin: 0 }}><b style={{ color: '#555' }}>Ряд:</b> {cardData.row_name}</p>}
-                  {cardData.warehouse_name && <p style={{ margin: 0 }}><b style={{ color: '#555' }}>Склад:</b> {cardData.warehouse_name}</p>}
-                  {cardData.product_code && <p style={{ margin: 0 }}><b style={{ color: '#555' }}>Код:</b> {cardData.product_code}</p>}
-                </div>
-                {cardData.items && cardData.items.length > 0 && (
-                  <div style={{ marginTop: 14 }}>
-                    <p style={{ fontSize: 10, fontWeight: 700, color: '#aaa', textTransform: 'uppercase', marginBottom: 8 }}>Содержимое ({cardData.items.length})</p>
-                    <div style={{ maxHeight: 200, overflowY: 'auto' }}>
-                      {cardData.items.map((item, i) => (
-                        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid #f5f5f5', fontSize: 12 }}>
-                          <span style={{ color: '#333' }}>{(item.product_name || '—').replace(/GraFLab,?\s*/i, '').trim()}</span>
-                          <span style={{ fontWeight: 700, color: '#555' }}>{fmtQty(item.quantity)} шт</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Pallet 3D detail fullscreen */}
-      {palletDetail && <PalletDetail3D pallet={palletDetail} onClose={() => setPalletDetail(null)} />}
-
       <p style={{ textAlign: 'center', fontSize: 11, color: '#bbb', marginTop: 6 }}>
-        ЛКМ + тянуть = вращение · Скролл = зум · ПКМ = панорама · Клик = инфо
+        Крути мышкой · Скролл = зум · ПКМ = панорама
       </p>
     </div>
   );
