@@ -22,6 +22,7 @@ const TASK_TYPE_STYLE = {
   inventory: { SvgIcon: InventoryIcon, label: 'Инвентаризация', bg: 'bg-blue-50', text: 'text-blue-600', border: 'border-blue-200' },
   packaging: { SvgIcon: PackagingIcon, label: 'Оприходование', bg: 'bg-purple-50', text: 'text-purple-600', border: 'border-purple-200' },
   production_transfer: { SvgIcon: TransferIcon, label: 'Перенос', bg: 'bg-amber-50', text: 'text-amber-600', border: 'border-amber-200' },
+  bundle_assembly: { SvgIcon: PackagingIcon, label: 'Сборка комплектов', bg: 'bg-green-50', text: 'text-green-600', border: 'border-green-200' },
   default: { SvgIcon: InventoryIcon, label: 'Задача', bg: 'bg-primary-50', text: 'text-primary-600', border: 'border-primary-200' },
 };
 
@@ -102,7 +103,7 @@ export default function MyTasksPage() {
                     key={task.id}
                     task={task}
                     index={i}
-                    onClick={() => navigate(task.task_type === 'packaging' ? `/employee/packaging/${task.id}` : `/employee/tasks/${task.id}`)}
+                    onClick={() => navigate(task.task_type === 'packaging' ? `/employee/packaging/${task.id}` : task.task_type === 'bundle_assembly' ? `/employee/assembly/${task.id}` : `/employee/tasks/${task.id}`)}
                   />
                 ))}
               </div>
@@ -124,7 +125,7 @@ export default function MyTasksPage() {
                     key={task.id}
                     task={task}
                     index={activeTasks.length + i}
-                    onClick={() => navigate(task.task_type === 'packaging' ? `/employee/packaging/${task.id}` : `/employee/tasks/${task.id}`)}
+                    onClick={() => navigate(task.task_type === 'packaging' ? `/employee/packaging/${task.id}` : task.task_type === 'bundle_assembly' ? `/employee/assembly/${task.id}` : `/employee/tasks/${task.id}`)}
                     muted
                   />
                 ))}

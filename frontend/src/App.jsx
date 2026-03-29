@@ -25,6 +25,7 @@ const ErrorsPage = lazy(() => import('./pages/admin/ErrorsPage'));
 const MyTasksPage = lazy(() => import('./pages/employee/MyTasksPage'));
 const TaskScanPage = lazy(() => import('./pages/employee/TaskScanPage'));
 const PackagingPage = lazy(() => import('./pages/employee/PackagingPage'));
+const AssemblyPage = lazy(() => import('./pages/employee/AssemblyPage'));
 const MovePage = lazy(() => import('./pages/employee/MovePage'));
 const MyInventoryPage = lazy(() => import('./pages/employee/MyInventoryPage'));
 const FBOPage = lazy(() => import('./pages/admin/FBOPage'));
@@ -88,6 +89,7 @@ function AppRoutes() {
       <Route path="/employee/tasks" element={<EmployeeRoute><MyTasksPage /></EmployeeRoute>} />
       <Route path="/employee/tasks/:id" element={<EmployeeRoute><TaskScanPage /></EmployeeRoute>} />
       <Route path="/employee/packaging/:id" element={<EmployeeRoute><PackagingPage /></EmployeeRoute>} />
+      <Route path="/employee/assembly/:id" element={<EmployeeRoute><AssemblyPage /></EmployeeRoute>} />
       <Route path="/employee/move" element={<EmployeeRoute><MovePage /></EmployeeRoute>} />
       <Route path="/employee/inventory" element={<EmployeeRoute><MyInventoryPage /></EmployeeRoute>} />
 
