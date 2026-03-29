@@ -766,11 +766,16 @@ function CreateTaskModal({ open, onClose, onSuccess }) {
   const [bundleSourcePallet, setBundleSourcePallet] = useState('');
 
   // Close bundle dropdown on outside click
+  const bundleDropRef = useRef(null);
   useEffect(() => {
     if (!bundleDropOpen) return;
-    const close = () => setBundleDropOpen(false);
-    setTimeout(() => document.addEventListener('click', close), 0);
-    return () => document.removeEventListener('click', close);
+    const close = (e) => {
+      if (bundleDropRef.current && !bundleDropRef.current.contains(e.target)) {
+        setBundleDropOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
   }, [bundleDropOpen]);
 
   // Load all bundles
@@ -1116,8 +1121,8 @@ function CreateTaskModal({ open, onClose, onSuccess }) {
                   className="text-gray-400 hover:text-red-500"><X size={14} /></button>
               </div>
             ) : (
-              <div className="relative">
-                <input value={bundleSearch} onChange={e => setBundleSearch(e.target.value)}
+              <div className="relative" ref={bundleDropRef}>
+                <input value={bundleSearch} onChange={e => { setBundleSearch(e.target.value); setBundleDropOpen(true); }}
                   onFocus={() => setBundleDropOpen(true)}
                   placeholder="Начните вводить или выберите..."
                   className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:border-primary-400 focus:ring-2 focus:ring-primary-100 focus:outline-none" />
