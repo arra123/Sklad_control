@@ -424,24 +424,7 @@ export default function AssemblyPage() {
             })}
           </div>
 
-          {/* Where to find — always show available locations */}
-          {sourceBoxes.length > 0 && (
-            <div className="bg-amber-50 border border-amber-100 rounded-xl p-3">
-              <p className="text-xs font-semibold text-amber-700 uppercase mb-2">Где можно взять:</p>
-              <div className="max-h-40 overflow-y-auto space-y-2">
-                {sourceBoxes.map((b, i) => (
-                  <div key={i} className="px-2 py-1.5 bg-white/60 rounded-lg">
-                    <div className="flex items-center gap-1.5 text-xs">
-                      <MapPin size={11} className="text-amber-500 flex-shrink-0" />
-                      <span className="font-medium text-gray-800">{b.warehouse_name} → {b.source_type === 'shelf' ? `${b.rack_name} → ${b.shelf_code}` : `${b.row_name} → ${b.pallet_name}`}</span>
-                      <span className="text-amber-600 font-bold ml-auto flex-shrink-0">{fmtQty(b.quantity)} шт</span>
-                    </div>
-                    <p className="text-xs text-gray-600 mt-0.5 pl-4">{b.product_name?.replace(/GraFLab,?\s*/i, '').trim()}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          {/* Where to find — hidden by default, expand on click */}
 
           {/* Scan steps */}
           {pickStep === 'pallet' && (

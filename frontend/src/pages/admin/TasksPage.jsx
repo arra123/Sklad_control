@@ -49,6 +49,9 @@ function TaskDetailPanel({ task, onClose, onReload }) {
   const [boxesLoading, setBoxesLoading] = useState(false);
   const intervalRef = useRef(null);
   const isPackaging = task.task_type === 'packaging';
+  const isAssembly = task.task_type === 'bundle_assembly';
+  const [assemblyData, setAssemblyData] = useState(null);
+  const [assemblySourceBoxes, setAssemblySourceBoxes] = useState([]);
 
   const loadAnalytics = useCallback(() => {
     api.get(`/tasks/${task.id}/analytics`)
@@ -59,7 +62,6 @@ function TaskDetailPanel({ task, onClose, onReload }) {
 
   useEffect(() => {
     loadAnalytics();
-    // Auto-refresh every 5s if task is in_progress
     if (task.status === 'in_progress') {
       intervalRef.current = setInterval(loadAnalytics, 5000);
     }
@@ -75,6 +77,13 @@ function TaskDetailPanel({ task, onClose, onReload }) {
       .finally(() => setBoxesLoading(false));
   }, [task.id, isPackaging]);
 
+  // Load assembly details
+  useEffect(() => {
+    if (!isAssembly) return;
+    api.get(`/assembly/${task.id}`).then(r => setAssemblyData(r.data)).catch(() => {});
+    api.get(`/assembly/${task.id}/source-boxes`).then(r => setAssemblySourceBoxes(r.data || [])).catch(() => {});
+  }, [task.id, isAssembly]);
+
   const handleCancel = async () => {
     try {
       await api.put(`/tasks/${task.id}`, { status: 'cancelled' });
@@ -87,7 +96,11 @@ function TaskDetailPanel({ task, onClose, onReload }) {
   const handleDelete = async () => {
     if (!confirm('Удалить задачу?')) return;
     try {
-      await api.delete(`/tasks/${task.id}`);
+      if (isAssembly) {
+        await api.delete(`/assembly/${task.id}`);
+      } else {
+        await api.delete(`/tasks/${task.id}`);
+      }
       toast.success('Задача удалена');
       onClose();
       onReload();
@@ -437,6 +450,64 @@ function TaskDetailPanel({ task, onClose, onReload }) {
             )
           )}
         </div>
+
+        {/* Assembly info block */}
+        {isAssembly && assemblyData && (
+          <div className="px-4 py-4 space-y-3 border-t border-gray-100 overflow-y-auto flex-1">
+            <h4 className="text-xs font-bold text-gray-500 uppercase">Сборка комплектов</h4>
+
+            {/* Progress */}
+            <div className="grid grid-cols-3 gap-2">
+              <div className="bg-primary-50 rounded-xl p-2 text-center">
+                <p className="text-lg font-black text-primary-700">{assemblyData.assembly_phase === 'completed' ? '✓' : assemblyData.assembly_phase}</p>
+                <p className="text-[9px] text-gray-400 uppercase">Фаза</p>
+              </div>
+              <div className="bg-green-50 rounded-xl p-2 text-center">
+                <p className="text-lg font-black text-green-700">{assemblyData.assembled_count || 0}/{assemblyData.bundle_qty}</p>
+                <p className="text-[9px] text-gray-400 uppercase">Собрано</p>
+              </div>
+              <div className="bg-blue-50 rounded-xl p-2 text-center">
+                <p className="text-lg font-black text-blue-700">{assemblyData.placed_count || 0}/{assemblyData.bundle_qty}</p>
+                <p className="text-[9px] text-gray-400 uppercase">Размещено</p>
+              </div>
+            </div>
+
+            {/* Components */}
+            <div>
+              <p className="text-xs font-semibold text-gray-500 mb-1">Состав комплекта:</p>
+              {(assemblyData.components || []).map(c => {
+                const picked = (assemblyData.picked_summary || []).find(p => p.product_id === c.component_id);
+                const needed = Number(c.quantity) * assemblyData.bundle_qty;
+                const have = Number(picked?.picked_count || 0);
+                return (
+                  <div key={c.component_id} className="flex justify-between text-xs py-1">
+                    <span className="text-gray-700">{c.name}</span>
+                    <span className={`font-bold ${have >= needed ? 'text-green-600' : 'text-gray-500'}`}>{have}/{needed}</span>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Source locations */}
+            {assemblySourceBoxes.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-gray-500 mb-1">Откуда можно взять ({assemblySourceBoxes.length}):</p>
+                <div className="max-h-32 overflow-y-auto space-y-1">
+                  {assemblySourceBoxes.slice(0, 20).map((b, i) => (
+                    <div key={i} className="text-xs px-2 py-1 bg-gray-50 rounded-lg">
+                      <span className="text-gray-700">
+                        {b.source_type === 'shelf' ? `${b.warehouse_name} → ${b.rack_name} → ${b.shelf_code}` : `${b.warehouse_name} → ${b.row_name} → ${b.pallet_name}`}
+                      </span>
+                      {b.source_type === 'pallet' && b.box_barcode && <span className="text-gray-400 ml-1">ШК коробки: {b.box_barcode}</span>}
+                      {b.pallet_barcode && <span className="text-gray-400 ml-1">ШК паллета: {b.pallet_barcode}</span>}
+                      <span className="text-gray-400 ml-1">· {b.product_name?.replace(/GraFLab,?\s*/i,'').slice(0,20)} · {Number(b.quantity)} шт</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Footer actions */}
         {(task.status === 'new' || task.status === 'in_progress') && (
