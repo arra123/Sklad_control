@@ -54,7 +54,7 @@ function parseBarcodes(product) {
     if (added.has(bc)) return;
     added.add(bc);
     // System barcode: starts with 2 + 4+ zeros (e.g. 2000000326375)
-    if (/^[24]0{5,}\d+$/.test(bc)) { result.push({ label: 'Системный', value: bc, kind: 'system', storeKey: 'system' }); return; }
+    if (/^[124]0{5,}\d+$/.test(bc)) { result.push({ label: 'Системный', value: bc, kind: 'system', storeKey: 'system' }); return; }
     const mp = mbj.find(m => m.value === bc);
     if (mp?.type === 'ozon_1') result.push({ label: 'Ozon ИП И.', value: bc, kind: 'ozon', storeKey: 'ozon_1' });
     else if (mp?.type === 'ozon_2') result.push({ label: 'Ozon ИП Е.', value: bc, kind: 'ozon', storeKey: 'ozon_2' });
