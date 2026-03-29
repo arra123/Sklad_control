@@ -466,17 +466,21 @@ export default function AssemblyPage() {
             </div>
           )}
 
-          {pickStep === 'item' && scannedBox && (
+          {pickStep === 'item' && (scannedBox || scannedPallet?.type === 'shelf') && (
             <div className="space-y-2">
               <div className="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-100 rounded-xl">
-                <Box size={14} className="text-green-500" />
+                {scannedPallet?.type === 'shelf' ? <MapPin size={14} className="text-green-500" /> : <Box size={14} className="text-green-500" />}
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-green-800">{scannedPallet?.name} · {scannedBox.product_name?.replace(/GraFLab,?\s*/i,'').slice(0, 22)}</p>
-                  <p className="text-xs text-green-600">{fmtQty(scannedBox.quantity)} шт</p>
+                  <p className="text-sm font-medium text-green-800">
+                    {scannedPallet?.type === 'shelf'
+                      ? `${scannedPallet.warehouse} · ${scannedPallet.name}`
+                      : `${scannedPallet?.name} · ${scannedBox?.product_name?.replace(/GraFLab,?\s*/i,'').slice(0, 22)}`}
+                  </p>
+                  {scannedBox && <p className="text-xs text-green-600">{fmtQty(scannedBox.quantity)} шт</p>}
                 </div>
                 <button onClick={resetPickScan} className="text-gray-400 hover:text-red-500"><X size={14} /></button>
               </div>
-              <p className="text-xs font-semibold text-primary-600 uppercase">Шаг 3 · Сканируйте баночки</p>
+              <p className="text-xs font-semibold text-primary-600 uppercase">{scannedPallet?.type === 'shelf' ? 'Шаг 2' : 'Шаг 3'} · Сканируйте баночки</p>
               <ScanInput onScan={handleScanPick} disabled={actionLoading} placeholder="ШК баночки..." />
             </div>
           )}
