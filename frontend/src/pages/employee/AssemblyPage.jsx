@@ -57,16 +57,24 @@ function ScanInput({ onScan, placeholder = 'Сканируйте штрих-ко
 
   useEffect(() => { if (ref.current && !disabled) ref.current.focus(); }, [disabled]);
 
+  const scanningRef = useRef(false);
+
   const doScan = useCallback((val) => {
     if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
-    if (val.trim() && !disabled) { onScan(val.trim()); setValue(''); setTimeout(() => ref.current?.focus(), 100); }
+    if (scanningRef.current) return; // prevent double scan
+    if (val.trim() && !disabled) {
+      scanningRef.current = true;
+      onScan(val.trim());
+      setValue('');
+      setTimeout(() => { ref.current?.focus(); scanningRef.current = false; }, 500);
+    }
   }, [onScan, disabled]);
 
   const handleChange = (e) => {
     const val = e.target.value;
     setValue(val);
     if (timerRef.current) clearTimeout(timerRef.current);
-    if (val.trim().length >= 4) timerRef.current = setTimeout(() => doScan(val), 400);
+    if (val.trim().length >= 4) timerRef.current = setTimeout(() => doScan(val), 500);
   };
 
   const handleSubmit = (e) => {
