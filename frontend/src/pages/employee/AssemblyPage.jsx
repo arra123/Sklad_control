@@ -59,14 +59,14 @@ function ScanInput({ onScan, placeholder = 'Сканируйте штрих-ко
 
   const scanningRef = useRef(false);
 
-  const doScan = useCallback((val) => {
+  const doScan = useCallback(async (val) => {
     if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
-    if (scanningRef.current) return; // prevent double scan
+    if (scanningRef.current) return;
     if (val.trim() && !disabled) {
       scanningRef.current = true;
-      onScan(val.trim());
       setValue('');
-      setTimeout(() => { ref.current?.focus(); scanningRef.current = false; }, 500);
+      try { await onScan(val.trim()); } catch {}
+      setTimeout(() => { scanningRef.current = false; ref.current?.focus(); }, 300);
     }
   }, [onScan, disabled]);
 
