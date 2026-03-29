@@ -387,44 +387,52 @@ export default function AssemblyPage() {
       {/* ═══ PICKING ═══ */}
       {phase === 'picking' && task.status === 'in_progress' && (
         <div className="space-y-4">
-          {/* Overall progress */}
-          <div className="space-y-2">
-            {components.map(c => {
-              const needed = Number(c.quantity) * task.bundle_qty;
-              const have = pickedMap[c.component_id] || 0;
-              const done = have >= needed;
-              const isActive = activeComponent?.component_id === c.component_id;
-              return (
-                <div key={c.component_id} className={`rounded-xl border overflow-hidden ${isActive ? 'border-primary-300 bg-primary-50/30' : done ? 'border-green-200 bg-green-50/30' : 'border-gray-100 bg-white'}`}>
-                  <div className="flex items-center gap-3 px-3 py-2.5">
-                    {done ? <CheckCircle2 size={18} className="text-green-500 flex-shrink-0" /> : <Package size={18} className="text-gray-300 flex-shrink-0" />}
-                    <span className="text-sm font-medium text-gray-800 flex-1 truncate">{c.name}</span>
-                    <span className={`text-sm font-bold ${done ? 'text-green-600' : 'text-gray-500'}`}>{have}/{needed}</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Step: Choose component */}
+          {/* Components list with expand/locations/status */}
           {pickStep === 'choose' && (
             <div className="space-y-2">
-              <p className="text-xs font-semibold text-primary-600 uppercase">Выберите что забрать:</p>
-              {components.filter(c => (pickedMap[c.component_id] || 0) < Number(c.quantity) * task.bundle_qty).map(c => {
+              {components.map(c => {
+                const needed = Number(c.quantity) * task.bundle_qty;
+                const have = pickedMap[c.component_id] || 0;
+                const done = have >= needed;
+                const isExpanded = expandedComponent === c.component_id;
                 const compLocs = sourceBoxes.filter(b => b.product_id === c.component_id);
                 return (
-                  <button key={c.component_id} type="button"
-                    onClick={() => { setActiveComponent(c); setPickStep('location'); setExpandedComponent(null); }}
-                    className="w-full text-left px-4 py-3 rounded-xl border border-gray-200 hover:border-primary-300 hover:bg-primary-50/30 transition-colors">
-                    <div className="flex items-center gap-3">
-                      <Package size={16} className="text-primary-400 flex-shrink-0" />
+                  <div key={c.component_id} className={`rounded-xl border overflow-hidden ${done ? 'border-green-200 bg-green-50/30' : 'border-gray-100 bg-white'}`}>
+                    {/* Component header — clickable */}
+                    <button type="button" onClick={() => setExpandedComponent(isExpanded ? null : c.component_id)}
+                      className="w-full text-left px-3 py-3 flex items-center gap-3">
+                      {done ? <CheckCircle2 size={18} className="text-green-500 flex-shrink-0" /> : <Package size={18} className="text-gray-300 flex-shrink-0" />}
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-gray-900">{c.name?.replace(/GraFLab,?\s*/i,'').trim()}</p>
-                        <p className="text-xs text-gray-400">Нужно: {Number(c.quantity) * task.bundle_qty} · Мест: {compLocs.length}</p>
+                        <p className="text-sm font-medium text-gray-800">{c.name?.replace(/GraFLab,?\s*/i,'').trim()}</p>
+                        <p className="text-xs text-gray-400">{isExpanded ? '▼' : '▶'} Где взять ({compLocs.length})</p>
                       </div>
-                      <ChevronRight size={16} className="text-gray-300" />
-                    </div>
-                  </button>
+                      <span className={`text-sm font-bold ${done ? 'text-green-600' : 'text-gray-500'}`}>{have}/{needed}</span>
+                    </button>
+
+                    {/* Expanded: locations + take button */}
+                    {isExpanded && (
+                      <div className="px-3 pb-3 space-y-2">
+                        {compLocs.length > 0 ? compLocs.map((loc, i) => (
+                          <div key={i} className="px-2 py-1.5 bg-amber-50 rounded-lg text-xs">
+                            <div className="flex items-center gap-1.5">
+                              <MapPin size={11} className="text-amber-500 flex-shrink-0" />
+                              <span className="font-medium text-gray-800 flex-1">
+                                {loc.source_type === 'shelf' ? `${loc.warehouse_name} → ${loc.rack_name} → ${loc.shelf_code}` : `${loc.warehouse_name} → ${loc.row_name} → ${loc.pallet_name}`}
+                              </span>
+                              <span className="text-amber-600 font-bold">{fmtQty(loc.quantity)} шт</span>
+                            </div>
+                          </div>
+                        )) : (
+                          <p className="text-xs text-red-500">Не найден на складах</p>
+                        )}
+                        {!done && compLocs.length > 0 && (
+                          <Button size="sm" className="w-full" onClick={() => { setActiveComponent(c); setPickStep('location'); }}>
+                            Забрать {c.name?.replace(/GraFLab,?\s*/i,'').trim().slice(0,25)}
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 );
               })}
             </div>
