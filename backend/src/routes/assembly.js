@@ -198,10 +198,9 @@ router.get('/:id/source-boxes', requireAuth, async (req, res) => {
 // ─── POST /:id/start-picking — Start picking phase ─────────────────────────
 router.post('/:id/start-picking', requireAuth, async (req, res) => {
   try {
-    // Find employee_id from user
-    let employeeId = null;
-    const emp = await pool.query('SELECT id FROM employees_s WHERE user_id = $1 LIMIT 1', [req.user.id]);
-    if (emp.rows.length) employeeId = emp.rows[0].id;
+    // employee_id from users_s (may be null for admin)
+    const employeeId = req.user.employee_id || null;
+    // If no employee linked, just set null (admin testing)
 
     await pool.query(
       `UPDATE inventory_tasks_s SET status = 'in_progress', assembly_phase = 'picking', started_at = NOW(),
