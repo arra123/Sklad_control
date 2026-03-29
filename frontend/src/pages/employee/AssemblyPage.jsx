@@ -105,7 +105,9 @@ export default function AssemblyPage() {
   }, [id]);
 
   useEffect(() => { loadTask(); }, [loadTask]);
-  useEffect(() => { if (task?.assembly_phase === 'picking') loadSourceBoxes(); }, [task?.assembly_phase, loadSourceBoxes]);
+  useEffect(() => {
+    if (task?.assembly_phase === 'picking' || task?.status === 'new') loadSourceBoxes();
+  }, [task?.assembly_phase, task?.status, loadSourceBoxes]);
 
   if (loading) return <div className="flex items-center justify-center h-64"><Spinner size="lg" /></div>;
   if (!task) return <div className="p-6 text-center text-gray-400">Задача не найдена</div>;
@@ -323,6 +325,23 @@ export default function AssemblyPage() {
               </div>
             ))}
           </div>
+          {sourceBoxes.length > 0 && (
+            <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 text-left">
+              <p className="text-xs font-semibold text-amber-700 uppercase mb-2">Где можно взять:</p>
+              <div className="max-h-32 overflow-y-auto space-y-2">
+                {sourceBoxes.slice(0, 15).map((b, i) => (
+                  <div key={i} className="px-2 py-1 bg-white/60 rounded-lg">
+                    <div className="flex items-center gap-1.5 text-xs">
+                      <MapPin size={11} className="text-amber-500 flex-shrink-0" />
+                      <span className="font-medium text-gray-800">{b.warehouse_name} → {b.row_name} → {b.pallet_name}</span>
+                      <span className="text-amber-600 font-bold ml-auto flex-shrink-0">{fmtQty(b.quantity)} шт</span>
+                    </div>
+                    <p className="text-xs text-gray-600 mt-0.5 pl-4">{b.product_name?.replace(/GraFLab,?\s*/i, '').trim()}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           <Button onClick={handleStartPicking} loading={actionLoading} size="lg" className="w-full">
             Начать забор товара
           </Button>
