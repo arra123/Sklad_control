@@ -781,7 +781,7 @@ function CreateTaskModal({ open, onClose, onSuccess }) {
   // Load all bundles
   useEffect(() => {
     if (taskType !== 'bundle_assembly' || !open) return;
-    api.get('/products?type=bundle&limit=200')
+    api.get('/products?entity_type=bundle&limit=200')
       .then(r => setBundles(r.data.items || []))
       .catch(() => {});
   }, [taskType, open]);
