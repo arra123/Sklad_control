@@ -130,6 +130,7 @@ export default function AssemblyPage() {
   const [pickStep, setPickStep] = useState('choose');
   const [activeComponent, setActiveComponent] = useState(null);
   const [expandedComponent, setExpandedComponent] = useState(null);
+  const [lastPickScan, setLastPickScan] = useState(null);
 
   const loadTask = useCallback(async () => {
     try {
@@ -236,8 +237,6 @@ export default function AssemblyPage() {
     }
   };
 
-  const [lastPickScan, setLastPickScan] = useState(null);
-
   const handleScanPick = async (barcode) => {
     if (!scannedBox && !scannedPallet?.shelf_id) { playBeep(false); toast.error('Сначала отсканируйте место'); return; }
 
@@ -319,12 +318,13 @@ export default function AssemblyPage() {
     // Resolve barcode to shelf or pallet
     try {
       const res = await api.post('/movements/scan', { barcode });
-      if (res.data.type === 'shelf') {
-        setPlaceDest({ shelf_id: res.data.shelf.id, name: `${res.data.shelf.warehouse_name} · ${res.data.shelf.rack_name} · ${res.data.shelf.code}` });
-        toast.success(`Полка: ${res.data.shelf.code}`);
-      } else if (res.data.type === 'pallet') {
-        setPlaceDest({ pallet_id: res.data.pallet.id, name: `${res.data.pallet.warehouse_name} · ${res.data.pallet.row_name} · ${res.data.pallet.name}` });
-        toast.success(`Паллет: ${res.data.pallet.name}`);
+      const d = res.data;
+      if (d.type === 'shelf') {
+        setPlaceDest({ shelf_id: d.id, name: `${d.location} · ${d.name}` });
+        toast.success(`Полка: ${d.name}`);
+      } else if (d.type === 'pallet') {
+        setPlaceDest({ pallet_id: d.id, name: `${d.location} · ${d.name}` });
+        toast.success(`Паллет: ${d.name}`);
       } else {
         toast.error('Отсканируйте полку или паллет');
       }
