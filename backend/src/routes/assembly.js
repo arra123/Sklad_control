@@ -18,9 +18,27 @@ async function resolveProduct(client, barcode) {
 
 // ─── GET /source-locations — Find where components are stored ────────────────
 router.get('/source-locations', requireAuth, async (req, res) => {
-  const { component_ids } = req.query;
-  if (!component_ids) return res.json([]);
-  const ids = component_ids.split(',').map(Number).filter(n => n > 0);
+  let { component_ids, bundle_id } = req.query;
+  let ids = [];
+
+  if (bundle_id) {
+    // Resolve component IDs from bundle
+    const comps = await pool.query('SELECT component_id FROM bundle_components_s WHERE bundle_id = $1', [bundle_id]);
+    ids = comps.rows.map(c => c.component_id);
+    // Fallback: resolve from source_json
+    if (ids.length === 0) {
+      const prod = await pool.query('SELECT source_json FROM products_s WHERE id = $1', [bundle_id]);
+      const rows = prod.rows[0]?.source_json?.components?.rows || [];
+      const extIds = rows.map(r => r.assortmentDetails?.id).filter(Boolean);
+      if (extIds.length > 0) {
+        const resolved = await pool.query('SELECT id FROM products_s WHERE external_id = ANY($1)', [extIds]);
+        ids = resolved.rows.map(r => r.id);
+      }
+    }
+  } else if (component_ids) {
+    ids = component_ids.split(',').map(Number).filter(n => n > 0);
+  }
+
   if (ids.length === 0) return res.json([]);
 
   try {
