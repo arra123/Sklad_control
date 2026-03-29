@@ -412,17 +412,21 @@ export default function AssemblyPage() {
                     {/* Expanded: locations + take button */}
                     {isExpanded && (
                       <div className="px-3 pb-3 space-y-2">
-                        {compLocs.length > 0 ? compLocs.map((loc, i) => (
-                          <div key={i} className="px-2 py-1.5 bg-amber-50 rounded-lg text-xs">
-                            <div className="flex items-center gap-1.5">
-                              <MapPin size={11} className="text-amber-500 flex-shrink-0" />
-                              <span className="font-medium text-gray-800 flex-1">
-                                {loc.source_type === 'shelf' ? `${loc.warehouse_name} → ${loc.rack_name} → ${loc.shelf_code}` : `${loc.warehouse_name} → ${loc.row_name} → ${loc.pallet_name}`}
-                              </span>
-                              <span className="text-amber-600 font-bold">{fmtQty(loc.quantity)} шт</span>
-                            </div>
+                        {compLocs.length > 0 ? (
+                          <div className="max-h-40 overflow-y-auto space-y-1 pr-1">
+                            {compLocs.map((loc, i) => (
+                              <div key={i} className="px-2 py-1.5 bg-amber-50 rounded-lg text-xs">
+                                <div className="flex items-center gap-1.5">
+                                  <MapPin size={11} className="text-amber-500 flex-shrink-0" />
+                                  <span className="font-medium text-gray-800 flex-1">
+                                    {loc.source_type === 'shelf' ? `${loc.warehouse_name} → ${loc.rack_name} → ${loc.shelf_code}` : `${loc.warehouse_name} → ${loc.row_name} → ${loc.pallet_name}`}
+                                  </span>
+                                  <span className="text-amber-600 font-bold">{fmtQty(loc.quantity)} шт</span>
+                                </div>
+                              </div>
+                            ))}
                           </div>
-                        )) : (
+                        ) : (
                           <p className="text-xs text-red-500">Не найден на складах</p>
                         )}
                         {!done && compLocs.length > 0 && (
@@ -447,7 +451,7 @@ export default function AssemblyPage() {
               </div>
 
               {/* Available locations for this component */}
-              <div className="space-y-1">
+              <div className="max-h-40 overflow-y-auto space-y-1 pr-1">
                 {sourceBoxes.filter(b => b.product_id === activeComponent.component_id).map((loc, i) => (
                   <div key={i} className="px-2 py-1.5 bg-amber-50 rounded-lg text-xs">
                     <div className="flex items-center gap-1.5">
