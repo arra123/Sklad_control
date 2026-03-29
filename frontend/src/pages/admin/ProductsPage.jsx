@@ -31,6 +31,7 @@ function StockBadge({ stock }) {
 
 // ─── Barcode parsing ──────────────────────────────────────────────────────────
 const MARKETPLACE_COLORS = {
+  system:  { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
   wb:      { bg: 'bg-violet-50', text: 'text-violet-700', border: 'border-violet-100' },
   ozon:    { bg: 'bg-blue-50',   text: 'text-blue-700',   border: 'border-blue-100'   },
   yandex:  { bg: 'bg-yellow-50', text: 'text-yellow-700', border: 'border-yellow-100' },
@@ -59,6 +60,7 @@ function parseBarcodes(product) {
     else if (mp?.type === 'wb_2') result.push({ label: 'WB ИП Е.', value: bc, kind: 'wb', storeKey: 'wb_2' });
     else if (mp?.type === 'wb') result.push({ label: 'WB', value: bc, kind: 'wb' });
     else if (mp?.type === 'ozon' || bc.startsWith('OZN')) result.push({ label: 'Ozon', value: bc, kind: 'ozon' });
+    else if (/^20{4,}\d+$/.test(bc)) result.push({ label: 'Системный', value: bc, kind: 'system', storeKey: 'system' });
     else if (bc.startsWith('MRKT')) result.push({ label: 'Яндекс Маркет', value: bc, kind: 'yandex' });
     else if (bc.startsWith('SBER')) result.push({ label: 'СберМегаМаркет', value: bc, kind: 'sber' });
     else result.push({ label: null, value: bc, kind: 'unknown' });
@@ -481,9 +483,10 @@ export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
     } catch (err) { toast.error(err.response?.data?.error || 'Ошибка добавления'); }
   };
 
-  // Sort barcodes: verified (with storeKey) first, then labeled, then unknown
+  // Sort barcodes: system first, then verified, then labeled, then unknown
   const barcodes = (product ? parseBarcodes(product) : []).sort((a, b) => {
     const rank = (bc) => {
+      if (bc.kind === 'system') return -1; // system barcode always first
       if (bc.storeKey) return 0; // verified: ozon_1, ozon_2, wb_1, wb_2
       if (bc.kind !== 'unknown') return 1; // labeled but not verified
       return 2; // unknown

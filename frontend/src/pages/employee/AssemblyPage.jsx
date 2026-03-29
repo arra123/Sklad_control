@@ -262,7 +262,10 @@ export default function AssemblyPage() {
 
       if (res.data.all_components_scanned) {
         // Show barcode for printing
-        const bc = (task.bundle_barcodes || '').split(';').filter(Boolean)[0] || task.bundle_barcode || '';
+        // Find system barcode (starts with 20000)
+        const allBc = (task.bundle_barcodes || '').split(';').map(s => s.trim()).filter(Boolean);
+        const systemBc = allBc.find(b => /^20{4,}\d+$/.test(b));
+        const bc = systemBc || task.bundle_barcode || allBc[0] || '';
         setPrintBarcode(bc);
       }
       await loadTask();
