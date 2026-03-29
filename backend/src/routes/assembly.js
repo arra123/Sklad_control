@@ -255,6 +255,15 @@ router.post('/:id/scan-pick', requireAuth, async (req, res) => {
       [task.rows[0].bundle_product_id, product.id]);
     if (!comp.rows.length) { await client.query('ROLLBACK'); client.release(); return res.status(400).json({ error: `${product.name} не входит в состав комплекта` }); }
 
+    // Idempotency: skip if same barcode scanned within last 2 seconds
+    const recentDupe = await client.query(
+      `SELECT id FROM assembly_items_s WHERE task_id = $1 AND scanned_barcode = $2 AND created_at > NOW() - INTERVAL '2 seconds'`,
+      [req.params.id, barcode]);
+    if (recentDupe.rows.length > 0) {
+      await client.query('ROLLBACK'); client.release();
+      return res.json({ ok: true, product: product.name, duplicate: true, picked_summary: [] });
+    }
+
     // Decrease quantity from source
     if (box_id) {
       const upd = await client.query(
@@ -282,6 +291,12 @@ router.post('/:id/scan-pick', requireAuth, async (req, res) => {
       `INSERT INTO assembly_items_s (task_id, product_id, source_box_id, source_pallet_id, scanned_barcode)
        VALUES ($1, $2, $3, $4, $5)`,
       [req.params.id, product.id, box_id || null, null, barcode]);
+
+    // Also record in task_scans for chronology
+    await client.query(
+      `INSERT INTO inventory_task_scans_s (task_id, product_id, scanned_value, quantity_delta, shelf_id)
+       VALUES ($1, $2, $3, 1, $4)`,
+      [req.params.id, product.id, barcode, shelf_id || null]);
 
     await client.query('COMMIT');
     client.release();
