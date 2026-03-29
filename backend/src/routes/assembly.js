@@ -245,7 +245,9 @@ router.post('/:id/scan-pick', requireAuth, async (req, res) => {
     await client.query('BEGIN');
     const task = await client.query('SELECT * FROM inventory_tasks_s WHERE id = $1 AND task_type = $2', [req.params.id, 'bundle_assembly']);
     if (!task.rows.length) { await client.query('ROLLBACK'); client.release(); return res.status(404).json({ error: 'Задача не найдена' }); }
+    if (task.rows[0].status !== 'in_progress') { await client.query('ROLLBACK'); client.release(); return res.status(400).json({ error: 'Задача не начата. Нажмите «Начать забор»' }); }
     if (task.rows[0].assembly_phase !== 'picking') { await client.query('ROLLBACK'); client.release(); return res.status(400).json({ error: 'Задача не в фазе забора' }); }
+    if (!box_id && !shelf_id) { await client.query('ROLLBACK'); client.release(); return res.status(400).json({ error: 'Укажите коробку или полку (box_id / shelf_id)' }); }
 
     const product = await resolveProduct(client, barcode);
     if (!product) { await client.query('ROLLBACK'); client.release(); return res.status(400).json({ error: 'Товар не найден по ШК' }); }
@@ -256,7 +258,14 @@ router.post('/:id/scan-pick', requireAuth, async (req, res) => {
       [task.rows[0].bundle_product_id, product.id]);
     if (!comp.rows.length) { await client.query('ROLLBACK'); client.release(); return res.status(400).json({ error: `${product.name} не входит в состав комплекта` }); }
 
-    // No idempotency delay — each scan counts
+    // Check if already picked enough of this component
+    const alreadyPicked = await client.query(
+      'SELECT COUNT(*) as cnt FROM assembly_items_s WHERE task_id = $1 AND product_id = $2', [req.params.id, product.id]);
+    const needed = Number(comp.rows[0].quantity) * task.rows[0].bundle_qty;
+    if (Number(alreadyPicked.rows[0].cnt) >= needed) {
+      await client.query('ROLLBACK'); client.release();
+      return res.status(400).json({ error: `Уже набрано ${alreadyPicked.rows[0].cnt}/${needed}. Больше не нужно` });
+    }
 
     // Decrease quantity from source
     if (box_id) {
@@ -447,13 +456,12 @@ router.post('/:id/scan-place', requireAuth, async (req, res) => {
 
     const productId = task.rows[0].bundle_product_id;
 
-    // Verify scanned barcode belongs to bundle product (if provided)
-    if (barcode) {
-      const product = await resolveProduct(client, barcode);
-      if (!product || product.id !== productId) {
-        await client.query('ROLLBACK'); client.release();
-        return res.status(400).json({ error: 'ШК не соответствует комплекту' });
-      }
+    // Verify scanned barcode belongs to bundle product
+    if (!barcode) { await client.query('ROLLBACK'); client.release(); return res.status(400).json({ error: 'Отсканируйте ШК комплекта' }); }
+    const product = await resolveProduct(client, barcode);
+    if (!product || product.id !== productId) {
+      await client.query('ROLLBACK'); client.release();
+      return res.status(400).json({ error: 'ШК не соответствует комплекту. Сканируйте ШК собранного комплекта' });
     }
 
     if (shelf_id) {
