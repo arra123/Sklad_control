@@ -755,8 +755,14 @@ function CreateTaskModal({ open, onClose, onSuccess }) {
   const [bundleQty, setBundleQty] = useState('10');
   const [bundleEmployee, setBundleEmployee] = useState('');
   const [bundleComponents, setBundleComponents] = useState([]);
+  const [bundleSourcePaths, setBundleSourcePaths] = useState([]); // [{warehouse_id, pallet_id, label}]
+  const [bundleEmployeeChoice, setBundleEmployeeChoice] = useState(false); // на усмотрение сотрудника
+  const [bundleNotes, setBundleNotes] = useState('');
+  const [bundleSourceWh, setBundleSourceWh] = useState('');
+  const [bundleSourcePallets, setBundleSourcePallets] = useState([]);
+  const [bundleSourcePallet, setBundleSourcePallet] = useState('');
 
-  // Load all bundles when switching to bundle_assembly
+  // Load all bundles
   useEffect(() => {
     if (taskType !== 'bundle_assembly' || !open) return;
     api.get('/products?type=bundle&limit=200')
@@ -772,6 +778,30 @@ function CreateTaskModal({ open, onClose, onSuccess }) {
       .catch(() => {});
   }, [selectedBundle]);
 
+  // Load pallets when warehouse selected for source
+  useEffect(() => {
+    if (!bundleSourceWh) { setBundleSourcePallets([]); return; }
+    api.get(`/fbo/warehouses/${bundleSourceWh}`)
+      .then(r => {
+        const allPallets = (r.data.rows || []).flatMap(row => (row.pallets || []).map(p => ({ ...p, row_name: row.name })));
+        setBundleSourcePallets(allPallets);
+      }).catch(() => {});
+  }, [bundleSourceWh]);
+
+  const addSourcePath = () => {
+    if (!bundleSourcePallet) return;
+    const p = bundleSourcePallets.find(x => String(x.id) === bundleSourcePallet);
+    const wh = fboWarehouses.find(w => String(w.id) === bundleSourceWh);
+    if (!p) return;
+    setBundleSourcePaths(prev => [...prev, {
+      pallet_id: p.id,
+      label: `${wh?.name || ''} · ${p.row_name || ''} · ${p.name}`,
+    }]);
+    setBundleSourcePallet('');
+  };
+
+  const removeSourcePath = (idx) => setBundleSourcePaths(prev => prev.filter((_, i) => i !== idx));
+
   const handleSubmitAssembly = async (e) => {
     e.preventDefault();
     if (!selectedBundle) { toast.error('Выберите комплект'); return; }
@@ -782,6 +812,8 @@ function CreateTaskModal({ open, onClose, onSuccess }) {
         bundle_product_id: selectedBundle.id,
         bundle_qty: Number(bundleQty),
         employee_id: bundleEmployee || null,
+        source_boxes: bundleEmployeeChoice ? null : bundleSourcePaths.length > 0 ? bundleSourcePaths : null,
+        notes: bundleNotes || null,
       });
       toast.success('Задача сборки создана');
       onSuccess();
@@ -1061,18 +1093,14 @@ function CreateTaskModal({ open, onClose, onSuccess }) {
 
       {taskType === 'bundle_assembly' && (
         <form id="task-form" onSubmit={handleSubmitAssembly} className="space-y-4">
-          {/* Bundle select */}
+          {/* 1. Комплект */}
           <SearchSelect label="Комплект *" value={selectedBundle ? String(selectedBundle.id) : ''} placeholder="Выберите комплект..."
-            onChange={v => {
-              const b = bundles.find(x => String(x.id) === v);
-              setSelectedBundle(b || null);
-            }}
+            onChange={v => { setSelectedBundle(bundles.find(x => String(x.id) === v) || null); }}
             options={bundles.map(b => ({ value: String(b.id), label: b.name }))} />
 
-          {/* Show components */}
           {bundleComponents.length > 0 && (
             <div className="bg-gray-50 rounded-xl p-3">
-              <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Состав комплекта:</p>
+              <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Состав:</p>
               {bundleComponents.map(c => (
                 <div key={c.id || c.bc_id} className="flex justify-between py-1 text-sm">
                   <span className="text-gray-800 truncate">{c.name}</span>
@@ -1082,12 +1110,61 @@ function CreateTaskModal({ open, onClose, onSuccess }) {
             </div>
           )}
 
+          {/* 2. Количество */}
           <Input label="Количество комплектов *" type="number" min="1" value={bundleQty}
             onChange={e => setBundleQty(e.target.value)} required />
 
+          {/* 3. Откуда брать */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Откуда брать</label>
+
+            <label className="flex items-center gap-2 mb-3 cursor-pointer">
+              <input type="checkbox" checked={bundleEmployeeChoice} onChange={e => setBundleEmployeeChoice(e.target.checked)}
+                className="w-4 h-4 rounded border-gray-300 text-primary-500 focus:ring-primary-400" />
+              <span className="text-sm text-gray-600">На усмотрение сотрудника</span>
+            </label>
+
+            {!bundleEmployeeChoice && (
+              <>
+                {/* Added paths */}
+                {bundleSourcePaths.map((sp, i) => (
+                  <div key={i} className="flex items-center gap-2 mb-2 px-3 py-2 bg-green-50 border border-green-100 rounded-xl">
+                    <MapPin size={14} className="text-green-500 flex-shrink-0" />
+                    <span className="text-sm text-gray-800 flex-1 truncate">{sp.label}</span>
+                    <button type="button" onClick={() => removeSourcePath(i)} className="text-gray-400 hover:text-red-500"><X size={14} /></button>
+                  </div>
+                ))}
+
+                {/* Add new path */}
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <SearchSelect value={bundleSourceWh} placeholder="Склад..."
+                      onChange={v => { setBundleSourceWh(v); setBundleSourcePallet(''); }}
+                      options={fboWarehouses.map(w => ({ value: String(w.id), label: w.name }))} />
+                  </div>
+                  {bundleSourceWh && (
+                    <div className="flex-1">
+                      <SearchSelect value={bundleSourcePallet} placeholder="Паллет..."
+                        onChange={v => setBundleSourcePallet(v)}
+                        options={bundleSourcePallets.map(p => ({ value: String(p.id), label: `${p.row_name} · ${p.name}` }))} />
+                    </div>
+                  )}
+                  {bundleSourcePallet && (
+                    <Button type="button" variant="outline" size="sm" icon={<Plus size={14} />} onClick={addSourcePath}>Добавить</Button>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* 4. Сотрудник */}
           <SearchSelect label="Сотрудник" value={bundleEmployee} placeholder="Выберите сотрудника..."
             onChange={v => setBundleEmployee(v)}
             options={employees.map(e => ({ value: String(e.id), label: e.full_name }))} />
+
+          {/* 5. Примечание */}
+          <Input label="Примечание" placeholder="Инструкции для сотрудника..."
+            value={bundleNotes} onChange={e => setBundleNotes(e.target.value)} />
         </form>
       )}
     </Modal>
