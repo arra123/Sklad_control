@@ -238,27 +238,33 @@ export default function AssemblyPage() {
     }
   };
 
+  const [lastPickScan, setLastPickScan] = useState(null);
+
   const handleScanPick = async (barcode) => {
     if (!scannedBox && !scannedPallet?.shelf_id) { playBeep(false); toast.error('Сначала отсканируйте место'); return; }
 
     if (activeComponent) {
       const needed = Number(activeComponent.quantity) * (task?.bundle_qty || 1);
       const have = pickedMap[activeComponent.component_id] || 0;
-      if (have >= needed) { playBeep(false); toast.error(`Уже набрано. Нажмите «Далее»`); return; }
+      if (have >= needed) { playBeep(false); toast.error('Уже набрано. Нажмите «Далее»'); return; }
     }
 
-    setActionLoading(true);
     try {
       const res = await api.post(`/assembly/${id}/scan-pick`, {
         barcode, box_id: scannedBox?.box_id || null, shelf_id: scannedPallet?.shelf_id || null,
       });
-      if (res.data.duplicate) { playBeep(true); return; } // idempotent skip
+      if (res.data.duplicate) { playBeep(true); return; }
       playBeep(true);
-      toast.success(`✓ ${res.data.product}`);
-      await loadTask();
-      await loadSourceBoxes();
+      setLastPickScan({ name: res.data.product, time: new Date() });
+      // Update picked count locally (fast) + reload in background
+      if (activeComponent && res.data.picked_summary) {
+        const newMap = {};
+        res.data.picked_summary.forEach(p => { newMap[p.product_id] = Number(p.picked); });
+        setTask(prev => prev ? { ...prev, picked_summary: res.data.picked_summary } : prev);
+      }
+      loadTask(); // background reload (no await)
+      loadSourceBoxes();
     } catch (err) { playBeep(false); toast.error(err.response?.data?.error || 'Ошибка'); }
-    finally { setActionLoading(false); }
   };
 
   const resetPickScan = () => {
@@ -528,6 +534,14 @@ export default function AssemblyPage() {
                 </div>
                 <p className="text-xs text-primary-700 font-bold mt-1">{pickedMap[activeComponent.component_id] || 0} / {Number(activeComponent.quantity) * (task?.bundle_qty || 1)}</p>
               </div>
+
+              {lastPickScan && (
+                <div className="flex items-center gap-3 px-4 py-2.5 bg-green-50 border border-green-200 rounded-xl">
+                  <CheckCircle2 size={16} className="text-green-500 flex-shrink-0" />
+                  <p className="text-sm font-semibold text-green-800 truncate flex-1">{lastPickScan.name}</p>
+                  <p className="text-xs text-green-500">{new Date().toLocaleTimeString('ru-RU', {hour:'2-digit',minute:'2-digit',second:'2-digit'})}</p>
+                </div>
+              )}
 
               {(pickedMap[activeComponent.component_id] || 0) < Number(activeComponent.quantity) * (task?.bundle_qty || 1) && (
                 <ScanInput onScan={handleScanPick} disabled={actionLoading} placeholder="ШК баночки..." />
