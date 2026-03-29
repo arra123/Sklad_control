@@ -209,14 +209,14 @@ export default function AssemblyPage() {
     // 1. Try match in sourceBoxes by pallet_barcode
     const match = sourceBoxes.find(b => b.pallet_barcode === barcode);
     if (match) {
-      // Check this pallet has needed components
-      const palletBoxes = sourceBoxes.filter(b => b.pallet_id === match.pallet_id);
-      if (palletBoxes.length === 0) {
+      const palletSources = sourceBoxes.filter(b => b.pallet_id === match.pallet_id);
+      if (palletSources.length === 0) {
         toast.error('На этом паллете нет нужного товара');
         return;
       }
+      const hasPalletItems = palletSources.some(b => b.source_type === 'pallet_item');
       setScannedPallet({ pallet_id: match.pallet_id, name: match.pallet_name, warehouse: match.warehouse_name });
-      setPickStep('box');
+      setPickStep(hasPalletItems ? 'items' : 'box');
       toast.success(`${match.warehouse_name} · ${match.pallet_name}`);
       return;
     }
@@ -227,13 +227,14 @@ export default function AssemblyPage() {
       const d = res.data;
       if (d.type === 'pallet') {
         const palletId = d.id;
-        const palletBoxes = sourceBoxes.filter(b => b.pallet_id === palletId);
-        if (palletBoxes.length === 0) {
+        const palletSources = sourceBoxes.filter(b => b.pallet_id === palletId);
+        if (palletSources.length === 0) {
           toast.error('На этом паллете нет нужного товара для комплекта');
           return;
         }
+        const hasPalletItems = palletSources.some(b => b.source_type === 'pallet_item');
         setScannedPallet({ pallet_id: palletId, name: d.name, warehouse: d.location, type: 'pallet' });
-        setPickStep('box');
+        setPickStep(hasPalletItems ? 'items' : 'box');
         toast.success(d.location + ' · ' + d.name);
       } else if (d.type === 'shelf') {
         const shelfId = d.id;
@@ -265,7 +266,7 @@ export default function AssemblyPage() {
   };
 
   const handleScanPick = async (barcode) => {
-    if (!scannedBox && !scannedPallet?.shelf_id) { playBeep(false); toast.error('Сначала отсканируйте место'); return; }
+    if (!scannedBox && !scannedPallet?.shelf_id && !scannedPallet?.pallet_id) { playBeep(false); toast.error('Сначала отсканируйте место'); return; }
 
     if (activeComponent) {
       const needed = Number(activeComponent.quantity) * (task?.bundle_qty || 1);
@@ -275,7 +276,10 @@ export default function AssemblyPage() {
 
     try {
       const res = await api.post(`/assembly/${id}/scan-pick`, {
-        barcode, box_id: scannedBox?.box_id || null, shelf_id: scannedPallet?.shelf_id || null,
+        barcode,
+        box_id: scannedBox?.box_id || null,
+        shelf_id: scannedPallet?.shelf_id || null,
+        pallet_id: (!scannedBox && scannedPallet?.pallet_id && !scannedPallet?.shelf_id) ? scannedPallet.pallet_id : null,
       });
       if (res.data.duplicate) { playBeep(true); return; }
       playBeep(true);
@@ -552,7 +556,7 @@ export default function AssemblyPage() {
           )}
 
           {/* Step: Scan items */}
-          {pickStep === 'items' && (scannedBox || scannedPallet?.type === 'shelf') && activeComponent && (
+          {pickStep === 'items' && (scannedBox || scannedPallet?.shelf_id || scannedPallet?.pallet_id) && activeComponent && (
             <div className="space-y-2">
               <div className="bg-primary-50 border border-primary-100 rounded-xl p-3">
                 <p className="text-sm font-bold text-primary-800">{activeComponent.name?.replace(/GraFLab,?\s*/i,'').trim()}</p>

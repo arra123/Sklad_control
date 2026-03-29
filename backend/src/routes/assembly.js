@@ -53,12 +53,33 @@ router.get('/source-locations', requireAuth, async (req, res) => {
        WHERE si.product_id = ANY($1) AND si.quantity > 0 AND w.active = true
        ORDER BY p.name, w.name`, [ids]);
 
+    // Find on pallets directly (pallet_items_s — no boxes)
+    const palletLocs = await pool.query(
+      `SELECT pi.product_id, pi.quantity, pi.pallet_id,
+              pa.name as pallet_name, pa.barcode_value as pallet_barcode,
+              pr.name as row_name, pr.id as row_id,
+              w.id as warehouse_id, w.name as warehouse_name,
+              p.name as product_name
+       FROM pallet_items_s pi
+       JOIN pallets_s pa ON pa.id = pi.pallet_id
+       JOIN pallet_rows_s pr ON pr.id = pa.row_id
+       JOIN warehouses_s w ON w.id = pr.warehouse_id
+       JOIN products_s p ON p.id = pi.product_id
+       WHERE pi.product_id = ANY($1) AND pi.quantity > 0 AND w.active = true
+       ORDER BY p.name, w.name, pr.name, pa.name`, [ids]);
+
     const results = [];
     boxLocs.rows.forEach(r => results.push({
       key: `box-${r.box_id}`,
       path: `${r.warehouse_name} → ${r.row_name} → ${r.pallet_name}`,
       product_id: r.product_id, product_name: r.product_name, qty: Number(r.quantity),
       box_id: r.box_id, pallet_id: r.pallet_id, warehouse_id: r.warehouse_id,
+    }));
+    palletLocs.rows.forEach(r => results.push({
+      key: `pallet-${r.pallet_id}-${r.product_id}`,
+      path: `${r.warehouse_name} → ${r.row_name} → ${r.pallet_name}`,
+      product_id: r.product_id, product_name: r.product_name, qty: Number(r.quantity),
+      pallet_id: r.pallet_id, warehouse_id: r.warehouse_id,
     }));
     shelfLocs.rows.forEach(r => results.push({
       key: `shelf-${r.shelf_id}-${r.product_id}`,
@@ -210,7 +231,25 @@ router.get('/:id/source-boxes', requireAuth, async (req, res) => {
       [componentIds]
     );
 
-    res.json([...boxes.rows, ...shelves.rows]);
+    // Pallet items (directly on pallet, no boxes)
+    const palletItems = await pool.query(
+      `SELECT pi.product_id, pi.quantity, pi.pallet_id,
+              pa.name as pallet_name, pa.barcode_value as pallet_barcode,
+              pr.name as row_name,
+              w.name as warehouse_name, w.id as warehouse_id,
+              p.name as product_name, p.code as product_code,
+              'pallet_item' as source_type
+       FROM pallet_items_s pi
+       JOIN pallets_s pa ON pa.id = pi.pallet_id
+       JOIN pallet_rows_s pr ON pr.id = pa.row_id
+       JOIN warehouses_s w ON w.id = pr.warehouse_id
+       JOIN products_s p ON p.id = pi.product_id
+       WHERE pi.product_id = ANY($1) AND pi.quantity > 0 AND w.active = true
+       ORDER BY p.name, w.name, pr.name, pa.name`,
+      [componentIds]
+    );
+
+    res.json([...boxes.rows, ...palletItems.rows, ...shelves.rows]);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -237,7 +276,7 @@ router.post('/:id/start-picking', requireAuth, async (req, res) => {
 
 // ─── POST /:id/scan-pick — Scan item from pallet box or shelf ───────────────
 router.post('/:id/scan-pick', requireAuth, async (req, res) => {
-  const { barcode, box_id, shelf_id } = req.body;
+  const { barcode, box_id, shelf_id, pallet_id } = req.body;
   if (!barcode) return res.status(400).json({ error: 'barcode обязателен' });
 
   const client = await pool.connect();
@@ -247,7 +286,7 @@ router.post('/:id/scan-pick', requireAuth, async (req, res) => {
     if (!task.rows.length) { await client.query('ROLLBACK'); client.release(); return res.status(404).json({ error: 'Задача не найдена' }); }
     if (task.rows[0].status !== 'in_progress') { await client.query('ROLLBACK'); client.release(); return res.status(400).json({ error: 'Задача не начата. Нажмите «Начать забор»' }); }
     if (task.rows[0].assembly_phase !== 'picking') { await client.query('ROLLBACK'); client.release(); return res.status(400).json({ error: 'Задача не в фазе забора' }); }
-    if (!box_id && !shelf_id) { await client.query('ROLLBACK'); client.release(); return res.status(400).json({ error: 'Укажите коробку или полку (box_id / shelf_id)' }); }
+    if (!box_id && !shelf_id && !pallet_id) { await client.query('ROLLBACK'); client.release(); return res.status(400).json({ error: 'Укажите источник (box_id / shelf_id / pallet_id)' }); }
 
     const product = await resolveProduct(client, barcode);
     if (!product) { await client.query('ROLLBACK'); client.release(); return res.status(400).json({ error: 'Товар не найден по ШК' }); }
@@ -287,13 +326,22 @@ router.post('/:id/scan-pick', requireAuth, async (req, res) => {
         `INSERT INTO movements_s (movement_type, product_id, quantity, from_shelf_id, performed_by, source, notes)
          VALUES ('bundle_pick', $1, 1, $2, $3, 'task', $4)`,
         [product.id, shelf_id, req.user.id, `task:${req.params.id}`]);
+    } else if (pallet_id) {
+      const upd = await client.query(
+        'UPDATE pallet_items_s SET quantity = quantity - 1 WHERE pallet_id = $1 AND product_id = $2 AND quantity > 0 RETURNING quantity',
+        [pallet_id, product.id]);
+      if (!upd.rows.length) { await client.query('ROLLBACK'); client.release(); return res.status(400).json({ error: 'На паллете нет этого товара' }); }
+      await client.query(
+        `INSERT INTO movements_s (movement_type, product_id, quantity, from_pallet_id, performed_by, source, notes)
+         VALUES ('bundle_pick', $1, 1, $2, $3, 'task', $4)`,
+        [product.id, pallet_id, req.user.id, `task:${req.params.id}`]);
     }
 
     // Record picked item
     await client.query(
       `INSERT INTO assembly_items_s (task_id, product_id, source_box_id, source_pallet_id, source_shelf_id, scanned_barcode)
        VALUES ($1, $2, $3, $4, $5, $6)`,
-      [req.params.id, product.id, box_id || null, null, shelf_id || null, barcode]);
+      [req.params.id, product.id, box_id || null, pallet_id || null, shelf_id || null, barcode]);
 
     // Also record in task_scans for chronology
     await client.query(
@@ -549,6 +597,15 @@ router.delete('/:id', requireAuth, requireAdmin, async (req, res) => {
         } else {
           await client.query('INSERT INTO shelf_items_s (shelf_id, product_id, quantity) VALUES ($1, $2, $3)',
             [item.source_shelf_id, item.product_id, Number(item.quantity)]);
+        }
+      } else if (item.source_pallet_id) {
+        const existing = await client.query('SELECT id FROM pallet_items_s WHERE pallet_id = $1 AND product_id = $2', [item.source_pallet_id, item.product_id]);
+        if (existing.rows.length) {
+          await client.query('UPDATE pallet_items_s SET quantity = quantity + $1 WHERE pallet_id = $2 AND product_id = $3',
+            [Number(item.quantity), item.source_pallet_id, item.product_id]);
+        } else {
+          await client.query('INSERT INTO pallet_items_s (pallet_id, product_id, quantity) VALUES ($1, $2, $3)',
+            [item.source_pallet_id, item.product_id, Number(item.quantity)]);
         }
       }
     }
