@@ -255,14 +255,7 @@ router.post('/:id/scan-pick', requireAuth, async (req, res) => {
       [task.rows[0].bundle_product_id, product.id]);
     if (!comp.rows.length) { await client.query('ROLLBACK'); client.release(); return res.status(400).json({ error: `${product.name} не входит в состав комплекта` }); }
 
-    // Idempotency: skip if same barcode scanned within last 2 seconds
-    const recentDupe = await client.query(
-      `SELECT id FROM assembly_items_s WHERE task_id = $1 AND scanned_barcode = $2 AND created_at > NOW() - INTERVAL '2 seconds'`,
-      [req.params.id, barcode]);
-    if (recentDupe.rows.length > 0) {
-      await client.query('ROLLBACK'); client.release();
-      return res.json({ ok: true, product: product.name, duplicate: true, picked_summary: [] });
-    }
+    // No idempotency delay — each scan counts
 
     // Decrease quantity from source
     if (box_id) {
