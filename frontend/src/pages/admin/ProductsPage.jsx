@@ -49,10 +49,12 @@ function parseBarcodes(product) {
   (product.barcode_list || '').split(';').map(s => s.trim()).filter(Boolean).forEach(bc => allBarcodes.push(bc));
   const mbj = Array.isArray(product.marketplace_barcodes_json) ? product.marketplace_barcodes_json : [];
   mbj.forEach(b => { if (b.value) allBarcodes.push(b.value); });
-  // Deduplicate and classify by prefix/source
+  // Deduplicate and classify — system barcode FIRST (before marketplace check)
   allBarcodes.forEach(bc => {
     if (added.has(bc)) return;
     added.add(bc);
+    // System barcode: starts with 2 + 4+ zeros (e.g. 2000000326375)
+    if (/^20{4,}\d+$/.test(bc)) { result.push({ label: 'Системный', value: bc, kind: 'system', storeKey: 'system' }); return; }
     const mp = mbj.find(m => m.value === bc);
     if (mp?.type === 'ozon_1') result.push({ label: 'Ozon ИП И.', value: bc, kind: 'ozon', storeKey: 'ozon_1' });
     else if (mp?.type === 'ozon_2') result.push({ label: 'Ozon ИП Е.', value: bc, kind: 'ozon', storeKey: 'ozon_2' });
@@ -60,7 +62,6 @@ function parseBarcodes(product) {
     else if (mp?.type === 'wb_2') result.push({ label: 'WB ИП Е.', value: bc, kind: 'wb', storeKey: 'wb_2' });
     else if (mp?.type === 'wb') result.push({ label: 'WB', value: bc, kind: 'wb' });
     else if (mp?.type === 'ozon' || bc.startsWith('OZN')) result.push({ label: 'Ozon', value: bc, kind: 'ozon' });
-    else if (/^20{4,}\d+$/.test(bc)) result.push({ label: 'Системный', value: bc, kind: 'system', storeKey: 'system' });
     else if (bc.startsWith('MRKT')) result.push({ label: 'Яндекс Маркет', value: bc, kind: 'yandex' });
     else if (bc.startsWith('SBER')) result.push({ label: 'СберМегаМаркет', value: bc, kind: 'sber' });
     else result.push({ label: null, value: bc, kind: 'unknown' });
