@@ -557,7 +557,11 @@ function TaskDetailPanel({ task, onClose, onReload }) {
                           <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
                             <div className={`h-full rounded-full transition-all ${have >= needed ? 'bg-green-500' : 'bg-amber-400'}`} style={{ width: `${pct}%` }} />
                           </div>
-                          <p className="text-[10px] text-gray-400 mt-1 font-mono">{c.code} · × {Number(c.quantity)} на комплект</p>
+                          <div className="flex items-center gap-1 mt-1">
+                            <span className="text-[10px] text-gray-400 font-mono">{c.code} · × {Number(c.quantity)}</span>
+                            {c.production_barcode && <CopyBadge value={c.production_barcode} />}
+                            {!c.production_barcode && c.barcode_list && <CopyBadge value={c.barcode_list.split(';')[0]} />}
+                          </div>
                         </div>
                       );
                     })}
@@ -570,12 +574,19 @@ function TaskDetailPanel({ task, onClose, onReload }) {
                     <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Источники ({assemblySourceBoxes.length})</p>
                     <div className="max-h-40 overflow-y-auto space-y-1">
                       {assemblySourceBoxes.map((b, i) => (
-                        <div key={i} className="px-3 py-2 bg-gray-50 rounded-lg text-xs flex items-center gap-2">
-                          <MapPin size={12} className="text-primary-400 flex-shrink-0" />
-                          <span className="font-medium text-gray-700 flex-1">
-                            {b.source_type === 'shelf' ? `${b.warehouse_name} → ${b.rack_name} → ${b.shelf_code}` : `${b.warehouse_name} → ${b.row_name} → ${b.pallet_name}`}
-                          </span>
-                          <span className="text-amber-600 font-bold">{Number(b.quantity)} шт</span>
+                        <div key={i} className="px-3 py-2 bg-gray-50 rounded-lg text-xs">
+                          <div className="flex items-center gap-2">
+                            <MapPin size={12} className="text-primary-400 flex-shrink-0" />
+                            <span className="font-medium text-gray-700 flex-1">
+                              {b.source_type === 'shelf' ? `${b.warehouse_name} → ${b.rack_name} → ${b.shelf_code}` : `${b.warehouse_name} → ${b.row_name} → ${b.pallet_name}`}
+                            </span>
+                            <span className="text-amber-600 font-bold">{Number(b.quantity)} шт</span>
+                          </div>
+                          <div className="flex flex-wrap gap-1 mt-1 pl-5">
+                            {b.pallet_barcode && <CopyBadge value={b.pallet_barcode} label={`Паллет: ${b.pallet_barcode}`} />}
+                            {b.box_barcode && <CopyBadge value={b.box_barcode} label={`Коробка: ${b.box_barcode}`} />}
+                            {b.shelf_barcode && <CopyBadge value={b.shelf_barcode} label={`Полка: ${b.shelf_barcode}`} />}
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -588,11 +599,7 @@ function TaskDetailPanel({ task, onClose, onReload }) {
                   <div className="flex flex-wrap gap-1">
                     {(assemblyData.bundle_barcodes || '').split(';').filter(Boolean).map(bc => {
                       const isSystem = /^[124]0{5,}\d+$/.test(bc.trim());
-                      return (
-                        <span key={bc} className={`px-2 py-0.5 rounded text-[11px] font-mono ${isSystem ? 'bg-green-100 text-green-700 font-bold' : 'bg-gray-100 text-gray-500'}`}>
-                          {bc.trim()}
-                        </span>
-                      );
+                      return <CopyBadge key={bc} value={bc.trim()} className={isSystem ? '!bg-green-100 !text-green-700 font-bold !border-green-200' : ''} />;
                     })}
                   </div>
                 </div>
