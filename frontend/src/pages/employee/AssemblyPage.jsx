@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Package, ChevronRight, CheckCircle2, ScanLine, Printer, MapPin, ArrowLeft, Box, AlertCircle } from 'lucide-react';
+import { Package, ChevronRight, CheckCircle2, ScanLine, Printer, MapPin, ArrowLeft, Box, AlertCircle, X } from 'lucide-react';
 import api from '../../api/client';
 import Spinner from '../../components/ui/Spinner';
 import Button from '../../components/ui/Button';
