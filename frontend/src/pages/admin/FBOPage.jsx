@@ -260,6 +260,20 @@ function PalletDetailModal({ open, onClose, palletId, onReload }) {
   const boxes = pallet?.boxes || [];
   const items = pallet?.items || [];
 
+  // Сводка по товарам: группировка коробок по product_name
+  const productSummary = useMemo(() => {
+    if (!isBoxMode || boxes.length === 0) return [];
+    const map = {};
+    boxes.forEach(box => {
+      const name = box.product_name || 'Без товара';
+      const q = Number(box.quantity || 0);
+      if (!map[name]) map[name] = { name, boxes: 0, total: 0, code: box.product_code };
+      map[name].boxes += 1;
+      map[name].total += q;
+    });
+    return Object.values(map).sort((a, b) => b.total - a.total);
+  }, [boxes, isBoxMode]);
+
   const searchProducts = (q, mode = 'add') => {
     const ref = mode === 'edit' ? editDebRef : addDebRef;
     clearTimeout(ref.current);
@@ -418,11 +432,33 @@ function PalletDetailModal({ open, onClose, palletId, onReload }) {
             </div>
           )}
 
-          <div className="p-4 bg-gray-50 rounded-2xl text-sm text-gray-600">
-            {isBoxMode
-              ? 'Сначала создайте коробки на паллете, затем назначайте им товар и количество.'
-              : 'На этом паллете товар хранится напрямую, без коробок.'}
-          </div>
+          {/* Сводка по товарам */}
+          {isBoxMode && productSummary.length > 0 && (
+            <div className="rounded-2xl border border-gray-100 overflow-hidden">
+              <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Сводка по товарам</p>
+              </div>
+              <div className="divide-y divide-gray-50">
+                {productSummary.map(item => (
+                  <div key={item.name} className="flex items-center gap-3 px-4 py-2.5">
+                    <Package size={14} className="text-gray-400 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-800 truncate">{item.name}</p>
+                      {item.code && <p className="text-xs text-gray-400">{item.code}</p>}
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <p className="text-sm font-bold text-gray-900">{qty(item.total)} шт.</p>
+                      <p className="text-xs text-gray-400">{qty(item.boxes)} кор. × {item.boxes > 0 ? qty(Math.round(item.total / item.boxes)) : 0}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="px-4 py-2 bg-gray-50 border-t border-gray-100 flex justify-between">
+                <span className="text-xs font-semibold text-gray-500">Итого</span>
+                <span className="text-xs font-bold text-gray-700">{qty(productSummary.reduce((s, i) => s + i.total, 0))} шт. в {qty(productSummary.reduce((s, i) => s + i.boxes, 0))} коробках</span>
+              </div>
+            </div>
+          )}
 
           {isBoxMode ? (
             <div>
@@ -940,6 +976,7 @@ function RowListView({ warehouse }) {
                   <button
                     onClick={() => deleteRow(row)}
                     className="p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all"
+                    title="Удалить ряд"
                   >
                     <Trash2 size={13} />
                   </button>
@@ -963,6 +1000,7 @@ function RowListView({ warehouse }) {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function FBOPage() {
+  const toast = useToast();
   const [warehouses, setWarehouses] = useState([]);
   const [selectedWh, setSelectedWh] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -983,6 +1021,18 @@ export default function FBOPage() {
   }, []);
 
   useEffect(() => { loadWarehouses(); }, [loadWarehouses]);
+
+  const deleteWarehouse = async (wh) => {
+    if (!confirm(`Удалить склад "${wh.name}"? Все ряды, паллеты и коробки будут удалены.`)) return;
+    try {
+      await api.delete(`/fbo/warehouses/${wh.id}`);
+      toast.success('Склад удалён');
+      if (selectedWh?.id === wh.id) setSelectedWh(null);
+      loadWarehouses();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Ошибка');
+    }
+  };
 
   return (
     <div className="p-6 max-w-6xl mx-auto">
@@ -1012,19 +1062,27 @@ export default function FBOPage() {
             <div className="mb-5">
               <div className="flex items-center gap-2 overflow-x-auto pb-1">
                 {warehouses.map(wh => (
-                  <button
-                    key={wh.id}
-                    onClick={() => setSelectedWh(wh)}
-                    className={cn(
-                      'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all whitespace-nowrap',
-                      selectedWh?.id === wh.id
-                        ? 'bg-primary-600 text-white shadow-sm'
-                        : 'bg-white border border-gray-200 text-gray-600 hover:border-primary-300'
-                    )}
-                  >
-                    <Warehouse size={14} />
-                    {wh.name}
-                  </button>
+                  <div key={wh.id} className="relative group flex items-center">
+                    <button
+                      onClick={() => setSelectedWh(wh)}
+                      className={cn(
+                        'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all whitespace-nowrap',
+                        selectedWh?.id === wh.id
+                          ? 'bg-primary-600 text-white shadow-sm'
+                          : 'bg-white border border-gray-200 text-gray-600 hover:border-primary-300'
+                      )}
+                    >
+                      <Warehouse size={14} />
+                      {wh.name}
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); deleteWarehouse(wh); }}
+                      className="ml-1 p-1 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all opacity-0 group-hover:opacity-100"
+                      title="Удалить склад"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
                 ))}
               </div>
             </div>

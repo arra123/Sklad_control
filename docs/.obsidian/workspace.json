@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "MCP серверы.md",
+                "file": "Модули/Паллетный склад.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "MCP серверы"
+              "title": "Паллетный склад"
             }
           }
         ]
@@ -185,43 +185,27 @@
   },
   "active": "7882241d60643aca",
   "lastOpenFiles": [
-    "screenshots/test_19_admin_task_completed.png",
-    "screenshots/test_18_task_completed.png",
-    "screenshots/test_17_placing_destination.png",
-    "screenshots/test_16_placing_phase.png",
-    "screenshots/test_15_print_barcode.png",
-    "screenshots/test_14_assembling_phase.png",
-    "screenshots/test_13_all_picked.png",
-    "screenshots/test_12_box_scanned.png",
-    "screenshots/test_11_pallet_scanned.png",
-    "screenshots/test_10_picking_scan_location.png",
-    "screenshots/test_09_picking_phase.png",
-    "screenshots",
-    "Инструкция_Сборка_комплектов.md",
+    "Модули/Настройки.md",
+    "Словарь.md",
     "Changelog.md",
     "Главная.md",
-    "Архитектура/Общая схема.md",
-    "Модули/Товары.md",
-    "Архитектура/Потоки данных.md",
-    "Архитектура/Карта системы.md",
-    "Архитектура/Деплой.md",
-    "Архитектура/База данных.md",
-    "Словарь.md",
-    "MCP серверы.md",
-    "Архитектура/Штрих-коды.md",
-    "Архитектура/Структура склада.md",
-    "Модули/GRACoin.md",
-    "Модули/Claude Code Skills.md",
-    "Модули/Упаковка.md",
-    "Модули/Стеллажный склад.md",
-    "Модули/Сырьё.md",
     "Модули/Сотрудники.md",
+    "Модули/Аналитика.md",
+    "Интеграции/Wildberries API.md",
+    "Модули/Claude Code Skills.md",
+    "Модули/Товары.md",
+    "Модули/Сырьё.md",
+    "Модули/Стеллажный склад.md",
     "Модули/Перемещения.md",
     "Модули/Паллетный склад.md",
-    "Модули/Настройки.md",
     "Модули/Задачи.md",
-    "Модули/Аналитика.md",
+    "Словарь.md.tmp.12512.1774606045845",
+    "Модули/FBS склад.md",
+    "Модули/FBO паллеты.md",
+    "Интеграции/МойСклад API.md",
     "Архитектура/API эндпоинты.md",
-    "Словарь.md.tmp.12512.1774606045845"
+    "Архитектура/Общая схема.md",
+    "Архитектура/Деплой.md",
+    "Архитектура/База данных.md"
   ]
 }
