@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { printBarcode } from '../../utils/printBarcode';
 import { qty } from '../../utils/fmt';
@@ -1866,6 +1866,20 @@ function PalletDetailView({ pallet, onClose, initialBoxId }) {
 
   const isBoxMode = data?.uses_boxes !== false;
 
+  // Сводка по товарам: группировка коробок по product_name
+  const productSummary = useMemo(() => {
+    if (!isBoxMode || !data?.boxes?.length) return [];
+    const map = {};
+    data.boxes.forEach(box => {
+      const name = box.product_name || 'Без товара';
+      const q = Number(box.quantity || 0);
+      if (!map[name]) map[name] = { name, boxes: 0, total: 0, code: box.product_code };
+      map[name].boxes += 1;
+      map[name].total += q;
+    });
+    return Object.values(map).sort((a, b) => b.total - a.total);
+  }, [data?.boxes, isBoxMode]);
+
   if (drillBoxId) {
     return (
       <BoxDetailView
@@ -1904,9 +1918,33 @@ function PalletDetailView({ pallet, onClose, initialBoxId }) {
         )}
       </div>
 
-      {/* pallet barcode card hidden */}
-
-      {/* box mode hint removed */}
+      {/* Сводка по товарам */}
+      {!loading && isBoxMode && productSummary.length > 0 && (
+        <div className="card overflow-hidden mb-4">
+          <div className="px-4 py-2.5 bg-gray-50 dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Сводка по товарам</p>
+          </div>
+          <div className="divide-y divide-gray-50 dark:divide-gray-800">
+            {productSummary.map(item => (
+              <div key={item.name} className="flex items-center gap-3 px-4 py-2.5">
+                <Package size={14} className="text-gray-400 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">{item.name}</p>
+                  {item.code && <p className="text-xs text-gray-400">{item.code}</p>}
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <p className="text-sm font-bold text-gray-900 dark:text-white">{qty(item.total)} шт.</p>
+                  <p className="text-xs text-gray-400">{qty(item.boxes)} кор. × {item.boxes > 0 ? qty(Math.round(item.total / item.boxes)) : 0}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="px-4 py-2 bg-gray-50 dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700 flex justify-between">
+            <span className="text-xs font-semibold text-gray-500">Итого</span>
+            <span className="text-xs font-bold text-gray-700 dark:text-gray-300">{qty(productSummary.reduce((s, i) => s + i.total, 0))} шт. в {qty(productSummary.reduce((s, i) => s + i.boxes, 0))} коробках</span>
+          </div>
+        </div>
+      )}
 
       {isBoxMode && <div className="card p-4">
         <div className="flex items-center justify-between mb-3">
