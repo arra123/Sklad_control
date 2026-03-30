@@ -499,4 +499,80 @@ router.get('/visual/:warehouseId', requireAuth, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// BOX-TYPE WAREHOUSE: standalone boxes (no pallets/rows)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// GET /api/fbo/box-warehouse/:warehouseId/boxes — list boxes in a box-type warehouse
+router.get('/box-warehouse/:warehouseId/boxes', requireAuth, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT b.*,
+        p.name as product_name, p.code as product_code, p.barcode as product_barcode,
+        (SELECT COALESCE(SUM(bi.quantity), 0) FROM box_items_s bi WHERE bi.box_id = b.id) as total_items
+       FROM boxes_s b
+       LEFT JOIN products_s p ON p.id = b.product_id
+       WHERE b.warehouse_id = $1
+       ORDER BY b.created_at DESC`,
+      [req.params.warehouseId]
+    );
+    res.json(result.rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// POST /api/fbo/box-warehouse/:warehouseId/boxes — create box in box-type warehouse
+router.post('/box-warehouse/:warehouseId/boxes', requireAuth, requireAdminOrManager, async (req, res) => {
+  try {
+    const { name, product_id, quantity, box_size } = req.body;
+    const barcode = String(Math.floor(100000000 + Math.random() * 900000000));
+    const result = await pool.query(
+      `INSERT INTO boxes_s (barcode_value, warehouse_id, product_id, quantity, box_size, name, status, closed_at)
+       VALUES ($1, $2, $3, $4, $5, $6, 'closed', NOW()) RETURNING *`,
+      [barcode, req.params.warehouseId, product_id || null, quantity || 0, box_size || 50, name || null]
+    );
+    // Create box_items_s entry if product + quantity
+    if (product_id && quantity > 0) {
+      await pool.query(
+        `INSERT INTO box_items_s (box_id, product_id, quantity) VALUES ($1, $2, $3)`,
+        [result.rows[0].id, product_id, quantity]
+      );
+    }
+    res.json(result.rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// PUT /api/fbo/box-warehouse/boxes/:id — edit standalone box
+router.put('/box-warehouse/boxes/:id', requireAuth, requireAdminOrManager, async (req, res) => {
+  try {
+    const { name, product_id, quantity, box_size } = req.body;
+    const fields = [];
+    const vals = [];
+    let idx = 1;
+    if (name !== undefined) { fields.push(`name=$${idx++}`); vals.push(name); }
+    if (product_id !== undefined) { fields.push(`product_id=$${idx++}`); vals.push(product_id || null); }
+    if (quantity !== undefined) { fields.push(`quantity=$${idx++}`); vals.push(quantity); }
+    if (box_size !== undefined) { fields.push(`box_size=$${idx++}`); vals.push(box_size); }
+    if (fields.length === 0) return res.status(400).json({ error: 'Нечего обновлять' });
+    vals.push(req.params.id);
+    await pool.query(`UPDATE boxes_s SET ${fields.join(', ')} WHERE id=$${idx}`, vals);
+    // Update box_items_s if product_id + quantity
+    if (product_id !== undefined && quantity !== undefined) {
+      await pool.query(`DELETE FROM box_items_s WHERE box_id = $1`, [req.params.id]);
+      if (product_id && quantity > 0) {
+        await pool.query(`INSERT INTO box_items_s (box_id, product_id, quantity) VALUES ($1, $2, $3)`, [req.params.id, product_id, quantity]);
+      }
+    }
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// DELETE /api/fbo/box-warehouse/boxes/:id — delete standalone box
+router.delete('/box-warehouse/boxes/:id', requireAuth, requireAdminOrManager, async (req, res) => {
+  try {
+    await pool.query(`DELETE FROM box_items_s WHERE box_id = $1`, [req.params.id]);
+    await pool.query(`DELETE FROM boxes_s WHERE id = $1`, [req.params.id]);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 module.exports = router;

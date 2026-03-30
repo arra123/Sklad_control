@@ -65,6 +65,7 @@ function WarehouseModal({ open, onClose, warehouse, onSuccess }) {
   const TYPE_OPTIONS = [
     { value: 'fbs',    label: 'Стеллажи + полки',  sub: 'Классическое хранение' },
     { value: 'fbo',    label: 'Ряды + паллеты',     sub: 'Паллетное хранение' },
+    { value: 'box',    label: 'Коробки',            sub: 'Только коробки, без стеллажей и паллет' },
     { value: 'both',   label: 'Оба варианта',        sub: 'И стеллажи, и ряды' },
   ];
 
@@ -3168,6 +3169,7 @@ function WarehouseListView({ warehouses, selectedId, onSelect, onReload }) {
 
   // Structure label based on type
   const structureLabel = (wh) => {
+    if (wh.warehouse_type === 'box') return `${qty(wh.boxes_count)} кор.`;
     if (wh.warehouse_type === 'fbo') return `${qty(wh.rows_count)} р.`;
     if (wh.warehouse_type === 'both') return `${qty(wh.racks_count)}с · ${qty(wh.rows_count)}р`;
     return `${wh.racks_count} ст.`;
@@ -3340,6 +3342,231 @@ function ShelfCardsView({ warehouse, racks, onDrillRack, onDrillShelf }) {
   );
 }
 
+// ─── Box Warehouse View ─────────────────────────────────────────────────────
+function BoxWarehouseView({ warehouse }) {
+  const toast = useToast();
+  const [boxes, setBoxes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showAdd, setShowAdd] = useState(false);
+  const [editBox, setEditBox] = useState(null);
+  const [products, setProducts] = useState([]);
+
+  const loadBoxes = useCallback(async () => {
+    if (!warehouse) return;
+    setLoading(true);
+    try {
+      const res = await api.get(`/fbo/box-warehouse/${warehouse.id}/boxes`);
+      setBoxes(res.data);
+    } catch { toast.error('Ошибка загрузки коробок'); }
+    finally { setLoading(false); }
+  }, [warehouse?.id]);
+
+  useEffect(() => { loadBoxes(); }, [loadBoxes]);
+
+  // Load products for the modal
+  useEffect(() => {
+    api.get('/products', { params: { limit: 1000 } }).then(res => setProducts(res.data.items || [])).catch(() => {});
+  }, []);
+
+  const deleteBox = async (box) => {
+    if (!confirm(`Удалить коробку "${box.name || box.barcode_value}"?`)) return;
+    try {
+      await api.delete(`/fbo/box-warehouse/boxes/${box.id}`);
+      toast.success('Коробка удалена');
+      loadBoxes();
+    } catch (err) { toast.error(err.response?.data?.error || 'Ошибка'); }
+  };
+
+  const palette = [
+    { bg: '#f59e0b', light: '#fef3c7', text: '#b45309', border: '#f59e0b' },
+    { bg: '#3b82f6', light: '#dbeafe', text: '#1d4ed8', border: '#3b82f6' },
+    { bg: '#10b981', light: '#d1fae5', text: '#047857', border: '#10b981' },
+    { bg: '#8b5cf6', light: '#ede9fe', text: '#6d28d9', border: '#8b5cf6' },
+    { bg: '#ef4444', light: '#fee2e2', text: '#b91c1c', border: '#ef4444' },
+    { bg: '#ec4899', light: '#fce7f3', text: '#be185d', border: '#ec4899' },
+    { bg: '#06b6d4', light: '#cffafe', text: '#0e7490', border: '#06b6d4' },
+    { bg: '#14b8a6', light: '#ccfbf1', text: '#0f766e', border: '#14b8a6' },
+  ];
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h2 className="font-semibold text-gray-700 dark:text-gray-200">Коробки</h2>
+          <p className="text-xs text-gray-400">{boxes.length} коробок</p>
+        </div>
+        <Button variant="primary" size="sm" icon={<Plus size={14} />} onClick={() => setShowAdd(true)}>
+          Коробка
+        </Button>
+      </div>
+
+      {loading ? (
+        <div className="flex items-center justify-center h-40"><Spinner size="lg" /></div>
+      ) : boxes.length === 0 ? (
+        <div className="flex flex-col items-center justify-center h-40 text-gray-400 card">
+          <Box size={36} className="mb-2 opacity-30" />
+          <p className="text-sm">Нет коробок</p>
+          <p className="text-xs mt-1">Нажмите «Коробка» чтобы создать</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+          {boxes.map((box, idx) => {
+            const c = palette[idx % palette.length];
+            const itemsCount = Number(box.quantity || box.total_items || 0);
+            return (
+              <div key={box.id}
+                className="card p-0 hover:shadow-lg transition-all group cursor-pointer overflow-hidden"
+                style={{ borderLeft: `4px solid ${c.border}` }}>
+                <div className="p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
+                      style={{ background: c.light }}>
+                      <Box size={20} style={{ color: c.text }} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-base font-bold text-gray-900 dark:text-white truncate">
+                          {box.name || `Коробка #${box.id}`}
+                        </span>
+                      </div>
+                      {box.product_name && (
+                        <p className="text-xs text-gray-500 mt-0.5 truncate">{box.product_name}</p>
+                      )}
+                      <div className="flex items-center gap-4 mt-1">
+                        <span className="text-xs font-bold" style={{ color: c.text }}>{itemsCount.toLocaleString('ru-RU')} шт.</span>
+                        <span className="text-xs text-gray-400">макс. {box.box_size}</span>
+                      </div>
+                      {box.barcode_value && (
+                        <div className="mt-2" onClick={e => e.stopPropagation()}>
+                          <BarcodeDisplay value={box.barcode_value} />
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={e => e.stopPropagation()}>
+                      <button onClick={() => box.barcode_value && printBarcode(box.barcode_value, box.name || `Коробка #${box.id}`, '')}
+                        className="p-1.5 rounded-lg text-gray-300 hover:text-primary-500 hover:bg-primary-50 transition-all">
+                        <Printer size={13} />
+                      </button>
+                      <button onClick={() => setEditBox(box)}
+                        className="p-1.5 rounded-lg text-gray-300 hover:text-primary-500 hover:bg-primary-50 transition-all">
+                        <Pencil size={13} />
+                      </button>
+                      <button onClick={() => deleteBox(box)}
+                        className="p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all">
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <BoxWarehouseModal open={showAdd} onClose={() => setShowAdd(false)} warehouseId={warehouse?.id} products={products} onSuccess={loadBoxes} />
+      <BoxWarehouseModal open={!!editBox} onClose={() => setEditBox(null)} box={editBox} products={products} onSuccess={loadBoxes} />
+    </div>
+  );
+}
+
+// ─── Box Warehouse Modal (create/edit box) ──────────────────────────────────
+function BoxWarehouseModal({ open, onClose, warehouseId, box, products, onSuccess }) {
+  const toast = useToast();
+  const [form, setForm] = useState({ name: '', product_id: '', quantity: '', box_size: '50' });
+  const [loading, setLoading] = useState(false);
+  const [search, setSearch] = useState('');
+  const isEdit = !!box;
+
+  useEffect(() => {
+    if (open) {
+      setForm(box
+        ? { name: box.name || '', product_id: String(box.product_id || ''), quantity: String(box.quantity || ''), box_size: String(box.box_size || '50') }
+        : { name: '', product_id: '', quantity: '', box_size: '50' });
+      setSearch('');
+    }
+  }, [open, box]);
+
+  const filteredProducts = useMemo(() => {
+    if (!search) return products.slice(0, 20);
+    const q = search.toLowerCase();
+    return products.filter(p => p.name?.toLowerCase().includes(q) || p.code?.toLowerCase().includes(q) || p.barcode?.includes(q)).slice(0, 20);
+  }, [products, search]);
+
+  const selectedProduct = products.find(p => String(p.id) === form.product_id);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const data = {
+        name: form.name || null,
+        product_id: form.product_id ? Number(form.product_id) : null,
+        quantity: form.quantity ? Number(form.quantity) : 0,
+        box_size: form.box_size ? Number(form.box_size) : 50,
+      };
+      if (isEdit) {
+        await api.put(`/fbo/box-warehouse/boxes/${box.id}`, data);
+        toast.success('Коробка обновлена');
+      } else {
+        await api.post(`/fbo/box-warehouse/${warehouseId}/boxes`, data);
+        toast.success('Коробка создана');
+      }
+      onSuccess();
+      onClose();
+    } catch (err) { toast.error(err.response?.data?.error || 'Ошибка'); }
+    finally { setLoading(false); }
+  };
+
+  return (
+    <Modal open={open} onClose={onClose} title={isEdit ? 'Редактировать коробку' : 'Создать коробку'}
+      footer={<><Button variant="ghost" onClick={onClose}>Отмена</Button><Button form="box-wh-form" type="submit" loading={loading}>{isEdit ? 'Сохранить' : 'Создать'}</Button></>}>
+      <form id="box-wh-form" onSubmit={handleSubmit} className="space-y-4">
+        <Input label="Название" placeholder="Коробка A1" value={form.name}
+          onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+
+        {/* Product selector */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Товар</label>
+          {selectedProduct ? (
+            <div className="flex items-center gap-2 p-2 rounded-lg bg-primary-50 border border-primary-200">
+              <span className="text-sm font-medium text-gray-800 flex-1 truncate">{selectedProduct.name}</span>
+              <button type="button" onClick={() => setForm(f => ({ ...f, product_id: '' }))}
+                className="p-1 rounded text-gray-400 hover:text-red-500"><X size={14} /></button>
+            </div>
+          ) : (
+            <div>
+              <input type="text" value={search} onChange={e => setSearch(e.target.value)}
+                placeholder="Поиск товара..."
+                className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm" />
+              {search && filteredProducts.length > 0 && (
+                <div className="mt-1 max-h-40 overflow-y-auto rounded-xl border border-gray-200 bg-white divide-y divide-gray-50">
+                  {filteredProducts.map(p => (
+                    <button key={p.id} type="button"
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-primary-50 transition-colors"
+                      onClick={() => { setForm(f => ({ ...f, product_id: String(p.id) })); setSearch(''); }}>
+                      <span className="font-medium">{p.name}</span>
+                      {p.code && <span className="text-xs text-gray-400 ml-2">{p.code}</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <Input label="Количество" type="number" min="0" placeholder="0" value={form.quantity}
+            onChange={e => setForm(f => ({ ...f, quantity: e.target.value }))} />
+          <Input label="Макс. вместимость" type="number" min="1" placeholder="50" value={form.box_size}
+            onChange={e => setForm(f => ({ ...f, box_size: e.target.value }))} />
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
 // ─── Warehouse Content (FBS / FBO / Both) ────────────────────────────────────
 function WarehouseContent({ warehouse, initialRackId, initialShelfId, initialRowId, initialPalletId, initialBoxId, initialBoxType }) {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -3362,8 +3589,10 @@ function WarehouseContent({ warehouse, initialRackId, initialShelfId, initialRow
   const [searchResults, setSearchResults] = useState(null);
   const [searchLoading, setSearchLoading] = useState(false);
 
-  const hasFBS = warehouse?.warehouse_type !== 'fbo';
-  const hasFBO = warehouse?.warehouse_type === 'fbo' || warehouse?.warehouse_type === 'both';
+  const wtype = warehouse?.warehouse_type;
+  const hasFBS = wtype !== 'fbo' && wtype !== 'box';
+  const hasFBO = wtype === 'fbo' || wtype === 'both';
+  const hasBox = wtype === 'box';
 
   // Product search in warehouse
   const handleProductSearch = useCallback(async (q) => {
@@ -3653,6 +3882,11 @@ function WarehouseContent({ warehouse, initialRackId, initialShelfId, initialRow
             onViewMode={!hasFBS ? setViewMode : null}
           />
         </div>
+      )}
+
+      {/* BOX section */}
+      {hasBox && (
+        <BoxWarehouseView warehouse={warehouse} />
       )}
     </div>
   );

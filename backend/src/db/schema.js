@@ -507,9 +507,13 @@ async function createSchema() {
     // Pallet: uses_boxes flag (true = товар в коробках, false = товар напрямую)
     await client.query(`ALTER TABLE pallets_s ADD COLUMN IF NOT EXISTS uses_boxes BOOLEAN NOT NULL DEFAULT true`);
 
-    // Add 'visual' warehouse type
+    // Warehouse types
     await client.query(`ALTER TABLE warehouses_s DROP CONSTRAINT IF EXISTS warehouses_c_warehouse_type_check`);
-    await client.query(`ALTER TABLE warehouses_s ADD CONSTRAINT warehouses_c_warehouse_type_check CHECK (warehouse_type IN ('fbs', 'fbo', 'both', 'visual', 'visual_pallet'))`);
+    await client.query(`ALTER TABLE warehouses_s ADD CONSTRAINT warehouses_c_warehouse_type_check CHECK (warehouse_type IN ('fbs', 'fbo', 'both', 'visual', 'visual_pallet', 'box'))`);
+
+    // boxes_s: warehouse_id for box-type warehouses (boxes without pallets)
+    await client.query(`ALTER TABLE boxes_s ADD COLUMN IF NOT EXISTS warehouse_id INTEGER REFERENCES warehouses_s(id) ON DELETE SET NULL`);
+    await client.query(`ALTER TABLE boxes_s ADD COLUMN IF NOT EXISTS name VARCHAR(255)`);
 
     // shelf_boxes_s: physical boxes on FBS shelves (for visual/experimental warehouses)
     await client.query(`

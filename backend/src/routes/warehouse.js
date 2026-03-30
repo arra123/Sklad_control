@@ -69,7 +69,8 @@ router.get('/warehouses', requireAuth, async (req, res) => {
     const result = await pool.query(
       `SELECT w.*,
         (SELECT COUNT(*) FROM racks_s WHERE warehouse_id = w.id) as racks_count,
-        (SELECT COUNT(*) FROM pallet_rows_s WHERE warehouse_id = w.id) as rows_count
+        (SELECT COUNT(*) FROM pallet_rows_s WHERE warehouse_id = w.id) as rows_count,
+        (SELECT COUNT(*) FROM boxes_s WHERE warehouse_id = w.id) as boxes_count
        FROM warehouses_s w ORDER BY w.name`
     );
     res.json(result.rows);
