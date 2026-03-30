@@ -258,6 +258,23 @@ router.put('/pallets/:palletId/item/:productId', requireAuth, requireAdminOrMana
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// PUT /api/fbo/pallets/:id — edit pallet name/number/uses_boxes
+router.put('/pallets/:id', requireAuth, requireAdminOrManager, async (req, res) => {
+  try {
+    const { name, number, uses_boxes } = req.body;
+    const fields = [];
+    const vals = [];
+    let idx = 1;
+    if (name !== undefined) { fields.push(`name=$${idx++}`); vals.push(name); }
+    if (number !== undefined) { fields.push(`number=$${idx++}`); vals.push(number); }
+    if (uses_boxes !== undefined) { fields.push(`uses_boxes=$${idx++}`); vals.push(uses_boxes); }
+    if (fields.length === 0) return res.status(400).json({ error: 'Нечего обновлять' });
+    vals.push(req.params.id);
+    await pool.query(`UPDATE pallets_s SET ${fields.join(', ')} WHERE id=$${idx}`, vals);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // DELETE /api/fbo/pallets/:id
 router.delete('/pallets/:id', requireAuth, requireAdminOrManager, async (req, res) => {
   try {

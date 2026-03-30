@@ -2117,22 +2117,33 @@ function PalletDetailView({ pallet, onClose, initialBoxId }) {
 }
 
 // ─── FBO: Pallet Modal ────────────────────────────────────────────────────────
-function PalletModal({ open, onClose, rowId, onSuccess }) {
+function PalletModal({ open, onClose, rowId, pallet, onSuccess }) {
   const toast = useToast();
   const [form, setForm] = useState({ name: '', number: '', uses_boxes: true });
   const [loading, setLoading] = useState(false);
-  useEffect(() => { if (open) setForm({ name: '', number: '', uses_boxes: true }); }, [open]);
+  const isEdit = !!pallet;
+  useEffect(() => {
+    if (open) setForm(pallet
+      ? { name: pallet.name, number: String(pallet.number), uses_boxes: pallet.uses_boxes !== false }
+      : { name: '', number: '', uses_boxes: true });
+  }, [open, pallet]);
   const handleSubmit = async (e) => {
     e.preventDefault(); setLoading(true);
     try {
-      await api.post('/fbo/pallets', { row_id: rowId, ...form });
-      toast.success('Паллет добавлен'); onSuccess(); onClose();
+      if (isEdit) {
+        await api.put(`/fbo/pallets/${pallet.id}`, form);
+        toast.success('Паллет обновлён');
+      } else {
+        await api.post('/fbo/pallets', { row_id: rowId, ...form });
+        toast.success('Паллет добавлен');
+      }
+      onSuccess(); onClose();
     } catch (err) { toast.error(err.response?.data?.error || 'Ошибка'); }
     finally { setLoading(false); }
   };
   return (
-    <Modal open={open} onClose={onClose} title="Добавить паллет"
-      footer={<><Button variant="ghost" onClick={onClose}>Отмена</Button><Button form="pallet-form" type="submit" loading={loading}>Добавить</Button></>}>
+    <Modal open={open} onClose={onClose} title={isEdit ? 'Редактировать паллет' : 'Добавить паллет'}
+      footer={<><Button variant="ghost" onClick={onClose}>Отмена</Button><Button form="pallet-form" type="submit" loading={loading}>{isEdit ? 'Сохранить' : 'Добавить'}</Button></>}>
       <form id="pallet-form" onSubmit={handleSubmit} className="space-y-4">
         <Input label="Название" placeholder="Паллет 1" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required />
         <Input label="Номер" type="number" min="1" placeholder="1" value={form.number} onChange={e => setForm(f => ({ ...f, number: e.target.value }))} required />
@@ -2160,6 +2171,7 @@ function RowDetailView({ row, onBack, initialPalletId, initialBoxId, initialBoxT
   const [pallets, setPallets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddPallet, setShowAddPallet] = useState(false);
+  const [editPallet, setEditPallet] = useState(null);
   const [drillPallet, setDrillPallet] = useState(null);
 
   const load = useCallback(async () => {
@@ -2281,6 +2293,10 @@ function RowDetailView({ row, onBack, initialPalletId, initialBoxId, initialBoxT
                           className="p-1.5 rounded-lg text-gray-300 hover:text-primary-500 hover:bg-primary-50 transition-all">
                           <Printer size={13} />
                         </button>
+                        <button onClick={() => setEditPallet(p)}
+                          className="p-1.5 rounded-lg text-gray-300 hover:text-primary-500 hover:bg-primary-50 transition-all">
+                          <Pencil size={13} />
+                        </button>
                         <button onClick={() => deletePallet(p)}
                           className="p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all">
                           <Trash2 size={13} />
@@ -2297,6 +2313,7 @@ function RowDetailView({ row, onBack, initialPalletId, initialBoxId, initialBoxT
       )}
 
       <PalletModal open={showAddPallet} onClose={() => setShowAddPallet(false)} rowId={row.id} onSuccess={load} />
+      <PalletModal open={!!editPallet} onClose={() => setEditPallet(null)} pallet={editPallet} onSuccess={load} />
     </div>
   );
 }
@@ -2337,7 +2354,7 @@ function RowModal({ open, onClose, warehouseId, row, onSuccess }) {
 
 // ─── FBO: Rows list ───────────────────────────────────────────────────────────
 // ─── Pallet Cards View (FBO analog of ShelfCardsView) ─────────────────────────
-function PalletCardsView({ rows, onDrillRow, onDrillPallet }) {
+function PalletCardsView({ rows, onDrillRow, onDrillPallet, onEditRow, onDeleteRow }) {
   const [rowDetails, setRowDetails] = useState({});
   const [loadingIds, setLoadingIds] = useState(new Set());
 
@@ -2381,7 +2398,7 @@ function PalletCardsView({ rows, onDrillRow, onDrillPallet }) {
         return (
           <div key={row.id} className="card p-0 overflow-hidden hover:shadow-lg transition-all"
             style={{ borderTop: `3px solid ${c.dot}` }}>
-            <div className="p-4 pb-3 cursor-pointer" onClick={() => onDrillRow(row)}>
+            <div className="p-4 pb-3 cursor-pointer group/row" onClick={() => onDrillRow(row)}>
               <div className="flex items-center gap-3">
                 <RowBadge number={row.number} size={40} color={c.bg} />
                 <div className="flex-1 min-w-0">
@@ -2391,6 +2408,22 @@ function PalletCardsView({ rows, onDrillRow, onDrillPallet }) {
                   </div>
                   <span className="text-xs text-gray-400">{palletsCount} паллет</span>
                 </div>
+                {(onEditRow || onDeleteRow) && (
+                  <div className="flex items-center gap-1 opacity-0 group-hover/row:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
+                    {onEditRow && (
+                      <button onClick={() => onEditRow(row)}
+                        className="p-1.5 rounded-lg text-gray-300 hover:text-primary-500 hover:bg-primary-50 transition-all">
+                        <Pencil size={13} />
+                      </button>
+                    )}
+                    {onDeleteRow && (
+                      <button onClick={() => onDeleteRow(row)}
+                        className="p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all">
+                        <Trash2 size={13} />
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
             <div className="border-t border-gray-100 dark:border-gray-700">
@@ -2539,7 +2572,7 @@ function FBORowListView({ warehouse, initialRowId, initialPalletId, initialBoxId
 
       {/* Cards mode */}
       {vm === 'cards' && (
-        <PalletCardsView rows={rows} onDrillRow={handleDrillRow} onDrillPallet={(row, pallet) => handleDrillRow(row, String(pallet.id))} />
+        <PalletCardsView rows={rows} onDrillRow={handleDrillRow} onDrillPallet={(row, pallet) => handleDrillRow(row, String(pallet.id))} onEditRow={r => setEditRow(r)} onDeleteRow={deleteRow} />
       )}
 
       {/* List mode */}
