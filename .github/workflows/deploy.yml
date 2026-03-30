@@ -53,22 +53,6 @@ jobs:
           target: /var/www/bem-dev.ru/sklad/
           overwrite: true
 
-      - name: Ensure marketplace keys in .env
-        uses: appleboy/ssh-action@v1.2.0
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          password: ${{ secrets.SSH_PASSWORD }}
-          script: |
-            ENV_FILE=/var/www/bem-dev.ru/sklad/backend/.env
-            grep -q 'OZON_CLIENT_ID' "$ENV_FILE" 2>/dev/null || echo 'OZON_CLIENT_ID=2843272' >> "$ENV_FILE"
-            grep -q 'OZON_API_KEY' "$ENV_FILE" 2>/dev/null || echo 'OZON_API_KEY=aa4a0bcf-49d3-4230-94c9-759fb19b8abf' >> "$ENV_FILE"
-            grep -q 'OZON2_CLIENT_ID' "$ENV_FILE" 2>/dev/null || echo 'OZON2_CLIENT_ID=163276' >> "$ENV_FILE"
-            grep -q 'OZON2_API_KEY' "$ENV_FILE" 2>/dev/null || echo 'OZON2_API_KEY=35bbfde5-9eb8-47f5-b765-1e0a2d09c58d' >> "$ENV_FILE"
-            grep -q 'WB_TOKEN_1' "$ENV_FILE" 2>/dev/null || echo 'WB_TOKEN_1=eyJhbGciOiJFUzI1NiIsImtpZCI6IjIwMjUwOTA0djEiLCJ0eXAiOiJKV1QifQ.eyJhY2MiOjEsImVudCI6MSwiZXhwIjoxNzgxNTc0NzY1LCJpZCI6IjAxOWIyMjQ4LWY2OWQtNzAwMi05MTZkLWIzYWNkYTRlMTg5OSIsImlpZCI6MTgwNTg2Mzc1LCJvaWQiOjQ1NjM4NjMsInMiOjc5MzQsInNpZCI6ImRlMWQ4ZDUwLWViMWQtNDkzZS05MGUwLWU0YWIzZDA1MTFhMyIsInQiOmZhbHNlLCJ1aWQiOjE4MDU4NjM3NX0.BFnrIVVhTFuRAwi3WxFNA_h4O8-nuj1jdtaDoCHGaoluRj7SeyLJmNFyA_DdFEIAPmdAiz_XvxkqaiC7AqTkeg' >> "$ENV_FILE"
-            grep -q 'WB_TOKEN_2' "$ENV_FILE" 2>/dev/null || echo 'WB_TOKEN_2=eyJhbGciOiJFUzI1NiIsImtpZCI6IjIwMjUwOTA0djEiLCJ0eXAiOiJKV1QifQ.eyJhY2MiOjEsImVudCI6MSwiZXhwIjoxNzg2MjU4ODAwLCJpZCI6IjAxOWMzOTc5LWE4NzEtNzljMC04MmQyLWM5OTc0Zjg0Zjg3NyIsImlpZCI6MTIxMDIyMTksIm9pZCI6MjE3MDk3LCJzIjo3OTM0LCJzaWQiOiJhODEwYzI0NC0zNTZkLTQwYmUtYjQzMC00NWQ3NWUzZGY5ODgiLCJ0IjpmYWxzZSwidWlkIjoxMjEwMjIxOX0.eVsz6Ya7WXKyuTRLPG1kPOPfHjtzuXc1T9EEIweSHGtKJ_JOXfdjOP3B9Rv-D5q0Fn0jZ_5vz-qgDDzlaZ30Jw' >> "$ENV_FILE"
-            sed -i '/^WB_TOKEN=/d' "$ENV_FILE" || true
-
       - name: Install deps and restart
         uses: appleboy/ssh-action@v1.2.0
         with:
