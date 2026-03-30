@@ -191,7 +191,7 @@ function TaskDetailPanel({ task, onClose, onReload }) {
           );
         })()}
 
-        {/* Assembly button */}
+        {/* Detail buttons */}
         {isAssembly && (
           <button onClick={() => setShowAssemblyModal(true)}
             className="mx-4 mt-3 w-[calc(100%-2rem)] flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-primary-50 border border-primary-200 text-primary-700 text-sm font-semibold hover:bg-primary-100 transition-colors">
@@ -199,6 +199,32 @@ function TaskDetailPanel({ task, onClose, onReload }) {
             Детали сборки комплектов
           </button>
         )}
+        {!isAssembly && analytics && (() => {
+          const gaps = scans.filter(s => s.seconds_since_prev != null && s.seconds_since_prev > 0).map(s => Number(s.seconds_since_prev));
+          const avgGap = gaps.length > 0 ? (gaps.reduce((a, b) => a + b, 0) / gaps.length).toFixed(1) : null;
+          const duration = task.started_at && task.completed_at
+            ? ((new Date(task.completed_at) - new Date(task.started_at)) / 60000).toFixed(1) : null;
+          const uniqueProducts = new Set(scans.map(s => s.product_id)).size;
+          if (!scans.length && !errors.length) return null;
+          return (
+            <div className="mx-4 mt-3 p-3 rounded-xl bg-primary-50 border border-primary-100 space-y-2">
+              <p className="text-xs font-semibold text-primary-700 uppercase">
+                {isPackaging ? 'Детали оприходования' : 'Детали инвентаризации'}
+              </p>
+              <div className="grid grid-cols-4 gap-2 text-center">
+                <div><p className="text-lg font-black text-primary-700">{scans.length}</p><p className="text-[10px] text-primary-400">Сканов</p></div>
+                <div><p className="text-lg font-black text-primary-700">{uniqueProducts}</p><p className="text-[10px] text-primary-400">Товаров</p></div>
+                {avgGap && <div><p className="text-lg font-black text-primary-700">{avgGap}с</p><p className="text-[10px] text-primary-400">Ср. пик</p></div>}
+                {duration && <div><p className="text-lg font-black text-primary-700">{duration}</p><p className="text-[10px] text-primary-400">мин</p></div>}
+                {errors.length > 0 && <div><p className="text-lg font-black text-red-500">{errors.length}</p><p className="text-[10px] text-red-400">Ошибок</p></div>}
+              </div>
+              {task.started_at && <p className="text-[10px] text-primary-400">
+                Начало: {new Date(task.started_at).toLocaleString('ru-RU', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}
+                {task.completed_at && ` · Конец: ${new Date(task.completed_at).toLocaleString('ru-RU', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}`}
+              </p>}
+            </div>
+          );
+        })()}
 
         {/* Tabs */}
         <div className="flex gap-1 mx-4 mt-3 bg-gray-100 dark:bg-gray-800 rounded-xl p-1">

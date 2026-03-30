@@ -103,7 +103,7 @@ function BarcodeRow({ label, value, kind, onDelete }) {
         {label ? <span className={cn('text-xs font-semibold', colors.text)}>{label}</span>
                : <span className="text-xs text-gray-300 italic">—</span>}
       </div>
-      <CopyBadge value={value} className="flex-1 min-w-0" />
+      <CopyBadge value={value} variant="ghost" className="flex-1 min-w-0" />
       {onDelete && (
         <button onClick={() => onDelete(value)}
           className="flex-shrink-0 opacity-0 group-hover:opacity-100 text-red-300 hover:text-red-500 transition-all">
@@ -482,8 +482,14 @@ export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
           entity_type: r.data.entity_type || 'product',
           stock: r.data.stock !== undefined ? fmtQty(r.data.stock) : '',
           reserve: r.data.reserve !== undefined ? fmtQty(r.data.reserve) : '',
-          sale_price: r.data.sale_price != null ? String(parseFloat(r.data.sale_price)) : '',
-          cost_price: r.data.cost_price != null ? String(parseFloat(r.data.cost_price)) : '',
+          sale_price: r.data.sale_price != null ? String(parseFloat(r.data.sale_price)) : (() => {
+            const sp = r.data.source_json?.salePrices?.find(p => p.priceType?.name === 'Цена продажи');
+            return sp?.value > 0 ? String(sp.value / 100) : '';
+          })(),
+          cost_price: r.data.cost_price != null ? String(parseFloat(r.data.cost_price)) : (() => {
+            const cp = r.data.source_json?.salePrices?.find(p => p.priceType?.name === 'Себестоимость');
+            return cp?.value > 0 ? String(cp.value / 100) : '';
+          })(),
         });
       })
       .catch(console.error)
@@ -646,19 +652,6 @@ export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
                   <label className="block"><span className="text-[11px] text-gray-400 font-medium">Себестоимость (₽)</span>
                     <input type="number" min="0" step="0.01" value={editForm?.cost_price || ''} onChange={e => set('cost_price', e.target.value)} placeholder="0.00" className={FORM_INPUT} /></label>
                 </div>
-                {prices.length > 0 && (
-                  <div>
-                    <p className="text-[10px] text-gray-400 font-medium mb-1.5">Из МойСклад (справочно)</p>
-                    <div className="grid grid-cols-2 gap-1.5">
-                      {prices.map(p => (
-                        <div key={p.name} className="bg-gray-50 dark:bg-gray-800 rounded-lg px-2.5 py-1.5">
-                          <p className="text-[9px] text-gray-400">{p.name}</p>
-                          <p className="text-xs font-medium text-gray-500">{p.value}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </FormSection>
             </div>
 
@@ -715,8 +708,11 @@ export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
                                   <div className="divide-y divide-gray-50 dark:divide-gray-800">
                                     {locations.map((s, i) => (
                                       <div key={i} className="flex items-center gap-2 px-3 py-2 group hover:bg-primary-50/30 dark:hover:bg-primary-900/10 transition-colors">
-                                        <div className="flex-1 min-w-0">
-                                          <p className="text-sm font-medium text-gray-900 dark:text-white">{s.location_code || s.shelf_code}</p>
+                                        <div className="flex-1 min-w-0 cursor-pointer" onClick={() => {
+                                          if (s.location_type === 'shelf' || s.location_type === 'shelf_box') navigate(`/admin/warehouse?shelf=${s.location_id}`);
+                                          else if (s.location_type === 'pallet' || s.location_type === 'box') navigate(`/admin/fbo?pallet=${s.location_id}`);
+                                        }}>
+                                          <p className="text-sm font-medium text-primary-700 dark:text-primary-400 hover:underline">{s.location_code || s.shelf_code}</p>
                                           <p className="text-[10px] text-gray-400">
                                             {s.location_type === 'shelf' && 'полка'}
                                             {s.location_type === 'pallet' && 'паллет'}

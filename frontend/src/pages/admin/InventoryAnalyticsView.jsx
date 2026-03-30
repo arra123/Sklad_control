@@ -23,12 +23,7 @@ function fmtDuration(seconds) {
 
 function timeAgo(iso) {
   if (!iso) return '';
-  const diff = Date.now() - new Date(iso).getTime();
-  const hours = Math.floor(diff / 3600000);
-  const days = Math.floor(hours / 24);
-  if (days > 0) return `${days}д назад`;
-  if (hours > 0) return `${hours}ч назад`;
-  return 'только что';
+  return new Date(iso).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
 }
 
 function hexToBgBorder(hex) {

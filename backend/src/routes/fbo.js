@@ -508,7 +508,7 @@ router.get('/box-warehouse/:warehouseId/boxes', requireAuth, async (req, res) =>
   try {
     const result = await pool.query(
       `SELECT b.*,
-        p.name as product_name, p.code as product_code, p.barcode as product_barcode,
+        p.name as product_name, p.code as product_code, p.barcode_list as product_barcode,
         (SELECT COALESCE(SUM(bi.quantity), 0) FROM box_items_s bi WHERE bi.box_id = b.id) as total_items
        FROM boxes_s b
        LEFT JOIN products_s p ON p.id = b.product_id

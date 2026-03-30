@@ -21,7 +21,16 @@ function copyToClipboard(text) {
   return Promise.reject(new Error('Copy failed'));
 }
 
-export default function CopyBadge({ value, label, className = '' }) {
+const VARIANTS = {
+  default: 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-primary-50 hover:text-primary-700 hover:border-primary-200',
+  ghost: 'bg-transparent text-inherit hover:bg-white/30 hover:text-inherit',
+  primary: 'bg-primary-100/50 text-primary-700 hover:bg-primary-100 hover:border-primary-200',
+  blue: 'bg-blue-100/50 text-blue-700 hover:bg-blue-100 hover:border-blue-200',
+  green: 'bg-green-100/50 text-green-700 hover:bg-green-100 hover:border-green-200',
+  amber: 'bg-amber-100/50 text-amber-700 hover:bg-amber-100 hover:border-amber-200',
+};
+
+export default function CopyBadge({ value, label, className = '', variant = 'default' }) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = (e) => {
@@ -41,10 +50,8 @@ export default function CopyBadge({ value, label, className = '' }) {
       title={`Скопировать: ${value}`}
       aria-label={`Скопировать ${value}`}
       className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-mono
-        bg-gray-100 dark:bg-gray-700 hover:bg-primary-50 dark:hover:bg-primary-900/30
-        text-gray-600 dark:text-gray-300 hover:text-primary-700 dark:hover:text-primary-300
-        border border-transparent hover:border-primary-200 dark:hover:border-primary-700
-        transition-all cursor-pointer select-none active:scale-95 ${className}`}
+        border border-transparent transition-all cursor-pointer select-none active:scale-95
+        ${VARIANTS[variant] || VARIANTS.default} ${className}`}
     >
       {copied ? (
         <>
@@ -53,7 +60,7 @@ export default function CopyBadge({ value, label, className = '' }) {
         </>
       ) : (
         <>
-          <Copy size={10} className="text-gray-400 dark:text-gray-500 flex-shrink-0" />
+          <Copy size={10} className="opacity-50 flex-shrink-0" />
           <span>{label !== undefined ? label : value}</span>
         </>
       )}
