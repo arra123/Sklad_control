@@ -464,6 +464,10 @@ export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
   const [editForm, setEditForm] = useState(null);
   const [saving, setSaving] = useState(false);
   const [newBarcode, setNewBarcode] = useState('');
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [editingShelf, setEditingShelf] = useState(null);
+  const [shelfQty, setShelfQty] = useState('');
+  const [shelfSaving, setShelfSaving] = useState(false);
   const toast = useToast();
 
   const loadProduct = useCallback(() => {
@@ -501,13 +505,30 @@ export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
   };
 
   const handleDelete = async () => {
-    if (!confirm(`Удалить «${product?.name}»?`)) return;
+    if (!confirmDelete) { setConfirmDelete(true); return; }
     try {
       await api.delete(`/products/${productId}`);
       toast.success('Товар удалён');
       onDelete?.();
       onClose();
     } catch (err) { toast.error(err.response?.data?.error || 'Ошибка удаления'); }
+  };
+
+  const handleShelfQtyChange = async (shelf) => {
+    const newQty = parseFloat(shelfQty);
+    if (isNaN(newQty) || newQty < 0) { toast.error('Некорректное количество'); return; }
+    setShelfSaving(true);
+    try {
+      if (shelf.location_type === 'shelf') {
+        await api.post(`/warehouse/shelves/${shelf.location_id}/set`, { product_id: productId, quantity: newQty });
+      } else if (shelf.location_type === 'pallet') {
+        await api.put(`/fbo/pallets/${shelf.location_id}/item/${productId}`, { quantity: newQty });
+      }
+      toast.success('Количество обновлено');
+      setEditingShelf(null);
+      loadProduct();
+    } catch (err) { toast.error(err.response?.data?.error || 'Ошибка обновления'); }
+    setShelfSaving(false);
   };
 
   const handleDeleteComponent = async (compBcId) => {
@@ -550,7 +571,15 @@ export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
       <Modal open={!!productId} onClose={onClose} size="full" title={product?.name || 'Загрузка...'}
         footer={product ? (
           <div className="flex items-center justify-between w-full">
-            <Button variant="danger" size="sm" icon={<Trash2 size={14} />} onClick={handleDelete}>Удалить</Button>
+            {confirmDelete ? (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-red-600 font-medium">Точно удалить?</span>
+                <Button variant="danger" size="sm" onClick={handleDelete}>Да, удалить</Button>
+                <Button variant="ghost" size="sm" onClick={() => setConfirmDelete(false)}>Нет</Button>
+              </div>
+            ) : (
+              <Button variant="ghost" size="sm" className="text-red-400 hover:text-red-600" icon={<Trash2 size={14} />} onClick={handleDelete}>Удалить</Button>
+            )}
             <div className="flex gap-2">
               <Button variant="ghost" onClick={onClose}>Отмена</Button>
               <Button loading={saving} onClick={handleSave} icon={<Save size={14} />}>Сохранить</Button>
@@ -642,24 +671,57 @@ export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
               <FormSection title={`Расположение (${product.shelves?.length || 0})`} icon={<span className="text-gray-400 text-sm">📍</span>}>
                 {!product.shelves?.length ? (
                   <p className="text-sm text-gray-300 text-center py-4">Не размещён на складе</p>
-                ) : (
-                  <div className="space-y-1.5 max-h-64 overflow-y-auto">
-                    {product.shelves.map((s, i) => (
-                      <div key={i} className="flex items-center justify-between px-3 py-2.5 bg-gradient-to-r from-primary-50 to-transparent dark:from-primary-900/10 rounded-xl border border-primary-100 dark:border-primary-800/30">
-                        <div>
-                          <p className="text-sm font-semibold text-gray-900 dark:text-white">{s.location_code || s.shelf_code}</p>
-                          <p className="text-xs text-gray-400">
-                            {s.warehouse_name} · {s.rack_name}
-                            {s.location_type === 'pallet' && ' · паллет'}
-                            {s.location_type === 'box' && ' · коробка'}
-                            {s.location_type === 'shelf_box' && ' · коробка'}
-                          </p>
+                ) : (() => {
+                  // Группировка по складам
+                  const grouped = {};
+                  product.shelves.forEach(s => {
+                    const key = s.warehouse_name || 'Без склада';
+                    if (!grouped[key]) grouped[key] = [];
+                    grouped[key].push(s);
+                  });
+                  return (
+                    <div className="space-y-3 max-h-72 overflow-y-auto">
+                      {Object.entries(grouped).map(([whName, locations]) => (
+                        <div key={whName}>
+                          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">{whName} <span className="text-primary-400">({locations.reduce((s, l) => s + Number(l.quantity || 0), 0)} шт.)</span></p>
+                          <div className="space-y-1">
+                            {locations.map((s, i) => (
+                              <div key={i} className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-primary-50 to-transparent dark:from-primary-900/10 rounded-xl border border-primary-100/50 dark:border-primary-800/20 group">
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-semibold text-gray-900 dark:text-white">{s.location_code || s.shelf_code}</p>
+                                  <p className="text-[10px] text-gray-400">
+                                    {s.rack_name}
+                                    {s.location_type === 'pallet' && ' · паллет'}
+                                    {s.location_type === 'box' && ' · коробка'}
+                                    {s.location_type === 'shelf_box' && ' · коробка'}
+                                  </p>
+                                </div>
+                                {editingShelf === `${s.location_type}-${s.location_id}-${i}` ? (
+                                  <div className="flex items-center gap-1">
+                                    <input type="number" min="0" step="1" value={shelfQty} onChange={e => setShelfQty(e.target.value)}
+                                      className="w-20 px-2 py-1 rounded-lg border border-primary-300 text-sm text-center font-bold focus:outline-none focus:ring-2 focus:ring-primary-300" autoFocus />
+                                    <button onClick={() => handleShelfQtyChange(s)} disabled={shelfSaving}
+                                      className="p-1 text-green-500 hover:text-green-700"><Check size={14} /></button>
+                                    <button onClick={() => setEditingShelf(null)}
+                                      className="p-1 text-gray-400 hover:text-gray-600"><X size={14} /></button>
+                                  </div>
+                                ) : (
+                                  <button
+                                    onClick={() => { setEditingShelf(`${s.location_type}-${s.location_id}-${i}`); setShelfQty(String(Number(s.quantity || 0))); }}
+                                    className="text-sm font-bold text-primary-700 dark:text-primary-400 bg-white dark:bg-gray-800 px-2.5 py-1 rounded-lg shadow-sm hover:ring-2 hover:ring-primary-300 transition-all"
+                                    title="Нажмите чтобы изменить количество"
+                                  >
+                                    {fmtQty(s.quantity)} шт.
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                        <span className="text-sm font-bold text-primary-700 dark:text-primary-400 bg-white dark:bg-gray-800 px-2.5 py-1 rounded-lg shadow-sm">{fmtQty(s.quantity)} шт.</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                      ))}
+                    </div>
+                  );
+                })()}
               </FormSection>
             </div>
 
@@ -999,15 +1061,7 @@ function ProductTable({ entityType, onSelect, onEdit }) {
                       );
                       return null;
                     })}
-                    <td className="w-10">
-                      <button
-                        onClick={e => { e.stopPropagation(); onEdit?.(item); }}
-                        className="p-1.5 rounded-lg text-gray-400 hover:text-primary-600 hover:bg-primary-50 transition-all"
-                        title="Редактировать"
-                      >
-                        <Pencil size={14} />
-                      </button>
-                    </td>
+                    {/* карандашик убран — редактирование в карточке */}
                   </tr>
                 ))}
               </tbody>
