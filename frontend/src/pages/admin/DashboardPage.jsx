@@ -296,7 +296,7 @@ export default function DashboardPage() {
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Дашборд</h1>
             <p className="text-gray-500 text-sm mt-1">Общая сводка по складу и аналитика</p>
           </div>
-          <div className="flex rounded-lg border border-gray-300 dark:border-gray-600 overflow-hidden ml-4">
+          <div className="flex rounded-lg border border-gray-300 dark:border-gray-600 overflow-hidden ml-4 flex-shrink-0">
             <button onClick={() => setVariant(1)}
               className={`px-3 py-1.5 text-xs font-medium transition-colors ${variant === 1 ? 'bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300' : 'bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
             >Обзор</button>

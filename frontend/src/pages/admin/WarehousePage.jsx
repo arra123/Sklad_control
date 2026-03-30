@@ -3626,6 +3626,9 @@ function WarehouseContent({ warehouse, initialRackId, initialShelfId, initialRow
         const found = rs.find(r => String(r.id) === String(initialRackId));
         if (found) setDrillRack(found);
       }
+    } catch (err) {
+      console.error('[Warehouse] loadRacks error:', err.message);
+      setRacks([]);
     } finally { setLoading(false); }
   }, [warehouse?.id, hasFBS]);
 

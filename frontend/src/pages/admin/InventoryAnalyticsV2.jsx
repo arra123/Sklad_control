@@ -478,7 +478,7 @@ function OverviewPanel({ data, settings, singleWarehouse, onSelectNode }) {
               : <WarehouseIcon size={44} colorIndex={0} />
             }
             <div className="min-w-0">
-              <h1 className="text-[22px] font-extrabold text-gray-900 truncate">{headerTitle}</h1>
+              <h1 className="text-[22px] font-extrabold text-gray-900 break-words">{headerTitle}</h1>
               <p className="text-sm text-gray-500 mt-0.5">{headerSubtitle}</p>
             </div>
           </div>

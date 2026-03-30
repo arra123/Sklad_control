@@ -87,12 +87,12 @@ function Breadcrumb() {
   // Сотрудники: вкладка + drill
   if (path.includes('/staff')) {
     if (tab && STAFF_TABS[tab]) extra.push({ label: STAFF_TABS[tab] });
-    if (employee) extra.push({ label: `Сотрудник #${employee}` });
+    if (employee) extra.push({ label: 'Сотрудник' });
   }
   // Заработок: вкладка + сотрудник + задача
   if (path.includes('/earnings')) {
     if (tab && EARNINGS_TABS[tab]) extra.push({ label: EARNINGS_TABS[tab] });
-    if (employee) extra.push({ label: `Сотрудник #${employee}` });
+    if (employee) extra.push({ label: 'Сотрудник' });
     if (task) extra.push({ label: `Задача #${task}` });
   }
   // Аналитика: версия
@@ -304,7 +304,7 @@ export default function AdminLayout({ children }) {
             Выйти
           </button>
           <div className="flex items-center justify-center gap-2 mt-2">
-            <p className="text-[10px] text-gray-300 dark:text-gray-600">v2.46.1</p>
+            <p className="text-[10px] text-gray-300 dark:text-gray-600">v2.46.2</p>
             <FeedbackButton position="admin" />
           </div>
         </div>

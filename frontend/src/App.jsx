@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useEffect, lazy, Suspense } from 'react';
 import { initGlobalErrorHandlers } from './utils/errorReporter';
+import { appBasePath } from './utils/appBasePath';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { AppSettingsProvider } from './context/AppSettingsContext';
@@ -97,7 +98,7 @@ function AppRoutes() {
         <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
           <h1 className="text-8xl font-black text-gray-200">404</h1>
           <p className="text-gray-500 mt-2 mb-6">Страница не найдена</p>
-          <a href="/" className="px-5 py-2.5 bg-primary-600 text-white rounded-xl font-medium hover:bg-primary-700 transition-colors">На главную</a>
+          <a href={appBasePath ? `${appBasePath}/` : '/'} className="px-5 py-2.5 bg-primary-600 text-white rounded-xl font-medium hover:bg-primary-700 transition-colors">На главную</a>
         </div>
       } />
     </Routes>

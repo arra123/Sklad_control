@@ -20,7 +20,10 @@ export async function reportError(payload) {
       page_url: window.location.href,
     };
 
-    await fetch('/api/errors/system', {
+    const basePath = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_APP_BASE_PATH)
+      ? `/${import.meta.env.VITE_APP_BASE_PATH.replace(/^\/+|\/+$/g, '')}`
+      : '';
+    await fetch(`${basePath}/api/errors/system`, {
       method: 'POST',
       headers,
       body: JSON.stringify(full),
