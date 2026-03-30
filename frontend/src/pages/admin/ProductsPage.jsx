@@ -318,6 +318,20 @@ function AddComponentModal({ open, onClose, bundleId, onSuccess }) {
 }
 
 // ─── Product Form Modal (создание/редактирование) ─────────────────────────────
+const FORM_INPUT = 'w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-300 focus:border-primary-400 transition-all';
+
+function FormSection({ title, icon, children, className = '' }) {
+  return (
+    <div className={`rounded-2xl border border-gray-100 dark:border-gray-800 overflow-hidden ${className}`}>
+      <div className="px-4 py-2.5 bg-gray-50 dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700 flex items-center gap-2">
+        {icon}
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{title}</p>
+      </div>
+      <div className="p-4">{children}</div>
+    </div>
+  );
+}
+
 export function ProductFormModal({ open, onClose, onSuccess, initial }) {
   const toast = useToast();
   const isEdit = !!initial?.id;
@@ -367,55 +381,73 @@ export function ProductFormModal({ open, onClose, onSuccess, initial }) {
   const removeBarcode = (idx) => setBarcodes(prev => prev.filter((_, i) => i !== idx));
 
   return (
-    <Modal open={open} onClose={onClose} title={isEdit ? 'Редактировать товар' : 'Добавить товар'} size="lg"
+    <Modal open={open} onClose={onClose} title={isEdit ? 'Редактировать товар' : 'Добавить товар'} size="full"
       footer={<><Button variant="ghost" onClick={onClose}>Отмена</Button><Button form="product-form" type="submit" loading={loading}>{isEdit?'Сохранить':'Добавить'}</Button></>}
     >
-      <form id="product-form" onSubmit={handleSubmit} className="space-y-4">
-        <Input label="Название *" value={form.name} onChange={e => set('name', e.target.value)} required />
-        <div className="grid grid-cols-2 gap-3">
-          <Input label="Код" value={form.code} onChange={e => set('code', e.target.value)} />
-          <Input label="Артикул" value={form.article} onChange={e => set('article', e.target.value)} />
-        </div>
-        <Select label="Тип" value={form.entity_type} onChange={e => set('entity_type', e.target.value)}>
-          <option value="product">Единичный</option>
-          <option value="bundle">Комплект</option>
-        </Select>
-
-        {/* Barcodes — visual list */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Штрих-коды</label>
-          {barcodes.length > 0 && (
-            <div className="space-y-1.5 mb-2">
-              {barcodes.map((bc, i) => (
-                <div key={i} className="flex items-center gap-2 px-3 py-2 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 group">
-                  <code className="flex-1 text-sm font-mono text-gray-700 dark:text-gray-300">{bc}</code>
-                  <button type="button" onClick={() => removeBarcode(i)}
-                    className="text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100">
-                    <X size={14} />
-                  </button>
+      <form id="product-form" onSubmit={handleSubmit}>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* LEFT */}
+          <div className="space-y-4">
+            <FormSection title="Основное" icon={<Package size={14} className="text-gray-400" />}>
+              <div className="space-y-3">
+                <label className="block"><span className="text-[11px] text-gray-400 font-medium">Название *</span>
+                  <input value={form.name} onChange={e => set('name', e.target.value)} required className={FORM_INPUT} /></label>
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="block"><span className="text-[11px] text-gray-400 font-medium">Код</span>
+                    <input value={form.code} onChange={e => set('code', e.target.value)} className={FORM_INPUT} /></label>
+                  <label className="block"><span className="text-[11px] text-gray-400 font-medium">Артикул</span>
+                    <input value={form.article} onChange={e => set('article', e.target.value)} className={FORM_INPUT} /></label>
                 </div>
-              ))}
-            </div>
-          )}
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={newBarcode}
-              onChange={e => setNewBarcode(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addBarcode(); } }}
-              placeholder="Введите штрих-код и нажмите +"
-              className="flex-1 px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm font-mono text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-100"
-            />
-            <button type="button" onClick={addBarcode}
-              className="px-3 py-2 rounded-xl bg-primary-50 dark:bg-primary-900/30 text-primary-600 hover:bg-primary-100 transition-colors text-sm font-bold">
-              +
-            </button>
-          </div>
-        </div>
+                <label className="block"><span className="text-[11px] text-gray-400 font-medium">Тип</span>
+                  <select value={form.entity_type} onChange={e => set('entity_type', e.target.value)} className={FORM_INPUT}>
+                    <option value="product">Единичный товар</option>
+                    <option value="bundle">Комплект (бандл)</option>
+                  </select></label>
+              </div>
+            </FormSection>
 
-        <div className="grid grid-cols-2 gap-3">
-          <Input label="Остаток" type="number" min="0" step="0.001" value={form.stock} onChange={e => set('stock', e.target.value)} />
-          <Input label="Резерв" type="number" min="0" step="0.001" value={form.reserve} onChange={e => set('reserve', e.target.value)} />
+            <FormSection title="Остатки" icon={<span className="text-gray-400 text-sm">📊</span>}>
+              <div className="grid grid-cols-2 gap-3">
+                <label className="block"><span className="text-[11px] text-gray-400 font-medium">Остаток</span>
+                  <input type="number" min="0" step="0.001" value={form.stock} onChange={e => set('stock', e.target.value)} className={FORM_INPUT} /></label>
+                <label className="block"><span className="text-[11px] text-gray-400 font-medium">Резерв</span>
+                  <input type="number" min="0" step="0.001" value={form.reserve} onChange={e => set('reserve', e.target.value)} className={FORM_INPUT} /></label>
+              </div>
+            </FormSection>
+          </div>
+
+          {/* RIGHT */}
+          <div className="space-y-4">
+            <FormSection title={`Штрихкоды (${barcodes.length})`} icon={<span className="text-gray-400 text-sm">🏷</span>}>
+              <div className="flex gap-2 mb-3">
+                <input
+                  type="text" value={newBarcode} onChange={e => setNewBarcode(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addBarcode(); } }}
+                  placeholder="Введите штрихкод и нажмите +"
+                  className={`${FORM_INPUT} flex-1 font-mono`}
+                />
+                <button type="button" onClick={addBarcode}
+                  className="px-4 py-2 rounded-xl bg-primary-600 text-white hover:bg-primary-700 transition-colors text-sm font-bold">
+                  +
+                </button>
+              </div>
+              {barcodes.length > 0 ? (
+                <div className="space-y-1.5 max-h-60 overflow-y-auto">
+                  {barcodes.map((bc, i) => (
+                    <div key={i} className="flex items-center gap-2 px-3 py-2 bg-gray-50 dark:bg-gray-800 rounded-xl group">
+                      <code className="flex-1 text-sm font-mono text-gray-700 dark:text-gray-300">{bc}</code>
+                      <button type="button" onClick={() => removeBarcode(i)}
+                        className="text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100">
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-300 text-center py-4">Нет штрихкодов</p>
+              )}
+            </FormSection>
+          </div>
         </div>
       </form>
     </Modal>
