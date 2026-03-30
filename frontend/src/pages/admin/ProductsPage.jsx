@@ -482,6 +482,8 @@ export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
           entity_type: r.data.entity_type || 'product',
           stock: r.data.stock !== undefined ? fmtQty(r.data.stock) : '',
           reserve: r.data.reserve !== undefined ? fmtQty(r.data.reserve) : '',
+          sale_price: r.data.sale_price != null ? String(parseFloat(r.data.sale_price)) : '',
+          cost_price: r.data.cost_price != null ? String(parseFloat(r.data.cost_price)) : '',
         });
       })
       .catch(console.error)
@@ -496,6 +498,8 @@ export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
     try {
       await api.put(`/products/${productId}`, {
         ...editForm, stock: parseFloat(editForm.stock) || 0, reserve: parseFloat(editForm.reserve) || 0,
+        sale_price: editForm.sale_price !== '' ? parseFloat(editForm.sale_price) : null,
+        cost_price: editForm.cost_price !== '' ? parseFloat(editForm.cost_price) : null,
       });
       toast.success('Товар сохранён');
       loadProduct();
@@ -635,18 +639,27 @@ export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
               </FormSection>
 
               {/* Цены */}
-              {prices.length > 0 && (
-                <FormSection title="Цены" icon={<span className="text-gray-400 text-sm">₽</span>}>
-                  <div className="grid grid-cols-2 gap-2">
-                    {prices.map(p => (
-                      <div key={p.name} className="bg-gray-50 dark:bg-gray-800 rounded-xl px-3 py-2">
-                        <p className="text-[10px] text-gray-400">{p.name}</p>
-                        <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">{p.value}</p>
-                      </div>
-                    ))}
+              <FormSection title="Цены" icon={<span className="text-gray-400 text-sm">₽</span>}>
+                <div className="grid grid-cols-2 gap-3 mb-3">
+                  <label className="block"><span className="text-[11px] text-gray-400 font-medium">Цена продажи (₽)</span>
+                    <input type="number" min="0" step="0.01" value={editForm?.sale_price || ''} onChange={e => set('sale_price', e.target.value)} placeholder="0.00" className={FORM_INPUT} /></label>
+                  <label className="block"><span className="text-[11px] text-gray-400 font-medium">Себестоимость (₽)</span>
+                    <input type="number" min="0" step="0.01" value={editForm?.cost_price || ''} onChange={e => set('cost_price', e.target.value)} placeholder="0.00" className={FORM_INPUT} /></label>
+                </div>
+                {prices.length > 0 && (
+                  <div>
+                    <p className="text-[10px] text-gray-400 font-medium mb-1.5">Из МойСклад (справочно)</p>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {prices.map(p => (
+                        <div key={p.name} className="bg-gray-50 dark:bg-gray-800 rounded-lg px-2.5 py-1.5">
+                          <p className="text-[9px] text-gray-400">{p.name}</p>
+                          <p className="text-xs font-medium text-gray-500">{p.value}</p>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </FormSection>
-              )}
+                )}
+              </FormSection>
             </div>
 
             {/* COLUMN 2: штрихкоды + расположение */}
