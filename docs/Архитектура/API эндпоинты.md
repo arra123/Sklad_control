@@ -24,7 +24,9 @@
 | PUT | /:id/components/:compId | admin | Обновить компонент бандла |
 | DELETE | /:id/components/:compId | admin | Удалить компонент бандла |
 | GET | /barcode/:value | auth | Найти товар по штрихкоду |
-| POST | /wb-check | admin | Проверка штрихкода на Wildberries |
+| GET | /wb-stores | admin | Список настроенных WB-магазинов |
+| POST | /check-wb | admin | Проверка штрихкодов на Wildberries (по магазину) |
+| POST | /check-wb-all | admin | Проверка всех товаров на Wildberries |
 | GET | /ozon-stores | admin | Список настроенных магазинов OZON |
 | POST | /check-ozon | admin | Проверка штрихкодов на OZON (по магазину) |
 | POST | /check-ozon-all | admin | Проверка всех товаров на OZON |
@@ -98,6 +100,10 @@
 | GET | /pallets-list | auth | Плоский список паллетов (для выбора) |
 | POST | /visual/move | auth | Перемещение коробки между паллетами |
 | GET | /visual/:warehouseId | auth | Визуальный паллетный склад |
+| GET | /box-warehouse/:warehouseId/boxes | auth | Список коробок в складе типа «box» |
+| POST | /box-warehouse/:warehouseId/boxes | admin/manager | Создать коробку в складе типа «box» |
+| PUT | /box-warehouse/boxes/:id | admin/manager | Обновить коробку |
+| DELETE | /box-warehouse/boxes/:id | admin/manager | Удалить коробку |
 
 ## Tasks (`/api/tasks`) — `backend/src/routes/tasks.js`
 | Метод | Путь | Доступ | Описание |
@@ -187,6 +193,32 @@
 | GET | /system | admin | Список ошибок |
 | DELETE | /system/:id | admin | Удалить запись ошибки |
 | DELETE | /system | admin | Очистить все ошибки |
+
+## Assembly (`/api/assembly`) — `backend/src/routes/assembly.js`
+| Метод | Путь | Доступ | Описание |
+|---|---|---|---|
+| GET | /source-locations | auth | Где хранятся компоненты бандла |
+| POST | / | admin | Создать задачу сборки комплекта |
+| GET | /:id | auth | Детали задачи сборки |
+| GET | /:id/source-boxes | auth | Коробки-источники для забора |
+| POST | /:id/start-picking | auth | Начать фазу забора |
+| POST | /:id/scan-pick | auth | Сканировать товар при заборе |
+| POST | /:id/start-assembling | auth | Начать фазу сборки |
+| POST | /:id/scan-component | auth | Сканировать компонент в комплект |
+| POST | /:id/confirm-bundle | auth | Подтвердить собранный комплект (скан ШК) |
+| POST | /:id/start-placing | auth | Начать фазу размещения |
+| POST | /:id/scan-place | auth | Сканировать комплект при размещении |
+| POST | /:id/complete | auth | Завершить задачу сборки |
+| DELETE | /:id | admin | Удалить задачу (откат перемещений) |
+
+## Feedback (`/api/feedback`) — `backend/src/routes/feedback.js`
+| Метод | Путь | Доступ | Описание |
+|---|---|---|---|
+| POST | / | auth | Создать обратную связь (с файлами) |
+| GET | / | admin | Список фидбэка |
+| GET | /:id | admin | Детали фидбэка |
+| PATCH | /:id | admin | Обновить статус/заметки |
+| DELETE | /:id | admin | Удалить фидбэк |
 
 ## Settings (`/api/settings`) — `backend/src/routes/settings.js`
 | Метод | Путь | Доступ | Описание |
