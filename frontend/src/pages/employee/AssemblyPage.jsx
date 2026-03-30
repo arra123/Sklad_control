@@ -140,6 +140,8 @@ export default function AssemblyPage() {
   const [lastPickScan, setLastPickScan] = useState(null);
   const [scanHistory, setScanHistory] = useState([]);
   const [placeDest, setPlaceDest] = useState(ss?.placeDest || null);
+  const [placeBoxStep, setPlaceBoxStep] = useState(false);
+  const [placeBox, setPlaceBox] = useState(null);
 
   // ─── Persist picking state on every change ──────────────────────────────
   useEffect(() => {
@@ -348,9 +350,6 @@ export default function AssemblyPage() {
   };
 
   // ─── PHASE: PLACING ────────────────────────────────────────────────────────
-  const [placeBoxStep, setPlaceBoxStep] = useState(false); // true = waiting for box scan on pallet
-  const [placeBox, setPlaceBox] = useState(null); // { box_id, name }
-
   const handleScanDestination = async (barcode) => {
     try {
       const res = await api.post('/movements/scan', { barcode });
