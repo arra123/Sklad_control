@@ -61,56 +61,63 @@ function groupBadge(group) {
 
 /* ═══════════════════ Material Detail Modal ═══════════════════ */
 
+function SectionBlock({ title, icon, children, className = '' }) {
+  return (
+    <div className={`rounded-2xl border border-gray-100 dark:border-gray-800 overflow-hidden ${className}`}>
+      <div className="px-4 py-2.5 bg-gray-50 dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700 flex items-center gap-2">
+        {icon}
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{title}</p>
+      </div>
+      <div className="p-4">{children}</div>
+    </div>
+  );
+}
+
+const INPUT_CLS = 'w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-300 focus:border-primary-400 transition-all';
+
 function MaterialDetailModal({ materialId, onClose, onUpdated }) {
   const navigate = useNavigate();
   const [stack, setStack] = useState([]);
   const [currentId, setCurrentId] = useState(materialId);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({});
   const [saving, setSaving] = useState(false);
+  // Recipe add
+  const [recipeSearch, setRecipeSearch] = useState('');
+  const [recipeResults, setRecipeResults] = useState([]);
+  const [recipeSearching, setRecipeSearching] = useState(false);
+  const [recipeQty, setRecipeQty] = useState('');
+  const [recipeSelected, setRecipeSelected] = useState(null);
+  const [recipeAdding, setRecipeAdding] = useState(false);
+  const recipeDebRef = useRef(null);
 
-  // Reset stack when modal opens with new materialId
-  useEffect(() => {
-    setStack([]);
-    setCurrentId(materialId);
-  }, [materialId]);
+  useEffect(() => { setStack([]); setCurrentId(materialId); }, [materialId]);
 
-  const navigateTo = (id) => {
-    setStack(prev => [...prev, currentId]);
-    setCurrentId(id);
-  };
+  const navigateTo = (id) => { setStack(prev => [...prev, currentId]); setCurrentId(id); };
+  const navigateBack = () => { setStack(prev => { const n = [...prev]; const p = n.pop(); setCurrentId(p); return n; }); };
 
-  const navigateBack = () => {
-    setStack(prev => {
-      const next = [...prev];
-      const prevId = next.pop();
-      setCurrentId(prevId);
-      return next;
-    });
-  };
-
-  useEffect(() => {
+  const load = useCallback(async () => {
     if (!currentId) return;
     setLoading(true);
-    setEditing(false);
-    api.get(`/materials/${currentId}`)
-      .then(r => {
-        const d = r.data;
-        setData(d);
-        setForm({
-          name: d.name || '', code: d.code || '', unit: d.unit || 'шт',
-          category: d.category || 'ingredient', material_group: d.material_group || 'другое',
-          buy_price: d.buy_price ? parseFloat(d.buy_price) : '',
-          stock: d.stock ? parseFloat(d.stock) : '',
-          min_stock: d.min_stock ? parseFloat(d.min_stock) : '',
-          supplier: d.supplier || '', notes: d.notes || '',
-        });
-      })
-      .catch(() => setData(null))
-      .finally(() => setLoading(false));
+    try {
+      const r = await api.get(`/materials/${currentId}`);
+      const d = r.data;
+      setData(d);
+      setForm({
+        name: d.name || '', code: d.code || '', article: d.article || '',
+        unit: d.unit || 'шт', category: d.category || 'ingredient',
+        material_group: d.material_group || 'другое',
+        buy_price: d.buy_price ? parseFloat(d.buy_price) : '',
+        stock: d.stock ? parseFloat(d.stock) : '',
+        min_stock: d.min_stock ? parseFloat(d.min_stock) : '',
+        supplier: d.supplier || '', notes: d.notes || '',
+      });
+    } catch { setData(null); }
+    setLoading(false);
   }, [currentId]);
+
+  useEffect(() => { load(); }, [load]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -120,180 +127,270 @@ function MaterialDetailModal({ materialId, onClose, onUpdated }) {
       if (body.stock === '') body.stock = 0;
       if (body.min_stock === '') body.min_stock = 0;
       await api.put(`/materials/${currentId}`, body);
-      setEditing(false);
-      const res = await api.get(`/materials/${currentId}`);
-      setData(res.data);
+      await load();
       onUpdated?.();
     } catch {}
     setSaving(false);
   };
 
+  // Recipe search
+  const searchRecipe = (q) => {
+    clearTimeout(recipeDebRef.current);
+    setRecipeSearch(q);
+    if (q.length < 2) { setRecipeResults([]); return; }
+    recipeDebRef.current = setTimeout(async () => {
+      setRecipeSearching(true);
+      try {
+        const res = await api.get('/materials', { params: { search: q, limit: 10 } });
+        const existingIds = new Set((data?.recipe || []).map(r => r.id));
+        existingIds.add(currentId);
+        setRecipeResults((res.data.items || []).filter(m => !existingIds.has(m.id)));
+      } catch { setRecipeResults([]); }
+      setRecipeSearching(false);
+    }, 300);
+  };
+
+  const addRecipeIngredient = async () => {
+    if (!recipeSelected || !recipeQty) return;
+    setRecipeAdding(true);
+    try {
+      await api.post(`/materials/${currentId}/recipe`, { ingredient_id: recipeSelected.id, quantity: parseFloat(recipeQty) });
+      setRecipeSelected(null); setRecipeSearch(''); setRecipeResults([]); setRecipeQty('');
+      await load();
+      onUpdated?.();
+    } catch {}
+    setRecipeAdding(false);
+  };
+
+  const removeRecipeIngredient = async (recipeId) => {
+    try {
+      await api.delete(`/materials/${currentId}/recipe/${recipeId}`);
+      await load();
+      onUpdated?.();
+    } catch {}
+  };
+
   if (!materialId) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-        {loading ? (
-          <div className="flex items-center justify-center py-20"><Spinner /></div>
-        ) : !data ? (
-          <div className="p-6 text-center text-gray-400">Не найдено</div>
-        ) : (
-          <div className="p-6 space-y-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/40 backdrop-blur-sm" onClick={onClose}>
+      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-800 w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex-shrink-0">
+          <div className="flex items-center gap-3">
             {stack.length > 0 && (
-              <button onClick={navigateBack} className="flex items-center gap-1 text-xs text-purple-600 hover:text-purple-800 font-medium -mb-2">
-                <ChevronRight size={14} className="rotate-180" /> Назад
+              <button onClick={navigateBack} className="p-1.5 rounded-lg text-gray-400 hover:text-primary-600 hover:bg-primary-50 transition-all">
+                <ChevronRight size={16} className="rotate-180" />
               </button>
             )}
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-gray-50">
-                  {groupIcon(data.material_group, 28, data.name)}
+            {!loading && data && (
+              <>
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-gray-50 dark:bg-gray-800">
+                  {groupIcon(data.material_group, 22, data.name)}
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold text-gray-900">{data.name}</h2>
+                  <h2 className="text-base font-bold text-gray-900 dark:text-white">{data.name}</h2>
                   <div className="flex items-center gap-2 mt-0.5">
                     {data.code && <span className="text-xs font-mono text-gray-400">{data.code}</span>}
                     {groupBadge(data.material_group)}
+                    <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${data.category === 'ingredient' ? 'bg-green-50 text-green-600' : 'bg-blue-50 text-blue-600'}`}>
+                      {data.category === 'ingredient' ? 'Ингредиент' : 'Упаковка'}
+                    </span>
                   </div>
                 </div>
-              </div>
-              <div className="flex items-center gap-1">
-                {!editing && <button onClick={() => setEditing(true)} className="text-gray-300 hover:text-purple-500 transition-colors p-1"><Pencil size={16} /></button>}
-                <button onClick={onClose} className="text-gray-300 hover:text-gray-500 transition-colors p-1"><X size={20} /></button>
-              </div>
-            </div>
-
-            {!editing && (
-              <>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <p className="text-lg font-bold text-gray-900">{fmtQty(data.stock)}</p>
-                    <p className="text-[10px] text-gray-400">Остаток ({data.unit || 'шт'})</p>
-                  </div>
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <p className="text-lg font-bold text-gray-900">{fmtPrice(data.buy_price)}</p>
-                    <p className="text-[10px] text-gray-400">Закупка за {data.unit || 'шт'}</p>
-                  </div>
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <p className="text-sm font-bold text-gray-900">{data.unit || 'шт'}</p>
-                    <p className="text-[10px] text-gray-400">Единица</p>
-                  </div>
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <p className="text-sm font-bold text-gray-900">{fmtQty(data.min_stock)}</p>
-                    <p className="text-[10px] text-gray-400">Мин. остаток</p>
-                  </div>
-                </div>
-                {data.supplier && <p className="text-sm"><span className="text-gray-400">Поставщик:</span> <span className="font-medium text-gray-700">{data.supplier}</span></p>}
-                {data.notes && <p className="text-sm"><span className="text-gray-400">Заметки:</span> <span className="text-gray-600">{data.notes}</span></p>}
               </>
             )}
+            {loading && <span className="text-sm text-gray-400">Загрузка...</span>}
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+            <X size={18} />
+          </button>
+        </div>
 
-            {editing && (
-              <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <label className="block"><span className="text-[11px] text-gray-400 font-medium">Название</span>
-                    <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="w-full mt-0.5 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400" /></label>
-                  <label className="block"><span className="text-[11px] text-gray-400 font-medium">Код</span>
-                    <input value={form.code} onChange={e => setForm({ ...form, code: e.target.value })} className="w-full mt-0.5 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400" /></label>
-                </div>
-                <div className="grid grid-cols-3 gap-3">
-                  <label className="block"><span className="text-[11px] text-gray-400 font-medium">Группа</span>
-                    <select value={form.material_group} onChange={e => setForm({ ...form, material_group: e.target.value })} className="w-full mt-0.5 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400">
-                      {Object.entries(GROUP_LABELS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-                    </select></label>
-                  <label className="block"><span className="text-[11px] text-gray-400 font-medium">Единица</span>
-                    <select value={form.unit} onChange={e => setForm({ ...form, unit: e.target.value })} className="w-full mt-0.5 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400">
-                      <option value="шт">шт</option>
-                      <option value="г">г (грамм)</option>
-                      <option value="мг">мг (миллиграмм)</option>
-                      <option value="кг">кг (килограмм)</option>
-                      <option value="мл">мл (миллилитр)</option>
-                      <option value="л">л (литр)</option>
-                      <option value="уп">уп (упаковка)</option>
-                    </select></label>
-                  <label className="block"><span className="text-[11px] text-gray-400 font-medium">Цена закупки</span>
-                    <input type="number" step="0.01" value={form.buy_price} onChange={e => setForm({ ...form, buy_price: e.target.value })} className="w-full mt-0.5 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400" /></label>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <label className="block"><span className="text-[11px] text-gray-400 font-medium">Остаток</span>
-                    <input type="number" step="0.001" value={form.stock} onChange={e => setForm({ ...form, stock: e.target.value })} className="w-full mt-0.5 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400" /></label>
-                  <label className="block"><span className="text-[11px] text-gray-400 font-medium">Мин. остаток</span>
-                    <input type="number" step="0.001" value={form.min_stock} onChange={e => setForm({ ...form, min_stock: e.target.value })} className="w-full mt-0.5 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400" /></label>
-                </div>
-                <label className="block"><span className="text-[11px] text-gray-400 font-medium">Поставщик</span>
-                  <input value={form.supplier || ''} onChange={e => setForm({ ...form, supplier: e.target.value })} className="w-full mt-0.5 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400" /></label>
-                <label className="block"><span className="text-[11px] text-gray-400 font-medium">Заметки</span>
-                  <textarea value={form.notes || ''} onChange={e => setForm({ ...form, notes: e.target.value })} rows={2} className="w-full mt-0.5 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 resize-none" /></label>
-                <div className="flex items-center gap-2 pt-1">
-                  <button onClick={handleSave} disabled={saving} className="flex items-center gap-1.5 px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-semibold hover:bg-purple-700 disabled:opacity-50 transition-colors">
-                    <Save size={14} />{saving ? 'Сохранение...' : 'Сохранить'}</button>
-                  <button onClick={() => setEditing(false)} className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700 transition-colors">Отмена</button>
-                </div>
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto px-6 py-5">
+          {loading ? (
+            <div className="flex items-center justify-center py-20"><Spinner /></div>
+          ) : !data ? (
+            <div className="text-center text-gray-400 py-20">Не найдено</div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+              {/* LEFT COLUMN */}
+              <div className="space-y-4">
+
+                {/* Основное */}
+                <SectionBlock title="Основное" icon={<Package size={14} className="text-gray-400" />}>
+                  <div className="grid grid-cols-2 gap-3">
+                    <label className="block col-span-2"><span className="text-[11px] text-gray-400 font-medium">Название</span>
+                      <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className={INPUT_CLS} /></label>
+                    <label className="block"><span className="text-[11px] text-gray-400 font-medium">Код</span>
+                      <input value={form.code} onChange={e => setForm({ ...form, code: e.target.value })} className={INPUT_CLS} /></label>
+                    <label className="block"><span className="text-[11px] text-gray-400 font-medium">Артикул</span>
+                      <input value={form.article} onChange={e => setForm({ ...form, article: e.target.value })} className={INPUT_CLS} /></label>
+                    <label className="block"><span className="text-[11px] text-gray-400 font-medium">Категория</span>
+                      <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} className={INPUT_CLS}>
+                        <option value="ingredient">Ингредиент</option>
+                        <option value="packaging">Упаковка</option>
+                      </select></label>
+                    <label className="block"><span className="text-[11px] text-gray-400 font-medium">Группа</span>
+                      <select value={form.material_group} onChange={e => setForm({ ...form, material_group: e.target.value })} className={INPUT_CLS}>
+                        {Object.entries(GROUP_LABELS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+                      </select></label>
+                    <label className="block"><span className="text-[11px] text-gray-400 font-medium">Единица измерения</span>
+                      <select value={form.unit} onChange={e => setForm({ ...form, unit: e.target.value })} className={INPUT_CLS}>
+                        <option value="шт">шт</option><option value="г">г (грамм)</option>
+                        <option value="мг">мг</option><option value="кг">кг</option>
+                        <option value="мл">мл</option><option value="л">л</option>
+                        <option value="уп">уп</option>
+                      </select></label>
+                    <label className="block"><span className="text-[11px] text-gray-400 font-medium">Поставщик</span>
+                      <input value={form.supplier} onChange={e => setForm({ ...form, supplier: e.target.value })} className={INPUT_CLS} placeholder="Необязательно" /></label>
+                  </div>
+                </SectionBlock>
+
+                {/* Остатки и цены */}
+                <SectionBlock title="Остатки и цены" icon={<span className="text-gray-400 text-sm">₽</span>}>
+                  <div className="grid grid-cols-3 gap-3">
+                    <label className="block"><span className="text-[11px] text-gray-400 font-medium">Остаток ({form.unit || 'шт'})</span>
+                      <input type="number" step="0.001" value={form.stock} onChange={e => setForm({ ...form, stock: e.target.value })} className={INPUT_CLS} /></label>
+                    <label className="block"><span className="text-[11px] text-gray-400 font-medium">Мин. запас</span>
+                      <input type="number" step="0.001" value={form.min_stock} onChange={e => setForm({ ...form, min_stock: e.target.value })} className={INPUT_CLS} /></label>
+                    <label className="block"><span className="text-[11px] text-gray-400 font-medium">Цена закупки (₽)</span>
+                      <input type="number" step="0.01" value={form.buy_price} onChange={e => setForm({ ...form, buy_price: e.target.value })} className={INPUT_CLS} /></label>
+                  </div>
+                </SectionBlock>
+
+                {/* Примечания */}
+                <SectionBlock title="Примечания" icon={<Pencil size={14} className="text-gray-400" />}>
+                  <textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} rows={3} placeholder="Заметки по материалу..." className={`${INPUT_CLS} resize-none`} />
+                </SectionBlock>
               </div>
-            )}
 
-            {/* Recipe: what this material consists of */}
-            {!editing && data.recipe?.length > 0 && (
-              <div>
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                  Состоит из ({data.recipe.length})
-                </p>
-                <div className="space-y-1.5">
-                  {data.recipe.map((r, i) => (
-                    <div key={r.recipe_id || i} className="flex items-center gap-3 px-3 py-2 rounded-lg bg-gray-50 border border-gray-100 cursor-pointer hover:bg-purple-50/30 transition-colors" onClick={() => r.id && navigateTo(r.id)}>
-                      <span className="flex-shrink-0">{groupIcon(r.material_group, 16, r.name)}</span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-purple-700 truncate">{r.name}</p>
-                        {r.code && <p className="text-[10px] text-gray-400">{r.code}</p>}
+              {/* RIGHT COLUMN */}
+              <div className="space-y-4">
+
+                {/* Рецепт */}
+                <SectionBlock title={`Рецепт — состоит из (${data.recipe?.length || 0})`} icon={<span className="text-gray-400">🧪</span>}>
+                  {/* Add ingredient */}
+                  <div className="mb-3">
+                    {!recipeSelected ? (
+                      <div className="relative">
+                        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300" />
+                        <input
+                          value={recipeSearch}
+                          onChange={e => searchRecipe(e.target.value)}
+                          placeholder="Поиск материала для добавления..."
+                          className={`${INPUT_CLS} pl-9`}
+                        />
+                        {recipeSearching && <div className="absolute right-3 top-1/2 -translate-y-1/2"><Spinner size="sm" /></div>}
+                        {recipeResults.length > 0 && (
+                          <div className="absolute z-10 left-0 right-0 mt-1 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-lg max-h-48 overflow-y-auto">
+                            {recipeResults.map(m => (
+                              <button key={m.id} onClick={() => { setRecipeSelected(m); setRecipeSearch(''); setRecipeResults([]); }}
+                                className="w-full text-left px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2 transition-colors">
+                                <span className="flex-shrink-0">{groupIcon(m.material_group, 14, m.name)}</span>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">{m.name}</p>
+                                  {m.code && <p className="text-[10px] text-gray-400">{m.code}</p>}
+                                </div>
+                                <span className="text-xs text-gray-400">{m.unit || 'шт'}</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                      <span className="text-sm font-bold text-gray-900 flex-shrink-0">{fmtQty(r.quantity)} {r.unit || 'шт'}</span>
-                      <ChevronRight size={14} className="text-gray-300 flex-shrink-0" />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Used in other materials */}
-            {!editing && data.used_in_materials?.length > 0 && (
-              <div>
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                  Используется в ({data.used_in_materials.length})
-                </p>
-                <div className="space-y-1.5">
-                  {data.used_in_materials.map((m, i) => (
-                    <div key={m.id || i} className="flex items-center gap-3 px-3 py-2 rounded-lg bg-gray-50 border border-gray-100 cursor-pointer hover:bg-purple-50/30 transition-colors" onClick={() => m.id && navigateTo(m.id)}>
-                      <span className="flex-shrink-0">{groupIcon(m.material_group, 16, m.name)}</span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-purple-700 truncate">{m.name}</p>
-                        {m.code && <p className="text-[10px] text-gray-400">{m.code}</p>}
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-1 px-3 py-2 bg-primary-50 dark:bg-primary-900/20 rounded-xl">
+                          <span>{groupIcon(recipeSelected.material_group, 14, recipeSelected.name)}</span>
+                          <span className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate flex-1">{recipeSelected.name}</span>
+                          <button onClick={() => setRecipeSelected(null)} className="text-gray-400 hover:text-gray-600"><X size={14} /></button>
+                        </div>
+                        <input type="number" step="0.001" min="0.001" value={recipeQty} onChange={e => setRecipeQty(e.target.value)}
+                          placeholder="Кол-во" className={`${INPUT_CLS} w-24`} />
+                        <button onClick={addRecipeIngredient} disabled={recipeAdding || !recipeQty}
+                          className="px-3 py-2 bg-primary-600 text-white rounded-xl text-sm font-semibold hover:bg-primary-700 disabled:opacity-50 transition-colors whitespace-nowrap">
+                          {recipeAdding ? '...' : '+ Добавить'}
+                        </button>
                       </div>
-                      <span className="text-sm font-bold text-gray-900 flex-shrink-0">{fmtQty(m.quantity)} {data.unit || 'шт'}</span>
-                      <ChevronRight size={14} className="text-gray-300 flex-shrink-0" />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+                    )}
+                  </div>
 
-            {!editing && data.tech_cards?.length > 0 && (
-              <div>
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-1.5"><TechCardIcon size={14} /> Используется в тех. картах ({data.tech_cards.length})</p>
-                <div className="space-y-1.5">
-                  {data.tech_cards.map((tc, i) => (
-                    <div key={tc.id || i} className="flex items-center gap-3 px-3 py-2 rounded-lg bg-gray-50 border border-gray-100 cursor-pointer hover:bg-purple-50/30 transition-colors" onClick={() => { if (tc.product_id) { onClose(); navigate(`/admin/products/cards?id=${tc.product_id}`); } }}>
-                      <span className="flex-shrink-0"><ProductIcon size={16} /></span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-purple-700 truncate">{tc.product_name}</p>
-                        <p className="text-[10px] text-gray-400">{tc.name}</p>
-                      </div>
-                      <span className="text-sm font-bold text-purple-600 flex-shrink-0">{fmtQty(tc.quantity)} {data.unit || 'шт'}</span>
-                      <ChevronRight size={14} className="text-gray-300 flex-shrink-0" />
+                  {/* Recipe list */}
+                  {(data.recipe?.length || 0) > 0 ? (
+                    <div className="space-y-1.5">
+                      {data.recipe.map((r, i) => (
+                        <div key={r.recipe_id || i} className="flex items-center gap-3 px-3 py-2 rounded-xl bg-gray-50 dark:bg-gray-800 group hover:bg-purple-50/50 dark:hover:bg-purple-900/10 transition-colors cursor-pointer" onClick={() => r.id && navigateTo(r.id)}>
+                          <span className="flex-shrink-0">{groupIcon(r.material_group, 16, r.name)}</span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">{r.name}</p>
+                            {r.code && <p className="text-[10px] text-gray-400">{r.code}</p>}
+                          </div>
+                          <span className="text-sm font-bold text-gray-700 dark:text-gray-300 flex-shrink-0">{fmtQty(r.quantity)} {r.unit || 'шт'}</span>
+                          <button onClick={(e) => { e.stopPropagation(); removeRecipeIngredient(r.recipe_id); }}
+                            className="p-1 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all">
+                            <X size={14} />
+                          </button>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  ) : (
+                    <p className="text-sm text-gray-300 text-center py-4">Рецепт пуст — добавьте ингредиенты через поиск выше</p>
+                  )}
+                </SectionBlock>
+
+                {/* Используется в */}
+                {data.used_in_materials?.length > 0 && (
+                  <SectionBlock title={`Используется в (${data.used_in_materials.length})`} icon={<ChevronRight size={14} className="text-gray-400" />}>
+                    <div className="space-y-1.5">
+                      {data.used_in_materials.map((m, i) => (
+                        <div key={m.id || i} className="flex items-center gap-3 px-3 py-2 rounded-xl bg-gray-50 dark:bg-gray-800 cursor-pointer hover:bg-purple-50/50 transition-colors" onClick={() => m.id && navigateTo(m.id)}>
+                          <span className="flex-shrink-0">{groupIcon(m.material_group, 16, m.name)}</span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-purple-700 dark:text-purple-400 truncate">{m.name}</p>
+                          </div>
+                          <span className="text-sm font-bold text-gray-700 dark:text-gray-300 flex-shrink-0">{fmtQty(m.quantity)} {data.unit || 'шт'}</span>
+                          <ChevronRight size={14} className="text-gray-300" />
+                        </div>
+                      ))}
+                    </div>
+                  </SectionBlock>
+                )}
+
+                {/* Тех. карты */}
+                {data.tech_cards?.length > 0 && (
+                  <SectionBlock title={`Тех. карты (${data.tech_cards.length})`} icon={<TechCardIcon size={14} />}>
+                    <div className="space-y-1.5">
+                      {data.tech_cards.map((tc, i) => (
+                        <div key={tc.id || i} className="flex items-center gap-3 px-3 py-2 rounded-xl bg-gray-50 dark:bg-gray-800 cursor-pointer hover:bg-purple-50/50 transition-colors"
+                          onClick={() => { if (tc.product_id) { onClose(); navigate(`/admin/products/cards?id=${tc.product_id}`); } }}>
+                          <span className="flex-shrink-0"><ProductIcon size={16} /></span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-purple-700 dark:text-purple-400 truncate">{tc.product_name}</p>
+                            <p className="text-[10px] text-gray-400">{tc.name}</p>
+                          </div>
+                          <span className="text-sm font-bold text-purple-600 flex-shrink-0">{fmtQty(tc.quantity)} {data.unit || 'шт'}</span>
+                          <ChevronRight size={14} className="text-gray-300" />
+                        </div>
+                      ))}
+                    </div>
+                  </SectionBlock>
+                )}
               </div>
-            )}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        {!loading && data && (
+          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100 dark:border-gray-800 flex-shrink-0">
+            <button onClick={onClose} className="px-4 py-2.5 text-sm text-gray-500 hover:text-gray-700 transition-colors rounded-xl hover:bg-gray-50">Отмена</button>
+            <button onClick={handleSave} disabled={saving}
+              className="flex items-center gap-1.5 px-5 py-2.5 bg-primary-600 text-white rounded-xl text-sm font-semibold hover:bg-primary-700 disabled:opacity-50 transition-colors shadow-sm">
+              <Save size={14} />{saving ? 'Сохранение...' : 'Сохранить'}
+            </button>
           </div>
         )}
       </div>
