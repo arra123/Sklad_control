@@ -672,53 +672,72 @@ export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
                 {!product.shelves?.length ? (
                   <p className="text-sm text-gray-300 text-center py-4">Не размещён на складе</p>
                 ) : (() => {
-                  // Группировка по складам
-                  const grouped = {};
+                  // Группировка: склад → стеллаж/ряд → ячейки
+                  const tree = {};
                   product.shelves.forEach(s => {
-                    const key = s.warehouse_name || 'Без склада';
-                    if (!grouped[key]) grouped[key] = [];
-                    grouped[key].push(s);
+                    const wh = s.warehouse_name || 'Без склада';
+                    const rack = s.rack_name || 'Без стеллажа';
+                    if (!tree[wh]) tree[wh] = {};
+                    if (!tree[wh][rack]) tree[wh][rack] = [];
+                    tree[wh][rack].push(s);
                   });
                   return (
-                    <div className="space-y-3 max-h-72 overflow-y-auto">
-                      {Object.entries(grouped).map(([whName, locations]) => (
-                        <div key={whName}>
-                          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">{whName} <span className="text-primary-400">({locations.reduce((s, l) => s + Number(l.quantity || 0), 0)} шт.)</span></p>
-                          <div className="space-y-1">
-                            {locations.map((s, i) => (
-                              <div key={i} className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-primary-50 to-transparent dark:from-primary-900/10 rounded-xl border border-primary-100/50 dark:border-primary-800/20 group">
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-semibold text-gray-900 dark:text-white">{s.location_code || s.shelf_code}</p>
-                                  <p className="text-[10px] text-gray-400">
-                                    {s.rack_name}
-                                    {s.location_type === 'pallet' && ' · паллет'}
-                                    {s.location_type === 'box' && ' · коробка'}
-                                    {s.location_type === 'shelf_box' && ' · коробка'}
-                                  </p>
-                                </div>
-                                {editingShelf === `${s.location_type}-${s.location_id}-${i}` ? (
-                                  <div className="flex items-center gap-1">
-                                    <input type="number" min="0" step="1" value={shelfQty} onChange={e => setShelfQty(e.target.value)}
-                                      className="w-20 px-2 py-1 rounded-lg border border-primary-300 text-sm text-center font-bold focus:outline-none focus:ring-2 focus:ring-primary-300" autoFocus />
-                                    <button onClick={() => handleShelfQtyChange(s)} disabled={shelfSaving}
-                                      className="p-1 text-green-500 hover:text-green-700"><Check size={14} /></button>
-                                    <button onClick={() => setEditingShelf(null)}
-                                      className="p-1 text-gray-400 hover:text-gray-600"><X size={14} /></button>
+                    <div className="space-y-3 max-h-80 overflow-y-auto">
+                      {Object.entries(tree).map(([whName, racks]) => {
+                        const whTotal = Object.values(racks).flat().reduce((s, l) => s + Number(l.quantity || 0), 0);
+                        return (
+                          <div key={whName} className="rounded-xl border border-gray-100 dark:border-gray-800 overflow-hidden">
+                            <div className="px-3 py-1.5 bg-gray-50 dark:bg-gray-800 flex items-center justify-between">
+                              <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">{whName}</span>
+                              <span className="text-[10px] font-bold text-primary-500">{fmtQty(whTotal)} шт.</span>
+                            </div>
+                            {Object.entries(racks).map(([rackName, locations]) => {
+                              const rackTotal = locations.reduce((s, l) => s + Number(l.quantity || 0), 0);
+                              return (
+                                <div key={rackName}>
+                                  <div className="px-3 py-1 bg-gray-50/50 dark:bg-gray-800/50 flex items-center justify-between border-t border-gray-50 dark:border-gray-800">
+                                    <span className="text-[10px] font-semibold text-gray-400">{rackName}</span>
+                                    <span className="text-[10px] font-semibold text-gray-400">{fmtQty(rackTotal)} шт.</span>
                                   </div>
-                                ) : (
-                                  <button
-                                    onClick={() => { setEditingShelf(`${s.location_type}-${s.location_id}-${i}`); setShelfQty(String(Number(s.quantity || 0))); }}
-                                    className="text-sm font-bold text-primary-700 dark:text-primary-400 bg-white dark:bg-gray-800 px-2.5 py-1 rounded-lg shadow-sm hover:ring-2 hover:ring-primary-300 transition-all"
-                                    title="Нажмите чтобы изменить количество"
-                                  >
-                                    {fmtQty(s.quantity)} шт.
-                                  </button>
-                                )}
-                              </div>
-                            ))}
+                                  <div className="divide-y divide-gray-50 dark:divide-gray-800">
+                                    {locations.map((s, i) => (
+                                      <div key={i} className="flex items-center gap-2 px-3 py-2 group hover:bg-primary-50/30 dark:hover:bg-primary-900/10 transition-colors">
+                                        <div className="flex-1 min-w-0">
+                                          <p className="text-sm font-medium text-gray-900 dark:text-white">{s.location_code || s.shelf_code}</p>
+                                          <p className="text-[10px] text-gray-400">
+                                            {s.location_type === 'shelf' && 'полка'}
+                                            {s.location_type === 'pallet' && 'паллет'}
+                                            {s.location_type === 'box' && 'коробка'}
+                                            {s.location_type === 'shelf_box' && 'коробка на полке'}
+                                          </p>
+                                        </div>
+                                        {editingShelf === `${s.location_type}-${s.location_id}-${i}` ? (
+                                          <div className="flex items-center gap-1">
+                                            <input type="number" min="0" step="1" value={shelfQty} onChange={e => setShelfQty(e.target.value)}
+                                              className="w-20 px-2 py-1 rounded-lg border border-primary-300 text-sm text-center font-bold focus:outline-none focus:ring-2 focus:ring-primary-300" autoFocus />
+                                            <button onClick={() => handleShelfQtyChange(s)} disabled={shelfSaving}
+                                              className="p-1 text-green-500 hover:text-green-700"><Check size={14} /></button>
+                                            <button onClick={() => setEditingShelf(null)}
+                                              className="p-1 text-gray-400 hover:text-gray-600"><X size={14} /></button>
+                                          </div>
+                                        ) : (
+                                          <button
+                                            onClick={() => { setEditingShelf(`${s.location_type}-${s.location_id}-${i}`); setShelfQty(String(Number(s.quantity || 0))); }}
+                                            className="text-sm font-bold text-primary-700 dark:text-primary-400 bg-white dark:bg-gray-800 px-2.5 py-1 rounded-lg shadow-sm hover:ring-2 hover:ring-primary-300 transition-all"
+                                            title="Нажмите чтобы изменить"
+                                          >
+                                            {fmtQty(s.quantity)} шт.
+                                          </button>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              );
+                            })}
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   );
                 })()}
