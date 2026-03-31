@@ -1025,7 +1025,7 @@ function CreateTaskModal({ open, onClose, onSuccess }) {
     if (!destPickWh) { setDestRacks([]); setDestShelves([]); setDestRows([]); setDestPallets([]); return; }
     const whType = destPickWhData?.warehouse_type;
     if (whType === 'fbs' || whType === 'both') {
-      api.get(`/warehouse/visual/${destPickWh}`).then(r => setDestRacks(r.data || [])).catch(() => {
+      api.get(`/warehouse/visual/${destPickWh}`).then(r => setDestRacks(Array.isArray(r.data) ? r.data : r.data?.racks || [])).catch(() => {
         // fallback: get racks from warehouse detail
         api.get(`/warehouse/warehouses/${destPickWh}`).then(r2 => setDestRacks(r2.data.racks || [])).catch(() => {});
       });
