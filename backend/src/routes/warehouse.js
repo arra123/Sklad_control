@@ -701,8 +701,7 @@ router.get('/movements', requireAuth, async (req, res) => {
   if (product_id) { params.push(product_id); conditions.push(`sm.product_id = $${params.length}`); }
   const where = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
   params.push(parseInt(limit));
-  try {
-    const { rows } = await pool.query(`
+  const runQuery = () => pool.query(`
       SELECT sm.*,
         p.name as product_name, p.code as product_code,
         s.code as shelf_code, s.name as shelf_name,
@@ -722,7 +721,12 @@ router.get('/movements', requireAuth, async (req, res) => {
       ORDER BY sm.created_at DESC
       LIMIT $${params.length}
     `, params);
-    res.json(rows);
+  try {
+    let result;
+    try { result = await runQuery(); } catch (e) {
+      if (e.message.includes('deadlock')) { result = await runQuery(); } else throw e;
+    }
+    res.json(result.rows);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

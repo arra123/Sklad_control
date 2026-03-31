@@ -1272,12 +1272,12 @@ function ShelfDetailView({ shelfId, rackId, onClose, initialBoxId }) {
     if (!shelfId) return;
     setLoading(true);
     try {
-      const [shelfRes, movRes] = await Promise.all([
-        api.get(`/warehouse/shelves/${shelfId}`),
-        api.get(`/warehouse/movements?shelf_id=${shelfId}&limit=200`),
-      ]);
+      const shelfRes = await api.get(`/warehouse/shelves/${shelfId}`);
       setShelf(shelfRes.data);
-      setMovements(movRes.data || []);
+      // Movements load independently — don't block shelf display
+      api.get(`/warehouse/movements?shelf_id=${shelfId}&limit=200`)
+        .then(r => setMovements(r.data || []))
+        .catch(() => setMovements([]));
     } catch {
       toast.error('Ошибка загрузки полки');
     } finally {
