@@ -724,6 +724,17 @@ async function createSchema() {
     await client.query(`ALTER TABLE movements_s ADD COLUMN IF NOT EXISTS source VARCHAR(30) NOT NULL DEFAULT 'manual_edit'`);
     await client.query(`ALTER TABLE shelf_movements_s ADD COLUMN IF NOT EXISTS source VARCHAR(30) NOT NULL DEFAULT 'manual_edit'`);
 
+    // shelf_box_id columns for tracking box-level movements
+    await client.query(`ALTER TABLE movements_s ADD COLUMN IF NOT EXISTS from_shelf_box_id INTEGER REFERENCES shelf_boxes_s(id) ON DELETE SET NULL`);
+    await client.query(`ALTER TABLE movements_s ADD COLUMN IF NOT EXISTS to_shelf_box_id INTEGER REFERENCES shelf_boxes_s(id) ON DELETE SET NULL`);
+    // Indexes for fast lookups by box/pallet/shelf_box
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_movements_s_from_box ON movements_s(from_box_id) WHERE from_box_id IS NOT NULL`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_movements_s_to_box ON movements_s(to_box_id) WHERE to_box_id IS NOT NULL`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_movements_s_from_shelf_box ON movements_s(from_shelf_box_id) WHERE from_shelf_box_id IS NOT NULL`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_movements_s_to_shelf_box ON movements_s(to_shelf_box_id) WHERE to_shelf_box_id IS NOT NULL`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_movements_s_from_pallet ON movements_s(from_pallet_id) WHERE from_pallet_id IS NOT NULL`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_movements_s_to_pallet ON movements_s(to_pallet_id) WHERE to_pallet_id IS NOT NULL`);
+
     // ─── Roles ─────────────────────────────────────────────────────
     await client.query(`
       CREATE TABLE IF NOT EXISTS roles_s (

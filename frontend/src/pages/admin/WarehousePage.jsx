@@ -485,21 +485,44 @@ function AddProductToShelfModal({ open, onClose, shelfId, onSuccess }) {
 
 // ─── Shelf Movements helper ────────────────────────────────────────────────────
 const OP_LABELS = {
-  inventory:  { label: 'Инвентаризация', color: 'text-blue-600', bg: 'bg-blue-50' },
-  stock_in:   { label: 'Приход',         color: 'text-green-600', bg: 'bg-green-50' },
-  stock_out:  { label: 'Списание',       color: 'text-red-600', bg: 'bg-red-50' },
-  correction: { label: 'Корректировка',  color: 'text-amber-600', bg: 'bg-amber-50' },
-  transfer:   { label: 'Перемещение',    color: 'text-primary-600', bg: 'bg-primary-50' },
+  inventory:            { label: 'Инвентаризация',  color: 'text-blue-600',    bg: 'bg-blue-50' },
+  stock_in:             { label: 'Приход',           color: 'text-green-600',   bg: 'bg-green-50' },
+  stock_out:            { label: 'Списание',         color: 'text-red-600',     bg: 'bg-red-50' },
+  correction:           { label: 'Корректировка',    color: 'text-amber-600',   bg: 'bg-amber-50' },
+  transfer:             { label: 'Перемещение',      color: 'text-primary-600', bg: 'bg-primary-50' },
+  // movements_s types (universal log)
+  box_create:           { label: 'Создание',         color: 'text-green-600',   bg: 'bg-green-50' },
+  box_delete:           { label: 'Удаление',         color: 'text-red-600',     bg: 'bg-red-50' },
+  edit_add_to_box:      { label: 'Добавление',       color: 'text-green-600',   bg: 'bg-green-50' },
+  edit_remove_from_box: { label: 'Списание',         color: 'text-red-600',     bg: 'bg-red-50' },
+  box_product_change:   { label: 'Замена товара',    color: 'text-amber-600',   bg: 'bg-amber-50' },
+  external_to_pallet:   { label: 'Приход',           color: 'text-green-600',   bg: 'bg-green-50' },
+  pallet_correction_in: { label: 'Корректировка +',  color: 'text-green-600',   bg: 'bg-green-50' },
+  pallet_correction_out:{ label: 'Корректировка −',  color: 'text-red-600',     bg: 'bg-red-50' },
+  edit_add_to_shelf:    { label: 'Добавление',       color: 'text-green-600',   bg: 'bg-green-50' },
+  edit_remove_from_shelf:{ label: 'Списание',        color: 'text-red-600',     bg: 'bg-red-50' },
 };
 function opMeta(type) { return OP_LABELS[type] || { label: type, color: 'text-gray-600', bg: 'bg-gray-100' }; }
 
+function normalizeMovement(r) {
+  // Normalize movements_s records to same shape as shelf_movements_s
+  if (r._normalized) return r;
+  const opType = r.operation_type || r.movement_type || 'unknown';
+  const qDelta = r.quantity_delta !== undefined ? Number(r.quantity_delta)
+    : (r.quantity_before !== undefined && r.quantity_after !== undefined)
+      ? Number(r.quantity_after) - Number(r.quantity_before)
+      : Number(r.quantity || 0);
+  return { ...r, operation_type: opType, quantity_delta: qDelta, _normalized: true };
+}
+
 function groupMovements(rows) {
   const map = new Map();
-  for (const r of rows) {
-    const key = `${r.task_id ?? 'null'}|${r.product_id}|${r.shelf_id}|${r.operation_type}`;
+  for (const raw of rows) {
+    const r = normalizeMovement(raw);
+    const key = `${r.task_id ?? 'null'}|${r.product_id}|${r.shelf_id ?? r.to_shelf_id ?? r.from_shelf_id ?? 'null'}|${r.operation_type}`;
     if (!map.has(key)) map.set(key, { ...r, quantity_delta: 0, rows: [] });
     const g = map.get(key);
-    g.quantity_delta += Number(r.quantity_delta);
+    g.quantity_delta += r.quantity_delta;
     g.quantity_after = r.quantity_after;
     if (new Date(r.created_at) > new Date(g.created_at)) g.created_at = r.created_at;
     g.rows.push(r);
@@ -512,13 +535,14 @@ function fmtMovDate(iso) {
   return new Date(iso).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 }
 
-function ShelfMovements({ movements, mode, onModeChange }) {
-  const grouped = groupMovements(movements);
+function LocationHistory({ movements, mode, onModeChange, title }) {
+  const normalized = useMemo(() => movements.map(normalizeMovement), [movements]);
+  const grouped = useMemo(() => groupMovements(movements), [movements]);
   return (
     <div className="card p-4 mt-5">
       <div className="flex items-center justify-between mb-3">
         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-          История <span className="text-primary-500">{movements.length}</span>
+          {title || 'История'} <span className="text-primary-500">{movements.length}</span>
         </p>
         <div className="flex gap-1 bg-gray-100 rounded-lg p-0.5">
           <button onClick={() => onModeChange('grouped')}
@@ -535,7 +559,7 @@ function ShelfMovements({ movements, mode, onModeChange }) {
         <p className="text-center text-sm text-gray-300 py-4">Нет записей</p>
       ) : (
         <div className="space-y-1.5 max-h-72 overflow-y-auto">
-          {(mode === 'grouped' ? grouped : movements).map((r, i) => {
+          {(mode === 'grouped' ? grouped : normalized).map((r, i) => {
             const meta = opMeta(r.operation_type);
             const delta = Number(r.quantity_delta);
             const sign = delta >= 0 ? '+' : '';
@@ -562,6 +586,11 @@ function ShelfMovements({ movements, mode, onModeChange }) {
       )}
     </div>
   );
+}
+
+// Backward compat alias
+function ShelfMovements({ movements, mode, onModeChange }) {
+  return <LocationHistory movements={movements} mode={mode} onModeChange={onModeChange} />;
 }
 
 // ─── Shelf Box helpers ──────────────────────────────────────────────────────
@@ -999,6 +1028,8 @@ function BoxDetailView({ boxId, boxType, onClose, onChanged }) {
   const [copied, setCopied] = useState(false);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [movements, setMovements] = useState([]);
+  const [movMode, setMovMode] = useState('grouped');
 
   const isShelfBox = boxType === 'shelf';
   const isStandalone = boxType === 'standalone';
@@ -1009,6 +1040,10 @@ function BoxDetailView({ boxId, boxType, onClose, onChanged }) {
     try {
       const res = await api.get(isShelfBox ? `/warehouse/shelf-boxes/${boxId}` : `/fbo/boxes/${boxId}`);
       setBox(res.data);
+      // Load box movement history independently
+      api.get(`/warehouse/box-movements?box_id=${boxId}&box_type=${isShelfBox ? 'shelf' : 'pallet'}&limit=200`)
+        .then(r => setMovements(r.data || []))
+        .catch(() => setMovements([]));
     } catch {
       toast.error('Ошибка загрузки коробки');
     } finally {
@@ -1235,6 +1270,8 @@ function BoxDetailView({ boxId, boxType, onClose, onChanged }) {
           </div>
         )}
       </div>
+
+      <LocationHistory movements={movements} mode={movMode} onModeChange={setMovMode} title="История коробки" />
 
       <BoxEditorModal
         open={editing}
@@ -1753,6 +1790,8 @@ function PalletDetailView({ pallet, onClose, initialBoxId }) {
   const [editingBox, setEditingBox] = useState(null);
   const [boxSaving, setBoxSaving] = useState(false);
   const [drillBoxId, setDrillBoxId] = useState(initialBoxId || null);
+  const [movements, setMovements] = useState([]);
+  const [movMode, setMovMode] = useState('grouped');
   const addDebRef = useRef(null);
 
   useEffect(() => {
@@ -1767,6 +1806,10 @@ function PalletDetailView({ pallet, onClose, initialBoxId }) {
     try {
       const res = await api.get(`/fbo/pallets/${pallet.id}`);
       setData(res.data);
+      // Load pallet movement history independently
+      api.get(`/warehouse/movements?pallet_id=${pallet.id}&limit=200`)
+        .then(r => setMovements(r.data || []))
+        .catch(() => setMovements([]));
     } catch { toast.error('Ошибка загрузки паллета'); }
     finally { setLoading(false); }
   }, [pallet.id]);
@@ -2117,6 +2160,8 @@ function PalletDetailView({ pallet, onClose, initialBoxId }) {
           )}
         </div>
       )}
+
+      <LocationHistory movements={movements} mode={movMode} onModeChange={setMovMode} title="История паллета" />
 
       <BoxEditorModal
         open={!!editingBox}

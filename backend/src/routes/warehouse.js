@@ -538,6 +538,12 @@ router.post('/shelves/:id/box', requireAuth, requireAdmin, async (req, res) => {
          VALUES ($1, $2, $3, NOW())`,
         [result.rows[0].id, product_id, parsedQty]
       );
+      // Record movement for box creation with product
+      await client.query(
+        `INSERT INTO movements_s (movement_type, product_id, quantity, to_shelf_id, to_shelf_box_id, performed_by, source, notes, quantity_before, quantity_after)
+         VALUES ('box_create', $1, $2, $3, $4, $5, 'manual_edit', 'Создание коробки на полке', 0, $2)`,
+        [product_id, parsedQty, req.params.id, result.rows[0].id, req.user?.id || null]
+      );
     }
     await client.query('COMMIT');
     res.status(201).json(result.rows[0]);
@@ -553,6 +559,13 @@ router.post('/shelves/:id/box', requireAuth, requireAdmin, async (req, res) => {
 router.put('/shelf-boxes/:id', requireAuth, requireAdmin, async (req, res) => {
   const { quantity, product_id, name, box_size } = req.body;
   try {
+    // Get old state before update for movement tracking
+    const oldBox = await pool.query('SELECT * FROM shelf_boxes_s WHERE id = $1', [req.params.id]);
+    if (!oldBox.rows.length) return res.status(404).json({ error: 'Коробка не найдена' });
+    const prev = oldBox.rows[0];
+    const prevQty = Number(prev.quantity || 0);
+    const prevProductId = prev.product_id;
+
     const sets = [];
     const params = [];
     let idx = 1;
@@ -590,7 +603,6 @@ router.put('/shelf-boxes/:id', requireAuth, requireAdmin, async (req, res) => {
       `UPDATE shelf_boxes_s SET ${sets.join(', ')} WHERE id = $${idx} RETURNING *`,
       params
     );
-    if (!result.rows.length) return res.status(404).json({ error: 'Коробка не найдена' });
     await pool.query('DELETE FROM shelf_box_items_s WHERE shelf_box_id = $1', [req.params.id]);
     if (result.rows[0].product_id && Number(result.rows[0].quantity || 0) > 0) {
       await pool.query(
@@ -599,6 +611,21 @@ router.put('/shelf-boxes/:id', requireAuth, requireAdmin, async (req, res) => {
         [req.params.id, result.rows[0].product_id, result.rows[0].quantity]
       );
     }
+
+    // Record movement if quantity or product changed
+    const newQty = Number(result.rows[0].quantity || 0);
+    const newProductId = result.rows[0].product_id;
+    const delta = newQty - prevQty;
+    if (delta !== 0 || (newProductId !== prevProductId && (newQty > 0 || prevQty > 0))) {
+      const movType = delta > 0 ? 'edit_add_to_box' : delta < 0 ? 'edit_remove_from_box' : 'box_product_change';
+      const trackProductId = newProductId || prevProductId;
+      await pool.query(
+        `INSERT INTO movements_s (movement_type, product_id, quantity, to_shelf_id, to_shelf_box_id, performed_by, source, notes, quantity_before, quantity_after)
+         VALUES ($1, $2, $3, $4, $5, $6, 'manual_edit', 'Редактирование коробки на полке', $7, $8)`,
+        [movType, trackProductId, Math.abs(delta), prev.shelf_id, parseInt(req.params.id), req.user?.id || null, prevQty, newQty]
+      );
+    }
+
     res.json(result.rows[0]);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -608,8 +635,22 @@ router.put('/shelf-boxes/:id', requireAuth, requireAdmin, async (req, res) => {
 // DELETE /api/warehouse/shelf-boxes/:id — delete box from shelf
 router.delete('/shelf-boxes/:id', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const result = await pool.query('DELETE FROM shelf_boxes_s WHERE id = $1 RETURNING id', [req.params.id]);
-    if (!result.rows.length) return res.status(404).json({ error: 'Коробка не найдена' });
+    // Get box data before deletion for movement tracking
+    const oldBox = await pool.query('SELECT * FROM shelf_boxes_s WHERE id = $1', [req.params.id]);
+    if (!oldBox.rows.length) return res.status(404).json({ error: 'Коробка не найдена' });
+    const prev = oldBox.rows[0];
+    const prevQty = Number(prev.quantity || 0);
+
+    // Record movement before deletion if box had contents
+    if (prevQty > 0 && prev.product_id) {
+      await pool.query(
+        `INSERT INTO movements_s (movement_type, product_id, quantity, from_shelf_id, from_shelf_box_id, performed_by, source, notes, quantity_before, quantity_after)
+         VALUES ('box_delete', $1, $2, $3, $4, $5, 'manual_edit', 'Удаление коробки с полки', $2, 0)`,
+        [prev.product_id, prevQty, prev.shelf_id, parseInt(req.params.id), req.user?.id || null]
+      );
+    }
+
+    await pool.query('DELETE FROM shelf_boxes_s WHERE id = $1', [req.params.id]);
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -694,9 +735,30 @@ router.get('/stats', requireAuth, async (req, res) => {
   }
 });
 
-// GET /api/warehouse/movements?shelf_id=X&product_id=Y&limit=N
+// GET /api/warehouse/movements?shelf_id=X&product_id=Y&pallet_id=Z&limit=N
 router.get('/movements', requireAuth, async (req, res) => {
-  const { shelf_id, product_id, limit = 500 } = req.query;
+  const { shelf_id, product_id, pallet_id, limit = 500 } = req.query;
+
+  // If pallet_id is requested, query from movements_s (universal log) instead
+  if (pallet_id) {
+    try {
+      const params = [parseInt(pallet_id), parseInt(limit)];
+      const result = await pool.query(`
+        SELECT m.*,
+          p.name as product_name, p.code as product_code,
+          e.full_name as employee_name
+        FROM movements_s m
+        LEFT JOIN products_s p ON p.id = m.product_id
+        LEFT JOIN users_s u ON u.id = m.performed_by
+        LEFT JOIN employees_s e ON e.id = u.employee_id
+        WHERE m.from_pallet_id = $1 OR m.to_pallet_id = $1
+        ORDER BY m.created_at DESC
+        LIMIT $2
+      `, params);
+      return res.json(result.rows);
+    } catch (err) { return res.status(500).json({ error: err.message }); }
+  }
+
   const conditions = [];
   const params = [];
   if (shelf_id) { params.push(shelf_id); conditions.push(`sm.shelf_id = $${params.length}`); }
@@ -727,6 +789,46 @@ router.get('/movements', requireAuth, async (req, res) => {
     let result;
     try { result = await runQuery(); } catch (e) {
       if (e.message.includes('deadlock')) { result = await runQuery(); } else throw e;
+    }
+    res.json(result.rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// GET /api/warehouse/box-movements?box_id=X&box_type=shelf|pallet&limit=N
+router.get('/box-movements', requireAuth, async (req, res) => {
+  const { box_id, box_type = 'pallet', limit = 200 } = req.query;
+  if (!box_id) return res.status(400).json({ error: 'box_id обязателен' });
+
+  try {
+    const boxIdInt = parseInt(box_id);
+    const lim = parseInt(limit);
+    let result;
+    if (box_type === 'shelf') {
+      result = await pool.query(`
+        SELECT m.*,
+          p.name as product_name, p.code as product_code,
+          e.full_name as employee_name
+        FROM movements_s m
+        LEFT JOIN products_s p ON p.id = m.product_id
+        LEFT JOIN users_s u ON u.id = m.performed_by
+        LEFT JOIN employees_s e ON e.id = u.employee_id
+        WHERE m.from_shelf_box_id = $1 OR m.to_shelf_box_id = $1
+        ORDER BY m.created_at DESC
+        LIMIT $2
+      `, [boxIdInt, lim]);
+    } else {
+      result = await pool.query(`
+        SELECT m.*,
+          p.name as product_name, p.code as product_code,
+          e.full_name as employee_name
+        FROM movements_s m
+        LEFT JOIN products_s p ON p.id = m.product_id
+        LEFT JOIN users_s u ON u.id = m.performed_by
+        LEFT JOIN employees_s e ON e.id = u.employee_id
+        WHERE m.from_box_id = $1 OR m.to_box_id = $1
+        ORDER BY m.created_at DESC
+        LIMIT $2
+      `, [boxIdInt, lim]);
     }
     res.json(result.rows);
   } catch (err) { res.status(500).json({ error: err.message }); }

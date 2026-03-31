@@ -185,6 +185,12 @@ router.post('/pallets/:id/box', requireAuth, requireAdminOrManager, async (req, 
          VALUES ($1, $2, $3, NOW())`,
         [result.rows[0].id, product_id, parsedQty]
       );
+      // Record movement for box creation with product
+      await pool.query(
+        `INSERT INTO movements_s (movement_type, product_id, quantity, to_pallet_id, to_box_id, performed_by, source, notes, quantity_before, quantity_after)
+         VALUES ('box_create', $1, $2, $3, $4, $5, 'manual_edit', 'Создание коробки на паллете', 0, $2)`,
+        [product_id, parsedQty, parseInt(req.params.id), result.rows[0].id, req.user?.id || null]
+      );
     }
     res.status(201).json(result.rows[0]);
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -371,6 +377,13 @@ router.get('/boxes/:id', requireAuth, async (req, res) => {
 router.put('/boxes/:id', requireAuth, requireAdminOrManager, async (req, res) => {
   const { quantity, product_id } = req.body;
   try {
+    // Get old state before update for movement tracking
+    const oldBox = await pool.query('SELECT * FROM boxes_s WHERE id = $1', [req.params.id]);
+    if (!oldBox.rows.length) return res.status(404).json({ error: 'Коробка не найдена' });
+    const prev = oldBox.rows[0];
+    const prevQty = Number(prev.quantity || 0);
+    const prevProductId = prev.product_id;
+
     const sets = [];
     const params = [];
     let idx = 1;
@@ -389,7 +402,6 @@ router.put('/boxes/:id', requireAuth, requireAdminOrManager, async (req, res) =>
       `UPDATE boxes_s SET ${sets.join(', ')} WHERE id = $${idx} RETURNING *`,
       params
     );
-    if (!result.rows.length) return res.status(404).json({ error: 'Коробка не найдена' });
     await pool.query('DELETE FROM box_items_s WHERE box_id = $1', [req.params.id]);
     if (result.rows[0].product_id && Number(result.rows[0].quantity || 0) > 0) {
       await pool.query(
@@ -398,6 +410,21 @@ router.put('/boxes/:id', requireAuth, requireAdminOrManager, async (req, res) =>
         [req.params.id, result.rows[0].product_id, result.rows[0].quantity]
       );
     }
+
+    // Record movement if quantity or product changed
+    const newQty = Number(result.rows[0].quantity || 0);
+    const newProductId = result.rows[0].product_id;
+    const delta = newQty - prevQty;
+    if (delta !== 0 || (newProductId !== prevProductId && (newQty > 0 || prevQty > 0))) {
+      const movType = delta > 0 ? 'edit_add_to_box' : delta < 0 ? 'edit_remove_from_box' : 'box_product_change';
+      const trackProductId = newProductId || prevProductId;
+      await pool.query(
+        `INSERT INTO movements_s (movement_type, product_id, quantity, to_pallet_id, to_box_id, performed_by, source, notes, quantity_before, quantity_after)
+         VALUES ($1, $2, $3, $4, $5, $6, 'manual_edit', 'Редактирование коробки', $7, $8)`,
+        [movType, trackProductId, Math.abs(delta), prev.pallet_id, parseInt(req.params.id), req.user?.id || null, prevQty, newQty]
+      );
+    }
+
     res.json(result.rows[0]);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -405,8 +432,22 @@ router.put('/boxes/:id', requireAuth, requireAdminOrManager, async (req, res) =>
 // DELETE /api/fbo/boxes/:id — delete box
 router.delete('/boxes/:id', requireAuth, requireAdminOrManager, async (req, res) => {
   try {
+    // Get box data before deletion for movement tracking
+    const oldBox = await pool.query('SELECT * FROM boxes_s WHERE id = $1', [req.params.id]);
+    if (!oldBox.rows.length) return res.status(404).json({ error: 'Коробка не найдена' });
+    const prev = oldBox.rows[0];
+    const prevQty = Number(prev.quantity || 0);
+
+    // Record movement before deletion if box had contents
+    if (prevQty > 0 && prev.product_id) {
+      await pool.query(
+        `INSERT INTO movements_s (movement_type, product_id, quantity, from_pallet_id, from_box_id, performed_by, source, notes, quantity_before, quantity_after)
+         VALUES ('box_delete', $1, $2, $3, $4, $5, 'manual_edit', 'Удаление коробки', $2, 0)`,
+        [prev.product_id, prevQty, prev.pallet_id, parseInt(req.params.id), req.user?.id || null]
+      );
+    }
+
     const result = await pool.query('DELETE FROM boxes_s WHERE id=$1 RETURNING id', [req.params.id]);
-    if (!result.rows.length) return res.status(404).json({ error: 'Коробка не найдена' });
     res.json({ success: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -536,6 +577,12 @@ router.post('/box-warehouse/:warehouseId/boxes', requireAuth, requireAdminOrMana
         `INSERT INTO box_items_s (box_id, product_id, quantity) VALUES ($1, $2, $3)`,
         [result.rows[0].id, product_id, quantity]
       );
+      // Record movement for standalone box creation with product
+      await pool.query(
+        `INSERT INTO movements_s (movement_type, product_id, quantity, to_box_id, performed_by, source, notes, quantity_before, quantity_after)
+         VALUES ('box_create', $1, $2, $3, $4, 'manual_edit', 'Создание коробки на складе', 0, $2)`,
+        [product_id, quantity, result.rows[0].id, req.user?.id || null]
+      );
     }
     res.json(result.rows[0]);
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -544,6 +591,12 @@ router.post('/box-warehouse/:warehouseId/boxes', requireAuth, requireAdminOrMana
 // PUT /api/fbo/box-warehouse/boxes/:id — edit standalone box
 router.put('/box-warehouse/boxes/:id', requireAuth, requireAdminOrManager, async (req, res) => {
   try {
+    // Get old state before update for movement tracking
+    const oldBox = await pool.query('SELECT * FROM boxes_s WHERE id = $1', [req.params.id]);
+    const prev = oldBox.rows.length ? oldBox.rows[0] : null;
+    const prevQty = prev ? Number(prev.quantity || 0) : 0;
+    const prevProductId = prev ? prev.product_id : null;
+
     const { name, product_id, quantity, box_size } = req.body;
     const fields = [];
     const vals = [];
@@ -562,6 +615,21 @@ router.put('/box-warehouse/boxes/:id', requireAuth, requireAdminOrManager, async
         await pool.query(`INSERT INTO box_items_s (box_id, product_id, quantity) VALUES ($1, $2, $3)`, [req.params.id, product_id, quantity]);
       }
     }
+
+    // Record movement if quantity or product changed
+    const newQty = quantity !== undefined ? Number(quantity) : prevQty;
+    const newProductId = product_id !== undefined ? (product_id || null) : prevProductId;
+    const delta = newQty - prevQty;
+    if (prev && (delta !== 0 || (newProductId !== prevProductId && (newQty > 0 || prevQty > 0)))) {
+      const movType = delta > 0 ? 'edit_add_to_box' : delta < 0 ? 'edit_remove_from_box' : 'box_product_change';
+      const trackProductId = newProductId || prevProductId;
+      await pool.query(
+        `INSERT INTO movements_s (movement_type, product_id, quantity, to_box_id, performed_by, source, notes, quantity_before, quantity_after)
+         VALUES ($1, $2, $3, $4, $5, 'manual_edit', 'Редактирование коробки на складе', $6, $7)`,
+        [movType, trackProductId, Math.abs(delta), parseInt(req.params.id), req.user?.id || null, prevQty, newQty]
+      );
+    }
+
     res.json({ success: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -569,6 +637,20 @@ router.put('/box-warehouse/boxes/:id', requireAuth, requireAdminOrManager, async
 // DELETE /api/fbo/box-warehouse/boxes/:id — delete standalone box
 router.delete('/box-warehouse/boxes/:id', requireAuth, requireAdminOrManager, async (req, res) => {
   try {
+    // Get box data before deletion for movement tracking
+    const oldBox = await pool.query('SELECT * FROM boxes_s WHERE id = $1', [req.params.id]);
+    const prev = oldBox.rows.length ? oldBox.rows[0] : null;
+    const prevQty = prev ? Number(prev.quantity || 0) : 0;
+
+    // Record movement before deletion if box had contents
+    if (prev && prevQty > 0 && prev.product_id) {
+      await pool.query(
+        `INSERT INTO movements_s (movement_type, product_id, quantity, from_box_id, performed_by, source, notes, quantity_before, quantity_after)
+         VALUES ('box_delete', $1, $2, $3, $4, 'manual_edit', 'Удаление коробки со склада', $2, 0)`,
+        [prev.product_id, prevQty, parseInt(req.params.id), req.user?.id || null]
+      );
+    }
+
     await pool.query(`DELETE FROM box_items_s WHERE box_id = $1`, [req.params.id]);
     await pool.query(`DELETE FROM boxes_s WHERE id = $1`, [req.params.id]);
     res.json({ success: true });
