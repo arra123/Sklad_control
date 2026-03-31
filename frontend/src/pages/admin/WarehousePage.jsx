@@ -558,22 +558,26 @@ function LocationHistory({ movements, mode, onModeChange, title }) {
       {movements.length === 0 ? (
         <p className="text-center text-sm text-gray-300 py-4">Нет записей</p>
       ) : (
-        <div className="space-y-1.5 max-h-72 overflow-y-auto">
+        <div className="space-y-1.5 max-h-96 overflow-y-auto">
           {(mode === 'grouped' ? grouped : normalized).map((r, i) => {
             const meta = opMeta(r.operation_type);
             const delta = Number(r.quantity_delta);
             const sign = delta >= 0 ? '+' : '';
+            const boxInfo = r.box_name || r.box_barcode || '';
             return (
-              <div key={r.id ?? i} className="flex items-center gap-2.5 py-1.5 px-2 rounded-lg hover:bg-gray-50">
+              <div key={r.id ?? i} className="flex items-center gap-2.5 py-1.5 px-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
                 <span className={`text-xs px-1.5 py-0.5 rounded font-medium flex-shrink-0 ${meta.bg} ${meta.color}`}>
                   {meta.label}
                 </span>
-                <span className="flex-1 text-sm text-gray-700 truncate">{r.product_name || '—'}</span>
+                <div className="flex-1 min-w-0">
+                  <span className="text-sm text-gray-700 dark:text-gray-300 truncate block">{r.product_name || '—'}</span>
+                  {boxInfo && <span className="text-[10px] text-gray-400 truncate block">коробка {boxInfo}</span>}
+                </div>
                 {mode === 'detailed' && (
                   <span className="text-xs font-mono text-gray-400 flex-shrink-0">{qty(r.quantity_before)}→{qty(r.quantity_after)}</span>
                 )}
                 <span className={`text-sm font-bold flex-shrink-0 ${delta >= 0 ? 'text-green-600' : 'text-red-500'}`}>
-                  {sign}{delta} шт.
+                  {sign}{qty(delta)} шт.
                 </span>
                 {r.employee_name && (
                   <span className="text-xs text-gray-400 flex-shrink-0 max-w-[80px] truncate" title={r.employee_name}>{r.employee_name.split(' ')[0]}</span>
@@ -1029,7 +1033,7 @@ function BoxDetailView({ boxId, boxType, onClose, onChanged }) {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [movements, setMovements] = useState([]);
-  const [movMode, setMovMode] = useState('grouped');
+  const [movMode, setMovMode] = useState('detailed');
 
   const isShelfBox = boxType === 'shelf';
   const isStandalone = boxType === 'standalone';
@@ -1057,14 +1061,14 @@ function BoxDetailView({ boxId, boxType, onClose, onChanged }) {
     setSearchParams(prev => {
       const p = new URLSearchParams(prev);
       p.set('box', boxId);
-      p.set('boxType', boxType);
+      p.set('boxtype', boxType);
       return p;
     });
     return () => {
       setSearchParams(prev => {
         const p = new URLSearchParams(prev);
         p.delete('box');
-        p.delete('boxType');
+        p.delete('boxtype');
         return p;
       });
     };
@@ -1295,7 +1299,7 @@ function ShelfDetailView({ shelfId, rackId, onClose, initialBoxId }) {
   const [editOpen, setEditOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [movements, setMovements] = useState([]);
-  const [movMode, setMovMode] = useState('grouped');
+  const [movMode, setMovMode] = useState('detailed');
   const [creatingBox, setCreatingBox] = useState(false);
   const [editingBox, setEditingBox] = useState(null);
   const [boxSaving, setBoxSaving] = useState(false);
@@ -1594,7 +1598,7 @@ function ShelfDetailView({ shelfId, rackId, onClose, initialBoxId }) {
 }
 
 // ─── Rack Detail View ─────────────────────────────────────────────────────────
-function RackDetailView({ rack, onBack, onReload, initialShelfId, initialBoxId, initialBoxType }) {
+function RackDetailView({ rack, onBack, onReload, initialShelfId, initialBoxId, initialBoxType, directShelf }) {
   const [, setSearchParams] = useSearchParams();
   const toast = useToast();
   const [shelves, setShelves] = useState([]);
@@ -1603,6 +1607,7 @@ function RackDetailView({ rack, onBack, onReload, initialShelfId, initialBoxId, 
   const [editShelf, setEditShelf] = useState(null);
   const [drillShelfId, setDrillShelfId] = useState(initialShelfId || null);
   const [copied, setCopied] = useState(false);
+  const [cameDirectly] = useState(!!directShelf);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -1623,7 +1628,7 @@ function RackDetailView({ rack, onBack, onReload, initialShelfId, initialBoxId, 
         const p = new URLSearchParams(prev);
         p.set('shelf', id);
         p.delete('box');
-        p.delete('boxType');
+        p.delete('boxtype');
         return p;
       });
     } else {
@@ -1631,7 +1636,7 @@ function RackDetailView({ rack, onBack, onReload, initialShelfId, initialBoxId, 
         const p = new URLSearchParams(prev);
         p.delete('shelf');
         p.delete('box');
-        p.delete('boxType');
+        p.delete('boxtype');
         return p;
       });
     }
@@ -1659,7 +1664,14 @@ function RackDetailView({ rack, onBack, onReload, initialShelfId, initialBoxId, 
       <ShelfDetailView
         shelfId={drillShelfId}
         rackId={rack.id}
-        onClose={() => handleDrillShelf(null)}
+        onClose={() => {
+          if (cameDirectly) {
+            // Came directly from warehouse → go back to warehouse, skip rack view
+            onBack();
+          } else {
+            handleDrillShelf(null);
+          }
+        }}
         initialBoxId={initialBoxType === 'shelf' ? initialBoxId : null}
       />
     );
@@ -1791,7 +1803,7 @@ function PalletDetailView({ pallet, onClose, initialBoxId }) {
   const [boxSaving, setBoxSaving] = useState(false);
   const [drillBoxId, setDrillBoxId] = useState(initialBoxId || null);
   const [movements, setMovements] = useState([]);
-  const [movMode, setMovMode] = useState('grouped');
+  const [movMode, setMovMode] = useState('detailed');
   const addDebRef = useRef(null);
 
   useEffect(() => {
@@ -3694,9 +3706,24 @@ function WarehouseContent({ warehouse, initialRackId, initialShelfId, initialRow
       const res = await api.get('/warehouse/racks', { params: { warehouse_id: warehouse.id } });
       const rs = res.data;
       setRacks(rs);
-      if (initialRackId && !drillRack) {
-        const found = rs.find(r => String(r.id) === String(initialRackId));
-        if (found) setDrillRack(found);
+      if (!drillRack) {
+        if (initialRackId) {
+          const found = rs.find(r => String(r.id) === String(initialRackId));
+          if (found) setDrillRack(found);
+        } else if (initialShelfId) {
+          // URL has shelf but no rack — find rack containing this shelf
+          try {
+            const shelfRes = await api.get(`/warehouse/shelves/${initialShelfId}`);
+            const rackId = shelfRes.data?.rack_id;
+            if (rackId) {
+              const found = rs.find(r => String(r.id) === String(rackId));
+              if (found) {
+                setDrillRack(found);
+                setQuickShelfId(String(initialShelfId));
+              }
+            }
+          } catch { /* shelf not found, just show warehouse */ }
+        }
       }
     } catch (err) {
       console.error('[Warehouse] loadRacks error:', err.message);
@@ -3739,6 +3766,9 @@ function WarehouseContent({ warehouse, initialRackId, initialShelfId, initialRow
         onBack={() => handleDrillRack(null)}
         onReload={loadRacks}
         initialShelfId={quickShelfId || initialShelfId}
+        initialBoxId={initialBoxId}
+        initialBoxType={initialBoxType}
+        directShelf={!!quickShelfId}
       />
     );
   }

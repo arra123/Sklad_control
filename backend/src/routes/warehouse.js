@@ -746,11 +746,13 @@ router.get('/movements', requireAuth, async (req, res) => {
       const result = await pool.query(`
         SELECT m.*,
           p.name as product_name, p.code as product_code,
-          e.full_name as employee_name
+          e.full_name as employee_name,
+          b.barcode_value as box_barcode
         FROM movements_s m
         LEFT JOIN products_s p ON p.id = m.product_id
         LEFT JOIN users_s u ON u.id = m.performed_by
         LEFT JOIN employees_s e ON e.id = u.employee_id
+        LEFT JOIN boxes_s b ON b.id = COALESCE(m.to_box_id, m.from_box_id)
         WHERE m.from_pallet_id = $1 OR m.to_pallet_id = $1
         ORDER BY m.created_at DESC
         LIMIT $2
@@ -759,13 +761,90 @@ router.get('/movements', requireAuth, async (req, res) => {
     } catch (err) { return res.status(500).json({ error: err.message }); }
   }
 
+  const lim = parseInt(limit);
+
+  // For shelf queries: merge shelf_movements_s + movements_s (box operations)
+  if (shelf_id) {
+    try {
+      const shelfIdInt = parseInt(shelf_id);
+      const conditions1 = ['sm.shelf_id = $1'];
+      const params1 = [shelfIdInt];
+      if (product_id) { params1.push(parseInt(product_id)); conditions1.push(`sm.product_id = $${params1.length}`); }
+      params1.push(lim);
+      const where1 = 'WHERE ' + conditions1.join(' AND ');
+
+      const runQuery = () => pool.query(`
+        SELECT sm.id, sm.shelf_id, sm.product_id, sm.operation_type, sm.quantity_before, sm.quantity_after,
+          sm.quantity_delta, sm.user_id, sm.task_id, sm.notes, sm.created_at, sm.source,
+          p.name as product_name, p.code as product_code,
+          s.code as shelf_code, s.name as shelf_name,
+          r.name as rack_name, r.code as rack_code,
+          w.name as warehouse_name,
+          e.full_name as employee_name,
+          t.title as task_title, t.task_type
+        FROM shelf_movements_s sm
+        LEFT JOIN products_s p ON p.id = sm.product_id
+        LEFT JOIN shelves_s s ON s.id = sm.shelf_id
+        LEFT JOIN racks_s r ON r.id = s.rack_id
+        LEFT JOIN warehouses_s w ON w.id = r.warehouse_id
+        LEFT JOIN users_s u ON u.id = sm.user_id
+        LEFT JOIN employees_s e ON e.id = u.employee_id
+        LEFT JOIN inventory_tasks_s t ON t.id = sm.task_id
+        ${where1}
+        ORDER BY sm.created_at DESC
+        LIMIT $${params1.length}
+      `, params1);
+
+      let shelfResult;
+      try { shelfResult = await runQuery(); } catch (e) {
+        if (e.message.includes('deadlock')) { shelfResult = await runQuery(); } else throw e;
+      }
+
+      // Also get movements_s records for this shelf (box create/edit/delete)
+      let boxRows = [];
+      try {
+        const params2 = [shelfIdInt];
+        const conditions2 = ['(m.to_shelf_id = $1 OR m.from_shelf_id = $1)'];
+        if (product_id) { params2.push(parseInt(product_id)); conditions2.push(`m.product_id = $${params2.length}`); }
+        params2.push(lim);
+
+        const boxResult = await pool.query(`
+          SELECT m.id, m.movement_type, m.product_id, m.quantity,
+            m.from_shelf_id, m.to_shelf_id, m.from_shelf_box_id, m.to_shelf_box_id,
+            m.performed_by, m.source, m.notes, m.created_at,
+            m.quantity_before, m.quantity_after,
+            p.name as product_name, p.code as product_code,
+            e.full_name as employee_name,
+            sb.name as box_name
+          FROM movements_s m
+          LEFT JOIN products_s p ON p.id = m.product_id
+          LEFT JOIN users_s u ON u.id = m.performed_by
+          LEFT JOIN employees_s e ON e.id = u.employee_id
+          LEFT JOIN shelf_boxes_s sb ON sb.id = COALESCE(m.to_shelf_box_id, m.from_shelf_box_id)
+          WHERE ${conditions2.join(' AND ')}
+          ORDER BY m.created_at DESC
+          LIMIT $${params2.length}
+        `, params2);
+        boxRows = boxResult.rows;
+      } catch { /* shelf_box columns may not exist yet — skip box movements */ }
+
+      // Merge both result sets, sort by created_at DESC, limit
+      const merged = [...shelfResult.rows, ...boxRows]
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+        .slice(0, lim);
+
+      return res.json(merged);
+    } catch (err) { return res.status(500).json({ error: err.message }); }
+  }
+
+  // Generic query (no filters or just product_id)
   const conditions = [];
   const params = [];
-  if (shelf_id) { params.push(shelf_id); conditions.push(`sm.shelf_id = $${params.length}`); }
   if (product_id) { params.push(product_id); conditions.push(`sm.product_id = $${params.length}`); }
   const where = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
-  params.push(parseInt(limit));
-  const runQuery = () => pool.query(`
+  params.push(lim);
+  try {
+    const result = await pool.query(`
       SELECT sm.*,
         p.name as product_name, p.code as product_code,
         s.code as shelf_code, s.name as shelf_name,
@@ -785,11 +864,6 @@ router.get('/movements', requireAuth, async (req, res) => {
       ORDER BY sm.created_at DESC
       LIMIT $${params.length}
     `, params);
-  try {
-    let result;
-    try { result = await runQuery(); } catch (e) {
-      if (e.message.includes('deadlock')) { result = await runQuery(); } else throw e;
-    }
     res.json(result.rows);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
