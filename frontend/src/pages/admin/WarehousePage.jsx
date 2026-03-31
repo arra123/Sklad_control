@@ -1423,12 +1423,6 @@ function ShelfDetailView({ shelfId, rackId, onClose, initialBoxId }) {
         <BarcodeDisplay value={shelf.barcode_value} />
       </div>
 
-      {isBoxMode && (
-        <div className="rounded-2xl border border-amber-200 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 px-4 py-3 mb-5">
-          <p className="text-sm font-medium text-amber-900 dark:text-amber-200">Коробочный режим полки</p>
-          <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">Сначала создаётся коробка, затем в неё назначается товар и количество. Коробка становится дочерней ячейкой этой полки.</p>
-        </div>
-      )}
 
       {/* Shelf contents */}
       <div className="card p-4">
