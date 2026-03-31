@@ -479,7 +479,7 @@ export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
         setProduct(r.data);
         setEditForm({
           name: r.data.name || '', code: r.data.code || '', article: r.data.article || '',
-          entity_type: r.data.entity_type || 'product',
+          entity_type: r.data.entity_type || 'product', honest_sign: !!r.data.honest_sign,
           stock: r.data.stock !== undefined ? fmtQty(r.data.stock) : '',
           reserve: r.data.reserve !== undefined ? fmtQty(r.data.reserve) : '',
           sale_price: r.data.sale_price != null ? String(parseFloat(r.data.sale_price)) : (() => {
@@ -609,6 +609,7 @@ export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
                 {isBundle ? <Badge variant="purple">Комплект</Badge> : <Badge variant="info">Единичный</Badge>}
                 <Badge variant={physicalStock > 0 ? 'success' : 'danger'}>На складах: {fmtQty(physicalStock)}</Badge>
                 {Number(product.reserve) > 0 && <Badge variant="warning">Резерв: {fmtQty(product.reserve)}</Badge>}
+                {product.honest_sign && <Badge variant="success">Честный знак</Badge>}
               </div>
 
               <FormSection title="Основное" icon={<Package size={14} className="text-gray-400" />}>
@@ -626,6 +627,12 @@ export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
                       <option value="product">Единичный товар</option>
                       <option value="bundle">Комплект (бандл)</option>
                     </select></label>
+                  <label className="flex items-center gap-2 cursor-pointer py-1">
+                    <input type="checkbox" checked={editForm?.honest_sign || false} onChange={e => set('honest_sign', e.target.checked)}
+                      className="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
+                    <span className="text-[11px] text-gray-400 font-medium">Честный знак</span>
+                    {editForm?.honest_sign && <span className="text-[10px] text-green-600 font-semibold">Да</span>}
+                  </label>
                   {product.folder_path && (
                     <div className="px-3 py-2 bg-gray-50 dark:bg-gray-800 rounded-xl">
                       <p className="text-[10px] text-gray-400">Папка</p>

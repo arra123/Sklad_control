@@ -82,6 +82,7 @@ async function createSchema() {
 
     await client.query(`ALTER TABLE products_s ADD COLUMN IF NOT EXISTS sale_price NUMERIC(18,2)`);
     await client.query(`ALTER TABLE products_s ADD COLUMN IF NOT EXISTS cost_price NUMERIC(18,2)`);
+    await client.query(`ALTER TABLE products_s ADD COLUMN IF NOT EXISTS honest_sign BOOLEAN NOT NULL DEFAULT false`);
 
     await client.query(`
       CREATE INDEX IF NOT EXISTS idx_products_c_name ON products_s(name);
