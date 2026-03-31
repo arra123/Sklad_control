@@ -330,11 +330,11 @@ router.get('/boxes/:id', requireAuth, async (req, res) => {
       SELECT b.*, agg.products_count, p.name as product_name, p.code as product_code,
              pa.name as pallet_name, pa.number as pallet_number,
              pr.name as row_name, pr.number as row_number,
-             w.name as warehouse_name,
+             COALESCE(w.name, (SELECT name FROM warehouses_s WHERE id = b.warehouse_id)) as warehouse_name,
              (
                SELECT COUNT(*)
                FROM boxes_s b2
-               WHERE b2.pallet_id = b.pallet_id
+               WHERE b2.pallet_id = b.pallet_id AND b.pallet_id IS NOT NULL
                  AND (
                    b2.created_at < b.created_at
                    OR (b2.created_at = b.created_at AND b2.id <= b.id)

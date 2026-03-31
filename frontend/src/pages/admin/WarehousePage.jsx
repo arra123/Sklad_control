@@ -989,6 +989,7 @@ function BoxDetailView({ boxId, boxType, onClose, onChanged }) {
   const [saving, setSaving] = useState(false);
 
   const isShelfBox = boxType === 'shelf';
+  const isStandalone = boxType === 'standalone';
 
   const load = useCallback(async () => {
     if (!boxId) return;
@@ -1101,6 +1102,11 @@ function BoxDetailView({ boxId, boxType, onClose, onChanged }) {
         { label: 'Склад', value: box.warehouse_name || '—' },
         { label: 'Стеллаж', value: box.rack_code || box.rack_name || '—' },
         { label: 'Полка', value: box.shelf_code || box.shelf_name || '—' },
+        { label: 'Коробка', value: boxLabel },
+      ]
+    : isStandalone
+    ? [
+        { label: 'Склад', value: box.warehouse_name || '—' },
         { label: 'Коробка', value: boxLabel },
       ]
     : [
@@ -3350,6 +3356,7 @@ function BoxWarehouseView({ warehouse }) {
   const [showAdd, setShowAdd] = useState(false);
   const [editBox, setEditBox] = useState(null);
   const [products, setProducts] = useState([]);
+  const [drillBoxId, setDrillBoxId] = useState(null);
 
   const loadBoxes = useCallback(async () => {
     if (!warehouse) return;
@@ -3388,6 +3395,17 @@ function BoxWarehouseView({ warehouse }) {
     { bg: '#14b8a6', light: '#ccfbf1', text: '#0f766e', border: '#14b8a6' },
   ];
 
+  if (drillBoxId) {
+    return (
+      <BoxDetailView
+        boxId={drillBoxId}
+        boxType="standalone"
+        onClose={() => setDrillBoxId(null)}
+        onChanged={loadBoxes}
+      />
+    );
+  }
+
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
@@ -3415,6 +3433,7 @@ function BoxWarehouseView({ warehouse }) {
             const itemsCount = Number(box.quantity || box.total_items || 0);
             return (
               <div key={box.id}
+                onClick={() => setDrillBoxId(box.id)}
                 className="card p-0 hover:shadow-lg transition-all group cursor-pointer overflow-hidden"
                 style={{ borderLeft: `4px solid ${c.border}` }}>
                 <div className="p-4">
