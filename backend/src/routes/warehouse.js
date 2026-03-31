@@ -804,7 +804,11 @@ router.get('/movements', requireAuth, async (req, res) => {
       let boxRows = [];
       try {
         const params2 = [shelfIdInt];
-        const conditions2 = ['(m.to_shelf_id = $1 OR m.from_shelf_id = $1)'];
+        // Exclude edit_add_to_shelf/edit_remove_from_shelf — they duplicate shelf_movements_s entries
+        const conditions2 = [
+          '(m.to_shelf_id = $1 OR m.from_shelf_id = $1)',
+          "m.movement_type NOT IN ('edit_add_to_shelf', 'edit_remove_from_shelf')"
+        ];
         if (product_id) { params2.push(parseInt(product_id)); conditions2.push(`m.product_id = $${params2.length}`); }
         params2.push(lim);
 
