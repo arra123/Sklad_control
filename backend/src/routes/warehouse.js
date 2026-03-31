@@ -551,7 +551,7 @@ router.post('/shelves/:id/box', requireAuth, requireAdmin, async (req, res) => {
 
 // PUT /api/warehouse/shelf-boxes/:id — edit box on shelf
 router.put('/shelf-boxes/:id', requireAuth, requireAdmin, async (req, res) => {
-  const { quantity, product_id, name } = req.body;
+  const { quantity, product_id, name, box_size } = req.body;
   try {
     const sets = [];
     const params = [];
@@ -561,6 +561,10 @@ router.put('/shelf-boxes/:id', requireAuth, requireAdmin, async (req, res) => {
       sets.push(`name = $${idx++}`);
       params.push(name || null);
     }
+    if (box_size !== undefined) {
+      sets.push(`box_size = $${idx++}`);
+      params.push(Math.max(parseInt(box_size) || 50, 1));
+    }
     if (quantity !== undefined) {
       const parsedQty = parseInt(quantity, 10);
       if (Number.isNaN(parsedQty) || parsedQty < 0) {
@@ -568,8 +572,6 @@ router.put('/shelf-boxes/:id', requireAuth, requireAdmin, async (req, res) => {
       }
       sets.push(`quantity = $${idx++}`);
       params.push(parsedQty);
-      sets.push(`box_size = $${idx++}`);
-      params.push(Math.max(parsedQty, 1));
       sets.push(`confirmed = $${idx++}`);
       params.push(parsedQty > 0);
       sets.push(`status = $${idx++}`);

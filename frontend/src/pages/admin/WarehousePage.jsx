@@ -865,6 +865,7 @@ function BoxEditorModal({ open, onClose, box, title, onSave, loading }) {
   const [products, setProducts] = useState([]);
   const [selected, setSelected] = useState(null);
   const [qty, setQty] = useState('0');
+  const [boxSize, setBoxSize] = useState('50');
   const [loadingSearch, setLoadingSearch] = useState(false);
 
   useEffect(() => {
@@ -872,6 +873,7 @@ function BoxEditorModal({ open, onClose, box, title, onSave, loading }) {
     setSearch('');
     setProducts([]);
     setQty(String(Number(box.quantity || 0)));
+    setBoxSize(String(Number(box.box_size || 50)));
     if (box.product_id) {
       setSelected({
         id: box.product_id,
@@ -900,7 +902,7 @@ function BoxEditorModal({ open, onClose, box, title, onSave, loading }) {
   const handleSave = () => {
     const parsedQty = parseInt(qty || '0', 10);
     if (Number.isNaN(parsedQty) || parsedQty < 0) return;
-    onSave({ product_id: parsedQty > 0 ? (selected?.id || null) : null, quantity: parsedQty });
+    onSave({ product_id: parsedQty > 0 ? (selected?.id || null) : null, quantity: parsedQty, box_size: parseInt(boxSize) || 50 });
   };
 
   const boxLabel = box?.name
@@ -963,15 +965,25 @@ function BoxEditorModal({ open, onClose, box, title, onSave, loading }) {
                 <X size={14} />
               </button>
             </div>
-            <Input
-              label="Количество"
-              type="number"
-              min="0"
-              step="1"
-              value={qty}
-              onChange={e => setQty(e.target.value)}
-              autoFocus
-            />
+            <div className="grid grid-cols-2 gap-3">
+              <Input
+                label="Количество"
+                type="number"
+                min="0"
+                step="1"
+                value={qty}
+                onChange={e => setQty(e.target.value)}
+                autoFocus
+              />
+              <Input
+                label="Макс. вместимость"
+                type="number"
+                min="1"
+                step="1"
+                value={boxSize}
+                onChange={e => setBoxSize(e.target.value)}
+              />
+            </div>
           </div>
         )}
       </div>
@@ -1484,7 +1496,9 @@ function ShelfDetailView({ shelfId, rackId, onClose, initialBoxId }) {
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <div className="flex flex-col items-end gap-1">
-                      <span className="text-xs font-semibold text-gray-600 dark:text-gray-300">{qty(box.quantity)} шт.</span>
+                      <span className={`text-xs font-semibold ${Number(box.quantity) > Number(box.box_size) ? 'text-red-600' : 'text-gray-600 dark:text-gray-300'}`}>
+                        {qty(box.quantity)} из {box.box_size || 50}
+                      </span>
                       <span className="text-[11px] text-gray-400">К{box.position}</span>
                     </div>
                     <div className="flex flex-col gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
