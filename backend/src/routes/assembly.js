@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const pool = require('../db/pool');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
+const { awardScanReward } = require('./tasks');
 
 // ─── Barcode → Product resolver (reused from tasks.js pattern) ──────────────
 async function resolveProduct(client, barcode) {
@@ -362,10 +363,21 @@ router.post('/:id/scan-pick', requireAuth, async (req, res) => {
       [req.params.id, product.id, box_id || null, pallet_id || null, shelf_id || null, barcode]);
 
     // Also record in task_scans for chronology
-    await client.query(
+    const scanInsert = await client.query(
       `INSERT INTO inventory_task_scans_s (task_id, product_id, scanned_value, quantity_delta, shelf_id)
-       VALUES ($1, $2, $3, 1, $4)`,
+       VALUES ($1, $2, $3, 1, $4) RETURNING id`,
       [req.params.id, product.id, barcode, shelf_id || null]);
+
+    // Award GRACoin for scan
+    const t = task.rows[0];
+    await awardScanReward(client, {
+      task: { ...t, id: Number(req.params.id) },
+      taskScanId: scanInsert.rows[0].id,
+      activeTaskBox: null,
+      productId: product.id,
+      quantityDelta: 1,
+      user: req.user,
+    });
 
     await client.query('COMMIT');
     client.release();

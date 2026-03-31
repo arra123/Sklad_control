@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
+const { awardScanReward } = require('./tasks');
 
 // Generate unique box barcode (digits only)
 function genBoxBarcode() {
@@ -195,10 +196,20 @@ router.post('/:taskId/scan', requireAuth, async (req, res) => {
     await client.query('UPDATE boxes_s SET quantity=$1 WHERE id=$2', [newQty, box.id]);
 
     // Log scan to inventory_task_scans_s for analytics/timing
-    await client.query(
-      'INSERT INTO inventory_task_scans_s (task_id, product_id, scanned_value, quantity_delta) VALUES ($1,$2,$3,1)',
+    const scanInsert = await client.query(
+      'INSERT INTO inventory_task_scans_s (task_id, product_id, scanned_value, quantity_delta) VALUES ($1,$2,$3,1) RETURNING id',
       [t.id, prod.id, scanned_value]
     );
+
+    // Award GRACoin for scan
+    await awardScanReward(client, {
+      task: t,
+      taskScanId: scanInsert.rows[0].id,
+      activeTaskBox: { id: null, box_id: box.id, shelf_box_id: null },
+      productId: prod.id,
+      quantityDelta: 1,
+      user: req.user,
+    });
 
     await client.query('COMMIT');
     return res.json({ ok: true, event: 'scan', box_qty: newQty, box_size: box.box_size, product_name: prod.name });

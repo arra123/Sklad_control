@@ -34,7 +34,7 @@ function parseNumeric(value, fallback = 0) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
-async function getInventoryScanRewardRate(client) {
+async function getScanRewardRate(client) {
   const result = await client.query(
     `SELECT value
      FROM settings_s
@@ -44,8 +44,7 @@ async function getInventoryScanRewardRate(client) {
   return parseNumeric(result.rows[0]?.value, 10);
 }
 
-async function awardInventoryScanReward(client, { task, taskScanId, activeTaskBox, productId, quantityDelta, user }) {
-  if (task.task_type !== 'inventory') return null;
+async function awardScanReward(client, { task, taskScanId, activeTaskBox, productId, quantityDelta, user }) {
   if (!task.employee_id) return null;
   if (user.role !== 'employee') return null;
   if (Number(user.employee_id) !== Number(task.employee_id)) return null;
@@ -54,7 +53,7 @@ async function awardInventoryScanReward(client, { task, taskScanId, activeTaskBo
   if (!(rewardUnits > 0)) return null;
 
   const [rate, employeeResult] = await Promise.all([
-    getInventoryScanRewardRate(client),
+    getScanRewardRate(client),
     client.query(
       `SELECT id, COALESCE(gra_balance, 0) as gra_balance
        FROM employees_s
@@ -2708,7 +2707,7 @@ router.post('/:id/scan', requireAuth, async (req, res) => {
       [taskId, activeTaskBox?.id || null, productRow.id, productRow.external_id || null, scanned_value, parseFloat(quantity_delta), t.shelf_id || null]
     );
 
-    const reward = await awardInventoryScanReward(client, {
+    const reward = await awardScanReward(client, {
       task: { ...t, id: Number(taskId) },
       taskScanId: scanInsert.rows[0].id,
       activeTaskBox,
@@ -2902,3 +2901,4 @@ router.post('/:id/complete', requireAuth, async (req, res) => {
 });
 
 module.exports = router;
+module.exports.awardScanReward = awardScanReward;
