@@ -161,14 +161,59 @@ router.post('/:taskId/scan', requireAuth, async (req, res) => {
       [scanned_value]
     );
     if (!product.rows.length) {
-      // Логируем в scan_errors_s
-      await client.query(
-        `INSERT INTO scan_errors_s (task_id, scanned_value, user_id, employee_note)
-         VALUES ($1, $2, $3, 'Товар не найден при оприходовании')`,
-        [req.params.taskId, scanned_value, req.user.id]
-      ).catch(() => {});
-      await client.query('ROLLBACK');
-      return res.json({ ok: false, error: 'Товар не найден', event: 'not_found' });
+      // Smart scan error classification
+      const val = scanned_value;
+      const hasCyrillic = /[а-яА-ЯёЁ]/.test(val);
+      const isUrl = /^https?:\/\//i.test(val);
+      let deduped = null;
+      if (!hasCyrillic && !isUrl && val.length >= 12) {
+        for (let len = 6; len <= Math.floor(val.length / 2); len++) {
+          const chunk = val.substring(0, len);
+          if (val === chunk.repeat(Math.round(val.length / len)) || val.startsWith(chunk + chunk)) { deduped = chunk; break; }
+        }
+      }
+      const isPartial = !hasCyrillic && !isUrl && !deduped && /^\d+$/.test(val) && val.length < 6;
+
+      if (hasCyrillic) {
+        await client.query('ROLLBACK');
+        return res.json({ ok: false, event: 'hint', hint: 'keyboard_layout',
+          error: 'Переключите раскладку клавиатуры на английскую (EN) и попробуйте ещё раз' });
+      }
+      if (isUrl) {
+        await client.query('ROLLBACK');
+        return res.json({ ok: false, event: 'hint', hint: 'url_scanned',
+          error: 'Вы отсканировали QR-код с ссылкой на сайт. Сканируйте штрих-код на упаковке товара — он с цифрами' });
+      }
+      if (deduped) {
+        // Try to find by single copy
+        const retry = await client.query(
+          `SELECT id, name, code, production_barcode, barcode_list FROM products_s
+           WHERE $1 = ANY(string_to_array(barcode_list, ';')) OR production_barcode = $1
+              OR marketplace_barcodes_json @> jsonb_build_array(jsonb_build_object('value', $1)) LIMIT 1`,
+          [deduped]
+        );
+        if (retry.rows.length) {
+          // Found by deduped barcode — continue with corrected product
+          product.rows[0] = retry.rows[0];
+        } else {
+          await client.query('ROLLBACK');
+          return res.json({ ok: false, event: 'hint', hint: 'duplicate_scan',
+            error: 'Штрих-код считался несколько раз. Товар не найден по коду ' + deduped });
+        }
+      } else if (isPartial) {
+        await client.query('ROLLBACK');
+        return res.json({ ok: false, event: 'hint', hint: 'partial_scan',
+          error: 'Штрих-код считался не полностью. Поднесите сканер ровнее и попробуйте ещё раз' });
+      } else {
+        // Regular unknown barcode
+        await client.query(
+          `INSERT INTO scan_errors_s (task_id, scanned_value, user_id, employee_note)
+           VALUES ($1, $2, $3, 'Товар не найден при оприходовании')`,
+          [req.params.taskId, scanned_value, req.user.id]
+        ).catch(() => {});
+        await client.query('ROLLBACK');
+        return res.json({ ok: false, error: 'Товар не найден', event: 'not_found' });
+      }
     }
     const prod = product.rows[0];
     if (t.product_id && prod.id !== t.product_id) {

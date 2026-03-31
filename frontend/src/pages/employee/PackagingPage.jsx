@@ -31,6 +31,19 @@ function makePlayBeep(s) {
       gain.gain.setValueAtTime(0.3, ctx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
       osc.start(ctx.currentTime); osc.stop(ctx.currentTime + dur);
+      // Double beep for errors
+      if (!ok) {
+        const osc2 = ctx.createOscillator();
+        const gain2 = ctx.createGain();
+        osc2.connect(gain2); gain2.connect(ctx.destination);
+        osc2.frequency.value = Math.max(200, s.scan_sound_freq_err - 110);
+        osc2.type = 'sine';
+        gain2.gain.setValueAtTime(0, ctx.currentTime + dur + 0.05);
+        gain2.gain.linearRampToValueAtTime(0.3, ctx.currentTime + dur + 0.07);
+        gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur + 0.05 + dur);
+        osc2.start(ctx.currentTime + dur + 0.05);
+        osc2.stop(ctx.currentTime + dur + 0.05 + dur);
+      }
     } catch (e) {}
   };
 }
@@ -324,7 +337,7 @@ function StepFillBox({ task, box, onRefresh, onDone, onRemainder }) {
         onRefresh();
       } else {
         playBeep(false);
-        setLastScan({ ok: false, message: res.data.error, delta: null });
+        setLastScan({ ok: false, message: res.data.error, delta: null, hint: res.data.hint || null });
       }
     } catch (err) {
       playBeep(false);
@@ -416,22 +429,38 @@ function StepFillBox({ task, box, onRefresh, onDone, onRemainder }) {
           disabled={scanning} autoComplete="off" autoFocus
         />
         {lastScan && (
-          <div className={`flex items-start justify-between gap-2 p-3 rounded-xl text-sm font-medium
-            ${lastScan.ok ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
-            <div className="flex items-start gap-2">
-              {lastScan.ok ? <CheckCircle2 size={16} className="flex-shrink-0 mt-0.5" /> : <AlertCircle size={16} className="flex-shrink-0 mt-0.5" />}
-              <div>
-                <p>{lastScan.message}</p>
-                {lastScan.ok && <p className="text-xs mt-0.5 opacity-75">В коробке: {lastScan.box_qty} / {lastScan.box_size} шт.</p>}
+          lastScan.hint ? (
+            <div className="p-4 rounded-xl bg-amber-50 border-2 border-amber-400 text-sm animate-pulse">
+              <div className="flex items-start gap-2">
+                <AlertCircle size={20} className="text-amber-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-bold text-amber-900">
+                    {lastScan.hint === 'keyboard_layout' && 'Неправильная раскладка!'}
+                    {lastScan.hint === 'url_scanned' && 'Это ссылка, а не штрих-код!'}
+                    {lastScan.hint === 'partial_scan' && 'Штрих-код не полностью!'}
+                    {lastScan.hint === 'duplicate_scan' && 'Штрих-код считался дважды!'}
+                  </p>
+                  <p className="text-amber-800 mt-1">{lastScan.message}</p>
+                </div>
               </div>
             </div>
-            {/* Время скана */}
-            {lastScan.ok && lastScan.delta != null && (
-              <span className={`text-xs font-mono font-semibold flex-shrink-0 ${speedColor(lastScan.delta)}`}>
-                {lastScan.delta.toFixed(1)}с
-              </span>
-            )}
-          </div>
+          ) : (
+            <div className={`flex items-start justify-between gap-2 p-3 rounded-xl text-sm font-medium
+              ${lastScan.ok ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+              <div className="flex items-start gap-2">
+                {lastScan.ok ? <CheckCircle2 size={16} className="flex-shrink-0 mt-0.5" /> : <AlertCircle size={16} className="flex-shrink-0 mt-0.5" />}
+                <div>
+                  <p>{lastScan.message}</p>
+                  {lastScan.ok && <p className="text-xs mt-0.5 opacity-75">В коробке: {lastScan.box_qty} / {lastScan.box_size} шт.</p>}
+                </div>
+              </div>
+              {lastScan.ok && lastScan.delta != null && (
+                <span className={`text-xs font-mono font-semibold flex-shrink-0 ${speedColor(lastScan.delta)}`}>
+                  {lastScan.delta.toFixed(1)}с
+                </span>
+              )}
+            </div>
+          )
         )}
       </div>
 

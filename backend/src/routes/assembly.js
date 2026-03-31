@@ -307,8 +307,29 @@ router.post('/:id/scan-pick', requireAuth, async (req, res) => {
     if (task.rows[0].assembly_phase !== 'picking') { await client.query('ROLLBACK'); client.release(); return res.status(400).json({ error: 'Задача не в фазе забора' }); }
     if (!box_id && !shelf_id && !pallet_id) { await client.query('ROLLBACK'); client.release(); return res.status(400).json({ error: 'Укажите источник (box_id / shelf_id / pallet_id)' }); }
 
-    const product = await resolveProduct(client, barcode);
-    if (!product) { await client.query('ROLLBACK'); client.release(); return res.status(400).json({ error: 'Товар не найден по ШК' }); }
+    let product = await resolveProduct(client, barcode);
+    if (!product) {
+      // Smart scan classification
+      const hasCyrillic = /[а-яА-ЯёЁ]/.test(barcode);
+      const isUrl = /^https?:\/\//i.test(barcode);
+      let deduped = null;
+      if (!hasCyrillic && !isUrl && barcode.length >= 12) {
+        for (let len = 6; len <= Math.floor(barcode.length / 2); len++) {
+          const chunk = barcode.substring(0, len);
+          if (barcode === chunk.repeat(Math.round(barcode.length / len)) || barcode.startsWith(chunk + chunk)) { deduped = chunk; break; }
+        }
+      }
+      if (hasCyrillic) { await client.query('ROLLBACK'); client.release(); return res.status(400).json({ error: 'Переключите раскладку клавиатуры на английскую (EN)', hint: 'keyboard_layout' }); }
+      if (isUrl) { await client.query('ROLLBACK'); client.release(); return res.status(400).json({ error: 'Вы отсканировали ссылку на сайт. Сканируйте штрих-код товара', hint: 'url_scanned' }); }
+      if (deduped) {
+        product = await resolveProduct(client, deduped);
+        if (!product) { await client.query('ROLLBACK'); client.release(); return res.status(400).json({ error: 'Штрих-код считался несколько раз. Товар не найден по коду ' + deduped, hint: 'duplicate_scan' }); }
+      } else if (/^\d+$/.test(barcode) && barcode.length < 6) {
+        await client.query('ROLLBACK'); client.release(); return res.status(400).json({ error: 'Штрих-код считался не полностью. Попробуйте ещё раз', hint: 'partial_scan' });
+      } else {
+        await client.query('ROLLBACK'); client.release(); return res.status(400).json({ error: 'Товар не найден по ШК' });
+      }
+    }
 
     // Check product is a component of this bundle
     const comp = await client.query(

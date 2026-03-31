@@ -2688,16 +2688,80 @@ router.post('/:id/scan', requireAuth, async (req, res) => {
       [scanned_value]
     );
 
-    const productRow = product.rows[0] || null;
+    let productRow = product.rows[0] || null;
     if (!productRow) {
-      const errorResult = await client.query(
-        `INSERT INTO scan_errors_s (task_id, task_box_id, scanned_value, employee_note, user_id)
-         VALUES ($1, $2, $3, $4, $5)
-         RETURNING id`,
-        [taskId, activeTaskBox?.id || null, scanned_value, null, req.user.id]
-      );
-      await client.query('COMMIT');
-      return res.json({ found: false, scanned_value, error_id: errorResult.rows[0].id });
+      // Smart scan error classification
+      const val = scanned_value;
+      const hasCyrillic = /[а-яА-ЯёЁ]/.test(val);
+      const isUrl = /^https?:\/\//i.test(val);
+      // Detect repeated barcode: "400000000183400000000183" → "400000000183"
+      let deduped = null;
+      if (!hasCyrillic && !isUrl && val.length >= 12) {
+        for (let len = 6; len <= Math.floor(val.length / 2); len++) {
+          const chunk = val.substring(0, len);
+          if (val === chunk.repeat(Math.round(val.length / len)) || val.startsWith(chunk + chunk)) {
+            deduped = chunk;
+            break;
+          }
+        }
+      }
+      const isPartial = !hasCyrillic && !isUrl && !deduped && /^\d+$/.test(val) && val.length < 6;
+
+      // If repeated barcode detected — try to find product by single copy
+      if (deduped) {
+        const retry = await client.query(
+          `SELECT id, external_id, name, code, production_barcode
+           FROM products_s
+           WHERE $1 = ANY(string_to_array(barcode_list, ';'))
+              OR production_barcode = $1
+              OR marketplace_barcodes_json @> jsonb_build_array(jsonb_build_object('value', $1))
+           LIMIT 1`,
+          [deduped]
+        );
+        if (retry.rows[0]) {
+          productRow = retry.rows[0];
+          // Fall through to normal scan processing with corrected barcode
+        }
+      }
+
+      if (!productRow) {
+        if (hasCyrillic) {
+          await client.query('COMMIT');
+          return res.json({ found: false, scanned_value, hint: 'keyboard_layout',
+            message: 'Переключите раскладку клавиатуры на английскую (EN) и попробуйте ещё раз' });
+        }
+        if (isUrl) {
+          await client.query('COMMIT');
+          return res.json({ found: false, scanned_value, hint: 'url_scanned',
+            message: 'Вы отсканировали QR-код с ссылкой на сайт. Сканируйте штрих-код на упаковке товара — он с цифрами' });
+        }
+        if (deduped) {
+          // Deduped but still not found — record error with single copy
+          const errorResult = await client.query(
+            `INSERT INTO scan_errors_s (task_id, task_box_id, scanned_value, employee_note, user_id)
+             VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+            [taskId, activeTaskBox?.id || null, deduped, 'Дублированный скан: ' + val, req.user.id]
+          );
+          await client.query('COMMIT');
+          return res.json({ found: false, scanned_value: deduped, hint: 'duplicate_scan',
+            message: 'Штрих-код считался несколько раз. Товар не найден по коду ' + deduped,
+            error_id: errorResult.rows[0].id });
+        }
+        if (isPartial) {
+          await client.query('COMMIT');
+          return res.json({ found: false, scanned_value, hint: 'partial_scan',
+            message: 'Штрих-код считался не полностью (' + val.length + ' цифр). Поднесите сканер ровнее и попробуйте ещё раз' });
+        }
+
+        // Regular unknown barcode — save to errors
+        const errorResult = await client.query(
+          `INSERT INTO scan_errors_s (task_id, task_box_id, scanned_value, employee_note, user_id)
+           VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+          [taskId, activeTaskBox?.id || null, scanned_value, null, req.user.id]
+        );
+        await client.query('COMMIT');
+        return res.json({ found: false, scanned_value, error_id: errorResult.rows[0].id });
+      }
     }
 
     const scanInsert = await client.query(

@@ -25,6 +25,20 @@ function playBeep(success = true) {
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + (success ? 0.15 : 0.4));
     osc.start(ctx.currentTime);
     osc.stop(ctx.currentTime + (success ? 0.15 : 0.4));
+    // Double beep for errors
+    if (!success) {
+      const osc2 = ctx.createOscillator();
+      const gain2 = ctx.createGain();
+      osc2.connect(gain2);
+      gain2.connect(ctx.destination);
+      osc2.frequency.value = 330;
+      osc2.type = 'sine';
+      gain2.gain.setValueAtTime(0, ctx.currentTime + 0.25);
+      gain2.gain.linearRampToValueAtTime(0.3, ctx.currentTime + 0.27);
+      gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.65);
+      osc2.start(ctx.currentTime + 0.25);
+      osc2.stop(ctx.currentTime + 0.65);
+    }
   } catch (e) {}
 }
 
@@ -377,9 +391,14 @@ function ScanStep({ task, onComplete }) {
       } else {
         playBeep(false);
         pickStartRef.current = Date.now();
-        setLastScan({ type: 'not_found', value, errorId: res.data.error_id || null });
-        setTab('errors');
-        setErrorForm({ value, errorId: res.data.error_id || null });
+        if (res.data.hint) {
+          // Smart hint — show explanation, don't open error form
+          setLastScan({ type: 'hint', hint: res.data.hint, message: res.data.message, value });
+        } else {
+          setLastScan({ type: 'not_found', value, errorId: res.data.error_id || null });
+          setTab('errors');
+          setErrorForm({ value, errorId: res.data.error_id || null });
+        }
         await loadState();
       }
     } catch (err) {
@@ -571,27 +590,44 @@ function ScanStep({ task, onComplete }) {
 
       {/* Последний скан */}
       {lastScan && !needsBoxSelection && (
-        <div className={`mx-4 mt-3 px-4 py-2.5 rounded-2xl flex items-center gap-3 ${
-          lastScan.type === 'found' ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
-        }`}>
-          {lastScan.type === 'found' ? (
-            <>
-              <Check size={16} className="text-green-500 flex-shrink-0" />
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-green-800 truncate">{lastScan.product.name}</p>
-                <p className="text-xs text-green-600">{lastScan.product.code}</p>
+        lastScan.type === 'hint' ? (
+          <div className="mx-4 mt-3 px-4 py-4 rounded-2xl bg-amber-50 border-2 border-amber-400 animate-pulse">
+            <div className="flex items-start gap-3">
+              <AlertTriangle size={24} className="text-amber-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-bold text-amber-900">
+                  {lastScan.hint === 'keyboard_layout' && 'Неправильная раскладка клавиатуры!'}
+                  {lastScan.hint === 'url_scanned' && 'Отсканирована ссылка, а не штрих-код!'}
+                  {lastScan.hint === 'partial_scan' && 'Штрих-код считался не полностью!'}
+                  {lastScan.hint === 'duplicate_scan' && 'Штрих-код считался несколько раз!'}
+                </p>
+                <p className="text-sm text-amber-800 mt-1">{lastScan.message}</p>
               </div>
-            </>
-          ) : (
-            <>
-              <X size={16} className="text-red-400 flex-shrink-0" />
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-red-700 font-mono truncate">{lastScan.value}</p>
-                <p className="text-xs text-red-500">Не найден — отправлен в ошибки</p>
-              </div>
-            </>
-          )}
-        </div>
+            </div>
+          </div>
+        ) : (
+          <div className={`mx-4 mt-3 px-4 py-2.5 rounded-2xl flex items-center gap-3 ${
+            lastScan.type === 'found' ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
+          }`}>
+            {lastScan.type === 'found' ? (
+              <>
+                <Check size={16} className="text-green-500 flex-shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-green-800 truncate">{lastScan.product.name}</p>
+                  <p className="text-xs text-green-600">{lastScan.product.code}</p>
+                </div>
+              </>
+            ) : (
+              <>
+                <X size={16} className="text-red-400 flex-shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-red-700 font-mono truncate">{lastScan.value}</p>
+                  <p className="text-xs text-red-500">Не найден — отправлен в ошибки</p>
+                </div>
+              </>
+            )}
+          </div>
+        )
       )}
 
       {/* Поле ввода */}

@@ -73,6 +73,16 @@ function playBeep(ok = true) {
     gain.gain.setValueAtTime(0.3, ctx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + (ok ? 0.15 : 0.4));
     osc.start(ctx.currentTime); osc.stop(ctx.currentTime + (ok ? 0.15 : 0.4));
+    if (!ok) {
+      const osc2 = ctx.createOscillator();
+      const gain2 = ctx.createGain();
+      osc2.connect(gain2); gain2.connect(ctx.destination);
+      osc2.frequency.value = 330; osc2.type = 'sine';
+      gain2.gain.setValueAtTime(0, ctx.currentTime + 0.25);
+      gain2.gain.linearRampToValueAtTime(0.3, ctx.currentTime + 0.27);
+      gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.65);
+      osc2.start(ctx.currentTime + 0.25); osc2.stop(ctx.currentTime + 0.65);
+    }
   } catch {}
 }
 
