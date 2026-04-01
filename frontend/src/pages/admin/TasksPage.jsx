@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
-  Plus, ClipboardList, Clock, CheckCircle2, XCircle, X,
+  Plus, ClipboardList, Clock, CheckCircle2, XCircle, X, Pause, Play,
   AlertTriangle, ScanLine, RefreshCw, Package, Box, MapPin, ChevronRight
 } from 'lucide-react';
 import api from '../../api/client';
@@ -20,6 +20,7 @@ import { useToast } from '../../components/ui/Toast';
 const STATUS_MAP = {
   new: { label: 'Новая', variant: 'default', icon: Clock },
   in_progress: { label: 'В работе', variant: 'warning', icon: Clock },
+  paused: { label: 'На паузе', variant: 'info', icon: Pause },
   completed: { label: 'Выполнена', variant: 'success', icon: CheckCircle2 },
   cancelled: { label: 'Отменена', variant: 'danger', icon: XCircle },
 };
@@ -92,6 +93,15 @@ function TaskDetailPanel({ task, onClose, onReload }) {
       onClose();
       onReload();
     } catch { toast.error('Ошибка'); }
+  };
+
+  const handlePause = async () => {
+    try {
+      const res = await api.post(`/tasks/${task.id}/pause`);
+      toast.success(res.data.message);
+      onClose();
+      onReload();
+    } catch (err) { toast.error(err.response?.data?.error || 'Ошибка'); }
   };
 
   const handleDelete = async () => {
@@ -673,9 +683,15 @@ function TaskDetailPanel({ task, onClose, onReload }) {
         })()}
 
         {/* Footer actions */}
-        {(task.status === 'new' || task.status === 'in_progress') && (
+        {(task.status === 'new' || task.status === 'in_progress' || task.status === 'paused') && (
           <div className="flex gap-2 px-4 py-4 border-t border-gray-100 dark:border-gray-800">
-            <Button variant="ghost" size="sm" onClick={handleCancel}>Отменить задачу</Button>
+            {(task.status === 'in_progress' || task.status === 'new') && (
+              <Button variant="outline" size="sm" icon={<Pause size={14} />} onClick={handlePause}>Пауза</Button>
+            )}
+            {task.status === 'paused' && (
+              <Button variant="primary" size="sm" icon={<Play size={14} />} onClick={handlePause}>Возобновить</Button>
+            )}
+            <Button variant="ghost" size="sm" onClick={handleCancel}>Отменить</Button>
             <Button variant="danger" size="sm" onClick={handleDelete}>Удалить</Button>
           </div>
         )}
@@ -1780,6 +1796,7 @@ export default function TasksPage() {
           <option value="">Все статусы</option>
           <option value="new">Новые</option>
           <option value="in_progress">В работе</option>
+          <option value="paused">На паузе</option>
           <option value="completed">Выполненные</option>
           <option value="cancelled">Отменённые</option>
         </select>

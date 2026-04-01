@@ -2397,6 +2397,35 @@ router.post('/:id/next-shelf', requireAuth, async (req, res) => {
   }
 });
 
+// POST /api/tasks/:id/pause — admin pauses/resumes task
+router.post('/:id/pause', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const task = await pool.query(`SELECT id, status FROM inventory_tasks_s WHERE id = $1`, [req.params.id]);
+    if (!task.rows.length) return res.status(404).json({ error: 'Задача не найдена' });
+    const t = task.rows[0];
+
+    if (t.status === 'paused') {
+      // Resume — return to in_progress
+      await pool.query(
+        `UPDATE inventory_tasks_s SET status = 'in_progress', paused_at = NULL, paused_by = NULL, updated_at = NOW() WHERE id = $1`,
+        [req.params.id]
+      );
+      res.json({ status: 'in_progress', message: 'Задача возобновлена' });
+    } else if (t.status === 'in_progress' || t.status === 'new') {
+      // Pause
+      await pool.query(
+        `UPDATE inventory_tasks_s SET status = 'paused', paused_at = NOW(), paused_by = $1, updated_at = NOW() WHERE id = $2`,
+        [req.user.id, req.params.id]
+      );
+      res.json({ status: 'paused', message: 'Задача на паузе' });
+    } else {
+      res.status(400).json({ error: 'Нельзя поставить на паузу задачу со статусом ' + t.status });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // PUT /api/tasks/:id
 router.put('/:id', requireAuth, requireAdminOrManager, async (req, res) => {
   const { title, employee_id, shelf_id, notes, status } = req.body;

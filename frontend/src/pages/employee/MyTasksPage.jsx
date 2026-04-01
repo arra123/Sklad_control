@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ClipboardList, Clock, CheckCircle2, ChevronRight, RefreshCw,
-  Box, ScanLine, Package, ArrowRight, Layers, AlertCircle
+  Box, ScanLine, Package, ArrowRight, Layers, AlertCircle, Pause
 } from 'lucide-react';
 import api from '../../api/client';
 import { InventoryIcon, PackagingIcon, TransferIcon } from '../../components/ui/WarehouseIcons';
@@ -14,6 +14,7 @@ import { cn } from '../../utils/cn';
 const STATUS_MAP = {
   new: { label: 'Новая', variant: 'default', color: 'bg-blue-50 text-blue-600 border-blue-200', icon: Clock },
   in_progress: { label: 'В работе', variant: 'warning', color: 'bg-amber-50 text-amber-600 border-amber-200', icon: ScanLine },
+  paused: { label: 'На паузе', variant: 'info', color: 'bg-orange-50 text-orange-600 border-orange-200', icon: Pause },
   completed: { label: 'Выполнена', variant: 'success', color: 'bg-green-50 text-green-600 border-green-200', icon: CheckCircle2 },
   cancelled: { label: 'Отменена', variant: 'danger', color: 'bg-red-50 text-red-500 border-red-200', icon: AlertCircle },
 };

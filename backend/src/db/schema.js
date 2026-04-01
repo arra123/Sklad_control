@@ -39,6 +39,12 @@ async function createSchema() {
     // Add shelf_id to scans for multi-shelf tracking
     await client.query(`ALTER TABLE inventory_task_scans_s ADD COLUMN IF NOT EXISTS shelf_id INTEGER`);
 
+    // Add 'paused' status to inventory_tasks_s
+    await client.query(`ALTER TABLE inventory_tasks_s DROP CONSTRAINT IF EXISTS inventory_tasks_s_status_check`);
+    await client.query(`ALTER TABLE inventory_tasks_s ADD CONSTRAINT inventory_tasks_s_status_check CHECK (status IN ('new', 'in_progress', 'completed', 'cancelled', 'paused'))`);
+    await client.query(`ALTER TABLE inventory_tasks_s ADD COLUMN IF NOT EXISTS paused_at TIMESTAMPTZ`);
+    await client.query(`ALTER TABLE inventory_tasks_s ADD COLUMN IF NOT EXISTS paused_by INTEGER REFERENCES users_s(id) ON DELETE SET NULL`);
+
     // Multi-shelf support for inventory tasks
     await client.query(`ALTER TABLE inventory_tasks_s ADD COLUMN IF NOT EXISTS shelf_ids JSONB`);
     await client.query(`ALTER TABLE inventory_tasks_s ADD COLUMN IF NOT EXISTS current_shelf_index INTEGER DEFAULT 0`);
