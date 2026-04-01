@@ -350,7 +350,16 @@ export default function AssemblyPage() {
         setPrintBarcode(bc);
       }
       await loadTask();
-    } catch (err) { playBeep(false); toast.error(err.response?.data?.error || 'Ошибка'); }
+    } catch (err) {
+      const hint = err.response?.data?.hint;
+      if (hint === 'already_scanned') {
+        playBeep(false);
+        toast.warning?.(err.response.data.error) || toast.error(err.response.data.error);
+      } else {
+        playBeep(false);
+        toast.error(err.response?.data?.error || 'Ошибка');
+      }
+    }
     finally { setActionLoading(false); }
   };
 

@@ -468,6 +468,20 @@ router.post('/:id/scan-component', requireAuth, async (req, res) => {
     const product = await resolveProduct(pool, barcode);
     if (!product) return res.status(400).json({ error: 'Товар не найден по ШК' });
 
+    // Check if already scanned enough of this component for current bundle
+    const comp = await pool.query(
+      'SELECT quantity FROM bundle_components_s WHERE bundle_id = $1 AND component_id = $2',
+      [task.rows[0].bundle_product_id, product.id]);
+    if (comp.rows.length > 0) {
+      const needed = Number(comp.rows[0].quantity);
+      const alreadyInBundle = await pool.query(
+        `SELECT COUNT(*) as cnt FROM assembly_items_s WHERE task_id = $1 AND product_id = $2 AND used_in_bundle = $3`,
+        [req.params.id, product.id, currentBundle]);
+      if (Number(alreadyInBundle.rows[0].cnt) >= needed) {
+        return res.status(400).json({ error: `${product.name.replace(/GraFLab,?\s*/i,'').trim()} уже отсканирован. Сканируйте другой компонент.`, hint: 'already_scanned' });
+      }
+    }
+
     // Find unused picked item of this product
     const item = await pool.query(
       `SELECT id FROM assembly_items_s WHERE task_id = $1 AND product_id = $2 AND used_in_bundle = 0 LIMIT 1`,
