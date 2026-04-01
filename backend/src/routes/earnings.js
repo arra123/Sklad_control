@@ -210,10 +210,9 @@ router.get('/employees/:employeeId', requireAuth, requireAdmin, async (req, res)
           ${periodFilter}
         GROUP BY
           ee.task_id, t.id, t.title, t.status, t.created_at, t.started_at, t.completed_at, t.task_type,
-          ee.task_type, ee.event_type,
+          ee.task_title, ee.task_type, ee.event_type,
           s.code, s.name, r.name, r.code,
-          pa.name, pa.number, pr.name, pr.number,
-          deleted_task_key
+          pa.name, pa.number, pr.name, pr.number
         ORDER BY last_earned_at DESC
       `, [employeeId]),
       pool.query(`
