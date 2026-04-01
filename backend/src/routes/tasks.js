@@ -75,8 +75,8 @@ async function awardScanReward(client, { task, taskScanId, activeTaskBox, produc
   if (duplicateResult.rows.length) return null;
 
   const balanceBefore = Number(employeeResult.rows[0].gra_balance || 0);
-  const amountDelta = Number((rate * rewardUnits).toFixed(3));
-  const balanceAfter = Number((balanceBefore + amountDelta).toFixed(3));
+  const amountDelta = Number((rate * rewardUnits).toFixed(6));
+  const balanceAfter = Number((balanceBefore + amountDelta).toFixed(6));
 
   const rewardResult = await client.query(
     `INSERT INTO employee_earnings_s (

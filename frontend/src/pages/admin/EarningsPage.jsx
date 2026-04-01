@@ -9,19 +9,27 @@ import { useToast } from '../../components/ui/Toast';
 
 function fmtGra(value) {
   const amount = Number(value || 0);
-  return new Intl.NumberFormat('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: amount % 1 === 0 ? 0 : 3 }).format(amount);
+  // Определяем реальное количество знаков (до 6, без лишних нулей)
+  const str = String(amount);
+  const dec = str.includes('.') ? str.split('.')[1].length : 0;
+  return new Intl.NumberFormat('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: Math.min(dec, 6) }).format(amount);
 }
 
 function fmtRub(value) {
   const gra = Number(value || 0);
-  const rub = Math.floor((gra / 100) * 100) / 100;
-  return new Intl.NumberFormat('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(rub);
+  const rub = gra / 100;
+  // Показываем реальное значение без округления (до 6 знаков)
+  const str = String(rub);
+  const dec = str.includes('.') ? str.split('.')[1].length : 0;
+  return new Intl.NumberFormat('ru-RU', { minimumFractionDigits: Math.min(dec, 2), maximumFractionDigits: Math.min(dec, 6) }).format(rub);
 }
 
 function fmtRubRate(value) {
   const gra = Number(value || 0);
-  const rub = Math.floor((gra / 100) * 1000) / 1000;
-  return new Intl.NumberFormat('ru-RU', { minimumFractionDigits: 3, maximumFractionDigits: 3 }).format(rub);
+  const rub = gra / 100;
+  const str = String(rub);
+  const dec = str.includes('.') ? str.split('.')[1].length : 0;
+  return new Intl.NumberFormat('ru-RU', { minimumFractionDigits: Math.min(dec, 3), maximumFractionDigits: Math.min(dec, 6) }).format(rub);
 }
 
 function fmtDateTime(iso) {

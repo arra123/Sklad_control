@@ -656,6 +656,26 @@ async function createSchema() {
     await client.query(`ALTER TABLE employee_earnings_s ADD CONSTRAINT employee_earnings_s_event_type_check CHECK (event_type IN ('inventory_scan', 'manual_adjustment', 'external_order_pick', 'external_order_collect'))`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_employee_earnings_source ON employee_earnings_s(source) WHERE source IS NOT NULL`);
 
+    // Performance indexes
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_shelf_items_shelf_qty ON shelf_items_s(shelf_id, product_id) WHERE quantity > 0`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_shelf_box_items_product ON shelf_box_items_s(product_id) WHERE quantity > 0`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_box_items_product ON box_items_s(product_id) WHERE quantity > 0`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_pallet_items_product ON pallet_items_s(product_id) WHERE quantity > 0`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_movements_performed_by ON movements_s(performed_by)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_movements_type_created ON movements_s(movement_type, created_at DESC)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_task_scans_created ON inventory_task_scans_s(created_at DESC)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_inv_tasks_created ON inventory_tasks_s(created_at DESC)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_racks_warehouse ON racks_s(warehouse_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_pallet_rows_warehouse ON pallet_rows_s(warehouse_id)`);
+
+    // Increase precision for GRA fields (3 → 6 decimal places)
+    await client.query(`ALTER TABLE employees_s ALTER COLUMN gra_balance TYPE NUMERIC(18,6)`);
+    await client.query(`ALTER TABLE employee_earnings_s ALTER COLUMN rate_per_unit TYPE NUMERIC(18,6)`);
+    await client.query(`ALTER TABLE employee_earnings_s ALTER COLUMN amount_delta TYPE NUMERIC(18,6)`);
+    await client.query(`ALTER TABLE employee_earnings_s ALTER COLUMN balance_before TYPE NUMERIC(18,6)`);
+    await client.query(`ALTER TABLE employee_earnings_s ALTER COLUMN balance_after TYPE NUMERIC(18,6)`);
+    await client.query(`ALTER TABLE employee_earnings_s ALTER COLUMN reward_units TYPE NUMERIC(15,6)`);
+
     // Seed new item tables from legacy one-product boxes
     await client.query(`
       INSERT INTO box_items_s (box_id, product_id, quantity, updated_at)

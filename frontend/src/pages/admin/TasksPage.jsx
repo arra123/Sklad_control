@@ -75,7 +75,7 @@ function TaskDetailPanel({ task, onClose, onReload }) {
   useEffect(() => {
     loadAnalytics();
     if (task.status === 'in_progress') {
-      intervalRef.current = setInterval(loadAnalytics, 5000);
+      intervalRef.current = setInterval(loadAnalytics, 15000);
     }
     return () => clearInterval(intervalRef.current);
   }, [loadAnalytics, task.status]);
