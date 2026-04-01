@@ -178,11 +178,11 @@ router.get('/employees/:employeeId', requireAuth, requireAdmin, async (req, res)
       `, [employeeId]),
       pool.query(`
         SELECT
-          COALESCE(ee.task_id::text, ee.task_title, 'deleted_' || MIN(ee.id)::text) as row_key,
+          COALESCE(ee.task_id::text, ee.task_title, 'deleted') as row_key,
           ee.task_id,
-          COALESCE(t.title, ee.task_title, 'Удалённая задача') as title,
+          COALESCE(t.title, MAX(ee.task_title), 'Удалённая задача') as title,
           t.status,
-          COALESCE(t.task_type, ee.task_type, 'inventory') as task_type,
+          COALESCE(t.task_type, MAX(ee.task_type), 'inventory') as task_type,
           s.code as shelf_code,
           s.name as shelf_name,
           r.name as rack_name,
@@ -203,8 +203,7 @@ router.get('/employees/:employeeId', requireAuth, requireAdmin, async (req, res)
           AND ee.event_type = 'inventory_scan'
           ${periodFilter}
         GROUP BY
-          COALESCE(ee.task_id::text, ee.task_title, 'deleted'),
-          ee.task_id, t.id, t.title, t.status, t.task_type, ee.task_type, ee.task_title,
+          ee.task_id, t.id, t.title, t.status, t.task_type,
           s.code, s.name, r.name, pa.name, pr.name
         ORDER BY last_earned_at DESC
       `, [employeeId]),
