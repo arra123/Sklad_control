@@ -68,7 +68,7 @@ function buildPallet(palletData, sharedMats, sharedGeo, offsetX, offsetZ) {
   nameMesh.position.set(0, 0.01, 3.6); nameMesh.rotation.x = -Math.PI / 2;
   pallet.add(nameMesh);
 
-  // Boxes — simplified (no tape meshes, just box + label)
+  // Boxes
   const boxMeshes = [];
   const layers = Math.ceil(boxes.length / LAYER_SIZE);
 
@@ -77,7 +77,6 @@ function buildPallet(palletData, sharedMats, sharedGeo, offsetX, offsetZ) {
     const baseY = 0.42 + li * (BOX_H + 0.08);
     const layerBoxes = boxes.slice(li * LAYER_SIZE, (li + 1) * LAYER_SIZE);
 
-    // Layer separator board
     if (li > 0) {
       const board = new THREE.Mesh(sharedGeo.board, sharedMats.boardSep);
       board.position.y = baseY - 0.04;
@@ -88,18 +87,14 @@ function buildPallet(palletData, sharedMats, sharedGeo, offsetX, offsetZ) {
       const row = Math.floor(idx / COLS), col = idx % COLS;
       const g = new THREE.Group();
 
-      // Box body
       const mesh = new THREE.Mesh(sharedGeo.box, [
         sharedMats.boxSide, sharedMats.boxSide,
         sharedMats.boxTop, sharedMats.boxSide,
         sharedMats.boxSide, sharedMats.boxSide,
       ]);
       g.add(mesh);
-
-      // Single tape strip (vertical only, no top tape — saves 3 meshes per box)
       g.add(new THREE.Mesh(sharedGeo.tapeV, sharedMats.tape));
 
-      // Label
       const name = (box.product_name || '—').replace(/GraFLab,?\s*/i, '').trim();
       const qty = fmtQ(box.quantity);
       const labelMat = getLabelTexture(name, qty);
@@ -108,7 +103,13 @@ function buildPallet(palletData, sharedMats, sharedGeo, offsetX, offsetZ) {
       g.add(label);
 
       g.position.set((col - 2) * (BOX_W + 0.05), baseY + BOX_H / 2, (row - 2) * (BOX_D + 0.05));
-      g.userData = { type: 'box', product: name, qty, barcode: box.barcode_value || '—', boxId: box.id, palletName: palletData.name, layerIndex: li };
+      g.userData = {
+        type: 'box',
+        product: name, qty, barcode: box.barcode_value || '—',
+        boxId: box.id, boxData: box,
+        palletName: palletData.name, palletId: palletData.id,
+        layerIndex: li,
+      };
 
       lg.add(g);
       boxMeshes.push(g);
@@ -122,11 +123,12 @@ function buildPallet(palletData, sharedMats, sharedGeo, offsetX, offsetZ) {
 }
 
 // ─── Main Component ──────────────────────────────────────────────────────────
-export default function FBOVisualView({ warehouse }) {
+export default function FBOVisualView({ warehouse, onSelect }) {
   const containerRef = useRef(null);
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState([]);
   const allBoxRef = useRef([]);
+  const palletGroupsRef = useRef([]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -141,7 +143,6 @@ export default function FBOVisualView({ warehouse }) {
     const el = containerRef.current;
     const W = el.clientWidth, H = Math.max(500, window.innerHeight - 260);
 
-    // ═══ Scene ═══
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0xfaf9f7);
 
@@ -149,7 +150,6 @@ export default function FBOVisualView({ warehouse }) {
     const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     renderer.setSize(W, H);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
-    // Shadows disabled for performance
     renderer.shadowMap.enabled = false;
 
     const wrapper = document.createElement('div');
@@ -163,17 +163,14 @@ export default function FBOVisualView({ warehouse }) {
     controls.dampingFactor = 0.08;
     controls.maxPolarAngle = Math.PI / 2.1;
 
-    // ═══ Lights — bright and clean ═══
     scene.add(new THREE.AmbientLight(0xffffff, 1.4));
     const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
     dirLight.position.set(10, 20, 8);
     scene.add(dirLight);
-    // Fill light from opposite side
     const fillLight = new THREE.DirectionalLight(0xffffff, 0.4);
     fillLight.position.set(-10, 15, -5);
     scene.add(fillLight);
 
-    // ═══ Floor — centered on content ═══
     const totalZ = Math.max(0, (rows.length - 1) * 12);
     const floorSize = Math.max(120, totalZ + 40);
     const floorCenterZ = totalZ / 2;
@@ -192,7 +189,6 @@ export default function FBOVisualView({ warehouse }) {
     grid.material.transparent = true;
     scene.add(grid);
 
-    // ═══ Shared materials — brighter colors ═══
     const mats = {
       wood: new THREE.MeshStandardMaterial({ color: 0xd4a84a, roughness: 0.6 }),
       woodDark: new THREE.MeshStandardMaterial({ color: 0x9a7530, roughness: 0.7 }),
@@ -202,7 +198,6 @@ export default function FBOVisualView({ warehouse }) {
       boardSep: new THREE.MeshStandardMaterial({ color: 0xd4a84a, roughness: 0.6 }),
     };
 
-    // ═══ Shared geometries ═══
     const geo = {
       plank: new THREE.BoxGeometry(6, 0.15, 0.8),
       stringer: new THREE.BoxGeometry(0.6, 0.35, 5.6),
@@ -213,8 +208,8 @@ export default function FBOVisualView({ warehouse }) {
       label: new THREE.PlaneGeometry(0.6, 0.3),
     };
 
-    // ═══ Place all pallets ═══
     const allBoxMeshes = [];
+    const palletGroups = [];
     rows.forEach((row, ri) => {
       row.pallets.forEach((p, pi) => {
         const x = pi * PALLET_GAP - ((row.pallets.length - 1) * PALLET_GAP) / 2;
@@ -222,53 +217,106 @@ export default function FBOVisualView({ warehouse }) {
         const pg = buildPallet(p, mats, geo, x, z);
         scene.add(pg);
         allBoxMeshes.push(...(pg.userData.boxMeshes || []));
+        palletGroups.push(pg);
       });
     });
     allBoxRef.current = allBoxMeshes;
+    palletGroupsRef.current = palletGroups;
 
-    // Camera position
     controls.target.set(0, 3, floorCenterZ);
     camera.position.set(20, 20, floorCenterZ + 22);
 
-    // ═══ Tooltip ═══
+    // Tooltip
     const tooltip = document.createElement('div');
     tooltip.style.cssText = 'position:fixed;display:none;z-index:100;background:#1c1917;color:white;padding:8px 14px;border-radius:10px;font-size:12px;pointer-events:none;box-shadow:0 6px 20px rgba(0,0,0,0.3);font-family:Inter,Arial,sans-serif;';
     el.appendChild(tooltip);
 
-    // ═══ Raycaster — throttled ═══
+    // Raycaster — throttled
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
     let hovered = null;
     let lastRaycast = 0;
 
+    // Find box or pallet from hit
+    const findTarget = (hits) => {
+      for (const hit of hits) {
+        let obj = hit.object;
+        while (obj.parent && !obj.userData.type) obj = obj.parent;
+        if (obj.userData.type === 'box') return { type: 'box', obj };
+        // If hit pallet wood parts, find parent pallet group
+        if (obj.userData.type === 'pallet') return { type: 'pallet', obj };
+      }
+      // Check if any hit is inside a pallet group
+      for (const hit of hits) {
+        let obj = hit.object;
+        while (obj.parent) {
+          if (obj.userData.type === 'pallet') return { type: 'pallet', obj };
+          obj = obj.parent;
+        }
+      }
+      return null;
+    };
+
     const onMove = (e) => {
       const now = performance.now();
-      if (now - lastRaycast < 32) return; // ~30fps throttle
+      if (now - lastRaycast < 32) return;
       lastRaycast = now;
 
       const rect = renderer.domElement.getBoundingClientRect();
       mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
       mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
       raycaster.setFromCamera(mouse, camera);
-      const hits = raycaster.intersectObjects(allBoxMeshes, true);
-      if (hits.length > 0) {
-        let obj = hits[0].object;
-        while (obj.parent && !obj.userData.type) obj = obj.parent;
-        if (obj.userData.type === 'box') {
-          if (hovered !== obj) { if (hovered) hovered.scale.set(1, 1, 1); hovered = obj; obj.scale.set(1.08, 1.08, 1.08); }
-          tooltip.style.display = 'block';
-          tooltip.style.left = (e.clientX + 16) + 'px';
-          tooltip.style.top = (e.clientY - 10) + 'px';
-          tooltip.innerHTML = `<b>${obj.userData.product}</b><br>ШК: ${obj.userData.barcode} · ${obj.userData.qty} шт`;
-          renderer.domElement.style.cursor = 'pointer';
-          return;
-        }
+      const hits = raycaster.intersectObjects(scene.children, true);
+      const target = findTarget(hits);
+
+      if (target && target.type === 'box') {
+        const obj = target.obj;
+        if (hovered !== obj) { if (hovered) hovered.scale.set(1, 1, 1); hovered = obj; obj.scale.set(1.08, 1.08, 1.08); }
+        tooltip.style.display = 'block';
+        tooltip.style.left = (e.clientX + 16) + 'px';
+        tooltip.style.top = (e.clientY - 10) + 'px';
+        tooltip.innerHTML = `<b>${obj.userData.product}</b><br>ШК: ${obj.userData.barcode} · ${obj.userData.qty} шт<br><span style="opacity:0.6">Клик → карточка</span>`;
+        renderer.domElement.style.cursor = 'pointer';
+        return;
       }
+      if (target && target.type === 'pallet') {
+        const info = target.obj.userData.palletInfo;
+        if (hovered) { hovered.scale.set(1, 1, 1); hovered = null; }
+        tooltip.style.display = 'block';
+        tooltip.style.left = (e.clientX + 16) + 'px';
+        tooltip.style.top = (e.clientY - 10) + 'px';
+        const totalQty = (info.boxes || []).reduce((s, b) => s + parseFloat(b.quantity || 0), 0);
+        tooltip.innerHTML = `<b>${info.name}</b><br>${(info.boxes || []).length} кор. · ${fmtQ(totalQty)} шт<br><span style="opacity:0.6">Клик → карточка</span>`;
+        renderer.domElement.style.cursor = 'pointer';
+        return;
+      }
+
       if (hovered) { hovered.scale.set(1, 1, 1); hovered = null; }
       tooltip.style.display = 'none';
       renderer.domElement.style.cursor = 'grab';
     };
     renderer.domElement.addEventListener('mousemove', onMove);
+
+    // Click handler
+    const onClick = (e) => {
+      if (!onSelect) return;
+      const rect = renderer.domElement.getBoundingClientRect();
+      mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(mouse, camera);
+      const hits = raycaster.intersectObjects(scene.children, true);
+      const target = findTarget(hits);
+      if (!target) { onSelect(null); return; }
+
+      if (target.type === 'box') {
+        const d = target.obj.userData;
+        onSelect({ type: 'box', boxId: d.boxId, boxData: d.boxData, product: d.product, qty: d.qty, barcode: d.barcode, palletId: d.palletId, palletName: d.palletName });
+      } else if (target.type === 'pallet') {
+        const info = target.obj.userData.palletInfo;
+        onSelect({ type: 'pallet', palletId: info.id, palletName: info.name, palletData: info, boxes: info.boxes || [] });
+      }
+    };
+    renderer.domElement.addEventListener('click', onClick);
 
     // Resize
     const onResize = () => {
@@ -277,7 +325,6 @@ export default function FBOVisualView({ warehouse }) {
     };
     window.addEventListener('resize', onResize);
 
-    // Animate
     let animId;
     const animate = () => { animId = requestAnimationFrame(animate); controls.update(); renderer.render(scene, camera); };
     animate();
@@ -286,14 +333,14 @@ export default function FBOVisualView({ warehouse }) {
       cancelAnimationFrame(animId);
       window.removeEventListener('resize', onResize);
       renderer.domElement.removeEventListener('mousemove', onMove);
+      renderer.domElement.removeEventListener('click', onClick);
       controls.dispose();
-      // Dispose geometries and materials
       Object.values(geo).forEach(g => g.dispose());
       Object.values(mats).forEach(m => m.dispose());
       renderer.dispose();
       el.innerHTML = '';
     };
-  }, [loading, rows]);
+  }, [loading, rows, onSelect]);
 
   if (loading) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 400 }}><Spinner size="lg" /></div>;
 

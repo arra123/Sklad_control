@@ -23,6 +23,8 @@ import { useToast } from '../../components/ui/Toast';
 import { cn } from '../../utils/cn';
 import { ProductDetailModal, ProductFormModal } from './ProductsPage';
 
+const fmtQ = (v) => { const n = parseFloat(v || 0); return Number.isInteger(n) ? String(n) : n.toFixed(0); };
+
 // ─── Barcode Display (click to show modal) ───────────────────────────────────
 function BarcodeDisplay({ value, label }) {
   const [showBarcode, setShowBarcode] = useState(false);
@@ -2548,6 +2550,7 @@ function FBORowListView({ warehouse, initialRowId, initialPalletId, initialBoxId
   const [editRow, setEditRow] = useState(null);
   const [drillRow, setDrillRow] = useState(null);
   const [quickPalletId, setQuickPalletId] = useState(null);
+  const [visualSelection, setVisualSelection] = useState(null);
   const vm = extViewMode || 'cards';
 
   useEffect(() => { setDrillRow(null); setQuickPalletId(null); }, [warehouse?.id]);
@@ -2637,9 +2640,113 @@ function FBORowListView({ warehouse, initialRowId, initialPalletId, initialBoxId
 
       {/* Visual mode */}
       {vm === 'visual' && (
-        <Suspense fallback={<div style={{display:'flex',alignItems:'center',justifyContent:'center',height:400}}><Spinner size="lg" /></div>}>
-          <FBOVisualView warehouse={warehouse} />
-        </Suspense>
+        <div className="flex gap-4">
+          {/* Mini card — left side */}
+          {visualSelection && (
+            <div className="w-64 flex-shrink-0">
+              <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden sticky top-4">
+                <div className={`px-4 py-3 ${visualSelection.type === 'pallet' ? 'bg-purple-600' : 'bg-blue-600'} text-white`}>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium uppercase tracking-wide opacity-80">
+                      {visualSelection.type === 'pallet' ? 'Паллет' : 'Коробка'}
+                    </span>
+                    <button onClick={() => setVisualSelection(null)} className="opacity-70 hover:opacity-100 transition-opacity">
+                      <X size={14} />
+                    </button>
+                  </div>
+                  <p className="font-bold text-lg mt-1 truncate">
+                    {visualSelection.type === 'pallet' ? visualSelection.palletName : visualSelection.product}
+                  </p>
+                </div>
+                <div className="p-4 space-y-3">
+                  {visualSelection.type === 'box' && (
+                    <>
+                      <div>
+                        <span className="text-[11px] text-gray-400 uppercase tracking-wide">Товар</span>
+                        <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">{visualSelection.product}</p>
+                      </div>
+                      <div className="flex gap-4">
+                        <div>
+                          <span className="text-[11px] text-gray-400 uppercase tracking-wide">Кол-во</span>
+                          <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">{visualSelection.qty} шт</p>
+                        </div>
+                        <div>
+                          <span className="text-[11px] text-gray-400 uppercase tracking-wide">Паллет</span>
+                          <p className="text-sm text-gray-600 dark:text-gray-300">{visualSelection.palletName}</p>
+                        </div>
+                      </div>
+                      {visualSelection.barcode && visualSelection.barcode !== '—' && (
+                        <div>
+                          <span className="text-[11px] text-gray-400 uppercase tracking-wide">ШК</span>
+                          <p className="text-xs font-mono text-gray-500">{visualSelection.barcode}</p>
+                        </div>
+                      )}
+                      <button
+                        onClick={() => {
+                          const rowWithPallet = rows.find(r => r.pallets.some(p => p.id === visualSelection.palletId));
+                          if (rowWithPallet) handleDrillRow(rowWithPallet, String(visualSelection.palletId));
+                        }}
+                        className="w-full mt-1 px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
+                      >
+                        <ChevronRight size={14} />
+                        Открыть паллет
+                      </button>
+                    </>
+                  )}
+                  {visualSelection.type === 'pallet' && (
+                    <>
+                      <div className="flex gap-4">
+                        <div>
+                          <span className="text-[11px] text-gray-400 uppercase tracking-wide">Коробок</span>
+                          <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">{visualSelection.boxes.length}</p>
+                        </div>
+                        <div>
+                          <span className="text-[11px] text-gray-400 uppercase tracking-wide">Всего шт</span>
+                          <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+                            {fmtQ(visualSelection.boxes.reduce((s, b) => s + parseFloat(b.quantity || 0), 0))}
+                          </p>
+                        </div>
+                      </div>
+                      {visualSelection.boxes.length > 0 && (
+                        <div>
+                          <span className="text-[11px] text-gray-400 uppercase tracking-wide">Товары</span>
+                          <div className="mt-1 space-y-1 max-h-40 overflow-y-auto">
+                            {Object.entries(visualSelection.boxes.reduce((acc, b) => {
+                              const name = (b.product_name || '—').replace(/GraFLab,?\s*/i, '').trim();
+                              acc[name] = (acc[name] || 0) + parseFloat(b.quantity || 0);
+                              return acc;
+                            }, {})).map(([name, total]) => (
+                              <div key={name} className="flex items-center justify-between text-xs">
+                                <span className="text-gray-600 dark:text-gray-300 truncate mr-2">{name}</span>
+                                <span className="font-medium text-gray-800 dark:text-gray-200 flex-shrink-0">{fmtQ(total)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      <button
+                        onClick={() => {
+                          const rowWithPallet = rows.find(r => r.pallets.some(p => p.id === visualSelection.palletId));
+                          if (rowWithPallet) handleDrillRow(rowWithPallet, String(visualSelection.palletId));
+                        }}
+                        className="w-full mt-1 px-3 py-2 bg-purple-50 hover:bg-purple-100 text-purple-700 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
+                      >
+                        <ChevronRight size={14} />
+                        Открыть паллет
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+          {/* 3D view */}
+          <div className="flex-1 min-w-0">
+            <Suspense fallback={<div style={{display:'flex',alignItems:'center',justifyContent:'center',height:400}}><Spinner size="lg" /></div>}>
+              <FBOVisualView warehouse={warehouse} onSelect={setVisualSelection} />
+            </Suspense>
+          </div>
+        </div>
       )}
 
       {/* Cards mode */}
