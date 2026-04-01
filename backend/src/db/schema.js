@@ -251,6 +251,7 @@ async function createSchema() {
       )
     `);
     await client.query(`ALTER TABLE shelves_s ADD COLUMN IF NOT EXISTS uses_boxes BOOLEAN NOT NULL DEFAULT false`);
+    await client.query(`ALTER TABLE shelves_s ADD COLUMN IF NOT EXISTS uses_loose BOOLEAN NOT NULL DEFAULT true`);
 
     await client.query(`
       CREATE TABLE IF NOT EXISTS shelf_items_s (

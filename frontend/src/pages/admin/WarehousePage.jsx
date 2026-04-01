@@ -210,13 +210,13 @@ function RackModal({ open, onClose, warehouseId, rack, onSuccess }) {
 // ─── Shelf Modal ──────────────────────────────────────────────────────────────
 function ShelfModal({ open, onClose, rackId, shelf, onSuccess }) {
   const toast = useToast();
-  const [form, setForm] = useState({ name: '', number: '', notes: '', uses_boxes: false });
+  const [form, setForm] = useState({ name: '', number: '', notes: '', uses_boxes: false, uses_loose: true });
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     setForm(shelf
-      ? { name: shelf.name, number: shelf.number, notes: shelf.notes || '', uses_boxes: shelf.uses_boxes === true }
-      : { name: '', number: '', notes: '', uses_boxes: false }
+      ? { name: shelf.name, number: shelf.number, notes: shelf.notes || '', uses_boxes: shelf.uses_boxes === true, uses_loose: shelf.uses_loose !== false }
+      : { name: '', number: '', notes: '', uses_boxes: false, uses_loose: true }
     );
   }, [shelf, open]);
 
@@ -225,7 +225,7 @@ function ShelfModal({ open, onClose, rackId, shelf, onSuccess }) {
     setLoading(true);
     try {
       if (shelf) {
-        await api.put(`/warehouse/shelves/${shelf.id}`, { name: form.name, notes: form.notes, uses_boxes: form.uses_boxes });
+        await api.put(`/warehouse/shelves/${shelf.id}`, { name: form.name, notes: form.notes, uses_boxes: form.uses_boxes, uses_loose: form.uses_loose });
       } else {
         await api.post('/warehouse/shelves', { rack_id: rackId, ...form });
       }
@@ -254,18 +254,27 @@ function ShelfModal({ open, onClose, rackId, shelf, onSuccess }) {
         )}
         <Input label="Примечание" placeholder="Необязательно" value={form.notes}
           onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
-        <label className="flex items-center gap-3 cursor-pointer py-2">
-          <input
-            type="checkbox"
-            checked={form.uses_boxes}
-            onChange={e => setForm(f => ({ ...f, uses_boxes: e.target.checked }))}
-            className="w-5 h-5 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-          />
-          <div>
-            <p className="text-sm font-medium text-gray-800 dark:text-gray-200">Товар в коробках</p>
-            <p className="text-xs text-gray-400">{form.uses_boxes ? 'На полке можно размещать коробки и товар россыпью' : 'Товар лежит напрямую на полке'}</p>
-          </div>
-        </label>
+        <div className="space-y-2 py-2">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Режим хранения</p>
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input type="checkbox" checked={form.uses_loose !== false}
+              onChange={e => setForm(f => ({ ...f, uses_loose: e.target.checked }))}
+              className="w-5 h-5 rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
+            <div>
+              <p className="text-sm font-medium text-gray-800 dark:text-gray-200">Россыпью</p>
+              <p className="text-xs text-gray-400">Товар лежит напрямую на полке</p>
+            </div>
+          </label>
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input type="checkbox" checked={form.uses_boxes}
+              onChange={e => setForm(f => ({ ...f, uses_boxes: e.target.checked }))}
+              className="w-5 h-5 rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
+            <div>
+              <p className="text-sm font-medium text-gray-800 dark:text-gray-200">В коробках</p>
+              <p className="text-xs text-gray-400">Товар раскладывается по коробкам на полке</p>
+            </div>
+          </label>
+        </div>
       </form>
     </Modal>
   );
@@ -1446,6 +1455,7 @@ function ShelfDetailView({ shelfId, rackId, onClose, initialBoxId }) {
   if (loading) return <div className="flex items-center justify-center h-40"><Spinner size="lg" /></div>;
   if (!shelf) return null;
   const isBoxMode = shelf.uses_boxes === true;
+  const isLooseMode = shelf.uses_loose !== false;
 
   return (
     <div>
@@ -1461,7 +1471,7 @@ function ShelfDetailView({ shelfId, rackId, onClose, initialBoxId }) {
             <h2 className="text-xl font-bold text-gray-900 dark:text-white">{shelf.name}</h2>
             <span className="text-xs font-mono text-primary-600 bg-primary-50 dark:bg-primary-900/30 px-2 py-0.5 rounded-lg">{shelf.code}</span>
             {isBoxMode && <Badge variant="warning">Коробки</Badge>}
-            {shelf.items?.length > 0 && <Badge variant="default">Россыпь</Badge>}
+            {isLooseMode && <Badge variant="default">Россыпь</Badge>}
           </div>
           {shelf.notes && <p className="text-sm text-gray-400">{shelf.notes}</p>}
         </div>
@@ -1563,32 +1573,36 @@ function ShelfDetailView({ shelfId, rackId, onClose, initialBoxId }) {
         </div>
       )}
 
-      {/* Loose items section (always shown) */}
-      <div className="card p-4">
-        <div className="flex items-center justify-between mb-3">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-            Товары россыпью
-            {shelf.items?.length > 0 && <span className="ml-1.5 text-primary-500">{shelf.items.length}</span>}
-          </p>
-          <button onClick={() => setAddOpen(true)}
-            className="flex items-center gap-1 text-xs text-primary-600 hover:text-primary-700 font-medium">
-            <Plus size={13} />
-            Добавить
-          </button>
+      {/* Loose items section (shown if uses_loose or has items) */}
+      {(isLooseMode || shelf.items?.length > 0) && (
+        <div className="card p-4">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+              Товары россыпью
+              {shelf.items?.length > 0 && <span className="ml-1.5 text-primary-500">{shelf.items.length}</span>}
+            </p>
+            {isLooseMode && (
+              <button onClick={() => setAddOpen(true)}
+                className="flex items-center gap-1 text-xs text-primary-600 hover:text-primary-700 font-medium">
+                <Plus size={13} />
+                Добавить
+              </button>
+            )}
+          </div>
+          {shelf.items?.length > 0 ? (
+            <div className="space-y-2 max-h-96 overflow-y-auto">
+              {shelf.items.map(item => (
+                <ShelfItemRow key={item.id} item={item} shelfId={shelf.id} onUpdate={load} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-6 text-gray-300 bg-gray-50 dark:bg-gray-800 rounded-xl">
+              <ProductIcon size={36} className="mx-auto mb-1.5 opacity-40" />
+              <p className="text-sm">Полка пустая</p>
+            </div>
+          )}
         </div>
-        {shelf.items?.length > 0 ? (
-          <div className="space-y-2 max-h-96 overflow-y-auto">
-            {shelf.items.map(item => (
-              <ShelfItemRow key={item.id} item={item} shelfId={shelf.id} onUpdate={load} />
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-6 text-gray-300 bg-gray-50 dark:bg-gray-800 rounded-xl">
-            <ProductIcon size={36} className="mx-auto mb-1.5 opacity-40" />
-            <p className="text-sm">{isBoxMode ? 'Нет товаров россыпью' : 'Полка пустая'}</p>
-          </div>
-        )}
-      </div>
+      )}
 
       {/* Movement history */}
       <ShelfMovements movements={movements} mode={movMode} onModeChange={setMovMode} />

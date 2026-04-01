@@ -332,8 +332,8 @@ router.post('/shelves', requireAuth, requireAdmin, async (req, res) => {
     const code = `${rack.rows[0].code}П${number}`;
     const barcodeValue = String(Math.floor(Math.random() * 900000000) + 100000000);
     const result = await pool.query(
-      'INSERT INTO shelves_s (rack_id, name, number, code, barcode_value, notes, uses_boxes) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *',
-      [rack_id, name, number, code, barcodeValue, notes || null, parseBoolean(uses_boxes, false)]
+      'INSERT INTO shelves_s (rack_id, name, number, code, barcode_value, notes, uses_boxes, uses_loose) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *',
+      [rack_id, name, number, code, barcodeValue, notes || null, parseBoolean(uses_boxes, false), parseBoolean(req.body.uses_loose, true)]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -343,15 +343,16 @@ router.post('/shelves', requireAuth, requireAdmin, async (req, res) => {
 
 // PUT /api/warehouse/shelves/:id
 router.put('/shelves/:id', requireAuth, requireAdmin, async (req, res) => {
-  const { name, notes, uses_boxes } = req.body;
+  const { name, notes, uses_boxes, uses_loose } = req.body;
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    // uses_boxes теперь не эксклюзивный — на полке может быть и россыпь, и коробки
 
     const result = await client.query(
-      'UPDATE shelves_s SET name=COALESCE($1,name), notes=COALESCE($2,notes), uses_boxes=COALESCE($3,uses_boxes) WHERE id=$4 RETURNING *',
-      [name, notes, uses_boxes === undefined ? null : parseBoolean(uses_boxes, false), req.params.id]
+      `UPDATE shelves_s SET name=COALESCE($1,name), notes=COALESCE($2,notes),
+       uses_boxes=COALESCE($3,uses_boxes), uses_loose=COALESCE($4,uses_loose) WHERE id=$5 RETURNING *`,
+      [name, notes, uses_boxes === undefined ? null : parseBoolean(uses_boxes, false),
+       uses_loose === undefined ? null : parseBoolean(uses_loose, true), req.params.id]
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Полка не найдена' });
     await client.query('COMMIT');

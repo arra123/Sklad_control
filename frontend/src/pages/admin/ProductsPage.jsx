@@ -320,12 +320,13 @@ function AddComponentModal({ open, onClose, bundleId, onSuccess }) {
 // ─── Product Form Modal (создание/редактирование) ─────────────────────────────
 const FORM_INPUT = 'w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-300 focus:border-primary-400 transition-all';
 
-function FormSection({ title, icon, children, className = '' }) {
+function FormSection({ title, icon, children, className = '', action }) {
   return (
     <div className={`rounded-2xl border border-gray-100 dark:border-gray-800 overflow-hidden ${className}`}>
       <div className="px-4 py-2.5 bg-gray-50 dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700 flex items-center gap-2">
         {icon}
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{title}</p>
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex-1">{title}</p>
+        {action}
       </div>
       <div className="p-4">{children}</div>
     </div>
@@ -468,6 +469,12 @@ export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
   const [editingShelf, setEditingShelf] = useState(null);
   const [shelfQty, setShelfQty] = useState('');
   const [shelfSaving, setShelfSaving] = useState(false);
+  const [showAddLocation, setShowAddLocation] = useState(false);
+  const [addLocLoading, setAddLocLoading] = useState(false);
+  const [warehouses, setWarehouses] = useState([]);
+  const [addLocForm, setAddLocForm] = useState({ warehouse_id: '', shelf_id: '', pallet_id: '', quantity: '1' });
+  const [availShelves, setAvailShelves] = useState([]);
+  const [availPallets, setAvailPallets] = useState([]);
   const toast = useToast();
 
   const loadProduct = useCallback(() => {
@@ -539,6 +546,54 @@ export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
       loadProduct();
     } catch (err) { toast.error(err.response?.data?.error || 'Ошибка обновления'); }
     setShelfSaving(false);
+  };
+
+  const openAddLocation = async () => {
+    setShowAddLocation(true);
+    setAddLocForm({ warehouse_id: '', shelf_id: '', pallet_id: '', quantity: '1' });
+    try {
+      const res = await api.get('/warehouse/warehouses');
+      setWarehouses(res.data || []);
+    } catch {}
+  };
+
+  const onWarehouseChange = async (whId) => {
+    setAddLocForm(f => ({ ...f, warehouse_id: whId, shelf_id: '', pallet_id: '' }));
+    setAvailShelves([]); setAvailPallets([]);
+    if (!whId) return;
+    const wh = warehouses.find(w => String(w.id) === String(whId));
+    const wtype = wh?.warehouse_type;
+    try {
+      if (wtype !== 'fbo') {
+        const res = await api.get(`/warehouse/warehouses/${whId}`);
+        const shelves = [];
+        (res.data?.racks || []).forEach(r => (r.shelves || []).forEach(s => shelves.push({ ...s, rackName: r.name })));
+        setAvailShelves(shelves);
+      }
+      if (wtype === 'fbo' || wtype === 'both') {
+        const res = await api.get(`/fbo/warehouses/${whId}`);
+        const pallets = [];
+        (res.data?.rows || []).forEach(r => (r.pallets || []).forEach(p => pallets.push({ ...p, rowName: r.name })));
+        setAvailPallets(pallets);
+      }
+    } catch {}
+  };
+
+  const handleAddLocation = async () => {
+    const qty = parseFloat(addLocForm.quantity);
+    if (isNaN(qty) || qty <= 0) { toast.error('Укажите количество'); return; }
+    setAddLocLoading(true);
+    try {
+      if (addLocForm.shelf_id) {
+        await api.post(`/warehouse/shelves/${addLocForm.shelf_id}/set`, { product_id: productId, quantity: qty });
+      } else if (addLocForm.pallet_id) {
+        await api.post(`/fbo/pallets/${addLocForm.pallet_id}/item`, { product_id: productId, quantity: qty });
+      } else { toast.error('Выберите полку или паллет'); setAddLocLoading(false); return; }
+      toast.success('Товар размещён');
+      setShowAddLocation(false);
+      loadProduct();
+    } catch (err) { toast.error(err.response?.data?.error || 'Ошибка'); }
+    setAddLocLoading(false);
   };
 
   const handleDeleteComponent = async (compBcId) => {
@@ -681,9 +736,13 @@ export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
                 ) : <p className="text-sm text-gray-300 text-center py-3">Нет штрихкодов</p>}
               </FormSection>
 
-              <FormSection title={`Расположение (${product.shelves?.length || 0})`} icon={<span className="text-gray-400 text-sm">📍</span>}>
+              <FormSection title={`Расположение (${product.shelves?.length || 0})`} icon={<span className="text-gray-400 text-sm">📍</span>}
+                action={<button onClick={openAddLocation} className="text-xs text-primary-600 hover:text-primary-800 font-medium flex items-center gap-1"><Plus size={12} />Разместить</button>}>
                 {!product.shelves?.length ? (
-                  <p className="text-sm text-gray-300 text-center py-4">Не размещён на складе</p>
+                  <div className="text-center py-4">
+                    <p className="text-sm text-gray-300 mb-2">Не размещён на складе</p>
+                    <button onClick={openAddLocation} className="text-xs text-primary-600 hover:text-primary-800 font-medium">+ Разместить на полку/паллет</button>
+                  </div>
                 ) : (() => {
                   // Группировка: склад → стеллаж/ряд → ячейки
                   const tree = {};
@@ -832,6 +891,47 @@ export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
       {showAddComp && product && (
         <AddComponentModal open={showAddComp} onClose={() => setShowAddComp(false)} bundleId={product.id} onSuccess={loadProduct} />
       )}
+
+      {/* Add Location Modal */}
+      <Modal open={showAddLocation} onClose={() => setShowAddLocation(false)} title="Разместить товар"
+        footer={<><Button variant="ghost" onClick={() => setShowAddLocation(false)}>Отмена</Button>
+          <Button onClick={handleAddLocation} loading={addLocLoading}>Разместить</Button></>}>
+        <div className="space-y-4">
+          <div>
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">Склад</label>
+            <select value={addLocForm.warehouse_id} onChange={e => onWarehouseChange(e.target.value)}
+              className="w-full px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:border-primary-400">
+              <option value="">Выберите склад</option>
+              {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+            </select>
+          </div>
+          {availShelves.length > 0 && (
+            <div>
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">Полка</label>
+              <select value={addLocForm.shelf_id} onChange={e => setAddLocForm(f => ({ ...f, shelf_id: e.target.value, pallet_id: '' }))}
+                className="w-full px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:border-primary-400">
+                <option value="">Выберите полку</option>
+                {availShelves.map(s => <option key={s.id} value={s.id}>{s.rackName} → {s.name} ({s.code})</option>)}
+              </select>
+            </div>
+          )}
+          {availPallets.length > 0 && (
+            <div>
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">Паллет</label>
+              <select value={addLocForm.pallet_id} onChange={e => setAddLocForm(f => ({ ...f, pallet_id: e.target.value, shelf_id: '' }))}
+                className="w-full px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:border-primary-400">
+                <option value="">Выберите паллет</option>
+                {availPallets.map(p => <option key={p.id} value={p.id}>{p.rowName} → {p.name}</option>)}
+              </select>
+            </div>
+          )}
+          <div>
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">Количество</label>
+            <input type="number" min="1" value={addLocForm.quantity} onChange={e => setAddLocForm(f => ({ ...f, quantity: e.target.value }))}
+              className="w-full px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:border-primary-400" />
+          </div>
+        </div>
+      </Modal>
     </>
   );
 }
