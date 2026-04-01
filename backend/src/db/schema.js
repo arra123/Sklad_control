@@ -669,12 +669,14 @@ async function createSchema() {
     await client.query(`CREATE INDEX IF NOT EXISTS idx_pallet_rows_warehouse ON pallet_rows_s(warehouse_id)`);
 
     // Increase precision for GRA fields (3 → 6 decimal places)
-    await client.query(`ALTER TABLE employees_s ALTER COLUMN gra_balance TYPE NUMERIC(18,6)`);
-    await client.query(`ALTER TABLE employee_earnings_s ALTER COLUMN rate_per_unit TYPE NUMERIC(18,6)`);
-    await client.query(`ALTER TABLE employee_earnings_s ALTER COLUMN amount_delta TYPE NUMERIC(18,6)`);
-    await client.query(`ALTER TABLE employee_earnings_s ALTER COLUMN balance_before TYPE NUMERIC(18,6)`);
-    await client.query(`ALTER TABLE employee_earnings_s ALTER COLUMN balance_after TYPE NUMERIC(18,6)`);
-    await client.query(`ALTER TABLE employee_earnings_s ALTER COLUMN reward_units TYPE NUMERIC(15,6)`);
+    try {
+      await client.query(`ALTER TABLE employees_s ALTER COLUMN gra_balance TYPE NUMERIC(18,6)`);
+      await client.query(`ALTER TABLE employee_earnings_s ALTER COLUMN rate_per_unit TYPE NUMERIC(18,6)`);
+      await client.query(`ALTER TABLE employee_earnings_s ALTER COLUMN amount_delta TYPE NUMERIC(18,6)`);
+      await client.query(`ALTER TABLE employee_earnings_s ALTER COLUMN balance_before TYPE NUMERIC(18,6)`);
+      await client.query(`ALTER TABLE employee_earnings_s ALTER COLUMN balance_after TYPE NUMERIC(18,6)`);
+      await client.query(`ALTER TABLE employee_earnings_s ALTER COLUMN reward_units TYPE NUMERIC(15,6)`);
+    } catch (e) { console.log('[DB] GRA precision migration already done or skipped:', e.message); }
 
     // Seed new item tables from legacy one-product boxes
     await client.query(`
@@ -870,8 +872,7 @@ async function createSchema() {
       }
     }
 
-    // ─── Cleanup all test tasks + create 4 of each type ──
-    await client.query(`DELETE FROM inventory_tasks_s WHERE title LIKE 'Т5:%' OR title LIKE 'Т6:%' OR title LIKE 'Т7:%' OR title LIKE 'Т8:%' OR title LIKE 'Т9:%' OR title LIKE 'Тест%:%'`);
+    // ─── Create test tasks ONCE (skip if already exist) ──
     const t9Check = await client.query(`SELECT id FROM inventory_tasks_s WHERE title LIKE 'Т9:%' LIMIT 1`);
     if (t9Check.rows.length === 0) {
       const empRes = await client.query(`SELECT id FROM employees_s WHERE full_name ILIKE '%Кырчанова Елена%' LIMIT 1`);
