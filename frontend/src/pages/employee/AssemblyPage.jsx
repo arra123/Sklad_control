@@ -199,8 +199,14 @@ export default function AssemblyPage() {
 
   const phase = task.assembly_phase || 'picking';
   const components = task.components || [];
+  const pickedMaxRef = useRef({});
   const pickedMap = {};
-  (task.picked_summary || []).forEach(p => { pickedMap[p.product_id] = Number(p.picked_count); });
+  (task.picked_summary || []).forEach(p => {
+    const val = Number(p.picked_count);
+    // Never decrease — prevents progress bar jumping back
+    pickedMaxRef.current[p.product_id] = Math.max(pickedMaxRef.current[p.product_id] || 0, val);
+    pickedMap[p.product_id] = pickedMaxRef.current[p.product_id];
+  });
 
   const totalNeeded = components.reduce((s, c) => s + Number(c.quantity) * task.bundle_qty, 0);
   const totalPicked = Object.values(pickedMap).reduce((s, v) => s + v, 0);
@@ -619,7 +625,7 @@ export default function AssemblyPage() {
                 <p className="text-sm font-bold text-primary-800">{activeComponent.name?.replace(/GraFLab,?\s*/i,'').trim()}</p>
                 <p className="text-xs text-primary-600">{scannedPallet?.warehouse || ''} · {scannedPallet?.name || ''}{scannedBox ? ' · Коробка' : ''}</p>
                 <div className="h-2 bg-primary-100 rounded-full mt-2 overflow-hidden">
-                  <div className="h-full bg-primary-500 rounded-full transition-all" style={{ width: `${Math.min(100, ((pickedMap[activeComponent.component_id] || 0) / Math.max(1, Number(activeComponent.quantity) * (task?.bundle_qty || 1))) * 100)}%` }} />
+                  <div className="h-full bg-primary-500 rounded-full transition-all duration-300 ease-out" style={{ width: `${Math.min(100, ((pickedMap[activeComponent.component_id] || 0) / Math.max(1, Number(activeComponent.quantity) * (task?.bundle_qty || 1))) * 100)}%` }} />
                 </div>
                 <p className="text-xs text-primary-700 font-bold mt-1">{pickedMap[activeComponent.component_id] || 0} / {Number(activeComponent.quantity) * (task?.bundle_qty || 1)}</p>
               </div>

@@ -171,13 +171,13 @@ router.get('/employees/:employeeId', requireAuth, requireAdmin, async (req, res)
       `, [employeeId]),
       pool.query(`
         SELECT
-          t.id as task_id,
-          t.title,
+          ee.task_id,
+          COALESCE(t.title, 'Удалённая задача') as title,
           t.status,
           t.created_at,
           t.started_at,
           t.completed_at,
-          t.task_type,
+          COALESCE(t.task_type, ee.event_type) as task_type,
           s.code as shelf_code,
           s.name as shelf_name,
           r.name as rack_name,
@@ -191,8 +191,8 @@ router.get('/employees/:employeeId', requireAuth, requireAdmin, async (req, res)
           COUNT(ee.id) as earning_events,
           COUNT(DISTINCT ee.task_box_id) FILTER (WHERE ee.task_box_id IS NOT NULL) as scopes_count,
           MAX(ee.created_at) as last_earned_at
-        FROM inventory_tasks_s t
-        JOIN employee_earnings_s ee ON ee.task_id = t.id
+        FROM employee_earnings_s ee
+        LEFT JOIN inventory_tasks_s t ON t.id = ee.task_id
         LEFT JOIN shelves_s s ON s.id = t.shelf_id
         LEFT JOIN racks_s r ON r.id = s.rack_id
         LEFT JOIN pallets_s pa ON pa.id = t.target_pallet_id
@@ -200,9 +200,10 @@ router.get('/employees/:employeeId', requireAuth, requireAdmin, async (req, res)
         WHERE ee.employee_id = $1
           AND ee.event_type = 'inventory_scan'
         GROUP BY
-          t.id, s.code, s.name, r.name, r.code,
+          ee.task_id, t.id, t.title, t.status, t.created_at, t.started_at, t.completed_at, t.task_type, ee.event_type,
+          s.code, s.name, r.name, r.code,
           pa.name, pa.number, pr.name, pr.number
-        ORDER BY last_earned_at DESC, t.id DESC
+        ORDER BY last_earned_at DESC
       `, [employeeId]),
       pool.query(`
         SELECT

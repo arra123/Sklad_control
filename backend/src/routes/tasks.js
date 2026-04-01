@@ -2485,13 +2485,37 @@ router.put('/:id', requireAuth, requireAdminOrManager, async (req, res) => {
   }
 });
 
-// DELETE /api/tasks/:id
+// DELETE /api/tasks/:id?refund=1 — delete task, optionally refund GRA
 router.delete('/:id', requireAuth, requireAdminOrManager, async (req, res) => {
+  const client = await pool.connect();
   try {
-    await pool.query('DELETE FROM inventory_tasks_s WHERE id = $1', [req.params.id]);
-    res.json({ success: true });
+    await client.query('BEGIN');
+    const refund = req.query.refund === '1';
+
+    if (refund) {
+      // Sum up all earnings for this task and subtract from employee balance
+      const earnings = await client.query(
+        `SELECT employee_id, SUM(amount_delta) as total FROM employee_earnings_s WHERE task_id = $1 GROUP BY employee_id`,
+        [req.params.id]
+      );
+      for (const row of earnings.rows) {
+        const total = Number(row.total || 0);
+        if (total > 0) {
+          await client.query(`UPDATE employees_s SET gra_balance = GREATEST(0, gra_balance - $1) WHERE id = $2`, [total, row.employee_id]);
+        }
+      }
+      // Delete earnings records
+      await client.query(`DELETE FROM employee_earnings_s WHERE task_id = $1`, [req.params.id]);
+    }
+
+    await client.query('DELETE FROM inventory_tasks_s WHERE id = $1', [req.params.id]);
+    await client.query('COMMIT');
+    res.json({ success: true, refunded: refund });
   } catch (err) {
+    await client.query('ROLLBACK');
     res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
   }
 });
 

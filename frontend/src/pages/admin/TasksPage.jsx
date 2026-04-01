@@ -105,14 +105,16 @@ function TaskDetailPanel({ task, onClose, onReload }) {
   };
 
   const handleDelete = async () => {
-    if (!confirm('Удалить задачу?')) return;
+    const choice = confirm('Удалить задачу?\n\nОК = Удалить и ОПЛАТИТЬ сканы\nОтмена = не удалять');
+    if (!choice) return;
+    const refund = confirm('Списать начисленные GRA за эту задачу?\n\nОК = Да, списать (не платить)\nОтмена = Нет, оставить оплату');
     try {
       if (isAssembly) {
-        await api.delete(`/assembly/${task.id}`);
+        await api.delete(`/assembly/${task.id}`, { params: { refund: refund ? '1' : '0' } });
       } else {
-        await api.delete(`/tasks/${task.id}`);
+        await api.delete(`/tasks/${task.id}`, { params: { refund: refund ? '1' : '0' } });
       }
-      toast.success('Задача удалена');
+      toast.success(refund ? 'Задача удалена, GRA списаны' : 'Задача удалена, оплата сохранена');
       onClose();
       onReload();
     } catch { toast.error('Ошибка'); }
