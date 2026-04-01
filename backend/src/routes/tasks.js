@@ -34,12 +34,29 @@ function parseNumeric(value, fallback = 0) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
-async function getScanRewardRate(client) {
+// GRA rate keys per task type
+const GRA_RATE_KEYS = {
+  inventory: 'gra_rate_inventory',
+  packaging: 'gra_rate_packaging',
+  assembly: 'gra_rate_assembly',
+  production_transfer: 'gra_rate_production_transfer',
+};
+
+async function getScanRewardRate(client, taskType) {
+  // Try task-type-specific rate first, then fallback to legacy key, then default 10
+  const specificKey = GRA_RATE_KEYS[taskType];
+  if (specificKey) {
+    const result = await client.query(
+      `SELECT value FROM settings_s WHERE key = $1 LIMIT 1`,
+      [specificKey]
+    );
+    if (result.rows.length && result.rows[0].value != null) {
+      return parseNumeric(result.rows[0].value, 0);
+    }
+  }
+  // Fallback to legacy single rate
   const result = await client.query(
-    `SELECT value
-     FROM settings_s
-     WHERE key = 'gra_inventory_scan_rate'
-     LIMIT 1`
+    `SELECT value FROM settings_s WHERE key = 'gra_inventory_scan_rate' LIMIT 1`
   );
   return parseNumeric(result.rows[0]?.value, 10);
 }
@@ -53,7 +70,7 @@ async function awardScanReward(client, { task, taskScanId, activeTaskBox, produc
   if (!(rewardUnits > 0)) return null;
 
   const [rate, employeeResult] = await Promise.all([
-    getScanRewardRate(client),
+    getScanRewardRate(client, task.task_type),
     client.query(
       `SELECT id, COALESCE(gra_balance, 0) as gra_balance
        FROM employees_s

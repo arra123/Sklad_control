@@ -30,12 +30,27 @@ function formatScopeLabel(row) {
 
 async function getRewardRate(client = pool) {
   const result = await client.query(
-    `SELECT value
-     FROM settings_s
-     WHERE key = 'gra_inventory_scan_rate'
-     LIMIT 1`
+    `SELECT key, value FROM settings_s WHERE key LIKE 'gra_rate_%' OR key = 'gra_inventory_scan_rate'`
   );
-  return parseNumeric(result.rows[0]?.value, 10);
+  const map = {};
+  for (const r of result.rows) map[r.key] = r.value;
+  // Return legacy single rate for backward compat
+  return parseNumeric(map['gra_rate_inventory'] || map['gra_inventory_scan_rate'], 10);
+}
+
+async function getAllGraRates(client = pool) {
+  const result = await client.query(
+    `SELECT key, value FROM settings_s WHERE key LIKE 'gra_rate_%' OR key = 'gra_inventory_scan_rate'`
+  );
+  const map = {};
+  for (const r of result.rows) map[r.key] = r.value;
+  const fallback = parseNumeric(map['gra_inventory_scan_rate'], 10);
+  return {
+    inventory: parseNumeric(map['gra_rate_inventory'], fallback),
+    packaging: parseNumeric(map['gra_rate_packaging'], fallback),
+    assembly: parseNumeric(map['gra_rate_assembly'], fallback),
+    production_transfer: parseNumeric(map['gra_rate_production_transfer'], fallback),
+  };
 }
 
 router.get('/summary', requireAuth, requireAdmin, async (_req, res) => {
@@ -108,9 +123,11 @@ router.get('/summary', requireAuth, requireAdmin, async (_req, res) => {
       `),
     ]);
 
+    const allRates = await getAllGraRates(pool);
     res.json({
       settings: {
         gra_inventory_scan_rate: rate,
+        rates: allRates,
       },
       overview: overviewResult.rows[0] || {},
       leaders: leadersResult.rows,

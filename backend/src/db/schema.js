@@ -830,6 +830,22 @@ async function createSchema() {
     await client.query(`CREATE INDEX IF NOT EXISTS idx_assembly_items_task ON assembly_items_s(task_id)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_assembly_items_bundle ON assembly_items_s(task_id, used_in_bundle)`);
 
+    // ─── One-time: clear test GRACoin data ──────────────────────────
+    const graCleared = await client.query(`SELECT value FROM settings_s WHERE key = 'gra_test_data_cleared' LIMIT 1`);
+    if (!graCleared.rows.length) {
+      console.log('[DB] Clearing test GRACoin data...');
+      await client.query(`DELETE FROM employee_earnings_s`);
+      await client.query(`UPDATE employees_s SET gra_balance = 0`);
+      await client.query(`INSERT INTO settings_s (key, value) VALUES ('gra_test_data_cleared', 'true') ON CONFLICT (key) DO NOTHING`);
+      console.log('[DB] Test GRACoin data cleared');
+    }
+
+    // Seed default GRA rates per task type
+    await client.query(`INSERT INTO settings_s (key, value) VALUES ('gra_rate_inventory', '10') ON CONFLICT (key) DO NOTHING`);
+    await client.query(`INSERT INTO settings_s (key, value) VALUES ('gra_rate_packaging', '10') ON CONFLICT (key) DO NOTHING`);
+    await client.query(`INSERT INTO settings_s (key, value) VALUES ('gra_rate_assembly', '10') ON CONFLICT (key) DO NOTHING`);
+    await client.query(`INSERT INTO settings_s (key, value) VALUES ('gra_rate_production_transfer', '10') ON CONFLICT (key) DO NOTHING`);
+
     await client.query('COMMIT');
     console.log('[DB] Schema created/verified successfully');
   } catch (err) {

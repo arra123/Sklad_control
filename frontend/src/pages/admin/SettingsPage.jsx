@@ -4,7 +4,7 @@ import {
   Settings, Palette, Sun, Moon, Check, RefreshCw, Info, Search,
   Volume2, VolumeX, Zap, Package, Table2, Bell, ScanLine,
   Play, ChevronUp, ChevronDown, History, Eye, MessageSquare,
-  Bug, Lightbulb, HelpCircle, Trash2, ChevronRight, X
+  Bug, Lightbulb, HelpCircle, Trash2, ChevronRight, X, Coins, Save
 } from 'lucide-react';
 const APP_VERSION = '1.27.0';
 import api from '../../api/client';
@@ -818,10 +818,113 @@ function FeedbackAdmin() {
   );
 }
 
+// ─── GRACoin Rate Settings ────────────────────────────────────────────────────
+const RATE_FIELDS = [
+  { key: 'inventory', label: 'Инвентаризация / Оприходование', desc: 'Стандартное сканирование товаров на полки и паллеты' },
+  { key: 'packaging', label: 'Упаковка', desc: 'Упаковка товаров в коробки для отправки' },
+  { key: 'assembly', label: 'Сборка комплектов', desc: 'Сборка наборов из нескольких компонентов' },
+  { key: 'production_transfer', label: 'Перемещение продукции', desc: 'Перемещение готовой продукции между складами' },
+];
+
+function GraCoinSettings() {
+  const toast = useToast();
+  const [rates, setRates] = useState({});
+  const [draft, setDraft] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    api.get('/earnings/summary')
+      .then(res => {
+        const r = res.data?.settings?.rates || {};
+        setRates(r);
+        setDraft(r);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const hasChanges = RATE_FIELDS.some(f => String(draft[f.key] ?? '') !== String(rates[f.key] ?? ''));
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const payload = {};
+      for (const f of RATE_FIELDS) {
+        payload[`gra_rate_${f.key}`] = String(draft[f.key] || 0);
+      }
+      await api.put('/settings', payload);
+      setRates({ ...draft });
+      toast.success('Тарифы GRACoin сохранены');
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Ошибка сохранения');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) return <div className="flex justify-center py-12"><div className="animate-spin w-6 h-6 border-2 border-primary-500 border-t-transparent rounded-full" /></div>;
+
+  return (
+    <div className="space-y-5">
+      <div className="card p-6">
+        <div className="flex items-center gap-2 mb-1">
+          <Coins className="w-5 h-5 text-amber-500" />
+          <h2 className="font-semibold text-gray-900 dark:text-white">Тарифы GRACoin за пик</h2>
+        </div>
+        <p className="text-xs text-gray-400 mb-5">Сколько GRA начислять сотруднику за каждый скан (пик) в зависимости от типа задачи</p>
+
+        <div className="space-y-4">
+          {RATE_FIELDS.map(f => (
+            <div key={f.key} className="flex items-center gap-4 p-4 rounded-xl bg-gray-50 dark:bg-gray-800">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-900 dark:text-white">{f.label}</p>
+                <p className="text-xs text-gray-400 mt-0.5">{f.desc}</p>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <input
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  value={draft[f.key] ?? ''}
+                  onChange={e => setDraft(d => ({ ...d, [f.key]: e.target.value }))}
+                  className="w-24 px-3 py-2 text-sm text-right font-mono rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                />
+                <span className="text-xs text-gray-400 font-medium w-12">GRA</span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {hasChanges && (
+          <div className="flex items-center justify-end gap-3 mt-5 pt-4 border-t border-gray-100 dark:border-gray-700">
+            <button onClick={() => setDraft({ ...rates })}
+              className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700 font-medium transition-colors">
+              Отмена
+            </button>
+            <Button onClick={handleSave} loading={saving} icon={<Save size={14} />}>
+              Сохранить тарифы
+            </Button>
+          </div>
+        )}
+      </div>
+
+      <div className="card p-5">
+        <p className="text-xs text-gray-400">
+          <strong>Как это работает:</strong> при каждом скане (пике) в задаче сотруднику начисляется указанное количество GRA.
+          Например, если тариф инвентаризации = 10 GRA и сотрудник сделал 500 сканов, он получит 5 000 GRA.
+          Курс: 1 GRA = 0.01 ₽.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 // ─── Settings Tabs ───────────────────────────────────────────────────────────
 const TABS = [
   { key: 'appearance', label: 'Внешний вид', icon: Palette },
   { key: 'scanning', label: 'Сканирование', icon: ScanLine },
+  { key: 'gracoin', label: 'GRACoin', icon: Coins },
   { key: 'interface', label: 'Интерфейс', icon: Table2 },
   { key: 'data', label: 'Данные', icon: RefreshCw },
   { key: 'feedback', label: 'Обращения', icon: MessageSquare },
@@ -1308,6 +1411,8 @@ export default function SettingsPage() {
       )}
 
       {/* ═══ Changelog ═══ */}
+      {tab === 'gracoin' && <GraCoinSettings />}
+
       {tab === 'changelog' && (
         <div>
           <div className="flex items-center gap-2 mb-5">
