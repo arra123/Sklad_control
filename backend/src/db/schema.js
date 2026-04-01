@@ -836,10 +836,10 @@ async function createSchema() {
       }
     }
 
-    // ─── Cleanup all test tasks + create 1 assembly task ──
-    await client.query(`DELETE FROM inventory_tasks_s WHERE title LIKE 'Т5:%' OR title LIKE 'Т6:%' OR title LIKE 'Тест%:%'`);
-    const t6Check = await client.query(`SELECT id FROM inventory_tasks_s WHERE title LIKE 'Т7:%' LIMIT 1`);
-    if (t6Check.rows.length === 0) {
+    // ─── Cleanup all test tasks + create 1 assembly task x5 ──
+    await client.query(`DELETE FROM inventory_tasks_s WHERE title LIKE 'Т5:%' OR title LIKE 'Т6:%' OR title LIKE 'Т7:%' OR title LIKE 'Тест%:%'`);
+    const t8Check = await client.query(`SELECT id FROM inventory_tasks_s WHERE title LIKE 'Т8:%' LIMIT 1`);
+    if (t8Check.rows.length === 0) {
       const empRes = await client.query(`SELECT id FROM employees_s WHERE full_name ILIKE '%Кырчанова Елена%' LIMIT 1`);
       const bundleRes = await client.query(`SELECT id, name FROM products_s WHERE id = 159 AND entity_type = 'bundle'`);
       const boxShelf = (await client.query(`
@@ -849,13 +849,13 @@ async function createSchema() {
       if (empRes.rows.length > 0 && bundleRes.rows.length > 0 && boxShelf) {
         await client.query(
           `INSERT INTO inventory_tasks_s (title, employee_id, task_type, created_by, bundle_product_id, bundle_qty, assembly_phase, dest_shelf_id, notes)
-           VALUES ($1,$2,'bundle_assembly',$3, 159, 10, 'picking', $4, $5)`,
-          ['Т7: Сборка ' + bundleRes.rows[0].name + ' x10', empRes.rows[0].id,
+           VALUES ($1,$2,'bundle_assembly',$3, 159, 5, 'picking', $4, $5)`,
+          ['Т8: Сборка ' + bundleRes.rows[0].name + ' x5', empRes.rows[0].id,
            (await client.query(`SELECT id FROM users_s WHERE role='admin' LIMIT 1`)).rows[0]?.id || 1,
            boxShelf.id,
-           '1. ЗАБОР: Найдите компоненты на складе и отсканируйте\\n   - NMN (ШК: 100000035279) — 10 шт\\n   - Ресвератрол (ШК: 4627174095067) — 10 шт\\n2. Нажмите «Приступить к сборке»\\n3. СБОРКА: Для каждого комплекта отсканируйте оба компонента\\n4. Повторите 10 раз\\n5. РАЗМЕЩЕНИЕ: Разложите готовые комплекты на полку']
+           '1. ЗАБОР: Отсканируйте паллет/полку где лежат компоненты\\n   - NMN (ШК: 100000035279) — 5 шт\\n   - Ресвератрол (ШК: 4627174095067) — 5 шт\\n2. Нажмите «Приступить к сборке»\\n3. СБОРКА: Для каждого комплекта отсканируйте оба компонента\\n4. Повторите 5 раз\\n5. РАЗМЕЩЕНИЕ: Разложите готовые комплекты на полку']
         );
-        console.log('[DB] Created 1 assembly task x10 for Кырчанова Елена');
+        console.log('[DB] Created 1 assembly task x5 for Кырчанова Елена');
       }
     }
 
