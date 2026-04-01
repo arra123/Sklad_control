@@ -16,10 +16,14 @@ router.get('/warehouses', requireAuth, async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT w.*,
-        (SELECT COUNT(*) FROM pallet_rows_s WHERE warehouse_id = w.id) as rows_count,
-        (SELECT COUNT(*) FROM pallets_s pa JOIN pallet_rows_s pr ON pa.row_id = pr.id WHERE pr.warehouse_id = w.id) as pallets_count,
-        (SELECT COUNT(*) FROM boxes_s b JOIN pallets_s pa ON b.pallet_id = pa.id JOIN pallet_rows_s pr ON pa.row_id = pr.id WHERE pr.warehouse_id = w.id AND b.status = 'closed') as boxes_count
-      FROM warehouses_s w WHERE w.warehouse_type IN ('fbo', 'both') ORDER BY w.name
+        COALESCE(rc.cnt, 0) as rows_count,
+        COALESCE(pc.cnt, 0) as pallets_count,
+        COALESCE(bc.cnt, 0) as boxes_count
+      FROM warehouses_s w
+      LEFT JOIN (SELECT warehouse_id, COUNT(*) as cnt FROM pallet_rows_s GROUP BY warehouse_id) rc ON rc.warehouse_id = w.id
+      LEFT JOIN (SELECT pr.warehouse_id, COUNT(*) as cnt FROM pallets_s pa JOIN pallet_rows_s pr ON pa.row_id = pr.id GROUP BY pr.warehouse_id) pc ON pc.warehouse_id = w.id
+      LEFT JOIN (SELECT pr.warehouse_id, COUNT(*) as cnt FROM boxes_s b JOIN pallets_s pa ON b.pallet_id = pa.id JOIN pallet_rows_s pr ON pa.row_id = pr.id WHERE b.status = 'closed' GROUP BY pr.warehouse_id) bc ON bc.warehouse_id = w.id
+      WHERE w.warehouse_type IN ('fbo', 'both') ORDER BY w.name
     `);
     res.json(result.rows);
   } catch (err) { res.status(500).json({ error: err.message }); }

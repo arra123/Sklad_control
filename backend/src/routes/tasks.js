@@ -557,21 +557,10 @@ function buildInventoryEventFilter(idField, ids, warehouseField, warehouseId, pa
   return '1=1';
 }
 
-async function getShelfInventoryEvents(client, { shelfIds = null, warehouseId = null } = {}) {
+async function getShelfInventoryEvents(client, { shelfIds = null, warehouseId = null, lite = false } = {}) {
   const params = [];
   const filterSql = buildInventoryEventFilter('t.shelf_id', shelfIds, 'r.warehouse_id', warehouseId, params);
-  const result = await client.query(
-    `SELECT
-       'shelf' as leaf_type,
-       t.shelf_id as leaf_id,
-       t.id as task_id,
-       t.title as task_title,
-       t.started_at,
-       t.completed_at,
-       ROUND(EXTRACT(EPOCH FROM (t.completed_at - t.started_at))::numeric) as duration_seconds,
-       e.full_name as employee_name,
-       COALESCE(SUM(sc.quantity_delta), 0) as counted_qty,
-       (
+  const productsCol = lite ? "'[]'::json as products" : `(
          SELECT COALESCE(json_agg(json_build_object(
            'product_id', agg.product_id,
            'product_name', p.name,
@@ -585,7 +574,19 @@ async function getShelfInventoryEvents(client, { shelfIds = null, warehouseId = 
            GROUP BY sc2.product_id
          ) agg
          LEFT JOIN products_s p ON p.id = agg.product_id
-       ) as products
+       ) as products`;
+  const result = await client.query(
+    `SELECT
+       'shelf' as leaf_type,
+       t.shelf_id as leaf_id,
+       t.id as task_id,
+       t.title as task_title,
+       t.started_at,
+       t.completed_at,
+       ROUND(EXTRACT(EPOCH FROM (t.completed_at - t.started_at))::numeric) as duration_seconds,
+       e.full_name as employee_name,
+       COALESCE(SUM(sc.quantity_delta), 0) as counted_qty,
+       ${productsCol}
      FROM inventory_tasks_s t
      JOIN shelves_s s ON s.id = t.shelf_id
      JOIN racks_s r ON r.id = s.rack_id
@@ -607,21 +608,10 @@ async function getShelfInventoryEvents(client, { shelfIds = null, warehouseId = 
   return result.rows;
 }
 
-async function getPalletInventoryEvents(client, { palletIds = null, warehouseId = null } = {}) {
+async function getPalletInventoryEvents(client, { palletIds = null, warehouseId = null, lite = false } = {}) {
   const params = [];
   const filterSql = buildInventoryEventFilter('t.target_pallet_id', palletIds, 'pr.warehouse_id', warehouseId, params);
-  const result = await client.query(
-    `SELECT
-       'pallet' as leaf_type,
-       t.target_pallet_id as leaf_id,
-       t.id as task_id,
-       t.title as task_title,
-       t.started_at,
-       t.completed_at,
-       ROUND(EXTRACT(EPOCH FROM (t.completed_at - t.started_at))::numeric) as duration_seconds,
-       e.full_name as employee_name,
-       COALESCE(SUM(sc.quantity_delta), 0) as counted_qty,
-       (
+  const productsCol = lite ? "'[]'::json as products" : `(
          SELECT COALESCE(json_agg(json_build_object(
            'product_id', agg.product_id,
            'product_name', p.name,
@@ -635,7 +625,19 @@ async function getPalletInventoryEvents(client, { palletIds = null, warehouseId 
            GROUP BY sc2.product_id
          ) agg
          LEFT JOIN products_s p ON p.id = agg.product_id
-       ) as products
+       ) as products`;
+  const result = await client.query(
+    `SELECT
+       'pallet' as leaf_type,
+       t.target_pallet_id as leaf_id,
+       t.id as task_id,
+       t.title as task_title,
+       t.started_at,
+       t.completed_at,
+       ROUND(EXTRACT(EPOCH FROM (t.completed_at - t.started_at))::numeric) as duration_seconds,
+       e.full_name as employee_name,
+       COALESCE(SUM(sc.quantity_delta), 0) as counted_qty,
+       ${productsCol}
      FROM inventory_tasks_s t
      JOIN pallets_s pa ON pa.id = t.target_pallet_id
      JOIN pallet_rows_s pr ON pr.id = pa.row_id
@@ -656,9 +658,24 @@ async function getPalletInventoryEvents(client, { palletIds = null, warehouseId 
   return result.rows;
 }
 
-async function getShelfBoxInventoryEvents(client, { shelfBoxIds = null, warehouseId = null } = {}) {
+async function getShelfBoxInventoryEvents(client, { shelfBoxIds = null, warehouseId = null, lite = false } = {}) {
   const params = [];
   const filterSql = buildInventoryEventFilter('tb.shelf_box_id', shelfBoxIds, 'r.warehouse_id', warehouseId, params);
+  const productsCol = lite ? "'[]'::json as products" : `(
+         SELECT COALESCE(json_agg(json_build_object(
+           'product_id', agg.product_id,
+           'product_name', p.name,
+           'product_code', p.code,
+           'quantity', agg.total_qty
+         ) ORDER BY p.name), '[]'::json)
+         FROM (
+           SELECT sc2.product_id, SUM(sc2.quantity_delta) as total_qty
+           FROM inventory_task_scans_s sc2
+           WHERE sc2.task_id = t.id AND sc2.task_box_id = tb.id AND sc2.product_id IS NOT NULL
+           GROUP BY sc2.product_id
+         ) agg
+         LEFT JOIN products_s p ON p.id = agg.product_id
+       ) as products`;
   const result = await client.query(
     `SELECT
        'shelf_box' as leaf_type,
@@ -674,21 +691,7 @@ async function getShelfBoxInventoryEvents(client, { shelfBoxIds = null, warehous
          FROM inventory_task_scans_s sc2
          WHERE sc2.task_id = t.id AND sc2.task_box_id = tb.id AND sc2.product_id IS NOT NULL
        ), 0) as counted_qty,
-       (
-         SELECT COALESCE(json_agg(json_build_object(
-           'product_id', agg.product_id,
-           'product_name', p.name,
-           'product_code', p.code,
-           'quantity', agg.total_qty
-         ) ORDER BY p.name), '[]'::json)
-         FROM (
-           SELECT sc2.product_id, SUM(sc2.quantity_delta) as total_qty
-           FROM inventory_task_scans_s sc2
-           WHERE sc2.task_id = t.id AND sc2.task_box_id = tb.id AND sc2.product_id IS NOT NULL
-           GROUP BY sc2.product_id
-         ) agg
-         LEFT JOIN products_s p ON p.id = agg.product_id
-       ) as products
+       ${productsCol}
      FROM inventory_task_boxes_s tb
      JOIN inventory_tasks_s t ON t.id = tb.task_id
      JOIN shelf_boxes_s sb ON sb.id = tb.shelf_box_id
@@ -706,9 +709,24 @@ async function getShelfBoxInventoryEvents(client, { shelfBoxIds = null, warehous
   return result.rows;
 }
 
-async function getPalletBoxInventoryEvents(client, { boxIds = null, warehouseId = null } = {}) {
+async function getPalletBoxInventoryEvents(client, { boxIds = null, warehouseId = null, lite = false } = {}) {
   const params = [];
   const filterSql = buildInventoryEventFilter('tb.box_id', boxIds, 'pr.warehouse_id', warehouseId, params);
+  const productsCol = lite ? "'[]'::json as products" : `(
+         SELECT COALESCE(json_agg(json_build_object(
+           'product_id', agg.product_id,
+           'product_name', p.name,
+           'product_code', p.code,
+           'quantity', agg.total_qty
+         ) ORDER BY p.name), '[]'::json)
+         FROM (
+           SELECT sc2.product_id, SUM(sc2.quantity_delta) as total_qty
+           FROM inventory_task_scans_s sc2
+           WHERE sc2.task_id = t.id AND sc2.task_box_id = tb.id AND sc2.product_id IS NOT NULL
+           GROUP BY sc2.product_id
+         ) agg
+         LEFT JOIN products_s p ON p.id = agg.product_id
+       ) as products`;
   const result = await client.query(
     `SELECT
        'pallet_box' as leaf_type,
@@ -724,21 +742,7 @@ async function getPalletBoxInventoryEvents(client, { boxIds = null, warehouseId 
          FROM inventory_task_scans_s sc2
          WHERE sc2.task_id = t.id AND sc2.task_box_id = tb.id AND sc2.product_id IS NOT NULL
        ), 0) as counted_qty,
-       (
-         SELECT COALESCE(json_agg(json_build_object(
-           'product_id', agg.product_id,
-           'product_name', p.name,
-           'product_code', p.code,
-           'quantity', agg.total_qty
-         ) ORDER BY p.name), '[]'::json)
-         FROM (
-           SELECT sc2.product_id, SUM(sc2.quantity_delta) as total_qty
-           FROM inventory_task_scans_s sc2
-           WHERE sc2.task_id = t.id AND sc2.task_box_id = tb.id AND sc2.product_id IS NOT NULL
-           GROUP BY sc2.product_id
-         ) agg
-         LEFT JOIN products_s p ON p.id = agg.product_id
-       ) as products
+       ${productsCol}
      FROM inventory_task_boxes_s tb
      JOIN inventory_tasks_s t ON t.id = tb.task_id
      JOIN boxes_s b ON b.id = tb.box_id
@@ -891,10 +895,10 @@ async function getInventoryOverviewData(client, warehouseId = null) {
        ORDER BY boxed.pallet_id, boxed.position`,
       [warehouseIds]
     ),
-    getShelfInventoryEvents(client, { warehouseId }),
-    getPalletInventoryEvents(client, { warehouseId }),
-    getShelfBoxInventoryEvents(client, { warehouseId }),
-    getPalletBoxInventoryEvents(client, { warehouseId }),
+    getShelfInventoryEvents(client, { warehouseId, lite: true }),
+    getPalletInventoryEvents(client, { warehouseId, lite: true }),
+    getShelfBoxInventoryEvents(client, { warehouseId, lite: true }),
+    getPalletBoxInventoryEvents(client, { warehouseId, lite: true }),
   ]);
 
   const allEventsByLeaf = groupInventoryEvents([
