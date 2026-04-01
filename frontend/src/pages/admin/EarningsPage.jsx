@@ -14,11 +14,8 @@ function fmtGra(value) {
 
 function fmtRub(value) {
   const gra = Number(value || 0);
-  const rub = gra / 100;
-  // No rounding — show exact value
-  const str = rub.toString();
-  const decimals = str.includes('.') ? str.split('.')[1].length : 0;
-  return new Intl.NumberFormat('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: Math.max(2, decimals) }).format(rub);
+  const rub = Math.trunc(gra) / 100;
+  return new Intl.NumberFormat('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(rub);
 }
 
 function fmtDateTime(iso) {
