@@ -653,7 +653,7 @@ async function createSchema() {
         IF cname IS NOT NULL THEN EXECUTE 'ALTER TABLE employee_earnings_s DROP CONSTRAINT ' || cname; END IF;
       END $$
     `);
-    await client.query(`ALTER TABLE employee_earnings_s ADD CONSTRAINT employee_earnings_s_event_type_check CHECK (event_type IN ('inventory_scan', 'manual_adjustment', 'external_order_pick'))`);
+    await client.query(`ALTER TABLE employee_earnings_s ADD CONSTRAINT employee_earnings_s_event_type_check CHECK (event_type IN ('inventory_scan', 'manual_adjustment', 'external_order_pick', 'external_order_collect'))`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_employee_earnings_source ON employee_earnings_s(source) WHERE source IS NOT NULL`);
 
     // Seed new item tables from legacy one-product boxes
