@@ -14,6 +14,13 @@ Thumbs.db
 dostupy.md
 deploy.js
 
-# Claude Code auto-memory (machine-specific, не нужно в git)
-# Инструкции для Claude хранятся в CLAUDE.md (в git)
+# Claude Code
 .claude/settings.local.json
+.playwright-mcp/
+test_screenshots/
+sqlite_mcp_server.db
+desktop.ini
+
+# Temp files
+tmp_*.js
+db_backup_*/

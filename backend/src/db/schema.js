@@ -830,50 +830,6 @@ async function createSchema() {
     await client.query(`CREATE INDEX IF NOT EXISTS idx_assembly_items_task ON assembly_items_s(task_id)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_assembly_items_bundle ON assembly_items_s(task_id, used_in_bundle)`);
 
-    // ─── One-time migration: remove old "Ижевск FBS" warehouse (id=1) ──
-    const oldWh = await client.query(`SELECT id FROM warehouses_s WHERE id = 1 AND name = 'Ижевск FBS'`);
-    if (oldWh.rows.length > 0) {
-      await client.query(`DELETE FROM warehouses_s WHERE id = 1`);
-      console.log('[DB] Removed old warehouse "Ижевск FBS" (id=1)');
-    }
-
-    // ─── One-time migration: populate rack 12 in "Ижевск FBS нов" with backup data ──
-    const newWhRes = await client.query(`SELECT id FROM warehouses_s WHERE name = 'Ижевск FBS нов'`);
-    if (newWhRes.rows.length > 0) {
-      const rack12Res = await client.query(`SELECT id FROM racks_s WHERE warehouse_id = $1 AND number = 12`, [newWhRes.rows[0].id]);
-      if (rack12Res.rows.length > 0) {
-        const rackId = rack12Res.rows[0].id;
-        const existingShelves = await client.query(`SELECT id FROM shelves_s WHERE rack_id = $1`, [rackId]);
-        if (existingShelves.rows.length === 0) {
-          // Shelf definitions: [name, number, code, [[product_id, qty], ...]]
-          const shelvesData = [
-            ['Полка 1', 1, 'С12П1', [[176,96],[134,60],[142,50],[147,215],[130,19],[171,49],[131,10],[133,181],[113,13],[123,43],[148,33]]],
-            ['Полка 2', 2, 'С12П2', [[116,46],[125,27],[172,471],[143,32],[117,194],[128,43],[127,7]]],
-            ['Полка 3', 3, 'С12П3', [[167,56],[112,48],[129,40],[132,207],[139,97],[110,1],[40,7],[85,5]]],
-            ['Полка 4', 4, 'С12П4', [[159,399],[165,15],[137,3],[175,119],[118,18],[120,47],[168,43],[38,4],[174,38],[140,50],[124,27],[154,24],[155,10],[169,48],[145,7]]],
-            ['Полка 5', 5, 'С12П5', [[144,132],[150,42],[170,28],[156,35],[121,17],[158,21],[157,42],[162,38],[146,29],[153,19],[111,1],[151,42],[163,113],[161,37],[173,21],[115,48],[177,22],[114,34],[152,42],[160,13],[141,50]]],
-          ];
-          let totalItems = 0;
-          for (const [name, num, code, itemsList] of shelvesData) {
-            const bc = String(Math.floor(Math.random() * 900000000) + 100000000);
-            const sr = await client.query(
-              `INSERT INTO shelves_s (rack_id, name, number, code, barcode_value) VALUES ($1,$2,$3,$4,$5) RETURNING id`,
-              [rackId, name, num, code, bc]
-            );
-            const sid = sr.rows[0].id;
-            for (const [pid, qty] of itemsList) {
-              const prodExists = await client.query(`SELECT id FROM products_s WHERE id = $1`, [pid]);
-              if (prodExists.rows.length > 0) {
-                await client.query(`INSERT INTO shelf_items_s (shelf_id, product_id, quantity) VALUES ($1,$2,$3)`, [sid, pid, qty]);
-                totalItems++;
-              }
-            }
-          }
-          console.log(`[DB] Migrated rack 12: 5 shelves, ${totalItems} items from old backup`);
-        }
-      }
-    }
-
     await client.query('COMMIT');
     console.log('[DB] Schema created/verified successfully');
   } catch (err) {

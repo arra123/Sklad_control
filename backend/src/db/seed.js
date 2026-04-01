@@ -17,10 +17,6 @@ async function seedAdmin() {
   console.log(`[Seed] Admin user created: ${adminLogin}`);
 }
 
-async function seedDefaultWarehouse() {
-  // Default warehouse removed — warehouses are created via admin UI
-}
-
 async function seedDefaultSettings() {
   const defaults = [
     { key: 'theme_color', value: 'purple' },
@@ -38,7 +34,6 @@ async function seedDefaultSettings() {
 
 async function runSeed() {
   await seedAdmin();
-  await seedDefaultWarehouse();
   await seedDefaultSettings();
 }
 
