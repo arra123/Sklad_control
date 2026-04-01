@@ -166,7 +166,7 @@ export default function EarningsPage() {
   useEffect(() => { loadBase(); }, [loadBase]);
   useEffect(() => {
     setSearchParams(prev => { const p = new URLSearchParams(prev); p.delete('task'); p.set('dtab', 'sklad'); return p; }, { replace: true });
-    setTaskDetails(null); setExpandedTask(null);
+    setEmployeeDetails(null); setTaskDetails(null); setExpandedTask(null);
     if (selectedEmployeeId) loadEmployeeDetails(selectedEmployeeId);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedEmployeeId, loadEmployeeDetails]);
