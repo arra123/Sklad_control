@@ -8,13 +8,17 @@ const pool = new Pool({
   user: config.db.user,
   password: config.db.password,
   ssl: config.db.ssl ? { rejectUnauthorized: false } : false,
-  max: 10,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 5000,
+  max: 25,
+  idleTimeoutMillis: 15000,
+  connectionTimeoutMillis: 10000,
 });
 
 pool.on('error', (err) => {
   console.error('[DB] Unexpected pool error:', err.message);
 });
+
+// Graceful shutdown — release connections on process exit
+process.on('SIGINT', () => { pool.end(); process.exit(0); });
+process.on('SIGTERM', () => { pool.end(); process.exit(0); });
 
 module.exports = pool;
