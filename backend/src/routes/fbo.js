@@ -517,9 +517,10 @@ router.get('/visual/:warehouseId', requireAuth, async (req, res) => {
       ),
     ]);
 
-    // Group boxes by pallet_id
+    // Group boxes by pallet_id (skip empty boxes with qty=0)
     const boxesByPallet = {};
     for (const box of boxesRes.rows) {
+      if (parseFloat(box.quantity || 0) <= 0) continue;
       if (!boxesByPallet[box.pallet_id]) boxesByPallet[box.pallet_id] = [];
       boxesByPallet[box.pallet_id].push(box);
     }

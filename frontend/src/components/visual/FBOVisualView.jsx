@@ -71,8 +71,12 @@ function buildPallet(palletData, sharedMats, sharedGeo, offsetX, offsetZ) {
   // Boxes
   const boxMeshes = [];
   const layers = Math.ceil(boxes.length / LAYER_SIZE);
+  if (layers === 0) {
+    pallet.userData = { type: 'pallet', boxMeshes, palletInfo: palletData };
+    return pallet;
+  }
 
-  for (let li = 0; li < Math.max(layers, 1); li++) {
+  for (let li = 0; li < layers; li++) {
     const lg = new THREE.Group();
     const baseY = 0.42 + li * (BOX_H + 0.08);
     const layerBoxes = boxes.slice(li * LAYER_SIZE, (li + 1) * LAYER_SIZE);

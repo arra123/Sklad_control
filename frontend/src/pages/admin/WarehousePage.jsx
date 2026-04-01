@@ -2648,11 +2648,11 @@ function FBORowListView({ warehouse, initialRowId, initialPalletId, initialBoxId
 
       {/* Visual mode */}
       {vm === 'visual' && (
-        <div className="relative">
-          {/* Mini card — overlay left side */}
+        <div className="flex gap-4">
+          {/* Mini card — left side, does NOT shrink 3D */}
           {visualSelection && (
-            <div className="absolute left-3 top-3 z-10 w-64">
-              <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-lg overflow-hidden">
+            <div className="w-64 flex-shrink-0 self-start">
+              <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-lg overflow-hidden sticky top-4">
                 <div className="px-4 py-3 bg-primary-600 text-white">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-medium uppercase tracking-wide opacity-80">
@@ -2748,10 +2748,12 @@ function FBORowListView({ warehouse, initialRowId, initialPalletId, initialBoxId
               </div>
             </div>
           )}
-          {/* 3D view */}
-          <Suspense fallback={<div style={{display:'flex',alignItems:'center',justifyContent:'center',height:400}}><Spinner size="lg" /></div>}>
-            <FBOVisualView warehouse={warehouse} onSelect={setVisualSelection} />
-          </Suspense>
+          {/* 3D view — always full width */}
+          <div className="flex-1 min-w-0">
+            <Suspense fallback={<div style={{display:'flex',alignItems:'center',justifyContent:'center',height:400}}><Spinner size="lg" /></div>}>
+              <FBOVisualView warehouse={warehouse} onSelect={setVisualSelection} />
+            </Suspense>
+          </div>
         </div>
       )}
 
