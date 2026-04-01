@@ -18,6 +18,12 @@ function fmtRub(value) {
   return new Intl.NumberFormat('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(rub);
 }
 
+function fmtRubRate(value) {
+  const gra = Number(value || 0);
+  const rub = Math.floor((gra / 100) * 1000) / 1000;
+  return new Intl.NumberFormat('ru-RU', { minimumFractionDigits: 3, maximumFractionDigits: 3 }).format(rub);
+}
+
 function fmtDateTime(iso) {
   if (!iso) return '—';
   return new Date(iso).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -97,6 +103,7 @@ export default function EarningsPage() {
   const [expandedTask, setExpandedTask] = useState(null);
   const [showRub, setShowRub] = useState(false);
   const fmt = (v) => showRub ? fmtRub(v) : fmtGra(v);
+  const fmtRate = (v) => showRub ? fmtRubRate(v) : fmtGra(v);
   const unit = showRub ? '₽' : 'GRA';
 
   const loadBase = useCallback(async (background = false) => {
@@ -231,7 +238,7 @@ export default function EarningsPage() {
               { Icon: ScannerIcon, label: 'Сканов', value: fmtGra(overview.rewarded_scans || 0), bg: 'bg-blue-50' },
               { Icon: TrendUpIcon, label: 'Начислено', value: `${fmt(overview.total_awarded)} ${unit}`, bg: 'bg-emerald-50' },
               { Icon: OrderPickIcon, label: 'Сборки', value: `${fmt(overview.total_sborka_amount)} ${unit}`, hint: `${fmtGra(overview.total_sborka_units || 0)} пиков`, bg: 'bg-pink-50' },
-              { Icon: RateGearIcon, label: 'Ставка', value: `${fmt(summary?.settings?.gra_inventory_scan_rate || 0)} ${unit}`, color: 'text-amber-600', bg: 'bg-amber-50' },
+              { Icon: RateGearIcon, label: 'Ставка', value: `${fmtRate(summary?.settings?.gra_inventory_scan_rate || 0)} ${unit}`, color: 'text-amber-600', bg: 'bg-amber-50' },
             ].map((s, i) => (
               <div key={i} className="bg-white rounded-2xl p-4 border border-gray-100">
                 <div className={`w-8 h-8 rounded-lg ${s.bg} flex items-center justify-center mb-2`}><s.Icon size={20} /></div>
@@ -452,7 +459,7 @@ export default function EarningsPage() {
                                                       <span className="flex-1 text-gray-700 truncate">{scan.product_name || scan.scanned_value}</span>
                                                       <span className="text-gray-400 font-mono">{scan.product_code || ''}</span>
                                                       <span className="font-bold text-green-600 w-12 text-right">+{fmt(scan.amount_delta)}</span>
-                                                      <span className="text-gray-300 w-16 text-right">{fmtGra(scan.reward_units)} x {fmt(scan.rate_per_unit)}</span>
+                                                      <span className="text-gray-300 w-16 text-right">{fmtGra(scan.reward_units)} x {fmtRate(scan.rate_per_unit)}</span>
                                                     </div>
                                                   ))}
                                                 </div>
@@ -575,7 +582,7 @@ export default function EarningsPage() {
             </div>
             <div className="p-5 space-y-3">
               {[
-                { label: 'Ставка сейчас', value: `${fmt(summary?.settings?.gra_inventory_scan_rate || 0)} ${unit}` },
+                { label: 'Ставка сейчас', value: `${fmtRate(summary?.settings?.gra_inventory_scan_rate || 0)} ${unit}` },
                 { label: 'Сотрудников', value: overview.employees_with_activity || 0 },
                 { label: 'Суммарный баланс', value: `${fmt(overview.total_current_balance)} ${unit}` },
               ].map((s, i) => (
