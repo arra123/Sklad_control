@@ -408,89 +408,78 @@ export default function EarningsPage() {
 
                 {/* Warehouse tasks */}
                 {detailTab === 'sklad' && (
-                  <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="bg-gray-50/80">
-                          {['Задача', 'Тип', 'Зоны', 'Сканы', 'GRA', 'Дата'].map((h, i) => (
-                            <th key={h} className={`${i <= 1 ? 'text-left' : 'text-right'} px-3 py-2.5 text-[10px] font-semibold text-gray-400 uppercase ${i === 0 ? 'px-4' : ''} ${i === 5 ? 'text-left' : ''}`}>{h}</th>
-                          ))}
-                          <th className="w-8"></th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-50">
-                        {employeeLoading && !employeeDetails ? (
-                          <tr><td colSpan={7} className="text-center py-16"><Spinner size="md" /></td></tr>
-                        ) : employeeTasks.length === 0 ? (
-                          <tr><td colSpan={7} className="text-center py-12 text-gray-400">Нет оплаченных задач</td></tr>
-                        ) : employeeTasks.map(task => {
-                          const isExpanded = expandedTask === task.task_id;
-                          const isSelected = Number(selectedTaskId) === Number(task.task_id);
-                          return (
-                            <tr key={task.task_id} className="contents">
-                              <tr onClick={() => { setSelectedTaskId(task.task_id); setExpandedTask(isExpanded ? null : task.task_id); }}
-                                className={`cursor-pointer transition-colors ${isSelected ? 'bg-primary-50/40 border-l-[3px] border-l-primary-500' : 'hover:bg-gray-50/50 border-l-[3px] border-l-transparent'}`}>
-                                <td className="px-4 py-3 font-semibold text-gray-800">{task.title}</td>
-                                <td className="px-3 py-3 text-gray-500 text-xs">{TASK_TYPE_LABELS[task.task_type] || '—'}</td>
-                                <td className="px-3 py-3 text-right text-gray-600">{task.scopes_count || 0}</td>
-                                <td className="px-3 py-3 text-right font-bold text-gray-900">{fmtGra(task.rewarded_scans)}</td>
-                                <td className="px-3 py-3 text-right font-black text-green-600">{fmt(task.amount_earned)}</td>
-                                <td className="px-3 py-3 text-gray-400 text-xs">{fmtShort(task.last_earned_at)}</td>
-                                <td className="pr-2">
-                                  {isExpanded ? <ChevronDown size={14} className="text-primary-400" /> : <ChevronRight size={14} className="text-gray-300" />}
-                                </td>
-                              </tr>
-                              {isExpanded && (
-                                <tr>
-                                  <td colSpan={7} className="p-0">
-                                    <div className="bg-primary-50/20 px-6 py-4 border-l-[3px] border-l-primary-500">
-                                      {taskLoading ? (
-                                        <div className="flex items-center justify-center py-8"><Spinner size="md" /></div>
-                                      ) : !taskDetails ? null : (
-                                        <>
-                                          <div className="flex gap-3 mb-3">
-                                            <div className="bg-white rounded-lg px-3 py-1.5 border border-gray-100">
-                                              <span className="text-[10px] text-gray-400">Заработано </span><span className="text-sm font-black text-green-600">{fmt(taskDetails.task.total_earned)} {unit}</span>
-                                            </div>
-                                            <div className="bg-white rounded-lg px-3 py-1.5 border border-gray-100">
-                                              <span className="text-[10px] text-gray-400">Сканов </span><span className="text-sm font-black text-blue-600">{fmtGra(taskDetails.task.rewarded_scans)}</span>
-                                            </div>
-                                            <div className="bg-white rounded-lg px-3 py-1.5 border border-gray-100">
-                                              <span className="text-[10px] text-gray-400">Зон </span><span className="text-sm font-bold text-gray-700">{taskDetails.scopes?.length || 0}</span>
-                                            </div>
+                  <div className="space-y-2">
+                    {employeeLoading && !employeeDetails ? (
+                      <div className="flex items-center justify-center py-16"><Spinner size="md" /></div>
+                    ) : employeeTasks.length === 0 ? (
+                      <div className="text-center py-12 text-gray-400 bg-white rounded-2xl border border-gray-100">Нет оплаченных задач</div>
+                    ) : employeeTasks.map((task, idx) => {
+                      const rowKey = task.row_key || `${task.task_id}-${idx}`;
+                      const isExpanded = expandedTask === rowKey;
+                      const typeColors = { inventory: 'bg-blue-100 text-blue-700', packaging: 'bg-purple-100 text-purple-700', production_transfer: 'bg-amber-100 text-amber-700', bundle_assembly: 'bg-green-100 text-green-700' };
+                      return (
+                        <div key={rowKey} className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                          {/* Task row */}
+                          <div onClick={() => { setSelectedTaskId(task.task_id); setExpandedTask(isExpanded ? null : rowKey); }}
+                            className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50/50 transition-colors">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-gray-800 truncate">{task.title}</p>
+                              <div className="flex items-center gap-2 mt-1">
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-lg ${typeColors[task.task_type] || 'bg-gray-100 text-gray-600'}`}>
+                                  {TASK_TYPE_LABELS[task.task_type] || task.task_type}
+                                </span>
+                                {task.shelf_code && <span className="text-[10px] text-gray-400">{task.rack_name} · {task.shelf_name}</span>}
+                                {task.pallet_name && <span className="text-[10px] text-gray-400">{task.pallet_row_name} · {task.pallet_name}</span>}
+                                {!task.task_id && <span className="text-[10px] text-red-400">удалена</span>}
+                              </div>
+                            </div>
+                            <div className="text-right flex-shrink-0">
+                              <p className="text-xs text-gray-400">{fmtGra(task.rewarded_scans)} сканов</p>
+                            </div>
+                            <div className="text-right flex-shrink-0 w-20">
+                              <p className="text-sm font-black text-green-600">{fmt(task.amount_earned)}</p>
+                              <p className="text-[10px] text-gray-300">{unit}</p>
+                            </div>
+                            <div className="flex-shrink-0 w-12 text-right">
+                              <p className="text-[10px] text-gray-400">{fmtShort(task.last_earned_at)}</p>
+                            </div>
+                            <div className="flex-shrink-0">
+                              {isExpanded ? <ChevronDown size={14} className="text-primary-400" /> : <ChevronRight size={14} className="text-gray-300" />}
+                            </div>
+                          </div>
+                          {/* Expanded details */}
+                          {isExpanded && task.task_id && (
+                            <div className="border-t border-gray-100 bg-gray-50/30 px-4 py-3">
+                              {taskLoading ? (
+                                <div className="flex items-center justify-center py-6"><Spinner size="sm" /></div>
+                              ) : !taskDetails ? null : (
+                                <div className="space-y-2">
+                                  {(taskDetails.scopes || []).map(scope => (
+                                    <div key={scope.scope_key} className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+                                      <div className="bg-gray-50 px-3 py-1.5 flex items-center justify-between">
+                                        <span className="text-[10px] font-bold text-gray-500">{scope.scope_label}</span>
+                                        <span className="text-[10px] font-bold text-green-600">{fmt(scope.amount_earned)} {unit} · {fmtGra(scope.rewarded_scans)} сканов</span>
+                                      </div>
+                                      <div className="divide-y divide-gray-50 max-h-[200px] overflow-y-auto">
+                                        {scope.scans.map((scan, si) => (
+                                          <div key={scan.earning_id} className="flex items-center gap-2 px-3 py-1.5 text-xs">
+                                            <span className="text-gray-300 w-5 text-right">#{si + 1}</span>
+                                            <span className="flex-1 text-gray-700 truncate">{scan.product_name || scan.scanned_value}</span>
+                                            <span className="text-gray-400 font-mono text-[10px]">{scan.product_code || ''}</span>
+                                            <span className="font-bold text-green-600">+{fmt(scan.amount_delta)}</span>
+                                            <span className="text-gray-300 text-[10px]">{fmtGra(scan.reward_units)} × {fmtRate(scan.rate_per_unit)}</span>
                                           </div>
-                                          <div className="space-y-2">
-                                            {(taskDetails.scopes || []).map(scope => (
-                                              <div key={scope.scope_key} className="bg-white rounded-xl border border-gray-100 overflow-hidden">
-                                                <div className="bg-gray-50 px-4 py-2 flex items-center justify-between">
-                                                  <span className="text-xs font-bold text-gray-600">{scope.scope_label} {scope.box_barcode && <span className="text-gray-300 font-mono ml-2">{scope.box_barcode}</span>}</span>
-                                                  <span className="text-xs font-bold text-green-600">{fmt(scope.amount_earned)} {unit} · {fmtGra(scope.rewarded_scans)} сканов</span>
-                                                </div>
-                                                <div className="divide-y divide-gray-50 max-h-[150px] overflow-y-auto">
-                                                  {scope.scans.map((scan, idx) => (
-                                                    <div key={scan.earning_id} className="flex items-center gap-3 px-4 py-1.5 text-xs">
-                                                      <span className="text-gray-300 w-5 text-right">#{idx + 1}</span>
-                                                      <span className="flex-1 text-gray-700 truncate">{scan.product_name || scan.scanned_value}</span>
-                                                      <span className="text-gray-400 font-mono">{scan.product_code || ''}</span>
-                                                      <span className="font-bold text-green-600 w-12 text-right">+{fmt(scan.amount_delta)}</span>
-                                                      <span className="text-gray-300 w-16 text-right">{fmtGra(scan.reward_units)} x {fmtRate(scan.rate_per_unit)}</span>
-                                                    </div>
-                                                  ))}
-                                                </div>
-                                              </div>
-                                            ))}
-                                          </div>
-                                        </>
-                                      )}
+                                        ))}
+                                      </div>
                                     </div>
-                                  </td>
-                                </tr>
+                                  ))}
+                                </div>
                               )}
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
 

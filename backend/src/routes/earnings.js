@@ -178,27 +178,21 @@ router.get('/employees/:employeeId', requireAuth, requireAdmin, async (req, res)
       `, [employeeId]),
       pool.query(`
         SELECT
+          COALESCE(ee.task_id::text, ee.task_title, 'deleted_' || MIN(ee.id)::text) as row_key,
           ee.task_id,
           COALESCE(t.title, ee.task_title, 'Удалённая задача') as title,
           t.status,
-          t.created_at,
-          t.started_at,
-          t.completed_at,
-          COALESCE(t.task_type, ee.task_type, ee.event_type) as task_type,
+          COALESCE(t.task_type, ee.task_type, 'inventory') as task_type,
           s.code as shelf_code,
           s.name as shelf_name,
           r.name as rack_name,
-          r.code as rack_code,
           pa.name as pallet_name,
-          pa.number as pallet_number,
           pr.name as pallet_row_name,
-          pr.number as pallet_row_number,
           COALESCE(SUM(ee.amount_delta), 0) as amount_earned,
           COALESCE(SUM(ee.reward_units), 0) as rewarded_scans,
           COUNT(ee.id) as earning_events,
           COUNT(DISTINCT ee.task_box_id) FILTER (WHERE ee.task_box_id IS NOT NULL) as scopes_count,
-          MAX(ee.created_at) as last_earned_at,
-          CASE WHEN ee.task_id IS NULL THEN ee.task_title END as deleted_task_key
+          MAX(ee.created_at) as last_earned_at
         FROM employee_earnings_s ee
         LEFT JOIN inventory_tasks_s t ON t.id = ee.task_id
         LEFT JOIN shelves_s s ON s.id = t.shelf_id
@@ -209,10 +203,9 @@ router.get('/employees/:employeeId', requireAuth, requireAdmin, async (req, res)
           AND ee.event_type = 'inventory_scan'
           ${periodFilter}
         GROUP BY
-          ee.task_id, t.id, t.title, t.status, t.created_at, t.started_at, t.completed_at, t.task_type,
-          ee.task_title, ee.task_type, ee.event_type,
-          s.code, s.name, r.name, r.code,
-          pa.name, pa.number, pr.name, pr.number
+          COALESCE(ee.task_id::text, ee.task_title, 'deleted'),
+          ee.task_id, t.id, t.title, t.status, t.task_type, ee.task_type, ee.task_title,
+          s.code, s.name, r.name, pa.name, pr.name
         ORDER BY last_earned_at DESC
       `, [employeeId]),
       pool.query(`
