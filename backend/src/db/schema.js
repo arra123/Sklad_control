@@ -860,7 +860,16 @@ async function createSchema() {
           await client.query(`INSERT INTO inventory_tasks_s (title, employee_id, target_pallet_id, task_type, created_by) VALUES ($1,$2,$3,'production_transfer',$4)`,
             ['Тест2: Перенос на ' + p.name + (i > 0 ? ' #' + (i+1) : ''), empId, p.id, adminId]);
         }
-        console.log('[DB] Deleted old test tasks, created 9 for Кырчанова Елена');
+        // Bundle assembly task — NMN + Ресвератрол (bundle id=159)
+        const bundleRes = await client.query(`SELECT id FROM products_s WHERE id = 159`);
+        if (bundleRes.rows.length > 0 && shelfRes.rows[0]) {
+          await client.query(
+            `INSERT INTO inventory_tasks_s (title, employee_id, task_type, created_by, bundle_qty, dest_shelf_id)
+             VALUES ($1,$2,'bundle_assembly',$3, 5, $4)`,
+            ['Тест2: Сборка комплектов NMN+Ресвератрол x5', empId, adminId, shelfRes.rows[0].id]
+          );
+        }
+        console.log('[DB] Deleted old test tasks, created 10 for Кырчанова Елена');
       }
     }
 
