@@ -14,7 +14,7 @@ function fmtGra(value) {
 
 function fmtRub(value) {
   const gra = Number(value || 0);
-  const rub = Math.trunc(gra) / 100;
+  const rub = Math.floor((gra / 100) * 100) / 100;
   return new Intl.NumberFormat('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(rub);
 }
 
