@@ -835,8 +835,29 @@ async function createSchema() {
       }
     }
 
-    // ─── Cleanup test tasks ──
-    await client.query(`DELETE FROM inventory_tasks_s WHERE title LIKE 'Тест:%' OR title LIKE 'Тест2:%'`);
+    // ─── Cleanup old test tasks + create fresh ones for Кырчанова ──
+    await client.query(`DELETE FROM inventory_tasks_s WHERE title LIKE 'Тест:%' OR title LIKE 'Тест2:%' OR title LIKE 'Тест3:%'`);
+    const freshTestCheck = await client.query(`SELECT id FROM inventory_tasks_s WHERE title LIKE 'Тест4:%' LIMIT 1`);
+    if (freshTestCheck.rows.length === 0) {
+      const empRes = await client.query(`SELECT id FROM employees_s WHERE full_name ILIKE '%Кырчанова Елена%' LIMIT 1`);
+      if (empRes.rows.length > 0) {
+        const empId = empRes.rows[0].id;
+        const adminId = (await client.query(`SELECT id FROM users_s WHERE role = 'admin' LIMIT 1`)).rows[0]?.id || 1;
+        const shelf = (await client.query(`SELECT s.id, s.code FROM shelves_s s JOIN racks_s r ON r.id=s.rack_id JOIN warehouses_s w ON w.id=r.warehouse_id WHERE w.name='Ижевск FBS нов' ORDER BY s.id LIMIT 1`)).rows[0];
+        const pallet = (await client.query(`SELECT p.id, p.name FROM pallets_s p JOIN pallet_rows_s pr ON pr.id=p.row_id JOIN warehouses_s w ON w.id=pr.warehouse_id WHERE w.name='Наша продукция нов' ORDER BY p.id LIMIT 1`)).rows[0];
+        if (shelf) await client.query(`INSERT INTO inventory_tasks_s (title, employee_id, shelf_id, task_type, created_by) VALUES ($1,$2,$3,'inventory',$4)`,
+          ['Тест4: Инвентаризация ' + shelf.code, empId, shelf.id, adminId]);
+        if (pallet) {
+          await client.query(`INSERT INTO inventory_tasks_s (title, employee_id, target_pallet_id, task_type, created_by) VALUES ($1,$2,$3,'packaging',$4)`,
+            ['Тест4: Оприходование ' + pallet.name, empId, pallet.id, adminId]);
+          await client.query(`INSERT INTO inventory_tasks_s (title, employee_id, target_pallet_id, task_type, created_by) VALUES ($1,$2,$3,'production_transfer',$4)`,
+            ['Тест4: Перенос на ' + pallet.name, empId, pallet.id, adminId]);
+        }
+        if (shelf) await client.query(`INSERT INTO inventory_tasks_s (title, employee_id, task_type, created_by, bundle_qty, dest_shelf_id) VALUES ($1,$2,'bundle_assembly',$3, 3, $4)`,
+          ['Тест4: Сборка NMN+Ресвератрол x3', empId, adminId, shelf.id]);
+        console.log('[DB] Created 4 test tasks for Кырчанова Елена');
+      }
+    }
 
     await client.query('COMMIT');
     console.log('[DB] Schema created/verified successfully');
