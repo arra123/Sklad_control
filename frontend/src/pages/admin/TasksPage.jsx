@@ -55,6 +55,16 @@ function TaskDetailPanel({ task, onClose, onReload }) {
   const [assemblySourceBoxes, setAssemblySourceBoxes] = useState([]);
   const [showAssemblyModal, setShowAssemblyModal] = useState(false);
 
+  // Reset state when task changes to avoid showing stale data
+  useEffect(() => {
+    setAnalytics(null);
+    setLoading(true);
+    setBoxes(null);
+    setAssemblyData(null);
+    setAssemblySourceBoxes([]);
+    setTab('scans');
+  }, [task.id]);
+
   const loadAnalytics = useCallback(() => {
     api.get(`/tasks/${task.id}/analytics`)
       .then(r => setAnalytics(r.data))
@@ -697,9 +707,9 @@ function TaskDetailPanel({ task, onClose, onReload }) {
             <Button variant="danger" size="sm" onClick={handleDelete}>Удалить</Button>
           </div>
         )}
-        {isAssembly && (task.status === 'completed' || task.status === 'cancelled') && (
+        {(task.status === 'completed' || task.status === 'cancelled') && (
           <div className="flex gap-2 px-4 py-4 border-t border-gray-100 dark:border-gray-800">
-            <Button variant="danger" size="sm" onClick={handleDelete}>Удалить и откатить</Button>
+            <Button variant="danger" size="sm" onClick={handleDelete}>Удалить</Button>
           </div>
         )}
       </div>
