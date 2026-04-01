@@ -2068,22 +2068,31 @@ router.get('/:id/analytics', requireAuth, async (req, res) => {
       boxes = bxs;
     }
 
-    // Null out seconds_since_prev for scans that span a pause period
+    // Null out seconds_since_prev for scans that span a pause or error
     const pauseLog = task.pause_log || [];
-    if (pauseLog.length > 0) {
-      for (const scan of scans) {
-        if (scan.seconds_since_prev != null && scan.prev_scan_at) {
-          const prevTime = new Date(scan.prev_scan_at).getTime();
-          const curTime = new Date(scan.created_at).getTime();
-          for (const p of pauseLog) {
-            const pausedAt = new Date(p.paused_at).getTime();
-            if (pausedAt > prevTime && pausedAt < curTime) {
-              scan.seconds_since_prev = null;
-              break;
-            }
-          }
+    // Build set of error timestamps for gap detection
+    const errorTimes = errors.map(e => new Date(e.created_at).getTime());
+
+    for (const scan of scans) {
+      if (scan.seconds_since_prev == null || !scan.prev_scan_at) continue;
+      const prevTime = new Date(scan.prev_scan_at).getTime();
+      const curTime = new Date(scan.created_at).getTime();
+
+      // Check if a pause period overlaps this gap
+      let nullify = false;
+      for (const p of pauseLog) {
+        const pausedAt = new Date(p.paused_at).getTime();
+        if (pausedAt > prevTime && pausedAt < curTime) { nullify = true; break; }
+      }
+
+      // Check if a scan error occurred between these two scans
+      if (!nullify) {
+        for (const et of errorTimes) {
+          if (et > prevTime && et < curTime) { nullify = true; break; }
         }
       }
+
+      if (nullify) scan.seconds_since_prev = null;
     }
 
     res.json({
@@ -2706,12 +2715,19 @@ router.post('/:id/scan', requireAuth, async (req, res) => {
     await client.query('BEGIN');
     const taskId = req.params.id;
 
+    // Lock task row to prevent concurrent scan deadlocks
     const task = await client.query(
-      'SELECT * FROM inventory_tasks_s WHERE id = $1', [taskId]
+      'SELECT * FROM inventory_tasks_s WHERE id = $1 FOR UPDATE', [taskId]
     );
-    if (!task.rows.length) return res.status(404).json({ error: 'Задача не найдена' });
+    if (!task.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Задача не найдена' }); }
 
     const t = task.rows[0];
+
+    // Pre-lock employee row to ensure consistent lock ordering (task → employee → insert)
+    if (t.employee_id) {
+      await client.query('SELECT id FROM employees_s WHERE id = $1 FOR UPDATE', [t.employee_id]);
+    }
+
     const taskBoxes = await client.query(
       `SELECT tb.id, tb.status,
               COALESCE(sbx.barcode_value, bx.barcode_value) as box_barcode
@@ -2765,21 +2781,11 @@ router.post('/:id/scan', requireAuth, async (req, res) => {
       }
       const isPartial = !hasCyrillic && !isUrl && !deduped && /^\d+$/.test(val) && val.length < 6;
 
-      // If repeated barcode detected — try to find product by single copy
+      // If repeated barcode detected — NEVER count, always warn
       if (deduped) {
-        const retry = await client.query(
-          `SELECT id, external_id, name, code, production_barcode
-           FROM products_s
-           WHERE $1 = ANY(string_to_array(barcode_list, ';'))
-              OR production_barcode = $1
-              OR marketplace_barcodes_json @> jsonb_build_array(jsonb_build_object('value', $1))
-           LIMIT 1`,
-          [deduped]
-        );
-        if (retry.rows[0]) {
-          productRow = retry.rows[0];
-          // Fall through to normal scan processing with corrected barcode
-        }
+        await client.query('COMMIT');
+        return res.json({ found: false, scanned_value: deduped, hint: 'duplicate_scan',
+          message: 'ШК отсканирован несколько раз подряд. Отсканируйте повторно, один раз.' });
       }
 
       if (!productRow) {
@@ -2792,18 +2798,6 @@ router.post('/:id/scan', requireAuth, async (req, res) => {
           await client.query('COMMIT');
           return res.json({ found: false, scanned_value, hint: 'url_scanned',
             message: 'Вы отсканировали QR-код с ссылкой на сайт. Сканируйте штрих-код на упаковке товара — он с цифрами' });
-        }
-        if (deduped) {
-          // Deduped but still not found — record error with single copy
-          const errorResult = await client.query(
-            `INSERT INTO scan_errors_s (task_id, task_box_id, scanned_value, employee_note, user_id)
-             VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-            [taskId, activeTaskBox?.id || null, deduped, 'Дублированный скан: ' + val, req.user.id]
-          );
-          await client.query('COMMIT');
-          return res.json({ found: false, scanned_value: deduped, hint: 'duplicate_scan',
-            message: 'Штрих-код считался несколько раз. Товар не найден по коду ' + deduped,
-            error_id: errorResult.rows[0].id });
         }
         if (isPartial) {
           await client.query('COMMIT');

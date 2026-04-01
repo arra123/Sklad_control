@@ -835,43 +835,8 @@ async function createSchema() {
       }
     }
 
-    // ─── Delete old test tasks for Нурьев, create for Кырчанова ──
-    await client.query(`DELETE FROM inventory_tasks_s WHERE title LIKE 'Тест:%'`);
-    const testTaskCheck2 = await client.query(`SELECT id FROM inventory_tasks_s WHERE title LIKE 'Тест2:%' LIMIT 1`);
-    if (testTaskCheck2.rows.length === 0) {
-      const empRes = await client.query(`SELECT id FROM employees_s WHERE full_name ILIKE '%Кырчанова Елена%' LIMIT 1`);
-      if (empRes.rows.length > 0) {
-        const empId = empRes.rows[0].id;
-        const adminRes = await client.query(`SELECT id FROM users_s WHERE role = 'admin' LIMIT 1`);
-        const adminId = adminRes.rows[0]?.id || 1;
-        const shelfRes = await client.query(`SELECT s.id, s.code FROM shelves_s s JOIN racks_s r ON r.id=s.rack_id JOIN warehouses_s w ON w.id=r.warehouse_id WHERE w.name='Ижевск FBS нов' ORDER BY s.id LIMIT 3`);
-        const palletRes = await client.query(`SELECT p.id, p.name FROM pallets_s p JOIN pallet_rows_s pr ON pr.id=p.row_id JOIN warehouses_s w ON w.id=pr.warehouse_id WHERE w.name='Наша продукция нов' ORDER BY p.id LIMIT 3`);
-        for (const s of shelfRes.rows) {
-          await client.query(`INSERT INTO inventory_tasks_s (title, employee_id, shelf_id, task_type, created_by) VALUES ($1,$2,$3,'inventory',$4)`,
-            ['Тест2: Инвентаризация ' + s.code, empId, s.id, adminId]);
-        }
-        for (let i = 0; i < 3 && palletRes.rows.length > 0; i++) {
-          const p = palletRes.rows[i % palletRes.rows.length];
-          await client.query(`INSERT INTO inventory_tasks_s (title, employee_id, target_pallet_id, task_type, created_by) VALUES ($1,$2,$3,'packaging',$4)`,
-            ['Тест2: Оприходование ' + p.name + (i > 0 ? ' #' + (i+1) : ''), empId, p.id, adminId]);
-        }
-        for (let i = 0; i < 3 && palletRes.rows.length > 0; i++) {
-          const p = palletRes.rows[i % palletRes.rows.length];
-          await client.query(`INSERT INTO inventory_tasks_s (title, employee_id, target_pallet_id, task_type, created_by) VALUES ($1,$2,$3,'production_transfer',$4)`,
-            ['Тест2: Перенос на ' + p.name + (i > 0 ? ' #' + (i+1) : ''), empId, p.id, adminId]);
-        }
-        // Bundle assembly task — NMN + Ресвератрол (bundle id=159)
-        const bundleRes = await client.query(`SELECT id FROM products_s WHERE id = 159`);
-        if (bundleRes.rows.length > 0 && shelfRes.rows[0]) {
-          await client.query(
-            `INSERT INTO inventory_tasks_s (title, employee_id, task_type, created_by, bundle_qty, dest_shelf_id)
-             VALUES ($1,$2,'bundle_assembly',$3, 5, $4)`,
-            ['Тест2: Сборка комплектов NMN+Ресвератрол x5', empId, adminId, shelfRes.rows[0].id]
-          );
-        }
-        console.log('[DB] Deleted old test tasks, created 10 for Кырчанова Елена');
-      }
-    }
+    // ─── Cleanup test tasks ──
+    await client.query(`DELETE FROM inventory_tasks_s WHERE title LIKE 'Тест:%' OR title LIKE 'Тест2:%'`);
 
     await client.query('COMMIT');
     console.log('[DB] Schema created/verified successfully');
