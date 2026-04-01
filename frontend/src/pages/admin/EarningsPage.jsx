@@ -200,7 +200,12 @@ export default function EarningsPage() {
   const employeeAdjustments = employeeDetails?.adjustments || [];
   const sborkaPicks = employeeDetails?.sborka_picks || [];
 
-  const taskLocation = (t) => t.shelf_code ? `${t.rack_name || t.rack_code || 'Стеллаж'} · ${t.shelf_name || t.shelf_code}` : t.pallet_name ? `${t.pallet_row_name || 'Ряд'} · ${t.pallet_name}` : 'Инвентаризация';
+  const TASK_TYPE_LABELS = { inventory: 'Инвентаризация', packaging: 'Оприходование', production_transfer: 'Перенос', bundle_assembly: 'Сборка', inventory_scan: 'Сканирование' };
+  const taskLocation = (t) => {
+    if (t.shelf_code) return `${t.rack_name || t.rack_code || 'Стеллаж'} · ${t.shelf_name || t.shelf_code}`;
+    if (t.pallet_name) return `${t.pallet_row_name || 'Ряд'} · ${t.pallet_name}`;
+    return TASK_TYPE_LABELS[t.task_type] || '—';
+  };
 
   return (
     <div className="p-6 max-w-[1400px] mx-auto">
@@ -398,7 +403,7 @@ export default function EarningsPage() {
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="bg-gray-50/80">
-                          {['Задача', 'Расположение', 'Зоны', 'Сканы', 'GRA', 'Дата'].map((h, i) => (
+                          {['Задача', 'Тип', 'Зоны', 'Сканы', 'GRA', 'Дата'].map((h, i) => (
                             <th key={h} className={`${i <= 1 ? 'text-left' : 'text-right'} px-3 py-2.5 text-[10px] font-semibold text-gray-400 uppercase ${i === 0 ? 'px-4' : ''} ${i === 5 ? 'text-left' : ''}`}>{h}</th>
                           ))}
                           <th className="w-8"></th>
@@ -417,7 +422,7 @@ export default function EarningsPage() {
                               <tr onClick={() => { setSelectedTaskId(task.task_id); setExpandedTask(isExpanded ? null : task.task_id); }}
                                 className={`cursor-pointer transition-colors ${isSelected ? 'bg-primary-50/40 border-l-[3px] border-l-primary-500' : 'hover:bg-gray-50/50 border-l-[3px] border-l-transparent'}`}>
                                 <td className="px-4 py-3 font-semibold text-gray-800">{task.title}</td>
-                                <td className="px-3 py-3 text-gray-500">{taskLocation(task)}</td>
+                                <td className="px-3 py-3 text-gray-500 text-xs">{TASK_TYPE_LABELS[task.task_type] || '—'}</td>
                                 <td className="px-3 py-3 text-right text-gray-600">{task.scopes_count || 0}</td>
                                 <td className="px-3 py-3 text-right font-bold text-gray-900">{fmtGra(task.rewarded_scans)}</td>
                                 <td className="px-3 py-3 text-right font-black text-green-600">{fmt(task.amount_earned)}</td>
