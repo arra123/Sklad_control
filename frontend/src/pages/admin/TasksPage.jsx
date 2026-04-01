@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import api from '../../api/client';
 import { qty } from '../../utils/fmt';
-import { ShelfIcon, PalletIcon, BoxIcon, InventoryIcon, PackagingIcon, TransferIcon } from '../../components/ui/WarehouseIcons';
+import { ShelfIcon, PalletIcon, BoxIcon, InventoryIcon, PackagingIcon, TransferIcon, GRACoinIcon } from '../../components/ui/WarehouseIcons';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
 import Modal from '../../components/ui/Modal';
@@ -54,6 +54,7 @@ function TaskDetailPanel({ task, onClose, onReload }) {
   const [assemblyData, setAssemblyData] = useState(null);
   const [assemblySourceBoxes, setAssemblySourceBoxes] = useState([]);
   const [showAssemblyModal, setShowAssemblyModal] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(null); // null | 'ask' | 'refund'
 
   // Reset state when task changes to avoid showing stale data
   useEffect(() => {
@@ -114,10 +115,10 @@ function TaskDetailPanel({ task, onClose, onReload }) {
     } catch (err) { toast.error(err.response?.data?.error || 'Ошибка'); }
   };
 
-  const handleDelete = async () => {
-    const choice = confirm('Удалить задачу?\n\nОК = Удалить и ОПЛАТИТЬ сканы\nОтмена = не удалять');
-    if (!choice) return;
-    const refund = confirm('Списать начисленные GRA за эту задачу?\n\nОК = Да, списать (не платить)\nОтмена = Нет, оставить оплату');
+  const handleDeleteClick = () => setDeleteConfirm('ask');
+
+  const handleDeleteExecute = async (refund) => {
+    setDeleteConfirm(null);
     try {
       if (isAssembly) {
         await api.delete(`/assembly/${task.id}`, { params: { refund: refund ? '1' : '0' } });
@@ -127,7 +128,7 @@ function TaskDetailPanel({ task, onClose, onReload }) {
       toast.success(refund ? 'Задача удалена, GRA списаны' : 'Задача удалена, оплата сохранена');
       onClose();
       onReload();
-    } catch { toast.error('Ошибка'); }
+    } catch { toast.error('Ошибка удаления'); }
   };
 
   const status = STATUS_MAP[task.status] || STATUS_MAP.new;
@@ -704,15 +705,64 @@ function TaskDetailPanel({ task, onClose, onReload }) {
               <Button variant="primary" size="sm" icon={<Play size={14} />} onClick={handlePause}>Возобновить</Button>
             )}
             <Button variant="ghost" size="sm" onClick={handleCancel}>Отменить</Button>
-            <Button variant="danger" size="sm" onClick={handleDelete}>Удалить</Button>
+            <Button variant="danger" size="sm" onClick={handleDeleteClick}>Удалить</Button>
           </div>
         )}
         {(task.status === 'completed' || task.status === 'cancelled') && (
           <div className="flex gap-2 px-4 py-4 border-t border-gray-100 dark:border-gray-800">
-            <Button variant="danger" size="sm" onClick={handleDelete}>Удалить</Button>
+            <Button variant="danger" size="sm" onClick={handleDeleteClick}>Удалить</Button>
           </div>
         )}
       </div>
+
+      {/* Delete confirmation modal */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setDeleteConfirm(null)} />
+          <div className="relative w-full max-w-sm bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-800 overflow-hidden">
+            {deleteConfirm === 'ask' ? (
+              <>
+                <div className="px-6 pt-6 pb-2 text-center">
+                  <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-3">
+                    <AlertTriangle className="w-6 h-6 text-red-500" />
+                  </div>
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">Удалить задачу?</h3>
+                  <p className="text-sm text-gray-500 mt-1">{task.title}</p>
+                </div>
+                <div className="px-6 py-4 flex flex-col gap-2">
+                  <Button variant="danger" size="md" className="w-full" onClick={() => setDeleteConfirm('refund')}>
+                    Удалить
+                  </Button>
+                  <Button variant="ghost" size="md" className="w-full" onClick={() => setDeleteConfirm(null)}>
+                    Отмена
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="px-6 pt-6 pb-2 text-center">
+                  <div className="w-12 h-12 rounded-full bg-amber-50 flex items-center justify-center mx-auto mb-3">
+                    <GRACoinIcon size={24} className="text-amber-500" />
+                  </div>
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">Начисленные GRA</h3>
+                  <p className="text-sm text-gray-500 mt-2">Списать GRA, начисленные за эту задачу, с баланса сотрудника?</p>
+                </div>
+                <div className="px-6 py-4 flex flex-col gap-2">
+                  <Button variant="danger" size="md" className="w-full" onClick={() => handleDeleteExecute(true)}>
+                    Списать GRA и удалить
+                  </Button>
+                  <Button variant="outline" size="md" className="w-full" onClick={() => handleDeleteExecute(false)}>
+                    Оставить GRA, удалить задачу
+                  </Button>
+                  <Button variant="ghost" size="sm" className="w-full" onClick={() => setDeleteConfirm(null)}>
+                    Отмена
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </>
   );
 }
