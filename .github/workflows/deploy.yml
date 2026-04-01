@@ -59,17 +59,13 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           password: ${{ secrets.SSH_PASSWORD }}
-          script_stop: true
           script: |
             cd /var/www/bem-dev.ru/sklad/backend
             npm install --production
-            pm2 stop c-site 2>/dev/null || true
-            sleep 1
-            pm2 delete c-site 2>/dev/null || true
-            sleep 1
-            fuser -k 3017/tcp 2>/dev/null || true
-            sleep 2
-            fuser -k 3017/tcp 2>/dev/null || true
-            sleep 1
-            pm2 start src/server.js --name c-site --cwd /var/www/bem-dev.ru/sklad/backend
+            pm2 restart c-site --update-env 2>/dev/null || {
+              pm2 delete c-site 2>/dev/null || true
+              fuser -k 3017/tcp 2>/dev/null || true
+              sleep 2
+              pm2 start src/server.js --name c-site --cwd /var/www/bem-dev.ru/sklad/backend
+            }
             pm2 save
