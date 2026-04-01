@@ -836,60 +836,26 @@ async function createSchema() {
       }
     }
 
-    // ─── Cleanup all test tasks + create fresh ones ──
-    await client.query(`DELETE FROM inventory_tasks_s WHERE title LIKE 'Тест%:%'`);
-    const freshTestCheck = await client.query(`SELECT id FROM inventory_tasks_s WHERE title LIKE 'Т5:%' LIMIT 1`);
-    if (freshTestCheck.rows.length === 0) {
+    // ─── Cleanup all test tasks + create 1 assembly task ──
+    await client.query(`DELETE FROM inventory_tasks_s WHERE title LIKE 'Т5:%' OR title LIKE 'Т6:%' OR title LIKE 'Тест%:%'`);
+    const t6Check = await client.query(`SELECT id FROM inventory_tasks_s WHERE title LIKE 'Т7:%' LIMIT 1`);
+    if (t6Check.rows.length === 0) {
       const empRes = await client.query(`SELECT id FROM employees_s WHERE full_name ILIKE '%Кырчанова Елена%' LIMIT 1`);
-      if (empRes.rows.length > 0) {
-        const empId = empRes.rows[0].id;
-        const adminId = (await client.query(`SELECT id FROM users_s WHERE role = 'admin' LIMIT 1`)).rows[0]?.id || 1;
-        // Паллет с коробками (Наша продукция нов)
-        const pallet = (await client.query(`
-          SELECT p.id, p.name, pr.name as row_name FROM pallets_s p
-          JOIN pallet_rows_s pr ON pr.id=p.row_id
-          JOIN warehouses_s w ON w.id=pr.warehouse_id
-          WHERE w.name='Наша продукция нов' ORDER BY p.id LIMIT 1
-        `)).rows[0];
-        // Полка с коробками (uses_boxes=true)
-        const boxShelf = (await client.query(`
-          SELECT s.id, s.code, r.name as rack_name FROM shelves_s s
-          JOIN racks_s r ON r.id=s.rack_id
-          JOIN warehouses_s w ON w.id=r.warehouse_id
-          WHERE w.name='Ижевск FBS нов' AND s.uses_boxes=true ORDER BY s.id LIMIT 1
-        `)).rows[0];
-
-        if (pallet) {
-          // 1. Инвентаризация паллета (по коробкам)
-          await client.query(
-            `INSERT INTO inventory_tasks_s (title, employee_id, target_pallet_id, task_type, created_by, notes) VALUES ($1,$2,$3,'inventory',$4,$5)`,
-            ['Т5: Инвентаризация ' + pallet.name, empId, pallet.id, adminId,
-             '1. Отсканируйте ШК паллета для начала\\n2. Отсканируйте ШК каждой коробки на паллете\\n3. Внутри коробки — сканируйте каждую банку\\n4. Когда коробка посчитана — переходите к следующей\\n5. Нажмите «Завершить» когда все коробки посчитаны']
-          );
-          // 2. Оприходование
-          await client.query(
-            `INSERT INTO inventory_tasks_s (title, employee_id, target_pallet_id, task_type, created_by, notes) VALUES ($1,$2,$3,'packaging',$4,$5)`,
-            ['Т5: Оприходование ' + pallet.name, empId, pallet.id, adminId,
-             '1. Отсканируйте ШК паллета для начала\\n2. Сканируйте каждую банку — она добавится в новую коробку\\n3. Когда коробка заполнена (50 шт) — она закроется автоматически\\n4. Продолжайте сканировать — откроется новая коробка\\n5. Нажмите «Завершить» когда всё оприходовано']
-          );
-          // 3. Перенос
-          await client.query(
-            `INSERT INTO inventory_tasks_s (title, employee_id, target_pallet_id, task_type, created_by, notes) VALUES ($1,$2,$3,'production_transfer',$4,$5)`,
-            ['Т5: Перенос на ' + pallet.name, empId, pallet.id, adminId,
-             '1. Отсканируйте ШК паллета для начала\\n2. Сканируйте товары которые переносите на этот паллет\\n3. Каждый скан = 1 единица товара\\n4. Нажмите «Завершить» когда перенос закончен']
-          );
-        }
-        // 4. Сборка комплектов (с bundle_product_id и assembly_phase=picking)
-        const bundleCheck = await client.query(`SELECT id, name FROM products_s WHERE id = 159 AND entity_type = 'bundle'`);
-        if (bundleCheck.rows.length > 0 && boxShelf) {
-          await client.query(
-            `INSERT INTO inventory_tasks_s (title, employee_id, task_type, created_by, bundle_product_id, bundle_qty, assembly_phase, dest_shelf_id, notes)
-             VALUES ($1,$2,'bundle_assembly',$3, 159, 3, 'picking', $4, $5)`,
-            ['Т5: Сборка ' + bundleCheck.rows[0].name + ' x3', empId, adminId, boxShelf.id,
-             '1. ЗАБОР: Отсканируйте компоненты из коробок\\n   - NMN (ШК: 100000035279)\\n   - Ресвератрол (ШК: 4627174095067)\\n2. Нажмите «Приступить к сборке»\\n3. СБОРКА: Сканируйте компоненты для каждого комплекта\\n4. Повторите для всех 3 комплектов\\n5. РАЗМЕЩЕНИЕ: Положите готовые комплекты на полку']
-          );
-        }
-        console.log('[DB] Created 4 test tasks (box-only) for Кырчанова Елена');
+      const bundleRes = await client.query(`SELECT id, name FROM products_s WHERE id = 159 AND entity_type = 'bundle'`);
+      const boxShelf = (await client.query(`
+        SELECT s.id FROM shelves_s s JOIN racks_s r ON r.id=s.rack_id JOIN warehouses_s w ON w.id=r.warehouse_id
+        WHERE w.name='Ижевск FBS нов' AND s.uses_boxes=true ORDER BY s.id LIMIT 1
+      `)).rows[0];
+      if (empRes.rows.length > 0 && bundleRes.rows.length > 0 && boxShelf) {
+        await client.query(
+          `INSERT INTO inventory_tasks_s (title, employee_id, task_type, created_by, bundle_product_id, bundle_qty, assembly_phase, dest_shelf_id, notes)
+           VALUES ($1,$2,'bundle_assembly',$3, 159, 10, 'picking', $4, $5)`,
+          ['Т7: Сборка ' + bundleRes.rows[0].name + ' x10', empRes.rows[0].id,
+           (await client.query(`SELECT id FROM users_s WHERE role='admin' LIMIT 1`)).rows[0]?.id || 1,
+           boxShelf.id,
+           '1. ЗАБОР: Найдите компоненты на складе и отсканируйте\\n   - NMN (ШК: 100000035279) — 10 шт\\n   - Ресвератрол (ШК: 4627174095067) — 10 шт\\n2. Нажмите «Приступить к сборке»\\n3. СБОРКА: Для каждого комплекта отсканируйте оба компонента\\n4. Повторите 10 раз\\n5. РАЗМЕЩЕНИЕ: Разложите готовые комплекты на полку']
+        );
+        console.log('[DB] Created 1 assembly task x10 for Кырчанова Елена');
       }
     }
 
