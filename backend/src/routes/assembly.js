@@ -322,8 +322,8 @@ router.post('/:id/scan-pick', requireAuth, async (req, res) => {
       if (hasCyrillic) { await client.query('ROLLBACK'); client.release(); return res.status(400).json({ error: 'Переключите раскладку клавиатуры на английскую (EN)', hint: 'keyboard_layout' }); }
       if (isUrl) { await client.query('ROLLBACK'); client.release(); return res.status(400).json({ error: 'Вы отсканировали ссылку на сайт. Сканируйте штрих-код товара', hint: 'url_scanned' }); }
       if (deduped) {
-        product = await resolveProduct(client, deduped);
-        if (!product) { await client.query('ROLLBACK'); client.release(); return res.status(400).json({ error: 'Штрих-код считался несколько раз. Товар не найден по коду ' + deduped, hint: 'duplicate_scan' }); }
+        await client.query('ROLLBACK'); client.release();
+        return res.status(400).json({ error: 'ШК отсканирован несколько раз подряд. Отсканируйте повторно, один раз.', hint: 'duplicate_scan' });
       } else if (/^\d+$/.test(barcode) && barcode.length < 6) {
         await client.query('ROLLBACK'); client.release(); return res.status(400).json({ error: 'Штрих-код считался не полностью. Попробуйте ещё раз', hint: 'partial_scan' });
       } else {
@@ -454,6 +454,17 @@ router.post('/:id/scan-component', requireAuth, async (req, res) => {
     if (task.rows[0].assembly_phase !== 'assembling') return res.status(400).json({ error: 'Задача не в фазе сборки' });
 
     const currentBundle = task.rows[0].assembled_count + 1;
+
+    // Check for duplicate scan
+    if (barcode.length >= 12) {
+      for (let len = 6; len <= Math.floor(barcode.length / 2); len++) {
+        const chunk = barcode.substring(0, len);
+        if (barcode === chunk.repeat(Math.round(barcode.length / len)) || barcode.startsWith(chunk + chunk)) {
+          return res.status(400).json({ error: 'ШК отсканирован несколько раз подряд. Отсканируйте повторно, один раз.', hint: 'duplicate_scan' });
+        }
+      }
+    }
+
     const product = await resolveProduct(pool, barcode);
     if (!product) return res.status(400).json({ error: 'Товар не найден по ШК' });
 
