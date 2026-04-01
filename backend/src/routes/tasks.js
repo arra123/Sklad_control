@@ -2024,7 +2024,8 @@ router.get('/:id/analytics', requireAuth, async (req, res) => {
         p.code as product_code,
         ROUND(EXTRACT(EPOCH FROM (
           sc.created_at - LAG(sc.created_at) OVER (ORDER BY sc.created_at)
-        ))::numeric, 1) as seconds_since_prev
+        ))::numeric, 1) as seconds_since_prev,
+        LAG(sc.created_at) OVER (ORDER BY sc.created_at) as prev_scan_at
       FROM inventory_task_scans_s sc
       LEFT JOIN products_s p ON p.id = sc.product_id
       WHERE sc.task_id = $1
@@ -2065,6 +2066,24 @@ router.get('/:id/analytics', requireAuth, async (req, res) => {
         ORDER BY b.created_at ASC
       `, [taskId]);
       boxes = bxs;
+    }
+
+    // Null out seconds_since_prev for scans that span a pause period
+    const pauseLog = task.pause_log || [];
+    if (pauseLog.length > 0) {
+      for (const scan of scans) {
+        if (scan.seconds_since_prev != null && scan.prev_scan_at) {
+          const prevTime = new Date(scan.prev_scan_at).getTime();
+          const curTime = new Date(scan.created_at).getTime();
+          for (const p of pauseLog) {
+            const pausedAt = new Date(p.paused_at).getTime();
+            if (pausedAt > prevTime && pausedAt < curTime) {
+              scan.seconds_since_prev = null;
+              break;
+            }
+          }
+        }
+      }
     }
 
     res.json({
@@ -2405,17 +2424,27 @@ router.post('/:id/pause', requireAuth, requireAdmin, async (req, res) => {
     const t = task.rows[0];
 
     if (t.status === 'paused') {
-      // Resume — return to in_progress
+      // Resume — update last pause_log entry with resumed_at
+      const nowStr = new Date().toISOString();
+      const logRes = await pool.query(`SELECT pause_log FROM inventory_tasks_s WHERE id = $1`, [req.params.id]);
+      const log = logRes.rows[0]?.pause_log || [];
+      if (log.length > 0 && !log[log.length - 1].resumed_at) {
+        log[log.length - 1].resumed_at = nowStr;
+      }
       await pool.query(
-        `UPDATE inventory_tasks_s SET status = 'in_progress', paused_at = NULL, paused_by = NULL, updated_at = NOW() WHERE id = $1`,
-        [req.params.id]
+        `UPDATE inventory_tasks_s SET status = 'in_progress', paused_at = NULL, paused_by = NULL, updated_at = NOW(), pause_log = $1 WHERE id = $2`,
+        [JSON.stringify(log), req.params.id]
       );
       res.json({ status: 'in_progress', message: 'Задача возобновлена' });
     } else if (t.status === 'in_progress' || t.status === 'new') {
-      // Pause
+      // Pause — append pause entry to log
+      const nowStr = new Date().toISOString();
+      const logRes = await pool.query(`SELECT pause_log FROM inventory_tasks_s WHERE id = $1`, [req.params.id]);
+      const log = logRes.rows[0]?.pause_log || [];
+      log.push({ paused_at: nowStr });
       await pool.query(
-        `UPDATE inventory_tasks_s SET status = 'paused', paused_at = NOW(), paused_by = $1, updated_at = NOW() WHERE id = $2`,
-        [req.user.id, req.params.id]
+        `UPDATE inventory_tasks_s SET status = 'paused', paused_at = NOW(), paused_by = $1, updated_at = NOW(), pause_log = $2 WHERE id = $3`,
+        [req.user.id, JSON.stringify(log), req.params.id]
       );
       res.json({ status: 'paused', message: 'Задача на паузе' });
     } else {

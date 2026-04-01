@@ -45,6 +45,7 @@ async function createSchema() {
     await client.query(`ALTER TABLE inventory_tasks_s ADD CONSTRAINT inventory_tasks_s_status_check CHECK (status IN ('new', 'in_progress', 'completed', 'cancelled', 'paused'))`);
     await client.query(`ALTER TABLE inventory_tasks_s ADD COLUMN IF NOT EXISTS paused_at TIMESTAMPTZ`);
     await client.query(`ALTER TABLE inventory_tasks_s ADD COLUMN IF NOT EXISTS paused_by INTEGER REFERENCES users_s(id) ON DELETE SET NULL`);
+    await client.query(`ALTER TABLE inventory_tasks_s ADD COLUMN IF NOT EXISTS pause_log JSONB DEFAULT '[]'`);
 
     // Multi-shelf support for inventory tasks
     await client.query(`ALTER TABLE inventory_tasks_s ADD COLUMN IF NOT EXISTS shelf_ids JSONB`);
