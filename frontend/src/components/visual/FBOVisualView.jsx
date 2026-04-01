@@ -9,7 +9,7 @@ const COLS = 5, ROWS = 5, LAYER_SIZE = COLS * ROWS;
 const PALLET_GAP = 8;
 const fmtQ = (v) => { const n = parseFloat(v || 0); return Number.isInteger(n) ? String(n) : n.toFixed(0); };
 
-// Label texture cache — reuse same texture for same name+qty
+// Label texture cache
 const labelCache = new Map();
 function getLabelTexture(name, qty) {
   const key = `${name}|${qty}`;
@@ -29,7 +29,7 @@ function getLabelTexture(name, qty) {
   return mat;
 }
 
-// ─── Build one pallet (exact copy of pallet-3d.html style) ──────────────────
+// ─── Build one pallet ──────────────────────────────────────────────────────
 function buildPallet(palletData, sharedMats, sharedGeo, offsetX, offsetZ) {
   const pallet = new THREE.Group();
   pallet.position.set(offsetX, 0, offsetZ);
@@ -39,14 +39,12 @@ function buildPallet(palletData, sharedMats, sharedGeo, offsetX, offsetZ) {
   for (let i = 0; i < 5; i++) {
     const p = new THREE.Mesh(sharedGeo.plank, sharedMats.wood);
     p.position.set(0, 0.35, -2.4 + i * 1.2);
-    p.castShadow = true;
     pallet.add(p);
   }
   // Stringers
   for (let i = -1; i <= 1; i++) {
     const s = new THREE.Mesh(sharedGeo.stringer, sharedMats.woodDark);
     s.position.set(i * 2.2, 0.175, 0);
-    s.castShadow = true;
     pallet.add(s);
   }
   // Bottom planks
@@ -70,10 +68,9 @@ function buildPallet(palletData, sharedMats, sharedGeo, offsetX, offsetZ) {
   nameMesh.position.set(0, 0.01, 3.6); nameMesh.rotation.x = -Math.PI / 2;
   pallet.add(nameMesh);
 
-  // Boxes — exact same structure as pallet-3d.html
+  // Boxes — simplified (no tape meshes, just box + label)
   const boxMeshes = [];
   const layers = Math.ceil(boxes.length / LAYER_SIZE);
-  const layerGroups = [];
 
   for (let li = 0; li < Math.max(layers, 1); li++) {
     const lg = new THREE.Group();
@@ -84,7 +81,6 @@ function buildPallet(palletData, sharedMats, sharedGeo, offsetX, offsetZ) {
     if (li > 0) {
       const board = new THREE.Mesh(sharedGeo.board, sharedMats.boardSep);
       board.position.y = baseY - 0.04;
-      board.castShadow = true;
       lg.add(board);
     }
 
@@ -92,28 +88,18 @@ function buildPallet(palletData, sharedMats, sharedGeo, offsetX, offsetZ) {
       const row = Math.floor(idx / COLS), col = idx % COLS;
       const g = new THREE.Group();
 
-      // Box body with 6 materials (sides + lighter top)
+      // Box body
       const mesh = new THREE.Mesh(sharedGeo.box, [
         sharedMats.boxSide, sharedMats.boxSide,
         sharedMats.boxTop, sharedMats.boxSide,
         sharedMats.boxSide, sharedMats.boxSide,
       ]);
-      mesh.castShadow = true; mesh.receiveShadow = true;
       g.add(mesh);
 
-      // Tape strips
+      // Single tape strip (vertical only, no top tape — saves 3 meshes per box)
       g.add(new THREE.Mesh(sharedGeo.tapeV, sharedMats.tape));
-      g.add(new THREE.Mesh(sharedGeo.tapeH, sharedMats.tape));
 
-      // Top tape cross
-      const tv = new THREE.Mesh(sharedGeo.topTapeV, sharedMats.tape);
-      tv.rotation.x = -Math.PI / 2; tv.position.y = BOX_H / 2 + 0.005;
-      g.add(tv);
-      const th = new THREE.Mesh(sharedGeo.topTapeH, sharedMats.tape);
-      th.rotation.x = -Math.PI / 2; th.position.y = BOX_H / 2 + 0.005;
-      g.add(th);
-
-      // White label on front face with product name + qty (cached)
+      // Label
       const name = (box.product_name || '—').replace(/GraFLab,?\s*/i, '').trim();
       const qty = fmtQ(box.quantity);
       const labelMat = getLabelTexture(name, qty);
@@ -128,11 +114,10 @@ function buildPallet(palletData, sharedMats, sharedGeo, offsetX, offsetZ) {
       boxMeshes.push(g);
     });
 
-    layerGroups.push(lg);
     pallet.add(lg);
   }
 
-  pallet.userData = { type: 'pallet', boxMeshes, layerGroups, palletInfo: palletData };
+  pallet.userData = { type: 'pallet', boxMeshes, palletInfo: palletData };
   return pallet;
 }
 
@@ -156,16 +141,16 @@ export default function FBOVisualView({ warehouse }) {
     const el = containerRef.current;
     const W = el.clientWidth, H = Math.max(500, window.innerHeight - 260);
 
-    // ═══ Scene (same as pallet-3d.html) ═══
+    // ═══ Scene ═══
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0xf0ede6);
+    scene.background = new THREE.Color(0xfaf9f7);
 
     const camera = new THREE.PerspectiveCamera(40, W / H, 0.1, 500);
     const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     renderer.setSize(W, H);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    // Shadows disabled for performance
+    renderer.shadowMap.enabled = false;
 
     const wrapper = document.createElement('div');
     wrapper.style.cssText = 'border-radius:12px;overflow:hidden;';
@@ -178,33 +163,43 @@ export default function FBOVisualView({ warehouse }) {
     controls.dampingFactor = 0.08;
     controls.maxPolarAngle = Math.PI / 2.1;
 
-    // ═══ Lights (same as pallet-3d.html) ═══
-    scene.add(new THREE.AmbientLight(0xffffff, 0.6));
-    const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    // ═══ Lights — bright and clean ═══
+    scene.add(new THREE.AmbientLight(0xffffff, 1.4));
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
     dirLight.position.set(10, 20, 8);
-    dirLight.castShadow = true;
-    dirLight.shadow.mapSize.set(1024, 1024);
-    dirLight.shadow.camera.left = -40; dirLight.shadow.camera.right = 40;
-    dirLight.shadow.camera.top = 40; dirLight.shadow.camera.bottom = -40;
     scene.add(dirLight);
+    // Fill light from opposite side
+    const fillLight = new THREE.DirectionalLight(0xffffff, 0.4);
+    fillLight.position.set(-10, 15, -5);
+    scene.add(fillLight);
 
-    // ═══ Floor (same as pallet-3d.html) ═══
-    const floor = new THREE.Mesh(new THREE.PlaneGeometry(120, 120),
-      new THREE.MeshStandardMaterial({ color: 0xe8e4dc, roughness: 0.9 }));
-    floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true;
+    // ═══ Floor — centered on content ═══
+    const totalZ = Math.max(0, (rows.length - 1) * 12);
+    const floorSize = Math.max(120, totalZ + 40);
+    const floorCenterZ = totalZ / 2;
+
+    const floor = new THREE.Mesh(
+      new THREE.PlaneGeometry(floorSize, floorSize),
+      new THREE.MeshStandardMaterial({ color: 0xf5f3ef, roughness: 0.8 })
+    );
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.set(0, 0, floorCenterZ);
     scene.add(floor);
-    const grid = new THREE.GridHelper(120, 60, 0xd0ccc4, 0xd0ccc4);
-    grid.position.y = 0.01; grid.material.opacity = 0.4; grid.material.transparent = true;
+
+    const grid = new THREE.GridHelper(floorSize, Math.floor(floorSize / 2), 0xe0ddd6, 0xe0ddd6);
+    grid.position.set(0, 0.01, floorCenterZ);
+    grid.material.opacity = 0.35;
+    grid.material.transparent = true;
     scene.add(grid);
 
-    // ═══ Shared materials (same colors as pallet-3d.html) ═══
+    // ═══ Shared materials — brighter colors ═══
     const mats = {
-      wood: new THREE.MeshStandardMaterial({ color: 0xc89838, roughness: 0.7 }),
-      woodDark: new THREE.MeshStandardMaterial({ color: 0x8a6828, roughness: 0.8 }),
-      boxSide: new THREE.MeshStandardMaterial({ color: 0xddd0b4, roughness: 0.6 }),
-      boxTop: new THREE.MeshStandardMaterial({ color: 0xe8dbc4, roughness: 0.5 }),
-      tape: new THREE.MeshStandardMaterial({ color: 0xc8b898, roughness: 0.4, transparent: true, opacity: 0.5 }),
-      boardSep: new THREE.MeshStandardMaterial({ color: 0xc89838, roughness: 0.7 }),
+      wood: new THREE.MeshStandardMaterial({ color: 0xd4a84a, roughness: 0.6 }),
+      woodDark: new THREE.MeshStandardMaterial({ color: 0x9a7530, roughness: 0.7 }),
+      boxSide: new THREE.MeshStandardMaterial({ color: 0xf0e6d0, roughness: 0.5 }),
+      boxTop: new THREE.MeshStandardMaterial({ color: 0xf7eed8, roughness: 0.4 }),
+      tape: new THREE.MeshStandardMaterial({ color: 0xd4c8a8, roughness: 0.4, transparent: true, opacity: 0.45 }),
+      boardSep: new THREE.MeshStandardMaterial({ color: 0xd4a84a, roughness: 0.6 }),
     };
 
     // ═══ Shared geometries ═══
@@ -214,9 +209,6 @@ export default function FBOVisualView({ warehouse }) {
       bottomPlank: new THREE.BoxGeometry(0.8, 0.12, 5.6),
       box: new THREE.BoxGeometry(BOX_W, BOX_H, BOX_D),
       tapeV: new THREE.BoxGeometry(0.08, BOX_H + 0.01, BOX_D + 0.01),
-      tapeH: new THREE.BoxGeometry(BOX_W + 0.01, BOX_H + 0.01, 0.08),
-      topTapeV: new THREE.PlaneGeometry(0.1, BOX_D),
-      topTapeH: new THREE.PlaneGeometry(BOX_W, 0.1),
       board: new THREE.BoxGeometry(5.8, 0.06, 5.8),
       label: new THREE.PlaneGeometry(0.6, 0.3),
     };
@@ -235,21 +227,25 @@ export default function FBOVisualView({ warehouse }) {
     allBoxRef.current = allBoxMeshes;
 
     // Camera position
-    const totalZ = Math.max(0, (rows.length - 1) * 12);
-    controls.target.set(0, 3, totalZ / 2);
-    camera.position.set(20, 20, totalZ / 2 + 22);
+    controls.target.set(0, 3, floorCenterZ);
+    camera.position.set(20, 20, floorCenterZ + 22);
 
-    // ═══ Tooltip (same as pallet-3d.html) ═══
+    // ═══ Tooltip ═══
     const tooltip = document.createElement('div');
     tooltip.style.cssText = 'position:fixed;display:none;z-index:100;background:#1c1917;color:white;padding:8px 14px;border-radius:10px;font-size:12px;pointer-events:none;box-shadow:0 6px 20px rgba(0,0,0,0.3);font-family:Inter,Arial,sans-serif;';
     el.appendChild(tooltip);
 
-    // ═══ Raycaster (same as pallet-3d.html) ═══
+    // ═══ Raycaster — throttled ═══
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
     let hovered = null;
+    let lastRaycast = 0;
 
     const onMove = (e) => {
+      const now = performance.now();
+      if (now - lastRaycast < 32) return; // ~30fps throttle
+      lastRaycast = now;
+
       const rect = renderer.domElement.getBoundingClientRect();
       mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
       mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
@@ -289,6 +285,11 @@ export default function FBOVisualView({ warehouse }) {
     return () => {
       cancelAnimationFrame(animId);
       window.removeEventListener('resize', onResize);
+      renderer.domElement.removeEventListener('mousemove', onMove);
+      controls.dispose();
+      // Dispose geometries and materials
+      Object.values(geo).forEach(g => g.dispose());
+      Object.values(mats).forEach(m => m.dispose());
       renderer.dispose();
       el.innerHTML = '';
     };
