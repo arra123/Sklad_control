@@ -1368,6 +1368,7 @@ router.get('/stats/summary', requireAuth, requireAdmin, async (req, res) => {
 
 // GET /api/tasks/analytics/summary — global analytics
 router.get('/analytics/summary', requireAuth, requireAdmin, async (req, res) => {
+  for (let attempt = 1; attempt <= 3; attempt++) {
   try {
     const { rows: [overview] } = await pool.query(`
       SELECT
@@ -1426,9 +1427,11 @@ router.get('/analytics/summary', requireAuth, requireAdmin, async (req, res) => 
       LIMIT 20
     `);
 
-    res.json({ overview, topEmployees, recentTasks });
+    return res.json({ overview, topEmployees, recentTasks });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    if (err.code === '40P01' && attempt < 3) { await new Promise(r => setTimeout(r, 50 * attempt)); continue; }
+    return res.status(500).json({ error: err.message });
+  }
   }
 });
 
@@ -1964,6 +1967,7 @@ router.get('/:id', requireAuth, async (req, res) => {
 
 // GET /api/tasks/:id/analytics — per-task detailed analytics
 router.get('/:id/analytics', requireAuth, async (req, res) => {
+  for (let attempt = 1; attempt <= 3; attempt++) {
   try {
     const taskId = parseInt(req.params.id);
 
@@ -2109,8 +2113,11 @@ router.get('/:id/analytics', requireAuth, async (req, res) => {
       task_boxes_total: taskBoxes.length,
       task_boxes_completed: taskBoxes.filter(row => row.status === 'completed').length,
     });
+    return;
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    if (err.code === '40P01' && attempt < 3) { await new Promise(r => setTimeout(r, 50 * attempt)); continue; }
+    return res.status(500).json({ error: err.message });
+  }
   }
 });
 

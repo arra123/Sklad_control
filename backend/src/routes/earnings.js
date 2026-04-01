@@ -39,6 +39,7 @@ async function getRewardRate(client = pool) {
 }
 
 router.get('/summary', requireAuth, requireAdmin, async (_req, res) => {
+  for (let attempt = 1; attempt <= 3; attempt++) {
   try {
     const [rate, overviewResult, leadersResult, recentAdjustmentsResult] = await Promise.all([
       getRewardRate(pool),
@@ -115,8 +116,11 @@ router.get('/summary', requireAuth, requireAdmin, async (_req, res) => {
       leaders: leadersResult.rows,
       recent_adjustments: recentAdjustmentsResult.rows,
     });
+    return;
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    if (err.code === '40P01' && attempt < 3) { await new Promise(r => setTimeout(r, 50 * attempt)); continue; }
+    return res.status(500).json({ error: err.message });
+  }
   }
 });
 

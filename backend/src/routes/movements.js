@@ -197,6 +197,8 @@ router.post('/move', requireAuth, async (req, res) => {
 // GET /api/movements/history — movement log
 router.get('/history', requireAuth, async (req, res) => {
   const { page = 1, limit = 50, product_id, employee_id, movement_type, date_from, date_to, search } = req.query;
+  const maxRetries = 3;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
   try {
     const conditions = [];
     const params = [];
@@ -235,8 +237,12 @@ router.get('/history', requireAuth, async (req, res) => {
        LEFT JOIN employees_s fe ON fe.id=m.from_employee_id
        LEFT JOIN employees_s te ON te.id=m.to_employee_id
        ${where}`, params.slice(0, -2));
-    res.json({ items: result.rows, total: parseInt(countR.rows[0].count) });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+    return res.json({ items: result.rows, total: parseInt(countR.rows[0].count) });
+  } catch (err) {
+    if (err.code === '40P01' && attempt < maxRetries) { await new Promise(r => setTimeout(r, 50 * attempt)); continue; }
+    return res.status(500).json({ error: err.message });
+  }
+  }
 });
 
 // GET /api/movements/stats — summary statistics
