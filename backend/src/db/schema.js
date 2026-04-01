@@ -879,12 +879,14 @@ async function createSchema() {
              '1. Отсканируйте ШК паллета для начала\\n2. Сканируйте товары которые переносите на этот паллет\\n3. Каждый скан = 1 единица товара\\n4. Нажмите «Завершить» когда перенос закончен']
           );
         }
-        // 4. Сборка комплектов
-        if (boxShelf) {
+        // 4. Сборка комплектов (с bundle_product_id и assembly_phase=picking)
+        const bundleCheck = await client.query(`SELECT id, name FROM products_s WHERE id = 159 AND entity_type = 'bundle'`);
+        if (bundleCheck.rows.length > 0 && boxShelf) {
           await client.query(
-            `INSERT INTO inventory_tasks_s (title, employee_id, task_type, created_by, bundle_qty, dest_shelf_id, notes) VALUES ($1,$2,'bundle_assembly',$3, 3, $4, $5)`,
-            ['Т5: Сборка NMN+Ресвератрол x3', empId, adminId, boxShelf.id,
-             '1. Возьмите компоненты комплекта (NMN + Ресвератрол)\\n2. Отсканируйте ШК каждого компонента\\n3. Когда все компоненты для 1 комплекта отсканированы — комплект собран\\n4. Повторите для всех 3 комплектов\\n5. Разместите готовые комплекты на указанную полку']
+            `INSERT INTO inventory_tasks_s (title, employee_id, task_type, created_by, bundle_product_id, bundle_qty, assembly_phase, dest_shelf_id, notes)
+             VALUES ($1,$2,'bundle_assembly',$3, 159, 3, 'picking', $4, $5)`,
+            ['Т5: Сборка ' + bundleCheck.rows[0].name + ' x3', empId, adminId, boxShelf.id,
+             '1. ЗАБОР: Отсканируйте компоненты из коробок\\n   - NMN (ШК: 100000035279)\\n   - Ресвератрол (ШК: 4627174095067)\\n2. Нажмите «Приступить к сборке»\\n3. СБОРКА: Сканируйте компоненты для каждого комплекта\\n4. Повторите для всех 3 комплектов\\n5. РАЗМЕЩЕНИЕ: Положите готовые комплекты на полку']
           );
         }
         console.log('[DB] Created 4 test tasks (box-only) for Кырчанова Елена');

@@ -502,6 +502,7 @@ export default function AssemblyPage() {
           {/* Components list with expand/locations/status */}
           {pickStep === 'choose' && (
             <div className="space-y-2">
+              <p className="text-sm text-gray-500 text-center py-1">Выберите, с какого товара хотите начать забор</p>
               {components.map(c => {
                 const needed = Number(c.quantity) * task.bundle_qty;
                 const have = pickedMap[c.component_id] || 0;

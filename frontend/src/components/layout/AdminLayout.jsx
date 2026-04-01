@@ -304,7 +304,7 @@ export default function AdminLayout({ children }) {
             Выйти
           </button>
           <div className="flex items-center justify-center gap-2 mt-2">
-            <p className="text-[10px] text-gray-300 dark:text-gray-600">v2.53.1</p>
+            <p className="text-[10px] text-gray-300 dark:text-gray-600">v2.53.2</p>
             <FeedbackButton position="admin" />
           </div>
         </div>
