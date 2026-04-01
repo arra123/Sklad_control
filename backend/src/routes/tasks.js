@@ -82,9 +82,10 @@ async function awardScanReward(client, { task, taskScanId, activeTaskBox, produc
     `INSERT INTO employee_earnings_s (
        employee_id, task_id, task_scan_id, task_box_id, shelf_id,
        box_id, shelf_box_id, product_id, event_type, reward_units,
-       rate_per_unit, amount_delta, balance_before, balance_after, created_by_user_id
+       rate_per_unit, amount_delta, balance_before, balance_after, created_by_user_id,
+       task_title, task_type
      )
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'inventory_scan', $9, $10, $11, $12, $13, $14)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'inventory_scan', $9, $10, $11, $12, $13, $14, $15, $16)
      RETURNING id, amount_delta, rate_per_unit, reward_units, balance_after`,
     [
       task.employee_id,
@@ -101,6 +102,8 @@ async function awardScanReward(client, { task, taskScanId, activeTaskBox, produc
       balanceBefore,
       balanceAfter,
       user.id,
+      task.title || null,
+      task.task_type || null,
     ]
   );
 

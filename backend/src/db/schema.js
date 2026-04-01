@@ -625,6 +625,8 @@ async function createSchema() {
     await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_employee_earnings_unique_scan ON employee_earnings_s(task_scan_id) WHERE task_scan_id IS NOT NULL`);
 
     // External earnings fields (sborka site)
+    await client.query(`ALTER TABLE employee_earnings_s ADD COLUMN IF NOT EXISTS task_title VARCHAR(500)`);
+    await client.query(`ALTER TABLE employee_earnings_s ADD COLUMN IF NOT EXISTS task_type VARCHAR(30)`);
     await client.query(`ALTER TABLE employee_earnings_s ADD COLUMN IF NOT EXISTS source VARCHAR(50)`);
     await client.query(`ALTER TABLE employee_earnings_s ADD COLUMN IF NOT EXISTS source_marketplace VARCHAR(50)`);
     await client.query(`ALTER TABLE employee_earnings_s ADD COLUMN IF NOT EXISTS source_store_id VARCHAR(100)`);

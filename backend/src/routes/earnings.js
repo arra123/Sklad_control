@@ -151,6 +151,13 @@ router.get('/employees/:employeeId', requireAuth, requireAdmin, async (req, res)
     const employeeId = Number(req.params.employeeId);
     if (!Number.isFinite(employeeId)) return res.status(400).json({ error: 'Некорректный employeeId' });
 
+    // Period filter
+    const period = req.query.period || 'all';
+    let periodFilter = '';
+    if (period === 'today') periodFilter = `AND ee.created_at >= CURRENT_DATE`;
+    else if (period === 'week') periodFilter = `AND ee.created_at >= CURRENT_DATE - INTERVAL '7 days'`;
+    else if (period === 'month') periodFilter = `AND ee.created_at >= CURRENT_DATE - INTERVAL '30 days'`;
+
     const [employeeResult, tasksResult, adjustmentsResult, sborkaResult] = await Promise.all([
       pool.query(`
         SELECT
@@ -172,12 +179,12 @@ router.get('/employees/:employeeId', requireAuth, requireAdmin, async (req, res)
       pool.query(`
         SELECT
           ee.task_id,
-          COALESCE(t.title, 'Удалённая задача') as title,
+          COALESCE(t.title, ee.task_title, 'Удалённая задача') as title,
           t.status,
           t.created_at,
           t.started_at,
           t.completed_at,
-          COALESCE(t.task_type, ee.event_type) as task_type,
+          COALESCE(t.task_type, ee.task_type, ee.event_type) as task_type,
           s.code as shelf_code,
           s.name as shelf_name,
           r.name as rack_name,
@@ -190,7 +197,8 @@ router.get('/employees/:employeeId', requireAuth, requireAdmin, async (req, res)
           COALESCE(SUM(ee.reward_units), 0) as rewarded_scans,
           COUNT(ee.id) as earning_events,
           COUNT(DISTINCT ee.task_box_id) FILTER (WHERE ee.task_box_id IS NOT NULL) as scopes_count,
-          MAX(ee.created_at) as last_earned_at
+          MAX(ee.created_at) as last_earned_at,
+          CASE WHEN ee.task_id IS NULL THEN ee.task_title END as deleted_task_key
         FROM employee_earnings_s ee
         LEFT JOIN inventory_tasks_s t ON t.id = ee.task_id
         LEFT JOIN shelves_s s ON s.id = t.shelf_id
@@ -199,10 +207,13 @@ router.get('/employees/:employeeId', requireAuth, requireAdmin, async (req, res)
         LEFT JOIN pallet_rows_s pr ON pr.id = pa.row_id
         WHERE ee.employee_id = $1
           AND ee.event_type = 'inventory_scan'
+          ${periodFilter}
         GROUP BY
-          ee.task_id, t.id, t.title, t.status, t.created_at, t.started_at, t.completed_at, t.task_type, ee.event_type,
+          ee.task_id, t.id, t.title, t.status, t.created_at, t.started_at, t.completed_at, t.task_type,
+          ee.task_type, ee.event_type,
           s.code, s.name, r.name, r.code,
-          pa.name, pa.number, pr.name, pr.number
+          pa.name, pa.number, pr.name, pr.number,
+          deleted_task_key
         ORDER BY last_earned_at DESC
       `, [employeeId]),
       pool.query(`

@@ -102,6 +102,7 @@ export default function EarningsPage() {
   const [savingBalance, setSavingBalance] = useState(false);
   const [expandedTask, setExpandedTask] = useState(null);
   const [showRub, setShowRub] = useState(false);
+  const [period, setPeriod] = useState('all');
   const fmt = (v) => showRub ? fmtRub(v) : fmtGra(v);
   const fmtRate = (v) => showRub ? fmtRubRate(v) : fmtGra(v);
   const unit = showRub ? '₽' : 'GRA';
@@ -124,14 +125,14 @@ export default function EarningsPage() {
   const employeeAbort = useRef(null);
   const taskAbort = useRef(null);
 
-  const loadEmployeeDetails = useCallback(async (employeeId) => {
+  const loadEmployeeDetails = useCallback(async (employeeId, p) => {
     if (employeeAbort.current) employeeAbort.current.abort();
     if (!employeeId) { setEmployeeDetails(null); return; }
     const ctrl = new AbortController();
     employeeAbort.current = ctrl;
     setEmployeeLoading(true);
     try {
-      const res = await api.get(`/earnings/employees/${employeeId}`, { signal: ctrl.signal });
+      const res = await api.get(`/earnings/employees/${employeeId}`, { signal: ctrl.signal, params: { period: p || period } });
       setEmployeeDetails(res.data);
     } catch (err) {
       if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
@@ -162,6 +163,7 @@ export default function EarningsPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedEmployeeId, loadEmployeeDetails]);
   useEffect(() => { if (selectedTaskId) loadTaskDetails(selectedTaskId); }, [selectedTaskId, loadTaskDetails]);
+  useEffect(() => { if (selectedEmployeeId) loadEmployeeDetails(selectedEmployeeId, period); }, [period]);
 
   const selectedEmployee = useMemo(() => {
     if (!selectedEmployeeId) return null;
@@ -390,11 +392,18 @@ export default function EarningsPage() {
                   )}
                 </div>
 
-                {/* Sub tabs */}
-                <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit">
-                  {[['sklad', 'Склад'], ['orders', 'Заказы']].map(([k, l]) => (
-                    <button key={k} onClick={() => setDetailTab(k)} className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${detailTab === k ? 'bg-white shadow-sm text-gray-900 font-semibold' : 'text-gray-500'}`}>{l}</button>
-                  ))}
+                {/* Sub tabs + period filter */}
+                <div className="flex items-center gap-3 flex-wrap">
+                  <div className="flex gap-1 bg-gray-100 p-1 rounded-xl">
+                    {[['sklad', 'Склад'], ['orders', 'Заказы']].map(([k, l]) => (
+                      <button key={k} onClick={() => setDetailTab(k)} className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${detailTab === k ? 'bg-white shadow-sm text-gray-900 font-semibold' : 'text-gray-500'}`}>{l}</button>
+                    ))}
+                  </div>
+                  <div className="flex gap-1 bg-gray-100 p-1 rounded-xl">
+                    {[['all', 'Всё время'], ['month', 'Месяц'], ['week', 'Неделя'], ['today', 'Сегодня']].map(([k, l]) => (
+                      <button key={k} onClick={() => setPeriod(k)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${period === k ? 'bg-white shadow-sm text-gray-900 font-semibold' : 'text-gray-500'}`}>{l}</button>
+                    ))}
+                  </div>
                 </div>
 
                 {/* Warehouse tasks */}
