@@ -1175,7 +1175,7 @@ function ProductTable({ entityType, onSelect, onEdit }) {
                         </td>
                       );
                       if (col.key === 'code') return <td key="code" className="text-gray-500 text-xs font-mono">{item.code || '—'}</td>;
-                      if (col.key === 'barcode') { const bc = item.barcode_list?.split(';')[0] || item.production_barcode; return <td key="barcode">{bc ? <CopyBadge value={bc} /> : <span className="text-xs text-gray-300">—</span>}</td>; }
+                      if (col.key === 'barcode') { const allBc = (item.barcode_list||'').split(';').map(s=>s.trim()).filter(Boolean); const systemBc = allBc.find(b => /^[124]0{5,}\d+$/.test(b)) || item.production_barcode || allBc[0]; return <td key="barcode">{systemBc ? <CopyBadge value={systemBc} /> : <span className="text-xs text-gray-300">—</span>}</td>; }
                       if (col.key === 'stock') return <td key="stock"><StockBadge stock={Number(item.warehouse_qty || item.stock || 0)} /></td>;
                       if (col.key === 'shelf_codes') return (
                         <td key="shelf_codes">
