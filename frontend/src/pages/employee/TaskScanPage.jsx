@@ -135,6 +135,15 @@ function StartStep({ task, onStart }) {
         </div>
       </div>
 
+      {/* Инструкция */}
+      {task.notes && (
+        <div className="w-full max-w-sm mb-4 animate-fade-up" style={{ animationDelay: '0.45s' }}>
+          <div className="px-4 py-3 bg-primary-50 border border-primary-100 rounded-2xl text-sm text-primary-800 whitespace-pre-line leading-relaxed">
+            {task.notes.replace(/\\n/g, '\n')}
+          </div>
+        </div>
+      )}
+
       <div className="w-full max-w-sm animate-fade-up" style={{ animationDelay: '0.5s' }}>
         <div className="relative">
           <div className="absolute left-4 top-1/2 -translate-y-1/2 opacity-40" style={{ animation: 'pulse 2s ease-in-out infinite' }}>
@@ -559,6 +568,19 @@ function ScanStep({ task, onComplete }) {
           )}
         </div>
       </div>
+
+      {/* Инструкция */}
+      {taskState.notes && (
+        <details className="mx-4 mt-3">
+          <summary className="text-xs font-semibold text-primary-600 cursor-pointer hover:text-primary-800 transition-colors flex items-center gap-1">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+            Инструкция
+          </summary>
+          <div className="mt-2 px-4 py-3 bg-primary-50 border border-primary-100 rounded-2xl text-sm text-primary-800 whitespace-pre-line leading-relaxed">
+            {taskState.notes.replace(/\\n/g, '\n')}
+          </div>
+        </details>
+      )}
 
       {hasTaskBoxQueue && (
         <div className="mx-4 mt-3 px-4 py-3 bg-gray-50 rounded-2xl">
