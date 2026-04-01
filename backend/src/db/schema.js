@@ -835,6 +835,52 @@ async function createSchema() {
       }
     }
 
+    // ─── One-time: create test tasks for Нурьев Артем ──
+    const testTaskCheck = await client.query(`SELECT id FROM inventory_tasks_s WHERE title LIKE 'Тест:%' AND employee_id = (SELECT id FROM employees_s WHERE full_name ILIKE '%Нурьев Артем%' LIMIT 1) LIMIT 1`);
+    if (testTaskCheck.rows.length === 0) {
+      const empRes = await client.query(`SELECT id FROM employees_s WHERE full_name ILIKE '%Нурьев Артем%' LIMIT 1`);
+      if (empRes.rows.length > 0) {
+        const empId = empRes.rows[0].id;
+        const adminRes = await client.query(`SELECT id FROM users_s WHERE role = 'admin' LIMIT 1`);
+        const adminId = adminRes.rows[0]?.id || 1;
+        const shelfRes = await client.query(`SELECT s.id, s.code FROM shelves_s s JOIN racks_s r ON r.id=s.rack_id JOIN warehouses_s w ON w.id=r.warehouse_id WHERE w.name='Ижевск FBS нов' ORDER BY s.id LIMIT 3`);
+        const palletRes = await client.query(`SELECT p.id, p.name FROM pallets_s p JOIN pallet_rows_s pr ON pr.id=p.row_id JOIN warehouses_s w ON w.id=pr.warehouse_id WHERE w.name='Наша продукция нов' ORDER BY p.id LIMIT 3`);
+        const types = [];
+        if (shelfRes.rows[0]) {
+          await client.query(`INSERT INTO inventory_tasks_s (title, employee_id, shelf_id, task_type, created_by) VALUES ($1,$2,$3,'inventory',$4)`,
+            ['Тест: Инвентаризация ' + shelfRes.rows[0].code, empId, shelfRes.rows[0].id, adminId]);
+          types.push('inventory');
+        }
+        if (shelfRes.rows[1]) {
+          await client.query(`INSERT INTO inventory_tasks_s (title, employee_id, shelf_id, task_type, created_by) VALUES ($1,$2,$3,'inventory',$4)`,
+            ['Тест: Инвентаризация ' + shelfRes.rows[1].code, empId, shelfRes.rows[1].id, adminId]);
+        }
+        if (shelfRes.rows[2]) {
+          await client.query(`INSERT INTO inventory_tasks_s (title, employee_id, shelf_id, task_type, created_by) VALUES ($1,$2,$3,'inventory',$4)`,
+            ['Тест: Инвентаризация ' + shelfRes.rows[2].code, empId, shelfRes.rows[2].id, adminId]);
+        }
+        if (palletRes.rows[0]) {
+          await client.query(`INSERT INTO inventory_tasks_s (title, employee_id, target_pallet_id, task_type, created_by) VALUES ($1,$2,$3,'packaging',$4)`,
+            ['Тест: Оприходование ' + palletRes.rows[0].name, empId, palletRes.rows[0].id, adminId]);
+          await client.query(`INSERT INTO inventory_tasks_s (title, employee_id, target_pallet_id, task_type, created_by) VALUES ($1,$2,$3,'packaging',$4)`,
+            ['Тест: Оприходование 2 ' + palletRes.rows[0].name, empId, palletRes.rows[0].id, adminId]);
+          await client.query(`INSERT INTO inventory_tasks_s (title, employee_id, target_pallet_id, task_type, created_by) VALUES ($1,$2,$3,'packaging',$4)`,
+            ['Тест: Оприходование 3 ' + (palletRes.rows[1]||palletRes.rows[0]).name, empId, (palletRes.rows[1]||palletRes.rows[0]).id, adminId]);
+          types.push('packaging');
+        }
+        if (palletRes.rows[0]) {
+          await client.query(`INSERT INTO inventory_tasks_s (title, employee_id, target_pallet_id, task_type, created_by) VALUES ($1,$2,$3,'production_transfer',$4)`,
+            ['Тест: Перенос на ' + palletRes.rows[0].name, empId, palletRes.rows[0].id, adminId]);
+          await client.query(`INSERT INTO inventory_tasks_s (title, employee_id, target_pallet_id, task_type, created_by) VALUES ($1,$2,$3,'production_transfer',$4)`,
+            ['Тест: Перенос на ' + (palletRes.rows[1]||palletRes.rows[0]).name, empId, (palletRes.rows[1]||palletRes.rows[0]).id, adminId]);
+          await client.query(`INSERT INTO inventory_tasks_s (title, employee_id, target_pallet_id, task_type, created_by) VALUES ($1,$2,$3,'production_transfer',$4)`,
+            ['Тест: Перенос на ' + (palletRes.rows[2]||palletRes.rows[0]).name, empId, (palletRes.rows[2]||palletRes.rows[0]).id, adminId]);
+          types.push('production_transfer');
+        }
+        console.log('[DB] Created test tasks:', types.join(', '));
+      }
+    }
+
     await client.query('COMMIT');
     console.log('[DB] Schema created/verified successfully');
   } catch (err) {
