@@ -131,18 +131,28 @@ router.get('/employees', requireAuth, requireAdmin, async (_req, res) => {
         e.id as employee_id,
         e.full_name,
         COALESCE(e.gra_balance, 0) as current_balance,
-        COALESCE(SUM(CASE WHEN ee.event_type = 'inventory_scan' THEN ee.amount_delta ELSE 0 END), 0) as total_awarded,
-        COALESCE(SUM(CASE WHEN ee.event_type = 'manual_adjustment' THEN ee.amount_delta ELSE 0 END), 0) as total_manual_adjustments,
-        COALESCE(SUM(CASE WHEN ee.event_type = 'inventory_scan' THEN ee.reward_units ELSE 0 END), 0) as rewarded_scans,
-        COUNT(DISTINCT ee.task_id) FILTER (WHERE ee.event_type = 'inventory_scan' AND ee.task_id IS NOT NULL) as rewarded_tasks_count,
-        COALESCE(SUM(CASE WHEN ee.event_type = 'external_order_pick' AND ee.source = 'sborka-site' THEN ee.amount_delta ELSE 0 END), 0) as sborka_amount,
-        COALESCE(SUM(CASE WHEN ee.event_type = 'external_order_pick' AND ee.source = 'sborka-site' THEN ee.reward_units ELSE 0 END), 0) as sborka_units,
-        MAX(ee.created_at) as last_earned_at
+        agg.total_awarded,
+        agg.total_manual_adjustments,
+        agg.rewarded_scans,
+        agg.rewarded_tasks_count,
+        agg.sborka_amount,
+        agg.sborka_units,
+        agg.last_earned_at
       FROM employees_s e
-      JOIN employee_earnings_s ee ON ee.employee_id = e.id
-      GROUP BY e.id, e.full_name, e.gra_balance
-      HAVING COUNT(ee.id) > 0
-      ORDER BY COALESCE(e.gra_balance, 0) DESC, last_earned_at DESC
+      JOIN (
+        SELECT
+          employee_id,
+          COALESCE(SUM(amount_delta) FILTER (WHERE event_type = 'inventory_scan'), 0) as total_awarded,
+          COALESCE(SUM(amount_delta) FILTER (WHERE event_type = 'manual_adjustment'), 0) as total_manual_adjustments,
+          COALESCE(SUM(reward_units) FILTER (WHERE event_type = 'inventory_scan'), 0) as rewarded_scans,
+          COUNT(DISTINCT task_id) FILTER (WHERE event_type = 'inventory_scan' AND task_id IS NOT NULL) as rewarded_tasks_count,
+          COALESCE(SUM(amount_delta) FILTER (WHERE event_type = 'external_order_pick' AND source = 'sborka-site'), 0) as sborka_amount,
+          COALESCE(SUM(reward_units) FILTER (WHERE event_type = 'external_order_pick' AND source = 'sborka-site'), 0) as sborka_units,
+          MAX(created_at) as last_earned_at
+        FROM employee_earnings_s
+        GROUP BY employee_id
+      ) agg ON agg.employee_id = e.id
+      ORDER BY COALESCE(e.gra_balance, 0) DESC, agg.last_earned_at DESC
     `);
     res.json(result.rows);
   } catch (err) {

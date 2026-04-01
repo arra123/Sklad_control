@@ -622,6 +622,8 @@ async function createSchema() {
     await client.query(`CREATE INDEX IF NOT EXISTS idx_employee_earnings_employee_created ON employee_earnings_s(employee_id, created_at DESC)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_employee_earnings_task ON employee_earnings_s(task_id)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_employee_earnings_event_type ON employee_earnings_s(event_type)`);
+    // Covering index for /earnings/employees aggregation query
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_employee_earnings_agg ON employee_earnings_s(employee_id, event_type, source) INCLUDE (amount_delta, reward_units, task_id, created_at)`);
     await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_employee_earnings_unique_scan ON employee_earnings_s(task_scan_id) WHERE task_scan_id IS NOT NULL`);
 
     // External earnings fields (sborka site)

@@ -640,74 +640,76 @@ router.delete('/shelf-boxes/:id', requireAuth, requireAdmin, async (req, res) =>
 // GET /api/warehouse/stats
 router.get('/stats', requireAuth, async (req, res) => {
   try {
-    const result = await pool.query(`
-      SELECT
-        (SELECT COUNT(*) FROM warehouses_s WHERE active = true) as warehouses_count,
-        (SELECT COUNT(*) FROM racks_s) as racks_count,
-        (SELECT COUNT(*) FROM shelves_s) as shelves_count,
-        (SELECT COUNT(*) FROM pallet_rows_s) as pallet_rows_count,
-        (SELECT COUNT(*) FROM pallets_s) as pallets_count,
-        ((SELECT COUNT(*) FROM boxes_s WHERE status = 'closed') + (SELECT COUNT(*) FROM shelf_boxes_s WHERE status = 'closed')) as boxes_count,
-        ((SELECT COALESCE(SUM(quantity),0) FROM shelf_items_s WHERE quantity > 0) + (SELECT COALESCE(SUM(quantity),0) FROM shelf_boxes_s WHERE quantity > 0)) as total_items,
-        (
-          SELECT COUNT(*) FROM (
-            SELECT DISTINCT product_id FROM shelf_items_s WHERE quantity > 0
-            UNION
-            SELECT DISTINCT product_id FROM shelf_boxes_s WHERE quantity > 0 AND product_id IS NOT NULL
-          ) products
-        ) as unique_products,
-        (
-          (SELECT COUNT(DISTINCT shelf_id) FROM shelf_items_s WHERE quantity > 0)
-          +
-          (SELECT COUNT(DISTINCT shelf_id) FROM shelf_boxes_s WHERE quantity > 0)
-        ) as occupied_shelves,
-        (SELECT COUNT(*) FROM shelves_s) - (
-          (SELECT COUNT(DISTINCT shelf_id) FROM shelf_items_s WHERE quantity > 0)
-          +
-          (SELECT COUNT(DISTINCT shelf_id) FROM shelf_boxes_s WHERE quantity > 0)
-        ) as empty_shelves
-    `);
-
-    const warehouses = await pool.query(`
-      SELECT
-        w.id, w.name, w.warehouse_type,
-        (SELECT COUNT(*) FROM racks_s WHERE warehouse_id = w.id) as racks_count,
-        (SELECT COUNT(*) FROM shelves_s sh JOIN racks_s r ON sh.rack_id = r.id WHERE r.warehouse_id = w.id) as shelves_count,
-        (SELECT COUNT(*) FROM pallet_rows_s WHERE warehouse_id = w.id) as pallet_rows_count,
-        (SELECT COUNT(*) FROM pallets_s p JOIN pallet_rows_s pr ON p.row_id = pr.id WHERE pr.warehouse_id = w.id) as pallets_count,
-        (
-          (SELECT COUNT(*) FROM boxes_s b JOIN pallets_s p ON b.pallet_id = p.id JOIN pallet_rows_s pr ON p.row_id = pr.id WHERE pr.warehouse_id = w.id AND b.status = 'closed')
-          +
-          (SELECT COUNT(*) FROM shelf_boxes_s sb JOIN shelves_s sh ON sb.shelf_id = sh.id JOIN racks_s r ON sh.rack_id = r.id WHERE r.warehouse_id = w.id AND sb.status = 'closed')
-        ) as boxes_count,
-        (
-          (SELECT COALESCE(SUM(si.quantity),0) FROM shelf_items_s si JOIN shelves_s sh ON si.shelf_id = sh.id JOIN racks_s r ON sh.rack_id = r.id WHERE r.warehouse_id = w.id AND si.quantity > 0)
-          +
-          (SELECT COALESCE(SUM(sb.quantity),0) FROM shelf_boxes_s sb JOIN shelves_s sh ON sb.shelf_id = sh.id JOIN racks_s r ON sh.rack_id = r.id WHERE r.warehouse_id = w.id AND sb.quantity > 0)
-        ) as total_items,
-        (SELECT COALESCE(SUM(b.quantity),0) FROM boxes_s b JOIN pallets_s p ON b.pallet_id = p.id JOIN pallet_rows_s pr ON p.row_id = pr.id WHERE pr.warehouse_id = w.id AND b.status = 'closed') as fbo_items,
-        (
-          SELECT COUNT(*) FROM (
-            SELECT DISTINCT si.product_id
-            FROM shelf_items_s si
-            JOIN shelves_s sh ON si.shelf_id = sh.id
-            JOIN racks_s r ON sh.rack_id = r.id
-            WHERE r.warehouse_id = w.id AND si.quantity > 0
-            UNION
-            SELECT DISTINCT sb.product_id
-            FROM shelf_boxes_s sb
-            JOIN shelves_s sh ON sb.shelf_id = sh.id
-            JOIN racks_s r ON sh.rack_id = r.id
-            WHERE r.warehouse_id = w.id AND sb.quantity > 0 AND sb.product_id IS NOT NULL
-          ) products
-        ) as unique_products,
-        (
-          (SELECT COUNT(DISTINCT si.shelf_id) FROM shelf_items_s si JOIN shelves_s sh ON si.shelf_id = sh.id JOIN racks_s r ON sh.rack_id = r.id WHERE r.warehouse_id = w.id AND si.quantity > 0)
-          +
-          (SELECT COUNT(DISTINCT sb.shelf_id) FROM shelf_boxes_s sb JOIN shelves_s sh ON sb.shelf_id = sh.id JOIN racks_s r ON sh.rack_id = r.id WHERE r.warehouse_id = w.id AND sb.quantity > 0)
-        ) as occupied_shelves
-      FROM warehouses_s w WHERE w.active = true ORDER BY w.name
-    `);
+    // Run both queries in parallel for speed
+    const [result, warehouses] = await Promise.all([
+      pool.query(`
+        SELECT
+          (SELECT COUNT(*) FROM warehouses_s WHERE active = true) as warehouses_count,
+          (SELECT COUNT(*) FROM racks_s) as racks_count,
+          (SELECT COUNT(*) FROM shelves_s) as shelves_count,
+          (SELECT COUNT(*) FROM pallet_rows_s) as pallet_rows_count,
+          (SELECT COUNT(*) FROM pallets_s) as pallets_count,
+          (COALESCE((SELECT COUNT(*) FROM boxes_s WHERE status = 'closed'),0) + COALESCE((SELECT COUNT(*) FROM shelf_boxes_s WHERE status = 'closed'),0)) as boxes_count,
+          (COALESCE((SELECT SUM(quantity) FROM shelf_items_s WHERE quantity > 0),0) + COALESCE((SELECT SUM(quantity) FROM shelf_boxes_s WHERE quantity > 0),0)) as total_items,
+          (
+            SELECT COUNT(*) FROM (
+              SELECT DISTINCT product_id FROM shelf_items_s WHERE quantity > 0
+              UNION
+              SELECT DISTINCT product_id FROM shelf_boxes_s WHERE quantity > 0 AND product_id IS NOT NULL
+            ) products
+          ) as unique_products,
+          (
+            COALESCE((SELECT COUNT(DISTINCT shelf_id) FROM shelf_items_s WHERE quantity > 0),0)
+            +
+            COALESCE((SELECT COUNT(DISTINCT shelf_id) FROM shelf_boxes_s WHERE quantity > 0),0)
+          ) as occupied_shelves,
+          GREATEST(0, (SELECT COUNT(*) FROM shelves_s) - (
+            COALESCE((SELECT COUNT(DISTINCT shelf_id) FROM shelf_items_s WHERE quantity > 0),0)
+            +
+            COALESCE((SELECT COUNT(DISTINCT shelf_id) FROM shelf_boxes_s WHERE quantity > 0),0)
+          )) as empty_shelves
+      `),
+      pool.query(`
+        SELECT
+          w.id, w.name, w.warehouse_type,
+          (SELECT COUNT(*) FROM racks_s WHERE warehouse_id = w.id) as racks_count,
+          (SELECT COUNT(*) FROM shelves_s sh JOIN racks_s r ON sh.rack_id = r.id WHERE r.warehouse_id = w.id) as shelves_count,
+          (SELECT COUNT(*) FROM pallet_rows_s WHERE warehouse_id = w.id) as pallet_rows_count,
+          (SELECT COUNT(*) FROM pallets_s p JOIN pallet_rows_s pr ON p.row_id = pr.id WHERE pr.warehouse_id = w.id) as pallets_count,
+          (
+            COALESCE((SELECT COUNT(*) FROM boxes_s b JOIN pallets_s p ON b.pallet_id = p.id JOIN pallet_rows_s pr ON p.row_id = pr.id WHERE pr.warehouse_id = w.id AND b.status = 'closed'),0)
+            +
+            COALESCE((SELECT COUNT(*) FROM shelf_boxes_s sb JOIN shelves_s sh ON sb.shelf_id = sh.id JOIN racks_s r ON sh.rack_id = r.id WHERE r.warehouse_id = w.id AND sb.status = 'closed'),0)
+          ) as boxes_count,
+          (
+            COALESCE((SELECT SUM(si.quantity) FROM shelf_items_s si JOIN shelves_s sh ON si.shelf_id = sh.id JOIN racks_s r ON sh.rack_id = r.id WHERE r.warehouse_id = w.id AND si.quantity > 0),0)
+            +
+            COALESCE((SELECT SUM(sb.quantity) FROM shelf_boxes_s sb JOIN shelves_s sh ON sb.shelf_id = sh.id JOIN racks_s r ON sh.rack_id = r.id WHERE r.warehouse_id = w.id AND sb.quantity > 0),0)
+          ) as total_items,
+          COALESCE((SELECT SUM(b.quantity) FROM boxes_s b JOIN pallets_s p ON b.pallet_id = p.id JOIN pallet_rows_s pr ON p.row_id = pr.id WHERE pr.warehouse_id = w.id AND b.status = 'closed'),0) as fbo_items,
+          (
+            SELECT COUNT(*) FROM (
+              SELECT DISTINCT si.product_id
+              FROM shelf_items_s si
+              JOIN shelves_s sh ON si.shelf_id = sh.id
+              JOIN racks_s r ON sh.rack_id = r.id
+              WHERE r.warehouse_id = w.id AND si.quantity > 0
+              UNION
+              SELECT DISTINCT sb.product_id
+              FROM shelf_boxes_s sb
+              JOIN shelves_s sh ON sb.shelf_id = sh.id
+              JOIN racks_s r ON sh.rack_id = r.id
+              WHERE r.warehouse_id = w.id AND sb.quantity > 0 AND sb.product_id IS NOT NULL
+            ) products
+          ) as unique_products,
+          (
+            COALESCE((SELECT COUNT(DISTINCT si.shelf_id) FROM shelf_items_s si JOIN shelves_s sh ON si.shelf_id = sh.id JOIN racks_s r ON sh.rack_id = r.id WHERE r.warehouse_id = w.id AND si.quantity > 0),0)
+            +
+            COALESCE((SELECT COUNT(DISTINCT sb.shelf_id) FROM shelf_boxes_s sb JOIN shelves_s sh ON sb.shelf_id = sh.id JOIN racks_s r ON sh.rack_id = r.id WHERE r.warehouse_id = w.id AND sb.quantity > 0),0)
+          ) as occupied_shelves
+        FROM warehouses_s w WHERE w.active = true ORDER BY w.name
+      `)
+    ]);
 
     res.json({ ...result.rows[0], warehouses: warehouses.rows });
   } catch (err) {

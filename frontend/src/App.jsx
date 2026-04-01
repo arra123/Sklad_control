@@ -1,5 +1,5 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { useEffect, lazy, Suspense } from 'react';
+import { useEffect, lazy, Suspense, Component } from 'react';
 import { initGlobalErrorHandlers } from './utils/errorReporter';
 import { appBasePath } from './utils/appBasePath';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -33,6 +33,37 @@ const FBOPage = lazy(() => import('./pages/admin/FBOPage'));
 const MovementsPage = lazy(() => import('./pages/admin/MovementsPage'));
 const MaterialsPage = lazy(() => import('./pages/admin/MaterialsPage'));
 
+class ChunkErrorBoundary extends Component {
+  constructor(props) { super(props); this.state = { hasError: false }; }
+  static getDerivedStateFromError(error) {
+    if (error?.name === 'ChunkLoadError' || error?.message?.includes('Failed to fetch dynamically imported module') || error?.message?.includes('Loading chunk')) {
+      return { hasError: true };
+    }
+    throw error;
+  }
+  componentDidCatch() {
+    const key = 'chunk_reload';
+    if (!sessionStorage.getItem(key)) {
+      sessionStorage.setItem(key, '1');
+      window.location.reload();
+    }
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
+          <p className="text-gray-600 text-lg mb-4">Обновление приложения...</p>
+          <button onClick={() => { sessionStorage.removeItem('chunk_reload'); window.location.reload(); }}
+            className="px-5 py-2.5 bg-primary-600 text-white rounded-xl font-medium hover:bg-primary-700 transition-colors">
+            Перезагрузить
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 function hasAdminAccess(user) {
   if (!user) return false;
   if (user.role === 'admin' || user.role === 'manager') return true;
@@ -65,6 +96,7 @@ function RootRedirect() {
 
 function AppRoutes() {
   return (
+    <ChunkErrorBoundary>
     <Suspense fallback={<PageLoader />}>
     <Routes>
       <Route path="/" element={<RootRedirect />} />
@@ -103,6 +135,7 @@ function AppRoutes() {
       } />
     </Routes>
     </Suspense>
+    </ChunkErrorBoundary>
   );
 }
 
