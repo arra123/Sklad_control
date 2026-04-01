@@ -225,12 +225,13 @@ export default function AssemblyPage() {
     if (match) {
       const palletSources = sourceBoxes.filter(b => b.pallet_id === match.pallet_id);
       if (palletSources.length === 0) {
-        toast.error('На этом паллете нет нужного товара');
+        playBeep(false); toast.error('На этом паллете нет нужного товара');
         return;
       }
       const hasPalletItems = palletSources.some(b => b.source_type === 'pallet_item');
       setScannedPallet({ pallet_id: match.pallet_id, name: match.pallet_name, warehouse: match.warehouse_name });
       setPickStep(hasPalletItems ? 'items' : 'box');
+      playBeep(true);
       toast.success(`${match.warehouse_name} · ${match.pallet_name}`);
       return;
     }
@@ -243,28 +244,30 @@ export default function AssemblyPage() {
         const palletId = d.id;
         const palletSources = sourceBoxes.filter(b => b.pallet_id === palletId);
         if (palletSources.length === 0) {
-          toast.error('На этом паллете нет нужного товара для комплекта');
+          playBeep(false); toast.error('На этом паллете нет нужного товара для комплекта');
           return;
         }
         const hasPalletItems = palletSources.some(b => b.source_type === 'pallet_item');
         setScannedPallet({ pallet_id: palletId, name: d.name, warehouse: d.location, type: 'pallet' });
+        playBeep(true);
         setPickStep(hasPalletItems ? 'items' : 'box');
         toast.success(d.location + ' · ' + d.name);
       } else if (d.type === 'shelf') {
         const shelfId = d.id;
         const shelfItems = sourceBoxes.filter(b => b.source_type === 'shelf' && b.shelf_id === shelfId);
         if (shelfItems.length === 0) {
-          toast.error('На этой полке нет нужного товара для комплекта');
+          playBeep(false); toast.error('На этой полке нет нужного товара для комплекта');
           return;
         }
         setScannedPallet({ shelf_id: shelfId, name: d.name, warehouse: d.location, type: 'shelf' });
+        playBeep(true);
         setPickStep('items');
         toast.success(d.location + ' · ' + d.name);
       } else {
-        toast.error('Отсканируйте паллет или полку');
+        playBeep(false); toast.error('Отсканируйте паллет или полку');
       }
     } catch {
-      toast.error('Не найдено. Проверьте штрих-код');
+      playBeep(false); toast.error('Не найдено. Проверьте штрих-код');
     }
   };
 
@@ -272,9 +275,11 @@ export default function AssemblyPage() {
     const box = sourceBoxes.find(b => b.box_barcode === barcode && (!scannedPallet || b.pallet_id === scannedPallet.pallet_id));
     if (box) {
       setScannedBox(box);
+      playBeep(true);
       setPickStep('items');
       toast.success(`Коробка: ${box.product_name} · ${fmtQty(box.quantity)} шт`);
     } else {
+      playBeep(false);
       toast.error('Коробка не найдена на этом паллете');
     }
   };
@@ -353,11 +358,12 @@ export default function AssemblyPage() {
     setActionLoading(true);
     try {
       const res = await api.post(`/assembly/${id}/confirm-bundle`, { barcode });
+      playBeep(true);
       toast.success(`Комплект ${res.data.assembled_count}/${res.data.total} готов!`);
       setPrintBarcode(null);
       setComponentStatus([]);
       await loadTask();
-    } catch (err) { toast.error(err.response?.data?.error || 'Ошибка'); }
+    } catch (err) { playBeep(false); toast.error(err.response?.data?.error || 'Ошибка'); }
     finally { setActionLoading(false); }
   };
 
@@ -369,22 +375,22 @@ export default function AssemblyPage() {
       if (d.type === 'shelf') {
         setPlaceDest({ shelf_id: d.id, name: `${d.location} · ${d.name}` });
         setPlaceBoxStep(false); setPlaceBox(null);
-        toast.success(`Полка: ${d.name}`);
+        playBeep(true); toast.success(`Полка: ${d.name}`);
       } else if (d.type === 'pallet') {
         // Check if pallet has boxes
         const hasBoxes = (d.contents || []).some(c => c.source === 'box');
         setPlaceDest({ pallet_id: d.id, name: `${d.location} · ${d.name}`, hasBoxes });
         if (hasBoxes) {
           setPlaceBoxStep(true);
-          toast.success(`${d.location} · ${d.name} — отсканируйте коробку`);
+          playBeep(true); toast.success(`${d.location} · ${d.name} — отсканируйте коробку`);
         } else {
           setPlaceBoxStep(false); setPlaceBox(null);
-          toast.success(`Паллет: ${d.name}`);
+          playBeep(true); toast.success(`Паллет: ${d.name}`);
         }
       } else {
-        toast.error('Отсканируйте полку или паллет');
+        playBeep(false); toast.error('Отсканируйте полку или паллет');
       }
-    } catch (err) { toast.error('Место не найдено'); }
+    } catch (err) { playBeep(false); toast.error('Место не найдено'); }
   };
 
   const handleScanPlaceBox = async (barcode) => {
@@ -395,11 +401,11 @@ export default function AssemblyPage() {
       if (box) {
         setPlaceBox({ box_id: box.id, name: `Коробка · ${box.product_name || ''}`.trim() });
         setPlaceBoxStep(false);
-        toast.success(`Коробка выбрана`);
+        playBeep(true); toast.success(`Коробка выбрана`);
       } else {
-        toast.error('Коробка не найдена на этом паллете');
+        playBeep(false); toast.error('Коробка не найдена на этом паллете');
       }
-    } catch { toast.error('Ошибка при поиске коробки'); }
+    } catch { playBeep(false); toast.error('Ошибка при поиске коробки'); }
   };
 
   const handleScanPlace = async (barcode) => {
@@ -411,12 +417,12 @@ export default function AssemblyPage() {
       else if (placeDest.shelf_id) body.shelf_id = placeDest.shelf_id;
       else if (placeDest.pallet_id) body.pallet_id = placeDest.pallet_id;
       const res = await api.post(`/assembly/${id}/scan-place`, body);
-      toast.success(`Размещено ${res.data.placed_count}/${res.data.total}`);
+      playBeep(true); toast.success(`Размещено ${res.data.placed_count}/${res.data.total}`);
       if (res.data.phase === 'completed') {
         toast.success('Задача завершена!');
       }
       await loadTask();
-    } catch (err) { toast.error(err.response?.data?.error || 'Ошибка'); }
+    } catch (err) { playBeep(false); toast.error(err.response?.data?.error || 'Ошибка'); }
     finally { setActionLoading(false); }
   };
 
