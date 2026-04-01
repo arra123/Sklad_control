@@ -18,34 +18,7 @@ async function seedAdmin() {
 }
 
 async function seedDefaultWarehouse() {
-  const existing = await pool.query('SELECT id FROM warehouses_s WHERE name = $1', ['Ижевск FBS']);
-  if (existing.rows.length > 0) return;
-
-  const wh = await pool.query(
-    'INSERT INTO warehouses_s (name, external_id) VALUES ($1, $2) RETURNING id',
-    ['Ижевск FBS', 'c3fec71f-1ba1-11f1-0a80-0382002be32c']
-  );
-  const warehouseId = wh.rows[0].id;
-
-  // Create 11 racks with 6 shelves each
-  for (let r = 1; r <= 11; r++) {
-    const rackCode = `С${r}`;
-    const rackBarcode = String(Math.floor(Math.random() * 900000) + 100000);
-    const rack = await pool.query(
-      'INSERT INTO racks_s (warehouse_id, name, number, code, barcode_value) VALUES ($1, $2, $3, $4, $5) RETURNING id',
-      [warehouseId, `Стеллаж ${r}`, r, rackCode, rackBarcode]
-    );
-    const rackId = rack.rows[0].id;
-
-    for (let s = 1; s <= 6; s++) {
-      const shelfCode = `${rackCode}П${s}`;
-      await pool.query(
-        'INSERT INTO shelves_s (rack_id, name, number, code, barcode_value) VALUES ($1, $2, $3, $4, $5)',
-        [rackId, `Полка ${s}`, s, shelfCode, String(Math.floor(Math.random() * 900000000) + 100000000)]
-      );
-    }
-  }
-  console.log('[Seed] Default warehouse Ижевск FBS created with 11 racks × 6 shelves');
+  // Default warehouse removed — warehouses are created via admin UI
 }
 
 async function seedDefaultSettings() {

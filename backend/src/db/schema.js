@@ -783,6 +783,13 @@ async function createSchema() {
     await client.query(`CREATE INDEX IF NOT EXISTS idx_assembly_items_task ON assembly_items_s(task_id)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_assembly_items_bundle ON assembly_items_s(task_id, used_in_bundle)`);
 
+    // ─── One-time migration: remove old "Ижевск FBS" warehouse (id=1) ──
+    const oldWh = await client.query(`SELECT id FROM warehouses_s WHERE id = 1 AND name = 'Ижевск FBS'`);
+    if (oldWh.rows.length > 0) {
+      await client.query(`DELETE FROM warehouses_s WHERE id = 1`);
+      console.log('[DB] Removed old warehouse "Ижевск FBS" (id=1)');
+    }
+
     await client.query('COMMIT');
     console.log('[DB] Schema created/verified successfully');
   } catch (err) {

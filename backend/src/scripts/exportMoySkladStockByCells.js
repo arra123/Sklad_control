@@ -5,7 +5,7 @@ const path = require('node:path');
 
 const API_BASE = 'https://api.moysklad.ru/api/remap/1.2';
 const DEFAULT_OUTPUT_ROOT = 'C:\\ARRA\\Work\\moiskladimport';
-const TARGET_STORE_NAME = 'Ижевск FBS';
+const TARGET_STORE_NAME = 'Ижевск FBS нов';
 const PAGE_LIMIT = 1000;
 const RETRY_DELAY_MS = 1500;
 const MAX_RETRIES = 6;

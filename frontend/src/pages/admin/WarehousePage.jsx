@@ -3222,16 +3222,17 @@ function VisualWarehouseView({ warehouse }) {
 }
 
 // ─── Warehouse List View ──────────────────────────────────────────────────────
-function WarehouseListView({ warehouses, selectedId, onSelect, onReload }) {
+function WarehouseListView({ warehouses, selectedId, onSelect, onReload, onDeleted }) {
   const toast = useToast();
   const [editWh, setEditWh] = useState(null);
   const [showCreate, setShowCreate] = useState(false);
 
   const deleteWh = async (wh) => {
-    if (!confirm(`Удалить склад "${wh.name}"?`)) return;
+    if (!confirm(`Удалить склад "${wh.name}"?\n\nВсе стеллажи, полки и товары на полках будут удалены.\nЗадачи и история перемещений сохранятся.`)) return;
     try {
       await api.delete(`/warehouse/warehouses/${wh.id}`);
       toast.success('Склад удалён');
+      if (onDeleted) onDeleted(wh.id);
       onReload();
     } catch (err) {
       toast.error(err.response?.data?.error || 'Ошибка');
@@ -4066,6 +4067,12 @@ export default function WarehousePage() {
               selectedId={selectedWh?.id}
               onSelect={handleSelectWh}
               onReload={loadWarehouses}
+              onDeleted={(deletedId) => {
+                if (selectedWh?.id === deletedId) {
+                  setSelectedWh(null);
+                  setSearchParams(new URLSearchParams());
+                }
+              }}
             />
           </div>
           {selectedWh && (
