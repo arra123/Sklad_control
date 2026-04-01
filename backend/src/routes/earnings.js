@@ -178,7 +178,7 @@ router.get('/employees/:employeeId', requireAuth, requireAdmin, async (req, res)
       `, [employeeId]),
       pool.query(`
         SELECT
-          COALESCE(ee.task_id::text, ee.task_title, 'deleted') as row_key,
+          COALESCE(ee.task_id::text, 'deleted') as row_key,
           ee.task_id,
           COALESCE(t.title, MAX(ee.task_title), 'Удалённая задача') as title,
           t.status,
