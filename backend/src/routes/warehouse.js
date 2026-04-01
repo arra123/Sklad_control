@@ -40,9 +40,6 @@ async function getShelfStorageState(client, shelfId) {
 async function ensureShelfReadyForBoxes(client, shelfId) {
   const shelf = await getShelfStorageState(client, shelfId);
   if (!shelf.uses_boxes) {
-    if (shelf.loose_items_count > 0) {
-      throw new Error('Полка уже используется без коробок. Сначала очистите товар россыпью.');
-    }
     await client.query('UPDATE shelves_s SET uses_boxes = true WHERE id = $1', [shelfId]);
     shelf.uses_boxes = true;
   }
@@ -51,13 +48,6 @@ async function ensureShelfReadyForBoxes(client, shelfId) {
 
 async function ensureShelfReadyForLooseItems(client, shelfId) {
   const shelf = await getShelfStorageState(client, shelfId);
-  if (shelf.uses_boxes) {
-    if (shelf.boxes_count > 0) {
-      throw new Error('Полка уже используется в коробочном режиме. Сначала очистите коробки.');
-    }
-    await client.query('UPDATE shelves_s SET uses_boxes = false WHERE id = $1', [shelfId]);
-    shelf.uses_boxes = false;
-  }
   return shelf;
 }
 
@@ -357,18 +347,7 @@ router.put('/shelves/:id', requireAuth, requireAdmin, async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    if (uses_boxes !== undefined) {
-      const targetUsesBoxes = parseBoolean(uses_boxes, false);
-      const shelf = await getShelfStorageState(client, req.params.id);
-      if (targetUsesBoxes !== shelf.uses_boxes) {
-        if (targetUsesBoxes && shelf.loose_items_count > 0) {
-          throw new Error('Нельзя включить коробочный режим, пока на полке есть товар россыпью.');
-        }
-        if (!targetUsesBoxes && shelf.boxes_count > 0) {
-          throw new Error('Нельзя выключить коробочный режим, пока на полке есть коробки.');
-        }
-      }
-    }
+    // uses_boxes теперь не эксклюзивный — на полке может быть и россыпь, и коробки
 
     const result = await client.query(
       'UPDATE shelves_s SET name=COALESCE($1,name), notes=COALESCE($2,notes), uses_boxes=COALESCE($3,uses_boxes) WHERE id=$4 RETURNING *',

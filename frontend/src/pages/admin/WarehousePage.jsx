@@ -263,7 +263,7 @@ function ShelfModal({ open, onClose, rackId, shelf, onSuccess }) {
           />
           <div>
             <p className="text-sm font-medium text-gray-800 dark:text-gray-200">Товар в коробках</p>
-            <p className="text-xs text-gray-400">{form.uses_boxes ? 'Полка будет хранить товар только внутри коробок' : 'Товар будет лежать напрямую на полке'}</p>
+            <p className="text-xs text-gray-400">{form.uses_boxes ? 'На полке можно размещать коробки и товар россыпью' : 'Товар лежит напрямую на полке'}</p>
           </div>
         </label>
       </form>
@@ -1460,7 +1460,8 @@ function ShelfDetailView({ shelfId, rackId, onClose, initialBoxId }) {
           <div className="flex items-center gap-2">
             <h2 className="text-xl font-bold text-gray-900 dark:text-white">{shelf.name}</h2>
             <span className="text-xs font-mono text-primary-600 bg-primary-50 dark:bg-primary-900/30 px-2 py-0.5 rounded-lg">{shelf.code}</span>
-            <Badge variant={isBoxMode ? 'warning' : 'default'}>{isBoxMode ? 'Коробки' : 'Без коробок'}</Badge>
+            {isBoxMode && <Badge variant="warning">Коробки</Badge>}
+            {shelf.items?.length > 0 && <Badge variant="default">Россыпь</Badge>}
           </div>
           {shelf.notes && <p className="text-sm text-gray-400">{shelf.notes}</p>}
         </div>
@@ -1480,15 +1481,14 @@ function ShelfDetailView({ shelfId, rackId, onClose, initialBoxId }) {
 
 
       {/* Shelf contents */}
-      <div className="card p-4">
-        <div className="flex items-center justify-between mb-3">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-            {isBoxMode ? 'Коробки на полке' : 'Товары на полке'}
-            {(isBoxMode ? shelf.boxes?.length : shelf.items?.length) > 0 && (
-              <span className="ml-1.5 text-primary-500">{isBoxMode ? shelf.boxes.length : shelf.items.length}</span>
-            )}
-          </p>
-          {isBoxMode ? (
+      {/* Boxes section (when uses_boxes) */}
+      {isBoxMode && (
+        <div className="card p-4 mb-4">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+              Коробки на полке
+              {shelf.boxes?.length > 0 && <span className="ml-1.5 text-primary-500">{shelf.boxes.length}</span>}
+            </p>
             <div className="flex items-center gap-2">
               {shelf.boxes?.length > 0 && (
                 <button
@@ -1512,16 +1512,8 @@ function ShelfDetailView({ shelfId, rackId, onClose, initialBoxId }) {
                 Создать коробку
               </Button>
             </div>
-          ) : (
-            <button onClick={() => setAddOpen(true)}
-              className="flex items-center gap-1 text-xs text-primary-600 hover:text-primary-700 font-medium">
-              <Plus size={13} />
-              Добавить
-            </button>
-          )}
-        </div>
-        {isBoxMode ? (
-          shelf.boxes?.length > 0 ? (
+          </div>
+          {shelf.boxes?.length > 0 ? (
             <div className="space-y-2 max-h-96 overflow-y-auto">
               {shelf.boxes.map(box => (
                 <div
@@ -1567,8 +1559,24 @@ function ShelfDetailView({ shelfId, rackId, onClose, initialBoxId }) {
               <BoxIcon size={36} className="mx-auto mb-1.5 opacity-40" />
               <p className="text-sm">На полке пока нет коробок</p>
             </div>
-          )
-        ) : shelf.items?.length > 0 ? (
+          )}
+        </div>
+      )}
+
+      {/* Loose items section (always shown) */}
+      <div className="card p-4">
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+            Товары россыпью
+            {shelf.items?.length > 0 && <span className="ml-1.5 text-primary-500">{shelf.items.length}</span>}
+          </p>
+          <button onClick={() => setAddOpen(true)}
+            className="flex items-center gap-1 text-xs text-primary-600 hover:text-primary-700 font-medium">
+            <Plus size={13} />
+            Добавить
+          </button>
+        </div>
+        {shelf.items?.length > 0 ? (
           <div className="space-y-2 max-h-96 overflow-y-auto">
             {shelf.items.map(item => (
               <ShelfItemRow key={item.id} item={item} shelfId={shelf.id} onUpdate={load} />
@@ -1577,7 +1585,7 @@ function ShelfDetailView({ shelfId, rackId, onClose, initialBoxId }) {
         ) : (
           <div className="text-center py-6 text-gray-300 bg-gray-50 dark:bg-gray-800 rounded-xl">
             <ProductIcon size={36} className="mx-auto mb-1.5 opacity-40" />
-            <p className="text-sm">Полка пустая</p>
+            <p className="text-sm">{isBoxMode ? 'Нет товаров россыпью' : 'Полка пустая'}</p>
           </div>
         )}
       </div>
@@ -1586,7 +1594,7 @@ function ShelfDetailView({ shelfId, rackId, onClose, initialBoxId }) {
       <ShelfMovements movements={movements} mode={movMode} onModeChange={setMovMode} />
 
       <ShelfModal open={editOpen} onClose={() => setEditOpen(false)} shelf={shelf} rackId={shelf.rack_id} onSuccess={load} />
-      {!isBoxMode && <AddProductToShelfModal open={addOpen} onClose={() => setAddOpen(false)} shelfId={shelf.id} onSuccess={load} />}
+      <AddProductToShelfModal open={addOpen} onClose={() => setAddOpen(false)} shelfId={shelf.id} onSuccess={load} />
       <BoxEditorModal
         open={!!editingBox}
         onClose={() => setEditingBox(null)}
