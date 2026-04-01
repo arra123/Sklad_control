@@ -640,7 +640,19 @@ async function createSchema() {
     await client.query(`ALTER TABLE employee_earnings_s ADD COLUMN IF NOT EXISTS source_scanned_code VARCHAR(255)`);
     await client.query(`ALTER TABLE employee_earnings_s ADD COLUMN IF NOT EXISTS source_task_id VARCHAR(100)`);
     // Expand event_type constraint
+    // Drop ALL possible constraint names for event_type
     await client.query(`ALTER TABLE employee_earnings_s DROP CONSTRAINT IF EXISTS employee_earnings_s_event_type_check`);
+    await client.query(`ALTER TABLE employee_earnings_s DROP CONSTRAINT IF EXISTS employee_earnings_c_event_type_check`);
+    // Find and drop by querying pg_constraint
+    await client.query(`
+      DO $$ DECLARE cname text;
+      BEGIN
+        SELECT conname INTO cname FROM pg_constraint
+        WHERE conrelid = 'employee_earnings_s'::regclass AND contype = 'c'
+        AND pg_get_constraintdef(oid) LIKE '%event_type%';
+        IF cname IS NOT NULL THEN EXECUTE 'ALTER TABLE employee_earnings_s DROP CONSTRAINT ' || cname; END IF;
+      END $$
+    `);
     await client.query(`ALTER TABLE employee_earnings_s ADD CONSTRAINT employee_earnings_s_event_type_check CHECK (event_type IN ('inventory_scan', 'manual_adjustment', 'external_order_pick'))`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_employee_earnings_source ON employee_earnings_s(source) WHERE source IS NOT NULL`);
 
