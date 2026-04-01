@@ -834,9 +834,15 @@ function GraCoinSettings() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    api.get('/earnings/summary')
+    api.get('/settings')
       .then(res => {
-        const r = res.data?.settings?.rates || {};
+        const s = res.data || {};
+        const r = {
+          inventory: Number(s.gra_rate_inventory ?? 10),
+          packaging: Number(s.gra_rate_packaging ?? 10),
+          assembly: Number(s.gra_rate_assembly ?? 10),
+          production_transfer: Number(s.gra_rate_production_transfer ?? 10),
+        };
         setRates(r);
         setDraft(r);
       })

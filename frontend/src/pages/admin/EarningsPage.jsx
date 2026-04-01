@@ -104,8 +104,6 @@ export default function EarningsPage() {
   const [employeeLoading, setEmployeeLoading] = useState(false);
   const [taskDetails, setTaskDetails] = useState(null);
   const [taskLoading, setTaskLoading] = useState(false);
-  const [rateDraft, setRateDraft] = useState('10');
-  const [savingRate, setSavingRate] = useState(false);
   const [adjustModalOpen, setAdjustModalOpen] = useState(false);
   const [savingBalance, setSavingBalance] = useState(false);
   const [expandedTask, setExpandedTask] = useState(null);
@@ -121,7 +119,6 @@ export default function EarningsPage() {
       const [summaryRes, employeesRes] = await Promise.all([api.get('/earnings/summary'), api.get('/earnings/employees')]);
       setSummary(summaryRes.data);
       setEmployees(employeesRes.data || []);
-      setRateDraft(String(summaryRes.data?.settings?.gra_inventory_scan_rate ?? 10));
       setSelectedEmployeeId(prev => {
         if (prev && (employeesRes.data || []).some(item => Number(item.employee_id) === Number(prev))) return prev;
         return employeesRes.data?.[0]?.employee_id || null;
@@ -178,15 +175,6 @@ export default function EarningsPage() {
     return employees.find(item => Number(item.employee_id) === Number(selectedEmployeeId)) || employeeDetails?.employee || null;
   }, [employees, employeeDetails, selectedEmployeeId]);
 
-  const saveRate = async () => {
-    const numeric = Number.parseFloat(String(rateDraft).replace(',', '.'));
-    if (!Number.isFinite(numeric) || numeric < 0) { toast.error('Укажите корректную ставку'); return; }
-    setSavingRate(true);
-    try { await api.put('/settings', { gra_inventory_scan_rate: numeric }); toast.success('Ставка сохранена'); await loadBase(true); }
-    catch (err) { toast.error(err.response?.data?.error || 'Ошибка'); }
-    finally { setSavingRate(false); }
-  };
-
   const saveBalance = async ({ newBalance, notes }) => {
     const numeric = Number.parseFloat(String(newBalance).replace(',', '.'));
     if (!Number.isFinite(numeric) || numeric < 0) { toast.error('Укажите корректный баланс'); return; }
@@ -230,7 +218,7 @@ export default function EarningsPage() {
         </div>
         <div className="flex items-center gap-3">
           <div className="flex bg-gray-100 rounded-xl p-1 gap-0.5">
-            {[['summary', 'Сводка'], ['history', 'История'], ['settings', 'Настройки']].map(([k, l]) => (
+            {[['summary', 'Сводка'], ['history', 'История']].map(([k, l]) => (
               <button key={k} onClick={() => setTab(k)} className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${tab === k ? 'bg-white shadow-sm text-gray-900 font-semibold' : 'text-gray-500 hover:text-gray-700'}`}>{l}</button>
             ))}
           </div>
@@ -560,52 +548,6 @@ export default function EarningsPage() {
         </div>
       )}
 
-      {/* ═══ НАСТРОЙКИ ═══ */}
-      {tab === 'settings' && (
-        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-5">
-          <div className="bg-white rounded-2xl border border-gray-100 p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <RateGearIcon size={22} />
-              <h2 className="font-bold text-gray-900">Ставка начисления</h2>
-            </div>
-            <div className="max-w-md">
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">GRACoin за 1 успешный скан товара</label>
-              <input type="number" min="0" step="0.001" value={rateDraft} onChange={e => setRateDraft(e.target.value)}
-                className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:border-primary-400 focus:ring-2 focus:ring-primary-100 focus:outline-none" />
-            </div>
-            <div className="mt-4 flex gap-3">
-              <Button onClick={saveRate} loading={savingRate}>Сохранить ставку</Button>
-              <Button variant="ghost" onClick={() => setRateDraft(String(summary?.settings?.gra_inventory_scan_rate ?? 10))}>Сбросить</Button>
-            </div>
-            <div className="mt-5 rounded-2xl bg-primary-50 border border-primary-100 p-4">
-              <p className="text-sm font-semibold text-primary-700">Правило применения</p>
-              <ul className="text-sm text-primary-700/90 mt-2 space-y-1.5">
-                <li>Начисление только за успешные сканы товаров в инвентаризации.</li>
-                <li>Сканы полок, паллет, коробок и ошибки ШК не оплачиваются.</li>
-                <li>Новая ставка не пересчитывает старую историю.</li>
-              </ul>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-            <div className="px-5 py-3.5 border-b border-gray-100">
-              <h3 className="font-bold text-gray-900 text-sm">Конфигурация</h3>
-            </div>
-            <div className="p-5 space-y-3">
-              {[
-                { label: 'Ставка сейчас', value: `${fmtRate(summary?.settings?.gra_inventory_scan_rate || 0)} ${unit}` },
-                { label: 'Сотрудников', value: overview.employees_with_activity || 0 },
-                { label: 'Суммарный баланс', value: `${fmt(overview.total_current_balance)} ${unit}` },
-              ].map((s, i) => (
-                <div key={i} className="rounded-xl bg-gray-50 px-4 py-3">
-                  <p className="text-xs text-gray-400">{s.label}</p>
-                  <p className="text-lg font-bold text-gray-900">{s.value}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
 
       {adjustModalOpen && selectedEmployee && (
         <BalanceAdjustModal employee={selectedEmployee} saving={savingBalance} onClose={() => setAdjustModalOpen(false)} onSubmit={saveBalance} />
