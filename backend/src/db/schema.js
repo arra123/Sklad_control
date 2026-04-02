@@ -842,6 +842,19 @@ async function createSchema() {
       console.log('[DB] Test GRACoin data cleared');
     }
 
+    // ─── Employee Breaks (lunch etc.) ────────────────────────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS employee_breaks_s (
+        id SERIAL PRIMARY KEY,
+        employee_id INTEGER NOT NULL REFERENCES employees_s(id) ON DELETE CASCADE,
+        break_type VARCHAR(30) NOT NULL DEFAULT 'lunch',
+        started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        ended_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_employee_breaks_emp_date ON employee_breaks_s(employee_id, started_at DESC)`);
+
     // Seed default GRA rates per task type
     await client.query(`INSERT INTO settings_s (key, value) VALUES ('gra_rate_inventory', '10') ON CONFLICT (key) DO NOTHING`);
     await client.query(`INSERT INTO settings_s (key, value) VALUES ('gra_rate_packaging', '10') ON CONFLICT (key) DO NOTHING`);

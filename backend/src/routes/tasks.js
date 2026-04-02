@@ -1553,9 +1553,18 @@ router.get('/analytics/live/:employeeId/timeline', requireAuth, requirePermissio
       ORDER BY bucket
     `, [employeeId]);
 
+    // Breaks today
+    const breaksResult = await pool.query(`
+      SELECT id, break_type, started_at, ended_at
+      FROM employee_breaks_s
+      WHERE employee_id = $1 AND started_at >= CURRENT_DATE
+      ORDER BY started_at ASC
+    `, [employeeId]);
+
     res.json({
       tasks: tasksResult.rows,
       activity_buckets: bucketsResult.rows,
+      breaks: breaksResult.rows,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

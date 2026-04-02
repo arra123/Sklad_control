@@ -57,20 +57,30 @@ function statusBadge(status) {
 
 // ─── Activity Timeline ──────────────────────────────────────────────────────
 
-function ActivityTimeline({ buckets, tasks }) {
+function ActivityTimeline({ buckets, tasks, breaks = [] }) {
   const [hoveredBucket, setHoveredBucket] = useState(null);
 
-  // Calculate time range: from first activity to now
+  // Fixed work day: 07:00–17:00
   const now = new Date();
   const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
-  const nowBucket = Math.floor((now - todayStart) / 300000); // current 5-min bucket
+  const nowBucket = Math.floor((now - todayStart) / 300000);
+  const WORK_START = 84; // 07:00 = 7*60/5
+  const WORK_END = 204;  // 17:00 = 17*60/5
+  const minBucket = WORK_START;
+  const maxBucket = WORK_END;
+  const totalBuckets = maxBucket - minBucket;
 
-  // Find range
-  const allBucketNums = buckets.map(b => parseInt(b.bucket));
-  const taskBuckets = tasks.filter(t => t.started_at).map(t => Math.floor((new Date(t.started_at) - todayStart) / 300000));
-  const allNums = [...allBucketNums, ...taskBuckets];
+  // Build break bucket set for coloring
+  const breakBuckets = new Set();
+  for (const br of breaks) {
+    const bStart = Math.max(minBucket, Math.floor((new Date(br.started_at) - todayStart) / 300000));
+    const bEnd = br.ended_at
+      ? Math.min(maxBucket, Math.floor((new Date(br.ended_at) - todayStart) / 300000))
+      : Math.min(maxBucket, nowBucket);
+    for (let i = bStart; i <= bEnd; i++) breakBuckets.add(i);
+  }
 
-  if (allNums.length === 0) {
+  if (buckets.length === 0 && tasks.length === 0) {
     return (
       <div className="bg-white rounded-2xl border border-gray-100 p-5">
         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Активность за день</p>
@@ -82,10 +92,6 @@ function ActivityTimeline({ buckets, tasks }) {
     );
   }
 
-  const minBucket = Math.min(...allNums);
-  const maxBucket = Math.max(nowBucket, ...allNums);
-  const totalBuckets = maxBucket - minBucket + 1;
-
   // Build bucket map for fast lookup
   const bucketMap = {};
   let maxScans = 1;
@@ -95,14 +101,16 @@ function ActivityTimeline({ buckets, tasks }) {
     if (bucketMap[num] > maxScans) maxScans = bucketMap[num];
   }
 
-  // Calculate active/idle time
+  // Calculate active/idle/break time
   let activeBuckets = 0;
-  for (let i = minBucket; i <= maxBucket; i++) {
-    if (bucketMap[i]) activeBuckets++;
+  let breakBucketCount = 0;
+  for (let i = minBucket; i < maxBucket; i++) {
+    if (breakBuckets.has(i)) breakBucketCount++;
+    else if (bucketMap[i]) activeBuckets++;
   }
-  const totalWorkBuckets = maxBucket - minBucket + 1;
-  const idleBuckets = totalWorkBuckets - activeBuckets;
   const activeMinutes = activeBuckets * 5;
+  const breakMinutes = breakBucketCount * 5;
+  const idleBuckets = totalBuckets - activeBuckets - breakBucketCount;
   const idleMinutes = idleBuckets * 5;
 
   // Hour markers
@@ -131,7 +139,7 @@ function ActivityTimeline({ buckets, tasks }) {
     <div className="bg-white rounded-2xl border border-gray-100 p-5">
       <div className="flex items-center justify-between mb-4">
         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Активность за день</p>
-        <div className="flex items-center gap-3 text-[10px]">
+        <div className="flex items-center gap-3 text-[10px] flex-wrap">
           <span className="flex items-center gap-1">
             <span className="w-2.5 h-2.5 rounded bg-green-200" />
             <span className="w-2.5 h-2.5 rounded bg-green-400" />
@@ -140,6 +148,9 @@ function ActivityTimeline({ buckets, tasks }) {
             <span className="text-gray-400 ml-0.5">1→30+</span>
           </span>
           <span className="text-gray-500">Работа: <b className="text-green-700">{fmtDuration(activeMinutes * 60)}</b></span>
+          {breakMinutes > 0 && (
+            <span className="text-gray-500">Обед: <b className="text-amber-600">{fmtDuration(breakMinutes * 60)}</b></span>
+          )}
           <span className="text-gray-500">Простой: <b className="text-red-500">{fmtDuration(idleMinutes * 60)}</b></span>
         </div>
       </div>
@@ -151,8 +162,11 @@ function ActivityTimeline({ buckets, tasks }) {
             const bNum = minBucket + i;
             const scans = bucketMap[bNum] || 0;
             const isHovered = hoveredBucket === bNum;
+            const isBreak = breakBuckets.has(bNum);
             // Absolute intensity scale: 1-5 light, 6-15 medium, 16-30 strong, 30+ max
-            const greenClass = scans === 0 ? ''
+            const colorClass = isBreak
+              ? (isHovered ? 'bg-amber-400' : 'bg-amber-300')
+              : scans <= 0 ? (isHovered ? 'bg-gray-200' : 'bg-gray-100')
               : scans <= 5 ? (isHovered ? 'bg-green-400' : 'bg-green-200')
               : scans <= 15 ? (isHovered ? 'bg-green-500' : 'bg-green-400')
               : scans <= 30 ? (isHovered ? 'bg-green-600' : 'bg-green-500')
@@ -167,16 +181,13 @@ function ActivityTimeline({ buckets, tasks }) {
                 onMouseLeave={() => setHoveredBucket(null)}
               >
                 <div
-                  className={`h-full ${scans > 0
-                    ? greenClass
-                    : isHovered ? 'bg-gray-200' : 'bg-gray-100'
-                  } transition-colors`}
+                  className={`h-full ${colorClass} transition-colors`}
                 />
                 {/* Tooltip */}
                 {isHovered && (
                   <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 z-20 px-2.5 py-1.5 bg-gray-900 text-white rounded-lg text-[10px] whitespace-nowrap shadow-lg pointer-events-none">
                     <p className="font-bold">{bucketToTime(bNum)}–{bucketToTime(bNum + 1)}</p>
-                    <p>{scans > 0 ? `${scans} сканов` : 'Простой'}</p>
+                    <p>{isBreak ? '🍽 Обед' : scans > 0 ? `${scans} сканов` : 'Простой'}</p>
                   </div>
                 )}
               </div>
@@ -326,7 +337,7 @@ function EmployeeDetailView({ employeeId, employees, onBack }) {
         <div className="flex justify-center py-10"><Spinner size="lg" /></div>
       ) : timeline ? (
         <>
-          <ActivityTimeline buckets={timeline.activity_buckets} tasks={timeline.tasks} />
+          <ActivityTimeline buckets={timeline.activity_buckets} tasks={timeline.tasks} breaks={timeline.breaks} />
 
           {/* Tasks list */}
           <div className="mt-5">

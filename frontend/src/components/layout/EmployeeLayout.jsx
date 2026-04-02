@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import {
   ClipboardList, LogOut, BarChart3, ArrowRightLeft, Package,
-  Sparkles, ChevronRight
+  Sparkles, ChevronRight, UtensilsCrossed
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { cn } from '../../utils/cn';
+import api from '../../api/client';
 
 function formatGra(value) {
   const amount = Number(value || 0);
@@ -82,10 +83,32 @@ export default function EmployeeLayout({ children }) {
   const { user, logout, rewardFx } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [onBreak, setOnBreak] = useState(false);
+  const [breakLoading, setBreakLoading] = useState(false);
+  const [breakStart, setBreakStart] = useState(null);
 
-  // Page title for header
+  // Check break status on mount
+  useEffect(() => {
+    api.get('/staff/breaks/active').then(r => {
+      setOnBreak(r.data.on_break);
+      if (r.data.break) setBreakStart(r.data.break.started_at);
+    }).catch(() => {});
+  }, []);
+
+  const toggleBreak = useCallback(async () => {
+    setBreakLoading(true);
+    try {
+      if (onBreak) {
+        await api.post('/staff/breaks/end');
+        setOnBreak(false); setBreakStart(null);
+      } else {
+        const r = await api.post('/staff/breaks/start', { break_type: 'lunch' });
+        setOnBreak(true); setBreakStart(r.data.started_at);
+      }
+    } catch {} finally { setBreakLoading(false); }
+  }, [onBreak]);
+
   const currentNav = navItems.find(n => location.pathname.startsWith(n.to));
-  const pageTitle = currentNav?.label || 'GRAсклад';
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-gray-950">
@@ -109,19 +132,28 @@ export default function EmployeeLayout({ children }) {
           </div>
 
           {/* Right: User info + logout */}
-          <div className="flex items-center justify-end gap-2 sm:gap-3 min-w-0">
-            <div className="text-right min-w-0 hidden sm:block">
-              <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 truncate">
-                {user?.employee_name || user?.username}
-              </p>
-            </div>
-            {/* Avatar on mobile */}
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 text-white flex items-center justify-center text-xs font-bold flex-shrink-0 shadow-sm">
+          <div className="flex items-center justify-end gap-1.5 sm:gap-2 min-w-0">
+            {/* Break button */}
+            <button
+              onClick={toggleBreak}
+              disabled={breakLoading}
+              className={cn(
+                'flex items-center gap-1 px-2 py-1.5 rounded-xl text-[10px] sm:text-xs font-semibold transition-all flex-shrink-0',
+                onBreak
+                  ? 'bg-amber-100 text-amber-700 hover:bg-amber-200 ring-1 ring-amber-300 animate-pulse'
+                  : 'bg-gray-100 text-gray-500 hover:bg-amber-50 hover:text-amber-600'
+              )}
+            >
+              <UtensilsCrossed size={14} />
+              <span className="hidden sm:inline">{onBreak ? 'Вернуться' : 'Обед'}</span>
+            </button>
+            {/* Avatar */}
+            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 text-white flex items-center justify-center text-[10px] font-bold flex-shrink-0 shadow-sm">
               {(user?.employee_name || user?.username || 'С').slice(0, 1).toUpperCase()}
             </div>
             <button onClick={() => { logout(); navigate('/login'); }}
-              className="p-2 rounded-xl text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950 transition-all flex-shrink-0">
-              <LogOut size={18} />
+              className="p-1.5 rounded-xl text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950 transition-all flex-shrink-0">
+              <LogOut size={16} />
             </button>
           </div>
         </div>

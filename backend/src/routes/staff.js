@@ -257,4 +257,52 @@ router.delete('/users/:id', requireAuth, requirePermission('staff.edit'), async 
   }
 });
 
+// ─── Employee Breaks ─────────────────────────────────────────────────────
+
+// POST /api/staff/breaks/start — employee starts a break (lunch)
+router.post('/breaks/start', requireAuth, async (req, res) => {
+  const employeeId = req.user.employee_id;
+  if (!employeeId) return res.status(400).json({ error: 'Нет привязки к сотруднику' });
+  try {
+    // Check if already on break
+    const active = await pool.query(
+      'SELECT id FROM employee_breaks_s WHERE employee_id=$1 AND ended_at IS NULL LIMIT 1',
+      [employeeId]
+    );
+    if (active.rows.length) return res.status(400).json({ error: 'Вы уже на перерыве' });
+    const result = await pool.query(
+      'INSERT INTO employee_breaks_s (employee_id, break_type) VALUES ($1, $2) RETURNING *',
+      [employeeId, req.body.break_type || 'lunch']
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// POST /api/staff/breaks/end — employee ends a break
+router.post('/breaks/end', requireAuth, async (req, res) => {
+  const employeeId = req.user.employee_id;
+  if (!employeeId) return res.status(400).json({ error: 'Нет привязки к сотруднику' });
+  try {
+    const result = await pool.query(
+      'UPDATE employee_breaks_s SET ended_at=NOW() WHERE employee_id=$1 AND ended_at IS NULL RETURNING *',
+      [employeeId]
+    );
+    if (!result.rows.length) return res.status(400).json({ error: 'Нет активного перерыва' });
+    res.json(result.rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// GET /api/staff/breaks/active — check if employee is on break
+router.get('/breaks/active', requireAuth, async (req, res) => {
+  const employeeId = req.user.employee_id;
+  if (!employeeId) return res.json({ on_break: false });
+  try {
+    const result = await pool.query(
+      'SELECT * FROM employee_breaks_s WHERE employee_id=$1 AND ended_at IS NULL LIMIT 1',
+      [employeeId]
+    );
+    res.json({ on_break: result.rows.length > 0, break: result.rows[0] || null });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 module.exports = router;
