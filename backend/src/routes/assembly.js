@@ -523,9 +523,8 @@ router.post('/:id/scan-component', requireAuth, async (req, res) => {
        VALUES ($1, $2, $3, 1) RETURNING id`,
       [req.params.id, product.id, barcode]);
     await awardScanReward(pool, {
-      taskId: req.params.id, scanId: scanRes.rows[0].id,
-      employeeId: task.rows[0].employee_id, productId: product.id,
-      taskType: 'bundle_assembly', rewardUnits: 1,
+      task: task.rows[0], taskScanId: scanRes.rows[0].id,
+      productId: product.id, quantityDelta: 1, user: req.user,
     });
 
     // Check if all components for this bundle are scanned
@@ -674,9 +673,8 @@ router.post('/:id/scan-place', requireAuth, async (req, res) => {
        VALUES ($1, $2, $3, 1) RETURNING id`,
       [req.params.id, productId, barcode]);
     await awardScanReward(client, {
-      taskId: req.params.id, scanId: placeScan.rows[0].id,
-      employeeId: task.rows[0].employee_id, productId,
-      taskType: 'bundle_assembly', rewardUnits: 1,
+      task: task.rows[0], taskScanId: placeScan.rows[0].id,
+      productId, quantityDelta: 1, user: req.user,
     });
 
     const newPlaced = task.rows[0].placed_count + 1;
