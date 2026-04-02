@@ -416,7 +416,7 @@ export default function AssemblyPage() {
         }
       } else if (d.type === 'box') {
         // Direct box scan — set as destination immediately
-        setPlaceDest({ name: `${d.location} · ${d.name}` });
+        setPlaceDest({ box_id: d.id, name: `${d.location} · ${d.name}` });
         setPlaceBox({ box_id: d.id, name: d.name });
         setPlaceBoxStep(false);
         playBeep(true); toast.success(`Коробка: ${d.name}`);
@@ -447,6 +447,7 @@ export default function AssemblyPage() {
     try {
       const body = { barcode };
       if (placeBox?.box_id) body.box_id = placeBox.box_id;
+      else if (placeDest.box_id) body.box_id = placeDest.box_id;
       else if (placeDest.shelf_id) body.shelf_id = placeDest.shelf_id;
       else if (placeDest.pallet_id) body.pallet_id = placeDest.pallet_id;
       const res = await api.post(`/assembly/${id}/scan-place`, body);

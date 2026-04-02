@@ -597,7 +597,7 @@ router.post('/:id/start-placing', requireAuth, async (req, res) => {
 // ─── POST /:id/scan-place — Place assembled bundle on shelf/pallet/box ──────
 router.post('/:id/scan-place', requireAuth, async (req, res) => {
   const { shelf_id, pallet_id, box_id, barcode } = req.body;
-  if (!shelf_id && !pallet_id && !box_id) return res.status(400).json({ error: 'shelf_id, pallet_id или box_id обязателен' });
+  if (!shelf_id && !pallet_id && !box_id) return res.status(400).json({ error: 'Сначала выберите место размещения (полку, паллет или коробку)' });
 
   const client = await pool.connect();
   try {
@@ -626,16 +626,26 @@ router.post('/:id/scan-place', requireAuth, async (req, res) => {
     }
 
     if (box_id) {
-      // Add to box on pallet
-      const existing = await client.query('SELECT id, quantity FROM box_items_s WHERE box_id = $1 AND product_id = $2', [box_id, productId]);
-      if (existing.rows.length) {
-        await client.query('UPDATE box_items_s SET quantity = quantity + 1 WHERE id = $1', [existing.rows[0].id]);
+      // Detect shelf_box vs pallet box
+      const isShelfBox = await client.query('SELECT id FROM shelf_boxes_s WHERE id = $1', [box_id]);
+      if (isShelfBox.rows.length) {
+        const ex = await client.query('SELECT id FROM shelf_box_items_s WHERE shelf_box_id=$1 AND product_id=$2', [box_id, productId]);
+        if (ex.rows.length) {
+          await client.query('UPDATE shelf_box_items_s SET quantity = quantity + 1, updated_at=NOW() WHERE shelf_box_id=$1 AND product_id=$2', [box_id, productId]);
+        } else {
+          await client.query('INSERT INTO shelf_box_items_s (shelf_box_id, product_id, quantity, updated_at) VALUES ($1,$2,1,NOW())', [box_id, productId]);
+        }
       } else {
-        await client.query('INSERT INTO box_items_s (box_id, product_id, quantity) VALUES ($1, $2, 1)', [box_id, productId]);
+        const existing = await client.query('SELECT id FROM box_items_s WHERE box_id=$1 AND product_id=$2', [box_id, productId]);
+        if (existing.rows.length) {
+          await client.query('UPDATE box_items_s SET quantity = quantity + 1 WHERE box_id=$1 AND product_id=$2', [box_id, productId]);
+        } else {
+          await client.query('INSERT INTO box_items_s (box_id, product_id, quantity) VALUES ($1,$2,1)', [box_id, productId]);
+        }
+        await client.query('UPDATE boxes_s SET quantity = quantity + 1 WHERE id=$1', [box_id]);
       }
-      // Also update box quantity
-      await client.query('UPDATE boxes_s SET quantity = quantity + 1 WHERE id = $1', [box_id]);
     } else if (shelf_id) {
+      // Россыпь отключена — но оставим для обратной совместимости
       const existing = await client.query('SELECT id, quantity FROM shelf_items_s WHERE shelf_id = $1 AND product_id = $2', [shelf_id, productId]);
       if (existing.rows.length) {
         await client.query('UPDATE shelf_items_s SET quantity = quantity + 1 WHERE id = $1', [existing.rows[0].id]);
