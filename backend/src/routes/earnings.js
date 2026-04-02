@@ -160,7 +160,7 @@ router.get('/my', requireAuth, async (req, res) => {
           COALESCE(SUM(ee.reward_units), 0) as rewarded_scans,
           (SELECT COUNT(*) FROM inventory_task_scans_s sc
            JOIN inventory_tasks_s t ON t.id = sc.task_id AND t.employee_id = $1
-           WHERE sc.created_at >= CURRENT_DATE) as total_scans,
+           WHERE sc.product_id IS NOT NULL AND sc.created_at >= CURRENT_DATE) as total_scans,
           COUNT(DISTINCT ee.task_id) FILTER (WHERE ee.task_id IS NOT NULL) as tasks_count
         FROM employee_earnings_s ee
         WHERE ee.employee_id = $1
@@ -178,7 +178,7 @@ router.get('/my', requireAuth, async (req, res) => {
           COALESCE(SUM(ee.amount_delta), 0) as earned,
           COALESCE(SUM(ee.reward_units), 0) as rewarded_scans,
           (SELECT COUNT(*) FROM inventory_task_scans_s sc
-           WHERE sc.task_id = ee.task_id) as total_scans,
+           WHERE sc.task_id = ee.task_id AND sc.product_id IS NOT NULL) as total_scans,
           (SELECT ROUND(AVG(gap)::numeric, 1) FROM (
             SELECT EXTRACT(EPOCH FROM (sc.created_at - LAG(sc.created_at) OVER (ORDER BY sc.created_at))) as gap
             FROM inventory_task_scans_s sc WHERE sc.task_id = ee.task_id AND sc.product_id IS NOT NULL
