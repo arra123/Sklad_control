@@ -65,6 +65,8 @@ function ActivityTimeline({ buckets, tasks, breaks = [], thresholds }) {
   const T5 = thresholds?.t5 || 22;
   const T6 = thresholds?.t6 || 30;
   const [hoveredBucket, setHoveredBucket] = useState(null);
+  const [zoomLevel, setZoomLevel] = useState(0); // 0=full, 1=half, 2=quarter
+  const [panOffset, setPanOffset] = useState(0); // buckets offset from center
 
   // Fixed work day: 07:00–17:00
   const now = new Date();
@@ -72,9 +74,19 @@ function ActivityTimeline({ buckets, tasks, breaks = [], thresholds }) {
   const nowBucket = Math.floor((now - todayStart) / 300000);
   const WORK_START = 84; // 07:00 = 7*60/5
   const WORK_END = 204;  // 17:00 = 17*60/5
-  const minBucket = WORK_START;
-  const maxBucket = WORK_END;
+  const FULL_RANGE = WORK_END - WORK_START;
+
+  // Zoom: 0=120 buckets (full), 1=60, 2=30, 3=15
+  const visibleCount = Math.max(12, Math.floor(FULL_RANGE / Math.pow(2, zoomLevel)));
+  const center = Math.min(WORK_END - Math.floor(visibleCount / 2), Math.max(WORK_START + Math.floor(visibleCount / 2), Math.floor((WORK_START + Math.min(nowBucket, WORK_END)) / 2) + panOffset));
+  const minBucket = Math.max(WORK_START, center - Math.floor(visibleCount / 2));
+  const maxBucket = Math.min(WORK_END, minBucket + visibleCount);
   const totalBuckets = maxBucket - minBucket;
+
+  const canZoomIn = zoomLevel < 3;
+  const canZoomOut = zoomLevel > 0;
+  const canPanLeft = minBucket > WORK_START;
+  const canPanRight = maxBucket < WORK_END;
 
   // Build break bucket set for coloring
   const breakBuckets = new Set();
@@ -145,8 +157,26 @@ function ActivityTimeline({ buckets, tasks, breaks = [], thresholds }) {
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 p-5">
-      <div className="flex items-center justify-between mb-4">
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Активность за день</p>
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Активность за день</p>
+          {/* Zoom controls */}
+          <div className="flex items-center gap-0.5 ml-2">
+            {canPanLeft && (
+              <button onClick={() => setPanOffset(o => o - Math.floor(visibleCount / 3))} className="w-6 h-6 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-500 flex items-center justify-center text-xs font-bold">←</button>
+            )}
+            <button onClick={() => { setZoomLevel(z => Math.min(3, z + 1)); setPanOffset(0); }} disabled={!canZoomIn}
+              className="w-6 h-6 rounded-lg bg-gray-100 hover:bg-primary-100 text-gray-500 hover:text-primary-600 flex items-center justify-center text-xs font-bold disabled:opacity-30">+</button>
+            <button onClick={() => { setZoomLevel(z => Math.max(0, z - 1)); setPanOffset(0); }} disabled={!canZoomOut}
+              className="w-6 h-6 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-500 flex items-center justify-center text-xs font-bold disabled:opacity-30">−</button>
+            {zoomLevel > 0 && (
+              <button onClick={() => { setZoomLevel(0); setPanOffset(0); }} className="px-1.5 h-6 rounded-lg bg-gray-100 hover:bg-gray-200 text-[10px] text-gray-500 font-medium">Сброс</button>
+            )}
+            {canPanRight && (
+              <button onClick={() => setPanOffset(o => o + Math.floor(visibleCount / 3))} className="w-6 h-6 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-500 flex items-center justify-center text-xs font-bold">→</button>
+            )}
+          </div>
+        </div>
         <div className="flex items-center gap-3 text-[10px] flex-wrap">
           <span className="flex items-center gap-1">
             <span className="w-2.5 h-2.5 rounded bg-green-200" />

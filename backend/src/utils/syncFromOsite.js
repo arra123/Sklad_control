@@ -101,6 +101,8 @@ async function syncEmployeesFromOsite() {
        WHERE (e.external_employee_id IS NULL) AND u.active = true`
     );
     for (const u of localOnlyUsers.rows) {
+      // Skip admin accounts — never deactivate
+      if (u.username === 'admin') continue;
       // If username doesn't exist on external site — deactivate
       if (!extLogins.has(u.username)) {
         await pool.query('UPDATE users_s SET active = false WHERE id = $1', [u.id]);
@@ -110,6 +112,9 @@ async function syncEmployeesFromOsite() {
         deactivated++;
       }
     }
+
+    // Ensure admin account is always active
+    await pool.query("UPDATE users_s SET active = true WHERE username = 'admin'");
 
     console.log(`[Sync] Synced ${synced} new, deactivated ${deactivated} from o_site`);
   } catch (err) {
