@@ -1258,23 +1258,36 @@ export default function SettingsPage() {
               <h2 className="font-semibold text-gray-900 dark:text-white">Live-мониторинг — шкала активности</h2>
             </div>
             <p className="text-xs text-gray-400 mb-4">
-              Пороги сканов за 5-минутный отрезок для цветовой индикации на таймлайне.
+              7 уровней цвета за 5-минутный отрезок. Сканов до порога → соответствующий оттенок зелёного.
             </p>
-            <SettingRow label="Бледный (мало)" hint="До этого кол-ва — бледно-зелёный">
-              <NumberStepper value={s.live_scan_low ?? 5} onChange={v => updateSetting('live_scan_low', v)} min={1} max={(s.live_scan_mid ?? 15) - 1} step={1} unit="шт" />
-            </SettingRow>
-            <SettingRow label="Средний" hint="До этого — средне-зелёный">
-              <NumberStepper value={s.live_scan_mid ?? 15} onChange={v => updateSetting('live_scan_mid', v)} min={(s.live_scan_low ?? 5) + 1} max={(s.live_scan_high ?? 30) - 1} step={1} unit="шт" />
-            </SettingRow>
-            <SettingRow label="Насыщенный (много)" hint="Выше этого — максимально яркий">
-              <NumberStepper value={s.live_scan_high ?? 30} onChange={v => updateSetting('live_scan_high', v)} min={(s.live_scan_mid ?? 15) + 1} max={200} step={1} unit="шт" />
-            </SettingRow>
-            <div className="flex items-center gap-2 mt-3 text-[11px] text-gray-500">
-              <span>Пример:</span>
-              <span className="w-5 h-5 rounded bg-green-200" /> <span>1–{s.live_scan_low ?? 5}</span>
-              <span className="w-5 h-5 rounded bg-green-400" /> <span>{(s.live_scan_low ?? 5)+1}–{s.live_scan_mid ?? 15}</span>
-              <span className="w-5 h-5 rounded bg-green-500" /> <span>{(s.live_scan_mid ?? 15)+1}–{s.live_scan_high ?? 30}</span>
-              <span className="w-5 h-5 rounded bg-green-600" /> <span>{(s.live_scan_high ?? 30)+1}+</span>
+            <div className="grid grid-cols-2 gap-x-6 gap-y-0">
+              <SettingRow label="Уровень 1" hint="Самый бледный">
+                <NumberStepper value={s.live_scan_t1 ?? 3} onChange={v => updateSetting('live_scan_t1', v)} min={1} max={200} step={1} unit="шт" />
+              </SettingRow>
+              <SettingRow label="Уровень 2">
+                <NumberStepper value={s.live_scan_t2 ?? 6} onChange={v => updateSetting('live_scan_t2', v)} min={1} max={200} step={1} unit="шт" />
+              </SettingRow>
+              <SettingRow label="Уровень 3">
+                <NumberStepper value={s.live_scan_t3 ?? 10} onChange={v => updateSetting('live_scan_t3', v)} min={1} max={200} step={1} unit="шт" />
+              </SettingRow>
+              <SettingRow label="Уровень 4">
+                <NumberStepper value={s.live_scan_t4 ?? 15} onChange={v => updateSetting('live_scan_t4', v)} min={1} max={200} step={1} unit="шт" />
+              </SettingRow>
+              <SettingRow label="Уровень 5">
+                <NumberStepper value={s.live_scan_t5 ?? 22} onChange={v => updateSetting('live_scan_t5', v)} min={1} max={200} step={1} unit="шт" />
+              </SettingRow>
+              <SettingRow label="Уровень 6" hint="Выше — максимум">
+                <NumberStepper value={s.live_scan_t6 ?? 30} onChange={v => updateSetting('live_scan_t6', v)} min={1} max={200} step={1} unit="шт" />
+              </SettingRow>
+            </div>
+            <div className="flex items-center gap-1.5 mt-3 text-[10px] text-gray-500">
+              <span className="w-4 h-4 rounded bg-green-100" /><span>≤{s.live_scan_t1 ?? 3}</span>
+              <span className="w-4 h-4 rounded bg-green-200" /><span>≤{s.live_scan_t2 ?? 6}</span>
+              <span className="w-4 h-4 rounded bg-green-300" /><span>≤{s.live_scan_t3 ?? 10}</span>
+              <span className="w-4 h-4 rounded bg-green-400" /><span>≤{s.live_scan_t4 ?? 15}</span>
+              <span className="w-4 h-4 rounded bg-green-500" /><span>≤{s.live_scan_t5 ?? 22}</span>
+              <span className="w-4 h-4 rounded bg-green-600" /><span>≤{s.live_scan_t6 ?? 30}</span>
+              <span className="w-4 h-4 rounded bg-green-700" /><span>{(s.live_scan_t6 ?? 30)+1}+</span>
             </div>
           </div>
 

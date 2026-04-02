@@ -58,9 +58,12 @@ function statusBadge(status) {
 // ─── Activity Timeline ──────────────────────────────────────────────────────
 
 function ActivityTimeline({ buckets, tasks, breaks = [], thresholds }) {
-  const LOW = thresholds?.low || 5;
-  const MID = thresholds?.mid || 15;
-  const HIGH = thresholds?.high || 30;
+  const T1 = thresholds?.t1 || 3;
+  const T2 = thresholds?.t2 || 6;
+  const T3 = thresholds?.t3 || 10;
+  const T4 = thresholds?.t4 || 15;
+  const T5 = thresholds?.t5 || 22;
+  const T6 = thresholds?.t6 || 30;
   const [hoveredBucket, setHoveredBucket] = useState(null);
 
   // Fixed work day: 07:00–17:00
@@ -168,13 +171,17 @@ function ActivityTimeline({ buckets, tasks, breaks = [], thresholds }) {
             const scans = bucketMap[bNum] || 0;
             const isHovered = hoveredBucket === bNum;
             const isBreak = breakBuckets.has(bNum);
+            // 7 levels: T1/T2/T3/T4/T5/T6/above
             const colorClass = isBreak
               ? (isHovered ? 'bg-amber-400' : 'bg-amber-300')
               : scans <= 0 ? (isHovered ? 'bg-gray-200' : 'bg-gray-100')
-              : scans <= LOW ? (isHovered ? 'bg-green-400' : 'bg-green-200')
-              : scans <= MID ? (isHovered ? 'bg-green-500' : 'bg-green-400')
-              : scans <= HIGH ? (isHovered ? 'bg-green-600' : 'bg-green-500')
-              : (isHovered ? 'bg-green-700' : 'bg-green-600');
+              : scans <= T1 ? (isHovered ? 'bg-green-300' : 'bg-green-100')
+              : scans <= T2 ? (isHovered ? 'bg-green-400' : 'bg-green-200')
+              : scans <= T3 ? (isHovered ? 'bg-green-400' : 'bg-green-300')
+              : scans <= T4 ? (isHovered ? 'bg-green-500' : 'bg-green-400')
+              : scans <= T5 ? (isHovered ? 'bg-green-600' : 'bg-green-500')
+              : scans <= T6 ? (isHovered ? 'bg-green-700' : 'bg-green-600')
+              : (isHovered ? 'bg-green-800' : 'bg-green-700');
 
             return (
               <div
@@ -507,16 +514,19 @@ export default function LiveMonitorPage() {
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState(null);
   const [lastUpdate, setLastUpdate] = useState(null);
-  const [thresholds, setThresholds] = useState({ low: 5, mid: 15, high: 30 });
+  const [thresholds, setThresholds] = useState({ t1:3, t2:6, t3:10, t4:15, t5:22, t6:30 });
 
   // Load settings once
   useEffect(() => {
     api.get('/settings').then(r => {
       const s = r.data;
       setThresholds({
-        low: Number(s.live_scan_low) || 5,
-        mid: Number(s.live_scan_mid) || 15,
-        high: Number(s.live_scan_high) || 30,
+        t1: Number(s.live_scan_t1) || 3,
+        t2: Number(s.live_scan_t2) || 6,
+        t3: Number(s.live_scan_t3) || 10,
+        t4: Number(s.live_scan_t4) || 15,
+        t5: Number(s.live_scan_t5) || 22,
+        t6: Number(s.live_scan_t6) || 30,
       });
     }).catch(() => {});
   }, []);
