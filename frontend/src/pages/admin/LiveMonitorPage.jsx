@@ -15,62 +15,69 @@ function fmtNum(n) {
   return Number(n || 0).toLocaleString('ru-RU');
 }
 
+function taskTypeLabel(type) {
+  if (type === 'bundle_assembly') return 'Сборка';
+  if (type === 'packaging') return 'Оприход.';
+  if (type === 'production_transfer') return 'Перенос';
+  return 'Инвент.';
+}
+
 function EmployeeCard({ emp, onClick }) {
   const task = emp.active_task;
   const isActive = task && task.status === 'in_progress';
   const lastScanRecent = emp.last_scan_at && (Date.now() - new Date(emp.last_scan_at).getTime()) < 120000;
 
+  const statusDot = isActive && lastScanRecent
+    ? <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" /><span className="text-[10px] font-bold text-green-600">LIVE</span></span>
+    : isActive
+      ? <span className="w-2 h-2 rounded-full bg-amber-400 inline-block" />
+      : <span className="w-2 h-2 rounded-full bg-gray-200 inline-block" />;
+
   return (
-    <button onClick={onClick} className="w-full text-left bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-primary-200 transition-all p-4 relative overflow-hidden">
-      {/* Activity indicator */}
-      {isActive && lastScanRecent && (
-        <div className="absolute top-3 right-3 flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-          <span className="text-[10px] font-semibold text-green-600">LIVE</span>
-        </div>
-      )}
-      {isActive && !lastScanRecent && (
-        <div className="absolute top-3 right-3">
-          <span className="w-2 h-2 rounded-full bg-amber-400 inline-block" />
-        </div>
-      )}
+    <button onClick={onClick} className="w-full text-left bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-primary-200 transition-all p-4 flex flex-col">
+      {/* Header: Name + status */}
+      <div className="flex items-start justify-between gap-2 mb-3">
+        <h3 className="text-[13px] font-bold text-gray-900 leading-tight">{emp.full_name}</h3>
+        {statusDot}
+      </div>
 
-      {/* Name */}
-      <h3 className="text-sm font-bold text-gray-900 pr-14 leading-tight">{emp.full_name}</h3>
-
-      {/* Active task */}
-      {task ? (
-        <div className="mt-2 px-2.5 py-1.5 bg-primary-50 rounded-xl border border-primary-100">
-          <p className="text-xs font-semibold text-primary-700 truncate">{task.title}</p>
-          <div className="flex items-center gap-2 mt-1 text-[10px] text-primary-500">
-            <span>{task.type === 'bundle_assembly' ? 'Сборка' : task.type === 'packaging' ? 'Оприход.' : task.type === 'production_transfer' ? 'Перенос' : 'Инвент.'}</span>
-            {task.scans > 0 && <span>· {task.scans} сканов</span>}
-            {task.boxes_total > 0 && <span>· {task.boxes_done}/{task.boxes_total} кор.</span>}
-            {task.type === 'bundle_assembly' && <span>· {task.assembled}/{task.bundle_qty} собр.</span>}
+      {/* Active task — fixed height zone */}
+      <div className="min-h-[52px] mb-3">
+        {task ? (
+          <div className="px-2.5 py-2 bg-primary-50 rounded-xl border border-primary-100">
+            <p className="text-[11px] font-semibold text-primary-700 truncate">{task.title}</p>
+            <div className="flex items-center gap-1.5 mt-1 text-[10px] text-primary-500 flex-wrap">
+              <span className="bg-primary-100 rounded px-1.5 py-0.5 font-semibold">{taskTypeLabel(task.type)}</span>
+              {task.scans > 0 && <span>· {fmtNum(task.scans)} сканов</span>}
+              {task.boxes_total > 0 && <span>· {task.boxes_done}/{task.boxes_total} кор.</span>}
+              {task.type === 'bundle_assembly' && <span>· {task.assembled}/{task.bundle_qty} собр.</span>}
+            </div>
           </div>
-        </div>
-      ) : (
-        <p className="mt-2 text-xs text-gray-300 italic">Нет активной задачи</p>
-      )}
+        ) : (
+          <div className="flex items-center justify-center h-full">
+            <p className="text-xs text-gray-300 italic">Нет активной задачи</p>
+          </div>
+        )}
+      </div>
 
-      {/* Stats grid */}
-      <div className="grid grid-cols-3 gap-2 mt-3">
-        <div className="bg-gray-50 rounded-xl px-2 py-1.5 text-center">
-          <p className="text-[9px] text-gray-400 uppercase font-semibold">Сканов</p>
-          <p className="text-base font-black text-gray-800">{fmtNum(emp.scans_today)}</p>
+      {/* Stats */}
+      <div className="grid grid-cols-3 gap-1.5 mt-auto">
+        <div className="bg-gray-50 rounded-lg px-2 py-1.5 text-center">
+          <p className="text-[8px] text-gray-400 uppercase font-bold tracking-wider">Сканов</p>
+          <p className="text-sm font-black text-gray-800 leading-tight mt-0.5">{fmtNum(emp.scans_today)}</p>
         </div>
-        <div className="bg-green-50 rounded-xl px-2 py-1.5 text-center">
-          <p className="text-[9px] text-green-500 uppercase font-semibold">Заработок</p>
-          <p className="text-base font-black text-green-700">{fmtNum(Math.round(emp.earned_today))}</p>
+        <div className="bg-green-50 rounded-lg px-2 py-1.5 text-center">
+          <p className="text-[8px] text-green-500 uppercase font-bold tracking-wider">Заработок</p>
+          <p className="text-sm font-black text-green-700 leading-tight mt-0.5">{fmtNum(Math.round(emp.earned_today))}</p>
         </div>
-        <div className="bg-blue-50 rounded-xl px-2 py-1.5 text-center">
-          <p className="text-[9px] text-blue-500 uppercase font-semibold">Скорость</p>
-          <p className="text-base font-black text-blue-700">{emp.avg_speed_today ? `${emp.avg_speed_today}с` : '—'}</p>
+        <div className="bg-blue-50 rounded-lg px-2 py-1.5 text-center">
+          <p className="text-[8px] text-blue-500 uppercase font-bold tracking-wider">Скорость</p>
+          <p className="text-sm font-black text-blue-700 leading-tight mt-0.5">{emp.avg_speed_today ? `${emp.avg_speed_today}с` : '—'}</p>
         </div>
       </div>
 
       {/* Footer */}
-      <div className="flex items-center justify-between mt-2.5 text-[10px] text-gray-400">
+      <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-50 text-[10px] text-gray-400">
         <span>{emp.tasks_today} задач сегодня</span>
         <span>{emp.last_scan_at ? timeAgo(emp.last_scan_at) : '—'}</span>
       </div>
@@ -165,7 +172,6 @@ export default function LiveMonitorPage() {
       const res = await api.get('/tasks/analytics/live');
       setEmployees(res.data.employees || []);
       setLastUpdate(new Date());
-      // Update selected employee if viewing detail
       if (selectedEmp) {
         const updated = (res.data.employees || []).find(e => e.employee_id === selectedEmp.employee_id);
         if (updated) setSelectedEmp(updated);
@@ -175,7 +181,7 @@ export default function LiveMonitorPage() {
 
   useEffect(() => {
     load();
-    intervalRef.current = setInterval(load, 10000); // Auto-refresh every 10s
+    intervalRef.current = setInterval(load, 10000);
     return () => clearInterval(intervalRef.current);
   }, [load]);
 
@@ -183,8 +189,21 @@ export default function LiveMonitorPage() {
     return <EmployeeDetail emp={selectedEmp} onBack={() => setSelectedEmp(null)} />;
   }
 
+  // Sort: active + recent scan first, then active, then by scans descending
+  const sorted = [...employees].sort((a, b) => {
+    const aActive = a.active_task?.status === 'in_progress' ? 1 : 0;
+    const bActive = b.active_task?.status === 'in_progress' ? 1 : 0;
+    if (aActive !== bActive) return bActive - aActive;
+    const aRecent = a.last_scan_at && (Date.now() - new Date(a.last_scan_at).getTime()) < 120000 ? 1 : 0;
+    const bRecent = b.last_scan_at && (Date.now() - new Date(b.last_scan_at).getTime()) < 120000 ? 1 : 0;
+    if (aRecent !== bRecent) return bRecent - aRecent;
+    return (b.scans_today || 0) - (a.scans_today || 0);
+  });
+
+  const activeCount = employees.filter(e => e.active_task?.status === 'in_progress').length;
+
   return (
-    <div className="p-6 max-w-5xl mx-auto">
+    <div className="p-6 max-w-6xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <button onClick={() => navigate('/admin/tasks')} className="p-2 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-100">
@@ -198,7 +217,7 @@ export default function LiveMonitorPage() {
               </span>
             </h1>
             <p className="text-sm text-gray-400 mt-0.5">
-              {employees.length} сотрудников активно · обновление каждые 10с
+              {activeCount} работают · {employees.length} всего · обновление каждые 10с
               {lastUpdate && <span className="ml-2">{lastUpdate.toLocaleTimeString('ru-RU')}</span>}
             </p>
           </div>
@@ -216,8 +235,8 @@ export default function LiveMonitorPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {employees.map(emp => (
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+        {sorted.map(emp => (
           <EmployeeCard key={emp.employee_id} emp={emp} onClick={() => setSelectedEmp(emp)} />
         ))}
       </div>
