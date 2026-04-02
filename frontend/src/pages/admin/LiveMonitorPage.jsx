@@ -104,17 +104,19 @@ function ActivityTimeline({ buckets, tasks, breaks = [], thresholds }) {
     if (bucketMap[num] > maxScans) maxScans = bucketMap[num];
   }
 
-  // Calculate active/idle/break time
+  // Calculate active/idle/break time — only up to current time
+  const countUpTo = Math.min(nowBucket, maxBucket);
   let activeBuckets = 0;
   let breakBucketCount = 0;
-  for (let i = minBucket; i < maxBucket; i++) {
+  for (let i = minBucket; i < countUpTo; i++) {
     if (breakBuckets.has(i)) breakBucketCount++;
     else if (bucketMap[i]) activeBuckets++;
   }
+  const elapsedBuckets = Math.max(0, countUpTo - minBucket);
   const activeMinutes = activeBuckets * 5;
   const breakMinutes = breakBucketCount * 5;
-  const idleBuckets = totalBuckets - activeBuckets - breakBucketCount;
-  const idleMinutes = idleBuckets * 5;
+  const idleBuckets = elapsedBuckets - activeBuckets - breakBucketCount;
+  const idleMinutes = Math.max(0, idleBuckets) * 5;
 
   // Hour markers
   const startHour = Math.floor(minBucket * 5 / 60);
