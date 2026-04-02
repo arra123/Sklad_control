@@ -123,7 +123,7 @@ export default function EmployeeLayout({ children }) {
     <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-gray-950">
       {/* ─── Header ─── */}
       <header className="bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 sticky top-0 z-10">
-        <div className="grid grid-cols-[minmax(92px,1fr)_auto_minmax(92px,1fr)] sm:grid-cols-[minmax(150px,1fr)_auto_minmax(150px,1fr)] items-center gap-2 min-h-[64px] px-3 sm:px-4">
+        <div className="grid grid-cols-[minmax(92px,1fr)_auto_minmax(92px,1fr)] sm:grid-cols-[minmax(150px,1fr)_auto_minmax(150px,1fr)] items-center gap-2 min-h-[64px] px-3 sm:px-4 tsd-header">
           {/* Left: Logo + page title */}
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center shadow-sm shadow-primary-200">
@@ -175,7 +175,7 @@ export default function EmployeeLayout({ children }) {
 
       {/* ─── Bottom Navigation ─── */}
       <nav className="fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-gray-900/95 backdrop-blur-lg border-t border-gray-100 dark:border-gray-800 safe-area-inset-bottom z-20">
-        <div className="flex items-center justify-around h-[68px] px-2 max-w-lg mx-auto">
+        <div className="flex items-center justify-around h-[68px] px-2 max-w-lg mx-auto tsd-nav">
           {navItems.map(item => (
             <NavLink key={item.to} to={item.to}
               className={({ isActive }) => cn(

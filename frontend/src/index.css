@@ -391,3 +391,61 @@ body {
     padding: 3px 7px;
   }
 }
+
+/* ─── TSD / Small screens (≤480px) ─────────────────────────────── */
+/* Only affects TSD terminals with tiny screens, not regular phones/tablets */
+@media (max-width: 480px) {
+  /* Compact header */
+  .tsd-header {
+    min-height: 48px !important;
+    gap: 4px !important;
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+    grid-template-columns: minmax(60px,1fr) auto minmax(60px,1fr) !important;
+  }
+
+  /* Compact bottom nav */
+  .tsd-nav {
+    height: 52px !important;
+    padding: 0 4px !important;
+  }
+  .employee-nav-item {
+    min-width: 48px;
+    padding: 4px 6px !important;
+    border-radius: 10px !important;
+    gap: 1px !important;
+  }
+  .employee-nav-item svg {
+    width: 18px !important;
+    height: 18px !important;
+  }
+  .employee-nav-item span {
+    font-size: 8px !important;
+  }
+
+  /* Smaller GRA widget */
+  .gra-balance-widget {
+    gap: 4px;
+    padding: 4px 8px;
+    max-width: min(100vw - 80px, 180px);
+  }
+  .gra-balance-coin {
+    width: 18px;
+    height: 18px;
+    font-size: 8px;
+  }
+  .gra-balance-label { font-size: 7px; }
+  .gra-balance-value { font-size: 10px; }
+
+  /* Larger scan input for TSD barcode scanner */
+  .scan-input {
+    font-size: 22px !important;
+    padding: 16px !important;
+    border-width: 3px !important;
+  }
+
+  /* Reduce main content padding to use full screen */
+  main.flex-1 {
+    padding-bottom: 60px !important;
+  }
+}
