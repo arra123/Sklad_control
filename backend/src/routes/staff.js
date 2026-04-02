@@ -314,4 +314,31 @@ router.get('/breaks/active', requireAuth, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// POST /api/staff/breaks/admin-add — admin adds a tech break for an employee
+router.post('/breaks/admin-add', requireAuth, requirePermission('tasks.view', 'tasks.create'), async (req, res) => {
+  const { employee_id, break_type, started_at, ended_at } = req.body;
+  if (!employee_id) return res.status(400).json({ error: 'employee_id обязателен' });
+  try {
+    const result = await pool.query(
+      'INSERT INTO employee_breaks_s (employee_id, break_type, started_at, ended_at) VALUES ($1, $2, $3, $4) RETURNING *',
+      [employee_id, break_type || 'tech', started_at || new Date(), ended_at || null]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// POST /api/staff/breaks/admin-end — admin ends a tech break for an employee
+router.post('/breaks/admin-end', requireAuth, requirePermission('tasks.view', 'tasks.create'), async (req, res) => {
+  const { employee_id } = req.body;
+  if (!employee_id) return res.status(400).json({ error: 'employee_id обязателен' });
+  try {
+    const result = await pool.query(
+      'UPDATE employee_breaks_s SET ended_at=NOW() WHERE employee_id=$1 AND ended_at IS NULL RETURNING *',
+      [employee_id]
+    );
+    if (!result.rows.length) return res.status(400).json({ error: 'Нет активного перерыва' });
+    res.json(result.rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 module.exports = router;

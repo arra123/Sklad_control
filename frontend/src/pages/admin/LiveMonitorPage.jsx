@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../../api/client';
 import Spinner from '../../components/ui/Spinner';
 import { ArrowLeft, RefreshCw, Zap, TrendingUp, Clock, Package, ScanLine, Award, CheckCircle2, Play, Pause, Timer } from 'lucide-react';
@@ -162,25 +162,26 @@ function ActivityTimeline({ buckets, tasks, breaks = [], thresholds }) {
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Активность за день</p>
           {/* Zoom controls */}
           <div className="flex items-center gap-0.5 ml-2">
-            {canPanLeft && (
-              <button onClick={() => setPanOffset(o => o - Math.floor(visibleCount / 3))} className="w-6 h-6 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-500 flex items-center justify-center text-xs font-bold">←</button>
-            )}
             <button onClick={() => { setZoomLevel(z => Math.min(3, z + 1)); setPanOffset(0); }} disabled={!canZoomIn}
-              className="w-6 h-6 rounded-lg bg-gray-100 hover:bg-primary-100 text-gray-500 hover:text-primary-600 flex items-center justify-center text-xs font-bold disabled:opacity-30">+</button>
+              className="w-7 h-7 rounded-lg bg-gray-100 hover:bg-primary-100 text-gray-500 hover:text-primary-600 flex items-center justify-center text-sm font-bold disabled:opacity-30 transition-colors">+</button>
             <button onClick={() => { setZoomLevel(z => Math.max(0, z - 1)); setPanOffset(0); }} disabled={!canZoomOut}
-              className="w-6 h-6 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-500 flex items-center justify-center text-xs font-bold disabled:opacity-30">−</button>
+              className="w-7 h-7 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-500 flex items-center justify-center text-sm font-bold disabled:opacity-30 transition-colors">−</button>
             {zoomLevel > 0 && (
-              <button onClick={() => { setZoomLevel(0); setPanOffset(0); }} className="px-1.5 h-6 rounded-lg bg-gray-100 hover:bg-gray-200 text-[10px] text-gray-500 font-medium">Сброс</button>
-            )}
-            {canPanRight && (
-              <button onClick={() => setPanOffset(o => o + Math.floor(visibleCount / 3))} className="w-6 h-6 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-500 flex items-center justify-center text-xs font-bold">→</button>
+              <>
+                <button onClick={() => setPanOffset(o => o - Math.floor(visibleCount / 2))} disabled={!canPanLeft}
+                  className="w-7 h-7 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-500 flex items-center justify-center text-sm disabled:opacity-30 transition-colors">←</button>
+                <button onClick={() => setPanOffset(o => o + Math.floor(visibleCount / 2))} disabled={!canPanRight}
+                  className="w-7 h-7 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-500 flex items-center justify-center text-sm disabled:opacity-30 transition-colors">→</button>
+                <button onClick={() => { setZoomLevel(0); setPanOffset(0); }}
+                  className="px-2 h-7 rounded-lg bg-gray-100 hover:bg-gray-200 text-[10px] text-gray-500 font-semibold transition-colors">Всё</button>
+              </>
             )}
           </div>
         </div>
         <div className="flex items-center gap-3 text-[10px] flex-wrap">
           <span className="text-gray-500">Работа: <b className="text-green-700">{fmtDuration(activeMinutes * 60)}</b></span>
           {breakMinutes > 0 && (
-            <span className="text-gray-500">Обед: <b className="text-amber-600">{fmtDuration(breakMinutes * 60)}</b></span>
+            <span className="text-gray-500">Паузы: <b className="text-amber-600">{fmtDuration(breakMinutes * 60)}</b></span>
           )}
           <span className="text-gray-500">Простой: <b className="text-red-500">{fmtDuration(idleMinutes * 60)}</b></span>
         </div>
@@ -221,7 +222,7 @@ function ActivityTimeline({ buckets, tasks, breaks = [], thresholds }) {
                 {isHovered && (
                   <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 z-20 px-2.5 py-1.5 bg-gray-900 text-white rounded-lg text-[10px] whitespace-nowrap shadow-lg pointer-events-none">
                     <p className="font-bold">{bucketToTime(bNum)}–{bucketToTime(bNum + 1)}</p>
-                    <p>{isBreak ? '🍽 Обед' : scans > 0 ? `${scans} сканов` : 'Простой'}</p>
+                    <p>{isBreak ? '⏸ Пауза' : scans > 0 ? `${scans} сканов` : 'Простой'}</p>
                   </div>
                 )}
               </div>
@@ -308,21 +309,38 @@ function EmployeeDetailView({ employeeId, employees, onBack, thresholds }) {
   const navigate = useNavigate();
   const [timeline, setTimeline] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [breakLoading, setBreakLoading] = useState(false);
 
   const emp = useMemo(() => employees.find(e => e.employee_id === employeeId), [employees, employeeId]);
 
-  useEffect(() => {
-    let alive = true;
-    const load = async () => {
-      try {
-        const res = await api.get(`/tasks/analytics/live/${employeeId}/timeline`);
-        if (alive) { setTimeline(res.data); setLoading(false); }
-      } catch { if (alive) setLoading(false); }
-    };
-    load();
-    const id = setInterval(load, POLL_MS);
-    return () => { alive = false; clearInterval(id); };
+  const loadTimeline = useCallback(async () => {
+    try {
+      const res = await api.get(`/tasks/analytics/live/${employeeId}/timeline`);
+      setTimeline(res.data);
+      setLoading(false);
+    } catch { setLoading(false); }
   }, [employeeId]);
+
+  useEffect(() => {
+    loadTimeline();
+    const id = setInterval(loadTimeline, POLL_MS);
+    return () => clearInterval(id);
+  }, [loadTimeline]);
+
+  // Check if employee currently has an active tech break
+  const activeBreak = timeline?.breaks?.find(b => !b.ended_at);
+
+  const toggleTechBreak = async () => {
+    setBreakLoading(true);
+    try {
+      if (activeBreak) {
+        await api.post('/staff/breaks/admin-end', { employee_id: employeeId });
+      } else {
+        await api.post('/staff/breaks/admin-add', { employee_id: employeeId, break_type: 'tech' });
+      }
+      await loadTimeline();
+    } catch {} finally { setBreakLoading(false); }
+  };
 
   if (!emp) return null;
 
@@ -349,6 +367,18 @@ function EmployeeDetailView({ employeeId, employees, onBack, thresholds }) {
             Баланс: {fmtNum(Math.round(emp.balance))} GRA · Последний скан: {emp.last_scan_at ? timeAgo(emp.last_scan_at) : '—'}
           </p>
         </div>
+        <button
+          onClick={toggleTechBreak}
+          disabled={breakLoading}
+          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all flex-shrink-0 ${
+            activeBreak
+              ? 'bg-orange-100 text-orange-700 hover:bg-orange-200 ring-1 ring-orange-300'
+              : 'bg-gray-100 text-gray-500 hover:bg-orange-50 hover:text-orange-600'
+          }`}
+        >
+          <Pause size={14} />
+          {activeBreak ? 'Снять паузу' : 'Техн. пауза'}
+        </button>
       </div>
 
       {/* Stats row */}
@@ -533,9 +563,11 @@ function EmployeeCard({ emp, onClick }) {
 
 export default function LiveMonitorPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedId, setSelectedId] = useState(null);
+  const selectedId = searchParams.get('emp') ? parseInt(searchParams.get('emp')) : null;
+  const setSelectedId = (id) => id ? setSearchParams({ emp: id }) : setSearchParams({});
   const [lastUpdate, setLastUpdate] = useState(null);
   const [thresholds, setThresholds] = useState({ t1:3, t2:6, t3:10, t4:15, t5:22, t6:30 });
 
