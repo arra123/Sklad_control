@@ -11,10 +11,10 @@ export default function FeedbackButton({ position = 'admin' }) {
       <>
         <button
           onClick={() => setOpen(true)}
-          className="w-6 h-6 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 hover:bg-primary-100 hover:text-primary-500 transition-all flex items-center justify-center"
+          className="w-9 h-9 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 hover:bg-primary-100 hover:text-primary-500 transition-all flex items-center justify-center"
           title="Обратная связь"
         >
-          <MessageSquarePlus size={12} />
+          <MessageSquarePlus size={16} />
         </button>
         <FeedbackModal open={open} onClose={() => setOpen(false)} />
       </>

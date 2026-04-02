@@ -278,7 +278,7 @@ export default function AdminLayout({ children }) {
               <NavLink
                 to="/admin/errors"
                 className={({ isActive }) => cn(
-                  'w-8 h-8 rounded-xl flex items-center justify-center transition-all',
+                  'w-9 h-9 rounded-xl flex items-center justify-center transition-all',
                   isActive
                     ? 'bg-red-100 text-red-600'
                     : 'bg-gray-100 dark:bg-gray-800 text-gray-400 hover:text-amber-600 hover:bg-amber-50'
@@ -286,7 +286,7 @@ export default function AdminLayout({ children }) {
                 title="Ошибки сканирования"
                 onClick={() => setSidebarOpen(false)}
               >
-                <AlertTriangle size={14} />
+                <AlertTriangle size={16} />
               </NavLink>
             )}
           </div>
@@ -309,7 +309,7 @@ export default function AdminLayout({ children }) {
               <LogOut className="w-3.5 h-3.5" />
               Выйти
             </button>
-            <p className="text-[10px] text-gray-300 dark:text-gray-600">v2.64.0</p>
+            <p className="text-[10px] text-gray-300 dark:text-gray-600">v2.64.1</p>
           </div>
         </div>
       </aside>
