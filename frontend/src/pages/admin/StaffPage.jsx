@@ -909,6 +909,8 @@ function RolesManager() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editRole, setEditRole] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -917,13 +919,16 @@ function RolesManager() {
 
   useEffect(() => { load(); }, [load]);
 
-  const handleDelete = async (role) => {
-    if (!confirm(`Удалить роль «${role.name}»?`)) return;
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
     try {
-      await api.delete(`/staff/roles/${role.id}`);
+      await api.delete(`/staff/roles/${deleteTarget.id}`);
       toast.success('Роль удалена');
+      setDeleteTarget(null);
       load();
     } catch (err) { toast.error(err.response?.data?.error || 'Ошибка'); }
+    finally { setDeleting(false); }
   };
 
   if (loading) return <div className="flex justify-center py-12"><Spinner size="lg" /></div>;
@@ -958,7 +963,7 @@ function RolesManager() {
                   className="p-1.5 rounded-lg text-gray-400 hover:text-primary-500 hover:bg-primary-50 transition-all">
                   <Pencil size={14} />
                 </button>
-                <button onClick={() => handleDelete(role)}
+                <button onClick={() => setDeleteTarget(role)}
                   className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all">
                   <Trash2 size={14} />
                 </button>
@@ -974,6 +979,10 @@ function RolesManager() {
         </div>
       )}
       <RoleFormModal open={showForm} onClose={() => { setShowForm(false); setEditRole(null); }} role={editRole} onSuccess={load} />
+      <Modal open={!!deleteTarget} onClose={() => setDeleteTarget(null)} title="Удалить роль"
+        footer={<><Button variant="ghost" onClick={() => setDeleteTarget(null)}>Отмена</Button><Button variant="danger" onClick={confirmDelete} loading={deleting}>Удалить</Button></>}>
+        <p className="text-sm text-gray-600">Удалить роль «{deleteTarget?.name}»? Это действие нельзя отменить.</p>
+      </Modal>
     </div>
   );
 }
@@ -1001,12 +1010,12 @@ export default function StaffPage() {
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [emp, usr] = await Promise.all([
+      const [emp, usr] = await Promise.allSettled([
         api.get('/staff/employees'),
         api.get('/staff/users'),
       ]);
-      setEmployees(emp.data);
-      setUsers(usr.data);
+      if (emp.status === 'fulfilled') setEmployees(emp.value.data);
+      if (usr.status === 'fulfilled') setUsers(usr.value.data);
     } finally {
       setLoading(false);
     }

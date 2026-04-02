@@ -65,12 +65,19 @@ async function requireAuth(req, res, next) {
 
 function requireAdmin(req, res, next) {
   if (!req.user) return res.status(403).json({ error: 'Нет прав доступа' });
-  // Admin by old role OR by permissions
-  const perms = req.user.permissions || [];
-  if (req.user.role === 'admin' || perms.includes('staff.edit') || perms.includes('roles.manage')) {
-    return next();
-  }
+  if (req.user.role === 'admin') return next();
   return res.status(403).json({ error: 'Нет прав доступа' });
+}
+
+// Flexible permission check: admin always passes, otherwise checks if user has ANY of the listed permissions
+function requirePermission(...requiredPerms) {
+  return (req, res, next) => {
+    if (!req.user) return res.status(403).json({ error: 'Нет прав доступа' });
+    if (req.user.role === 'admin') return next();
+    const userPerms = req.user.permissions || [];
+    if (requiredPerms.some(p => userPerms.includes(p))) return next();
+    return res.status(403).json({ error: 'Нет прав доступа' });
+  };
 }
 
 function requireAdminOrManager(req, res, next) {
@@ -82,4 +89,4 @@ function requireAdminOrManager(req, res, next) {
   return res.status(403).json({ error: 'Нет прав доступа' });
 }
 
-module.exports = { requireAuth, requireAdmin, requireAdminOrManager, invalidateUserCache };
+module.exports = { requireAuth, requireAdmin, requireAdminOrManager, requirePermission, invalidateUserCache };

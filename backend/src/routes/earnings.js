@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const pool = require('../db/pool');
-const { requireAuth, requireAdmin } = require('../middleware/auth');
+const { requireAuth, requirePermission } = require('../middleware/auth');
 
 function parseNumeric(value, fallback = 0) {
   const parsed = Number.parseFloat(String(value ?? '').replace(',', '.'));
@@ -53,7 +53,7 @@ async function getAllGraRates(client = pool) {
   };
 }
 
-router.get('/summary', requireAuth, requireAdmin, async (_req, res) => {
+router.get('/summary', requireAuth, requirePermission('analytics', 'staff.view'), async (_req, res) => {
   for (let attempt = 1; attempt <= 3; attempt++) {
   try {
     const [rate, overviewResult, leadersResult, recentAdjustmentsResult] = await Promise.all([
@@ -141,7 +141,7 @@ router.get('/summary', requireAuth, requireAdmin, async (_req, res) => {
   }
 });
 
-router.get('/employees', requireAuth, requireAdmin, async (_req, res) => {
+router.get('/employees', requireAuth, requirePermission('analytics', 'staff.view'), async (_req, res) => {
   try {
     const result = await pool.query(`
       SELECT
@@ -177,7 +177,7 @@ router.get('/employees', requireAuth, requireAdmin, async (_req, res) => {
   }
 });
 
-router.get('/employees/:employeeId', requireAuth, requireAdmin, async (req, res) => {
+router.get('/employees/:employeeId', requireAuth, requirePermission('analytics', 'staff.view'), async (req, res) => {
   try {
     const employeeId = Number(req.params.employeeId);
     if (!Number.isFinite(employeeId)) return res.status(400).json({ error: 'Некорректный employeeId' });
@@ -292,7 +292,7 @@ router.get('/employees/:employeeId', requireAuth, requireAdmin, async (req, res)
   }
 });
 
-router.get('/tasks/:taskId', requireAuth, requireAdmin, async (req, res) => {
+router.get('/tasks/:taskId', requireAuth, requirePermission('analytics', 'staff.view'), async (req, res) => {
   try {
     const taskId = Number(req.params.taskId);
     if (!Number.isFinite(taskId)) return res.status(400).json({ error: 'Некорректный taskId' });
@@ -451,7 +451,7 @@ router.get('/tasks/:taskId', requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
-router.post('/employees/:employeeId/set-balance', requireAuth, requireAdmin, async (req, res) => {
+router.post('/employees/:employeeId/set-balance', requireAuth, requirePermission('staff.edit'), async (req, res) => {
   const employeeId = Number(req.params.employeeId);
   const newBalance = parseNumeric(req.body?.new_balance, NaN);
   const notes = String(req.body?.notes || '').trim();

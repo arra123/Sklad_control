@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const pool = require('../db/pool');
-const { requireAuth, requireAdmin } = require('../middleware/auth');
+const { requireAuth, requirePermission } = require('../middleware/auth');
 const { awardScanReward } = require('./tasks');
 
 // ─── Barcode → Product resolver (reused from tasks.js pattern) ──────────────
@@ -114,7 +114,7 @@ router.get('/source-locations', requireAuth, async (req, res) => {
 });
 
 // ─── POST / — Create assembly task (admin) ──────────────────────────────────
-router.post('/', requireAuth, requireAdmin, async (req, res) => {
+router.post('/', requireAuth, requirePermission('tasks.create'), async (req, res) => {
   const { bundle_product_id, bundle_qty, employee_id, source_boxes, dest_shelf_id, dest_pallet_id, notes } = req.body;
   if (!bundle_product_id || !bundle_qty || bundle_qty < 1) return res.status(400).json({ error: 'bundle_product_id и bundle_qty обязательны' });
 
@@ -682,7 +682,7 @@ router.post('/:id/complete', requireAuth, async (req, res) => {
 });
 
 // ─── DELETE /:id — Delete task and rollback all picks ────────────────────────
-router.delete('/:id', requireAuth, requireAdmin, async (req, res) => {
+router.delete('/:id', requireAuth, requirePermission('tasks.create'), async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');

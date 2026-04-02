@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const pool = require('../db/pool');
-const { requireAuth, requireAdmin } = require('../middleware/auth');
+const { requireAuth, requirePermission } = require('../middleware/auth');
 const { verifyToken } = require('../utils/jwt');
 
 // POST /api/errors/system — принять ошибку с фронтенда (любой авторизованный или анон)
@@ -66,7 +66,7 @@ router.post('/system', async (req, res) => {
 });
 
 // GET /api/errors/system — список системных ошибок (только admin)
-router.get('/system', requireAuth, requireAdmin, async (req, res) => {
+router.get('/system', requireAuth, requirePermission('errors'), async (req, res) => {
   try {
     const { limit = 200, offset = 0, type } = req.query;
     let where = type ? `WHERE error_type = $3` : '';
@@ -93,7 +93,7 @@ router.get('/system', requireAuth, requireAdmin, async (req, res) => {
 });
 
 // DELETE /api/errors/system/:id — удалить запись (только admin)
-router.delete('/system/:id', requireAuth, requireAdmin, async (req, res) => {
+router.delete('/system/:id', requireAuth, requirePermission('errors'), async (req, res) => {
   try {
     await pool.query('DELETE FROM system_errors_s WHERE id = $1', [req.params.id]);
     res.json({ ok: true });
@@ -103,7 +103,7 @@ router.delete('/system/:id', requireAuth, requireAdmin, async (req, res) => {
 });
 
 // DELETE /api/errors/system — очистить все (только admin)
-router.delete('/system', requireAuth, requireAdmin, async (req, res) => {
+router.delete('/system', requireAuth, requirePermission('errors'), async (req, res) => {
   try {
     await pool.query('TRUNCATE system_errors_s RESTART IDENTITY');
     res.json({ ok: true });

@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const pool = require('../db/pool');
-const { requireAuth, requireAdmin } = require('../middleware/auth');
+const { requireAuth, requirePermission } = require('../middleware/auth');
 
 function parseBoolean(value, fallback = false) {
   if (value === undefined || value === null || value === '') return fallback;
@@ -98,7 +98,7 @@ router.get('/warehouses/:id', requireAuth, async (req, res) => {
 });
 
 // POST /api/warehouse/warehouses
-router.post('/warehouses', requireAuth, requireAdmin, async (req, res) => {
+router.post('/warehouses', requireAuth, requirePermission('warehouse.edit'), async (req, res) => {
   const { name, external_id, notes, warehouse_type } = req.body;
   if (!name) return res.status(400).json({ error: 'Название обязательно' });
   try {
@@ -113,7 +113,7 @@ router.post('/warehouses', requireAuth, requireAdmin, async (req, res) => {
 });
 
 // PUT /api/warehouse/warehouses/:id
-router.put('/warehouses/:id', requireAuth, requireAdmin, async (req, res) => {
+router.put('/warehouses/:id', requireAuth, requirePermission('warehouse.edit'), async (req, res) => {
   const { name, active, notes } = req.body;
   try {
     const result = await pool.query(
@@ -128,7 +128,7 @@ router.put('/warehouses/:id', requireAuth, requireAdmin, async (req, res) => {
 });
 
 // DELETE /api/warehouse/warehouses/:id
-router.delete('/warehouses/:id', requireAuth, requireAdmin, async (req, res) => {
+router.delete('/warehouses/:id', requireAuth, requirePermission('warehouse.edit'), async (req, res) => {
   try {
     await pool.query('DELETE FROM warehouses_s WHERE id = $1', [req.params.id]);
     res.json({ success: true });
@@ -207,7 +207,7 @@ router.get('/racks/:id', requireAuth, async (req, res) => {
 });
 
 // POST /api/warehouse/racks
-router.post('/racks', requireAuth, requireAdmin, async (req, res) => {
+router.post('/racks', requireAuth, requirePermission('warehouse.edit'), async (req, res) => {
   const { warehouse_id, name, number, notes } = req.body;
   if (!warehouse_id || !name || !number) {
     return res.status(400).json({ error: 'warehouse_id, name и number обязательны' });
@@ -226,7 +226,7 @@ router.post('/racks', requireAuth, requireAdmin, async (req, res) => {
 });
 
 // PUT /api/warehouse/racks/:id
-router.put('/racks/:id', requireAuth, requireAdmin, async (req, res) => {
+router.put('/racks/:id', requireAuth, requirePermission('warehouse.edit'), async (req, res) => {
   const { name, notes } = req.body;
   try {
     const result = await pool.query(
@@ -241,7 +241,7 @@ router.put('/racks/:id', requireAuth, requireAdmin, async (req, res) => {
 });
 
 // DELETE /api/warehouse/racks/:id
-router.delete('/racks/:id', requireAuth, requireAdmin, async (req, res) => {
+router.delete('/racks/:id', requireAuth, requirePermission('warehouse.edit'), async (req, res) => {
   try {
     await pool.query('DELETE FROM racks_s WHERE id = $1', [req.params.id]);
     res.json({ success: true });
@@ -320,7 +320,7 @@ router.get('/shelves/:id', requireAuth, async (req, res) => {
 });
 
 // POST /api/warehouse/shelves
-router.post('/shelves', requireAuth, requireAdmin, async (req, res) => {
+router.post('/shelves', requireAuth, requirePermission('warehouse.edit'), async (req, res) => {
   const { rack_id, name, number, notes, uses_boxes } = req.body;
   if (!rack_id || !name || !number) {
     return res.status(400).json({ error: 'rack_id, name и number обязательны' });
@@ -342,7 +342,7 @@ router.post('/shelves', requireAuth, requireAdmin, async (req, res) => {
 });
 
 // PUT /api/warehouse/shelves/:id
-router.put('/shelves/:id', requireAuth, requireAdmin, async (req, res) => {
+router.put('/shelves/:id', requireAuth, requirePermission('warehouse.edit'), async (req, res) => {
   const { name, notes, uses_boxes, uses_loose } = req.body;
   const client = await pool.connect();
   try {
@@ -366,7 +366,7 @@ router.put('/shelves/:id', requireAuth, requireAdmin, async (req, res) => {
 });
 
 // DELETE /api/warehouse/shelves/:id
-router.delete('/shelves/:id', requireAuth, requireAdmin, async (req, res) => {
+router.delete('/shelves/:id', requireAuth, requirePermission('warehouse.edit'), async (req, res) => {
   try {
     await pool.query('DELETE FROM shelves_s WHERE id = $1', [req.params.id]);
     res.json({ success: true });
@@ -479,7 +479,7 @@ router.get('/shelf-boxes/:id', requireAuth, async (req, res) => {
 });
 
 // POST /api/warehouse/shelves/:id/box — create a box on shelf
-router.post('/shelves/:id/box', requireAuth, requireAdmin, async (req, res) => {
+router.post('/shelves/:id/box', requireAuth, requirePermission('warehouse.edit'), async (req, res) => {
   const { product_id, quantity, box_size, name } = req.body;
   const client = await pool.connect();
   try {
@@ -536,7 +536,7 @@ router.post('/shelves/:id/box', requireAuth, requireAdmin, async (req, res) => {
 });
 
 // PUT /api/warehouse/shelf-boxes/:id — edit box on shelf
-router.put('/shelf-boxes/:id', requireAuth, requireAdmin, async (req, res) => {
+router.put('/shelf-boxes/:id', requireAuth, requirePermission('warehouse.edit'), async (req, res) => {
   const { quantity, product_id, name, box_size } = req.body;
   try {
     // Get old state before update for movement tracking
@@ -613,7 +613,7 @@ router.put('/shelf-boxes/:id', requireAuth, requireAdmin, async (req, res) => {
 });
 
 // DELETE /api/warehouse/shelf-boxes/:id — delete box from shelf
-router.delete('/shelf-boxes/:id', requireAuth, requireAdmin, async (req, res) => {
+router.delete('/shelf-boxes/:id', requireAuth, requirePermission('warehouse.edit'), async (req, res) => {
   try {
     // Get box data before deletion for movement tracking
     const oldBox = await pool.query('SELECT * FROM shelf_boxes_s WHERE id = $1', [req.params.id]);

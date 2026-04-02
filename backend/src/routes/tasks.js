@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const pool = require('../db/pool');
-const { requireAuth, requireAdmin, requireAdminOrManager } = require('../middleware/auth');
+const { requireAuth, requirePermission } = require('../middleware/auth');
 
 async function ensureInventoryPalletReady(client, palletId) {
   const palletResult = await client.query(
@@ -1371,7 +1371,7 @@ router.get('/', requireAuth, async (req, res) => {
 // ─── Static routes BEFORE /:id ───────────────────────────────────────────────
 
 // GET /api/tasks/stats/summary
-router.get('/stats/summary', requireAuth, requireAdmin, async (req, res) => {
+router.get('/stats/summary', requireAuth, requirePermission('tasks.view', 'tasks.create', 'dashboard', 'analytics'), async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT
@@ -1388,7 +1388,7 @@ router.get('/stats/summary', requireAuth, requireAdmin, async (req, res) => {
 });
 
 // GET /api/tasks/analytics/summary — global analytics
-router.get('/analytics/summary', requireAuth, requireAdmin, async (req, res) => {
+router.get('/analytics/summary', requireAuth, requirePermission('analytics', 'tasks.view'), async (req, res) => {
   for (let attempt = 1; attempt <= 3; attempt++) {
   try {
     const { rows: [overview] } = await pool.query(`
@@ -1457,7 +1457,7 @@ router.get('/analytics/summary', requireAuth, requireAdmin, async (req, res) => 
 });
 
 // GET /api/tasks/analytics/live — real-time employee monitoring
-router.get('/analytics/live', requireAuth, requireAdmin, async (_req, res) => {
+router.get('/analytics/live', requireAuth, requirePermission('analytics', 'dashboard', 'tasks.view'), async (_req, res) => {
   try {
     const { rows: employees } = await pool.query(`
       SELECT
@@ -1509,7 +1509,7 @@ router.get('/analytics/live', requireAuth, requireAdmin, async (_req, res) => {
 });
 
 // GET /api/tasks/errors — all scan errors across all tasks
-router.get('/errors', requireAuth, requireAdmin, async (req, res) => {
+router.get('/errors', requireAuth, requirePermission('errors', 'tasks.view'), async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT
@@ -1537,7 +1537,7 @@ router.get('/errors', requireAuth, requireAdmin, async (req, res) => {
 });
 
 // PUT /api/tasks/errors/:id/resolve — mark scan error as resolved
-router.put('/errors/:id/resolve', requireAuth, requireAdmin, async (req, res) => {
+router.put('/errors/:id/resolve', requireAuth, requirePermission('errors', 'tasks.create'), async (req, res) => {
   try {
     const result = await pool.query(
       'UPDATE scan_errors_s SET resolved_at=NOW(), resolved_by=$1 WHERE id=$2 RETURNING *',
@@ -1551,7 +1551,7 @@ router.put('/errors/:id/resolve', requireAuth, requireAdmin, async (req, res) =>
 });
 
 // GET /api/tasks/analytics/inventory-overview — tree of storage locations with inventory stats
-router.get('/analytics/inventory-overview', requireAuth, requireAdmin, async (req, res) => {
+router.get('/analytics/inventory-overview', requireAuth, requirePermission('analytics', 'warehouse.view'), async (req, res) => {
   try {
     const warehouseId = req.query.warehouse_id ? Number(req.query.warehouse_id) : null;
     const overview = await getInventoryOverviewData(pool, warehouseId);
@@ -1565,7 +1565,7 @@ router.get('/analytics/inventory-overview', requireAuth, requireAdmin, async (re
 });
 
 // GET /api/tasks/analytics/inventory-history — history for selected node
-router.get('/analytics/inventory-history', requireAuth, requireAdmin, async (req, res) => {
+router.get('/analytics/inventory-history', requireAuth, requirePermission('analytics', 'warehouse.view'), async (req, res) => {
   try {
     const locationType = String(req.query.location_type || '').trim();
     const locationId = Number(req.query.id);
@@ -1607,7 +1607,7 @@ router.get('/analytics/inventory-history', requireAuth, requireAdmin, async (req
 });
 
 // GET /api/tasks/busy-targets — which shelves/pallets/boxes are in active tasks
-router.get('/busy-targets', requireAuth, requireAdminOrManager, async (_req, res) => {
+router.get('/busy-targets', requireAuth, requirePermission('tasks.view', 'tasks.create'), async (_req, res) => {
   try {
     const activeStatuses = ['new', 'in_progress'];
     const [shelvesResult, palletsResult, palletBoxesResult, shelfBoxesResult] = await Promise.all([
@@ -1657,7 +1657,7 @@ router.get('/busy-targets', requireAuth, requireAdminOrManager, async (_req, res
 });
 
 // GET /api/tasks/analytics/audit-report — audit report grouped by employee
-router.get('/analytics/audit-report', requireAuth, requireAdmin, async (req, res) => {
+router.get('/analytics/audit-report', requireAuth, requirePermission('analytics', 'warehouse.view'), async (req, res) => {
   try {
     // 1) Summary
     const { rows: [summary] } = await pool.query(`
@@ -1829,7 +1829,7 @@ router.get('/analytics/audit-report', requireAuth, requireAdmin, async (req, res
 });
 
 // GET /api/tasks/analytics/table-report — monthly table grouped by employee
-router.get('/analytics/table-report', requireAuth, requireAdmin, async (req, res) => {
+router.get('/analytics/table-report', requireAuth, requirePermission('analytics', 'warehouse.view'), async (req, res) => {
   try {
     const monthLabels = ['Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя','Дек'];
     const now = new Date();
@@ -2196,7 +2196,7 @@ router.get('/:id/analytics', requireAuth, async (req, res) => {
 
 
 // POST /api/tasks
-router.post('/', requireAuth, requireAdminOrManager, async (req, res) => {
+router.post('/', requireAuth, requirePermission('tasks.create'), async (req, res) => {
   const {
     title,
     employee_id,
@@ -2509,7 +2509,7 @@ router.post('/:id/next-shelf', requireAuth, async (req, res) => {
 });
 
 // POST /api/tasks/:id/pause — admin pauses/resumes task
-router.post('/:id/pause', requireAuth, requireAdmin, async (req, res) => {
+router.post('/:id/pause', requireAuth, requirePermission('tasks.create', 'tasks.view'), async (req, res) => {
   try {
     const task = await pool.query(`SELECT id, status FROM inventory_tasks_s WHERE id = $1`, [req.params.id]);
     if (!task.rows.length) return res.status(404).json({ error: 'Задача не найдена' });
@@ -2548,7 +2548,7 @@ router.post('/:id/pause', requireAuth, requireAdmin, async (req, res) => {
 });
 
 // PUT /api/tasks/:id
-router.put('/:id', requireAuth, requireAdminOrManager, async (req, res) => {
+router.put('/:id', requireAuth, requirePermission('tasks.create', 'tasks.view'), async (req, res) => {
   const { title, employee_id, shelf_id, notes, status } = req.body;
   try {
     const result = await pool.query(
@@ -2569,7 +2569,7 @@ router.put('/:id', requireAuth, requireAdminOrManager, async (req, res) => {
 });
 
 // DELETE /api/tasks/:id?refund=1 — delete task, optionally refund GRA
-router.delete('/:id', requireAuth, requireAdminOrManager, async (req, res) => {
+router.delete('/:id', requireAuth, requirePermission('tasks.create'), async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');

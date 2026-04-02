@@ -1,12 +1,12 @@
 const router = require('express').Router();
 const pool = require('../db/pool');
 const externalPool = require('../db/externalPool');
-const { requireAuth, requireAdmin } = require('../middleware/auth');
+const { requireAuth, requirePermission } = require('../middleware/auth');
 const { hashPassword } = require('../utils/password');
 
 // ─── Employees ────────────────────────────────────────────────────────────────
 
-router.get('/employees', requireAuth, requireAdmin, async (req, res) => {
+router.get('/employees', requireAuth, requirePermission('staff.view', 'staff.edit', 'tasks.create', 'tasks.view'), async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT DISTINCT ON (e.id) e.*,
@@ -31,7 +31,7 @@ router.get('/employees', requireAuth, requireAdmin, async (req, res) => {
 });
 
 // GET /api/staff/external-employees — list employees from external DB (not yet added)
-router.get('/external-employees', requireAuth, requireAdmin, async (req, res) => {
+router.get('/external-employees', requireAuth, requirePermission('staff.edit'), async (req, res) => {
   try {
     // Get IDs already linked
     const linked = await pool.query('SELECT external_employee_id FROM employees_s WHERE external_employee_id IS NOT NULL');
@@ -59,7 +59,7 @@ router.get('/external-employees', requireAuth, requireAdmin, async (req, res) =>
   }
 });
 
-router.post('/employees', requireAuth, requireAdmin, async (req, res) => {
+router.post('/employees', requireAuth, requirePermission('staff.edit'), async (req, res) => {
   const { full_name, position, phone, external_employee_id, username, password, role, role_id } = req.body;
   if (!full_name) return res.status(400).json({ error: 'ФИО обязательно' });
   try {
@@ -93,7 +93,7 @@ router.post('/employees', requireAuth, requireAdmin, async (req, res) => {
 });
 
 // GET /api/staff/employees/:id/credentials — get login/password from external DB
-router.get('/employees/:id/credentials', requireAuth, requireAdmin, async (req, res) => {
+router.get('/employees/:id/credentials', requireAuth, requirePermission('staff.edit'), async (req, res) => {
   try {
     const emp = await pool.query('SELECT external_employee_id FROM employees_s WHERE id=$1', [req.params.id]);
     if (!emp.rows.length) return res.status(404).json({ error: 'Сотрудник не найден' });
@@ -105,7 +105,7 @@ router.get('/employees/:id/credentials', requireAuth, requireAdmin, async (req, 
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-router.put('/employees/:id', requireAuth, requireAdmin, async (req, res) => {
+router.put('/employees/:id', requireAuth, requirePermission('staff.edit'), async (req, res) => {
   const { full_name, position, phone, active } = req.body;
   try {
     const result = await pool.query(
@@ -124,7 +124,7 @@ router.put('/employees/:id', requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
-router.delete('/employees/:id', requireAuth, requireAdmin, async (req, res) => {
+router.delete('/employees/:id', requireAuth, requirePermission('staff.edit'), async (req, res) => {
   try {
     await pool.query('DELETE FROM employees_s WHERE id = $1', [req.params.id]);
     res.json({ success: true });
@@ -144,7 +144,7 @@ router.get('/roles', requireAuth, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-router.post('/roles', requireAuth, requireAdmin, async (req, res) => {
+router.post('/roles', requireAuth, requirePermission('roles.manage'), async (req, res) => {
   const { name, permissions } = req.body;
   if (!name) return res.status(400).json({ error: 'Название обязательно' });
   try {
@@ -159,7 +159,7 @@ router.post('/roles', requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
-router.put('/roles/:id', requireAuth, requireAdmin, async (req, res) => {
+router.put('/roles/:id', requireAuth, requirePermission('roles.manage'), async (req, res) => {
   const { name, permissions } = req.body;
   try {
     const result = await pool.query(
@@ -174,7 +174,7 @@ router.put('/roles/:id', requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
-router.delete('/roles/:id', requireAuth, requireAdmin, async (req, res) => {
+router.delete('/roles/:id', requireAuth, requirePermission('roles.manage'), async (req, res) => {
   try {
     // Check if role is in use
     const inUse = await pool.query('SELECT COUNT(*) FROM users_s WHERE role_id=$1', [req.params.id]);
@@ -186,7 +186,7 @@ router.delete('/roles/:id', requireAuth, requireAdmin, async (req, res) => {
 
 // ─── Users ────────────────────────────────────────────────────────────────────
 
-router.get('/users', requireAuth, requireAdmin, async (req, res) => {
+router.get('/users', requireAuth, requirePermission('staff.view', 'staff.edit'), async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT u.id, u.username, u.password_plain, u.role, u.role_id, u.active, u.employee_id, u.created_at,
@@ -202,7 +202,7 @@ router.get('/users', requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
-router.post('/users', requireAuth, requireAdmin, async (req, res) => {
+router.post('/users', requireAuth, requirePermission('staff.edit'), async (req, res) => {
   const { username, password, role, employee_id } = req.body;
   if (!username || !password) return res.status(400).json({ error: 'Логин и пароль обязательны' });
   try {
@@ -218,7 +218,7 @@ router.post('/users', requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
-router.put('/users/:id', requireAuth, requireAdmin, async (req, res) => {
+router.put('/users/:id', requireAuth, requirePermission('staff.edit'), async (req, res) => {
   const { username, password, role, employee_id, active, role_id } = req.body;
   try {
     let hash = null;
@@ -245,7 +245,7 @@ router.put('/users/:id', requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
-router.delete('/users/:id', requireAuth, requireAdmin, async (req, res) => {
+router.delete('/users/:id', requireAuth, requirePermission('staff.edit'), async (req, res) => {
   if (req.user.id === parseInt(req.params.id)) {
     return res.status(400).json({ error: 'Нельзя удалить себя' });
   }

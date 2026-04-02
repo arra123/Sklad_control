@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const pool = require('../db/pool');
-const { requireAuth, requireAdmin } = require('../middleware/auth');
+const { requireAuth, requirePermission } = require('../middleware/auth');
 
 // POST /api/movements/scan — resolve barcode to location
 router.post('/scan', requireAuth, async (req, res) => {
@@ -308,7 +308,7 @@ router.get('/my-inventory', requireAuth, async (req, res) => {
 });
 
 // GET /api/movements/all-employee-inventory — admin: all employees with inventory
-router.get('/all-employee-inventory', requireAuth, requireAdmin, async (req, res) => {
+router.get('/all-employee-inventory', requireAuth, requirePermission('movements.view', 'staff.view'), async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT e.id as employee_id, e.full_name,
@@ -323,7 +323,7 @@ router.get('/all-employee-inventory', requireAuth, requireAdmin, async (req, res
 });
 
 // PUT /api/movements/employee-inventory/:employeeId/:productId — update qty
-router.put('/employee-inventory/:employeeId/:productId', requireAuth, requireAdmin, async (req, res) => {
+router.put('/employee-inventory/:employeeId/:productId', requireAuth, requirePermission('movements.edit', 'staff.edit'), async (req, res) => {
   const { quantity } = req.body;
   const newQty = parseFloat(quantity);
   if (isNaN(newQty) || newQty < 0) return res.status(400).json({ error: 'Некорректное количество' });
@@ -352,7 +352,7 @@ router.put('/employee-inventory/:employeeId/:productId', requireAuth, requireAdm
 });
 
 // DELETE /api/movements/employee-inventory/:employeeId/:productId
-router.delete('/employee-inventory/:employeeId/:productId', requireAuth, requireAdmin, async (req, res) => {
+router.delete('/employee-inventory/:employeeId/:productId', requireAuth, requirePermission('movements.edit', 'staff.edit'), async (req, res) => {
   try {
     const old = await pool.query('SELECT quantity FROM employee_inventory_s WHERE employee_id=$1 AND product_id=$2', [req.params.employeeId, req.params.productId]);
     const oldQty = old.rows.length ? parseFloat(old.rows[0].quantity) : 0;
@@ -368,7 +368,7 @@ router.delete('/employee-inventory/:employeeId/:productId', requireAuth, require
 });
 
 // POST /api/movements/employee-inventory/:employeeId — add product to employee
-router.post('/employee-inventory/:employeeId', requireAuth, requireAdmin, async (req, res) => {
+router.post('/employee-inventory/:employeeId', requireAuth, requirePermission('movements.edit', 'staff.edit'), async (req, res) => {
   const { product_id, quantity } = req.body;
   if (!product_id || !quantity || quantity <= 0) return res.status(400).json({ error: 'product_id и quantity обязательны' });
   const qty = parseFloat(quantity);

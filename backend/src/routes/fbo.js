@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const pool = require('../db/pool');
-const { requireAuth, requireAdminOrManager } = require('../middleware/auth');
+const { requireAuth, requirePermission } = require('../middleware/auth');
 
 function parseBoolean(value, fallback = true) {
   if (value === undefined || value === null || value === '') return fallback;
@@ -30,7 +30,7 @@ router.get('/warehouses', requireAuth, async (req, res) => {
 });
 
 // POST /api/fbo/warehouses — create FBO warehouse
-router.post('/warehouses', requireAuth, requireAdminOrManager, async (req, res) => {
+router.post('/warehouses', requireAuth, requirePermission('warehouse.edit'), async (req, res) => {
   const { name, notes } = req.body;
   if (!name) return res.status(400).json({ error: 'Название обязательно' });
   try {
@@ -43,7 +43,7 @@ router.post('/warehouses', requireAuth, requireAdminOrManager, async (req, res) 
 });
 
 // DELETE /api/fbo/warehouses/:id
-router.delete('/warehouses/:id', requireAuth, requireAdminOrManager, async (req, res) => {
+router.delete('/warehouses/:id', requireAuth, requirePermission('warehouse.edit'), async (req, res) => {
   try {
     await pool.query('DELETE FROM warehouses_s WHERE id=$1 AND warehouse_type=\'fbo\'', [req.params.id]);
     res.json({ success: true });
@@ -68,7 +68,7 @@ router.get('/warehouses/:id', requireAuth, async (req, res) => {
 });
 
 // POST /api/fbo/rows — create row
-router.post('/rows', requireAuth, requireAdminOrManager, async (req, res) => {
+router.post('/rows', requireAuth, requirePermission('warehouse.edit'), async (req, res) => {
   const { warehouse_id, number, name } = req.body;
   if (!warehouse_id || !number || !name) return res.status(400).json({ error: 'warehouse_id, number, name обязательны' });
   try {
@@ -81,7 +81,7 @@ router.post('/rows', requireAuth, requireAdminOrManager, async (req, res) => {
 });
 
 // PUT /api/fbo/rows/:id
-router.put('/rows/:id', requireAuth, requireAdminOrManager, async (req, res) => {
+router.put('/rows/:id', requireAuth, requirePermission('warehouse.edit'), async (req, res) => {
   const { name, number } = req.body;
   try {
     const result = await pool.query(
@@ -94,7 +94,7 @@ router.put('/rows/:id', requireAuth, requireAdminOrManager, async (req, res) => 
 });
 
 // DELETE /api/fbo/rows/:id
-router.delete('/rows/:id', requireAuth, requireAdminOrManager, async (req, res) => {
+router.delete('/rows/:id', requireAuth, requirePermission('warehouse.edit'), async (req, res) => {
   try {
     await pool.query('DELETE FROM pallet_rows_s WHERE id=$1', [req.params.id]);
     res.json({ success: true });
@@ -119,7 +119,7 @@ router.get('/rows/:id', requireAuth, async (req, res) => {
 });
 
 // POST /api/fbo/pallets — create pallet
-router.post('/pallets', requireAuth, requireAdminOrManager, async (req, res) => {
+router.post('/pallets', requireAuth, requirePermission('warehouse.edit'), async (req, res) => {
   const { row_id, number, name, uses_boxes } = req.body;
   if (!row_id || !number || !name) return res.status(400).json({ error: 'row_id, number, name обязательны' });
   try {
@@ -139,7 +139,7 @@ router.post('/pallets', requireAuth, requireAdminOrManager, async (req, res) => 
 });
 
 // POST /api/fbo/pallets/:id/box — add product directly to pallet
-router.post('/pallets/:id/box', requireAuth, requireAdminOrManager, async (req, res) => {
+router.post('/pallets/:id/box', requireAuth, requirePermission('warehouse.edit'), async (req, res) => {
   const { product_id, quantity, box_size } = req.body;
   try {
     const pallet = await pool.query(
@@ -201,7 +201,7 @@ router.post('/pallets/:id/box', requireAuth, requireAdminOrManager, async (req, 
 });
 
 // POST /api/fbo/pallets/:id/item — add product directly to pallet (no box)
-router.post('/pallets/:id/item', requireAuth, requireAdminOrManager, async (req, res) => {
+router.post('/pallets/:id/item', requireAuth, requirePermission('warehouse.edit'), async (req, res) => {
   const { product_id, quantity } = req.body;
   if (!product_id || !quantity || quantity <= 0) {
     return res.status(400).json({ error: 'product_id и quantity обязательны' });
@@ -243,7 +243,7 @@ router.post('/pallets/:id/item', requireAuth, requireAdminOrManager, async (req,
 });
 
 // PUT /api/fbo/pallets/:id/item — update quantity of product directly on pallet
-router.put('/pallets/:palletId/item/:productId', requireAuth, requireAdminOrManager, async (req, res) => {
+router.put('/pallets/:palletId/item/:productId', requireAuth, requirePermission('warehouse.edit'), async (req, res) => {
   const { quantity } = req.body;
   const qty = parseFloat(quantity);
   if (isNaN(qty) || qty < 0) return res.status(400).json({ error: 'Некорректное количество' });
@@ -269,7 +269,7 @@ router.put('/pallets/:palletId/item/:productId', requireAuth, requireAdminOrMana
 });
 
 // PUT /api/fbo/pallets/:id — edit pallet name/number/uses_boxes
-router.put('/pallets/:id', requireAuth, requireAdminOrManager, async (req, res) => {
+router.put('/pallets/:id', requireAuth, requirePermission('warehouse.edit'), async (req, res) => {
   try {
     const { name, number, uses_boxes } = req.body;
     const fields = [];
@@ -286,7 +286,7 @@ router.put('/pallets/:id', requireAuth, requireAdminOrManager, async (req, res) 
 });
 
 // DELETE /api/fbo/pallets/:id
-router.delete('/pallets/:id', requireAuth, requireAdminOrManager, async (req, res) => {
+router.delete('/pallets/:id', requireAuth, requirePermission('warehouse.edit'), async (req, res) => {
   try {
     await pool.query('DELETE FROM pallets_s WHERE id=$1', [req.params.id]);
     res.json({ success: true });
@@ -378,7 +378,7 @@ router.get('/boxes/:id', requireAuth, async (req, res) => {
 });
 
 // PUT /api/fbo/boxes/:id — edit box (quantity, product)
-router.put('/boxes/:id', requireAuth, requireAdminOrManager, async (req, res) => {
+router.put('/boxes/:id', requireAuth, requirePermission('warehouse.edit'), async (req, res) => {
   const { quantity, product_id } = req.body;
   try {
     // Get old state before update for movement tracking
@@ -434,7 +434,7 @@ router.put('/boxes/:id', requireAuth, requireAdminOrManager, async (req, res) =>
 });
 
 // DELETE /api/fbo/boxes/:id — delete box
-router.delete('/boxes/:id', requireAuth, requireAdminOrManager, async (req, res) => {
+router.delete('/boxes/:id', requireAuth, requirePermission('warehouse.edit'), async (req, res) => {
   try {
     // Get box data before deletion for movement tracking
     const oldBox = await pool.query('SELECT * FROM boxes_s WHERE id = $1', [req.params.id]);
@@ -567,7 +567,7 @@ router.get('/box-warehouse/:warehouseId/boxes', requireAuth, async (req, res) =>
 });
 
 // POST /api/fbo/box-warehouse/:warehouseId/boxes — create box in box-type warehouse
-router.post('/box-warehouse/:warehouseId/boxes', requireAuth, requireAdminOrManager, async (req, res) => {
+router.post('/box-warehouse/:warehouseId/boxes', requireAuth, requirePermission('warehouse.edit'), async (req, res) => {
   try {
     const { name, product_id, quantity, box_size } = req.body;
     const barcode = String(Math.floor(100000000 + Math.random() * 900000000));
@@ -594,7 +594,7 @@ router.post('/box-warehouse/:warehouseId/boxes', requireAuth, requireAdminOrMana
 });
 
 // PUT /api/fbo/box-warehouse/boxes/:id — edit standalone box
-router.put('/box-warehouse/boxes/:id', requireAuth, requireAdminOrManager, async (req, res) => {
+router.put('/box-warehouse/boxes/:id', requireAuth, requirePermission('warehouse.edit'), async (req, res) => {
   try {
     // Get old state before update for movement tracking
     const oldBox = await pool.query('SELECT * FROM boxes_s WHERE id = $1', [req.params.id]);
@@ -640,7 +640,7 @@ router.put('/box-warehouse/boxes/:id', requireAuth, requireAdminOrManager, async
 });
 
 // DELETE /api/fbo/box-warehouse/boxes/:id — delete standalone box
-router.delete('/box-warehouse/boxes/:id', requireAuth, requireAdminOrManager, async (req, res) => {
+router.delete('/box-warehouse/boxes/:id', requireAuth, requirePermission('warehouse.edit'), async (req, res) => {
   try {
     // Get box data before deletion for movement tracking
     const oldBox = await pool.query('SELECT * FROM boxes_s WHERE id = $1', [req.params.id]);

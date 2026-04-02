@@ -793,14 +793,16 @@ async function createSchema() {
     `);
     await client.query(`ALTER TABLE users_s ADD COLUMN IF NOT EXISTS role_id INTEGER REFERENCES roles_s(id) ON DELETE SET NULL`);
 
-    // Seed default roles
-    await client.query(`
-      INSERT INTO roles_s (name, permissions) VALUES
-        ('Администратор', '["dashboard","products.view","products.edit","warehouse.view","warehouse.edit","tasks.view","tasks.create","tasks.execute","staff.view","staff.edit","movements.view","movements.edit","settings","analytics","errors","roles.manage"]'),
-        ('Менеджер', '["dashboard","products.view","warehouse.view","tasks.view","tasks.create","staff.view","movements.view","analytics","errors"]'),
-        ('Сотрудник', '["tasks.execute","movements.edit"]')
-      ON CONFLICT (name) DO NOTHING
-    `);
+    // Seed default roles only if table is empty (so deleted roles stay deleted)
+    const rolesExist = await client.query('SELECT COUNT(*) FROM roles_s');
+    if (parseInt(rolesExist.rows[0].count) === 0) {
+      await client.query(`
+        INSERT INTO roles_s (name, permissions) VALUES
+          ('Администратор', '["dashboard","products.view","products.edit","warehouse.view","warehouse.edit","tasks.view","tasks.create","tasks.execute","staff.view","staff.edit","movements.view","movements.edit","settings","analytics","errors","roles.manage"]'),
+          ('Менеджер', '["dashboard","products.view","warehouse.view","tasks.view","tasks.create","staff.view","movements.view","analytics","errors"]'),
+          ('Сотрудник', '["tasks.execute","movements.edit"]')
+      `);
+    }
 
     // ─── Bundle Assembly ────────────────────────────────────────────
     await client.query(`ALTER TABLE inventory_tasks_s ADD COLUMN IF NOT EXISTS bundle_product_id INTEGER REFERENCES products_s(id)`);

@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const pool = require('../db/pool');
-const { requireAuth, requireAdmin } = require('../middleware/auth');
+const { requireAuth, requirePermission } = require('../middleware/auth');
 const { importCatalog } = require('../utils/catalogImport');
 
 // GET /api/products
@@ -414,7 +414,7 @@ router.get('/:id', requireAuth, async (req, res, next) => {
 });
 
 // POST /api/products/:id/components — добавить компонент к комплекту
-router.post('/:id/components', requireAuth, requireAdmin, async (req, res) => {
+router.post('/:id/components', requireAuth, requirePermission('products.edit'), async (req, res) => {
   const { component_id, quantity = 1 } = req.body;
   if (!component_id) return res.status(400).json({ error: 'component_id обязателен' });
   try {
@@ -432,7 +432,7 @@ router.post('/:id/components', requireAuth, requireAdmin, async (req, res) => {
 });
 
 // PUT /api/products/:id/components/:compId — изменить количество компонента
-router.put('/:id/components/:compId', requireAuth, requireAdmin, async (req, res) => {
+router.put('/:id/components/:compId', requireAuth, requirePermission('products.edit'), async (req, res) => {
   const { quantity } = req.body;
   try {
     const result = await pool.query(
@@ -447,7 +447,7 @@ router.put('/:id/components/:compId', requireAuth, requireAdmin, async (req, res
 });
 
 // DELETE /api/products/:id/components/:compId — удалить компонент
-router.delete('/:id/components/:compId', requireAuth, requireAdmin, async (req, res) => {
+router.delete('/:id/components/:compId', requireAuth, requirePermission('products.edit'), async (req, res) => {
   try {
     await pool.query('DELETE FROM bundle_components_s WHERE id=$1 AND bundle_id=$2', [req.params.compId, req.params.id]);
     res.json({ success: true });
@@ -538,7 +538,7 @@ async function fetchWbBarcodeMap(token) {
 }
 
 // GET /api/products/wb-stores — list configured WB stores
-router.get('/wb-stores', requireAuth, requireAdmin, (req, res) => {
+router.get('/wb-stores', requireAuth, requirePermission('products.edit'), (req, res) => {
   const stores = [];
   for (const [key, cfg] of Object.entries(WB_STORES)) {
     const creds = getWbToken(key);
@@ -548,7 +548,7 @@ router.get('/wb-stores', requireAuth, requireAdmin, (req, res) => {
 });
 
 // POST /api/products/check-wb — check barcodes on a specific WB store (READ ONLY)
-router.post('/check-wb', requireAuth, requireAdmin, async (req, res) => {
+router.post('/check-wb', requireAuth, requirePermission('products.edit'), async (req, res) => {
   const { barcodes: inputBarcodes, store = 'wb_1' } = req.body;
   const bcList = Array.isArray(inputBarcodes) ? inputBarcodes.map(b => String(b).trim()).filter(Boolean) : [];
   if (bcList.length === 0) return res.status(400).json({ error: 'Штрих-коды обязательны' });
@@ -570,7 +570,7 @@ router.post('/check-wb', requireAuth, requireAdmin, async (req, res) => {
 });
 
 // POST /api/products/check-wb-all — check ALL products against a specific WB store
-router.post('/check-wb-all', requireAuth, requireAdmin, async (req, res) => {
+router.post('/check-wb-all', requireAuth, requirePermission('products.edit'), async (req, res) => {
   const { store = 'wb_1' } = req.body;
   const creds = getWbToken(store);
   if (!creds) return res.status(500).json({ error: `${WB_STORES[store]?.label || store} API не настроен` });
@@ -675,7 +675,7 @@ async function fetchOzonBarcodeMap(clientId, apiKey) {
 }
 
 // GET /api/products/ozon-stores — list configured Ozon stores
-router.get('/ozon-stores', requireAuth, requireAdmin, (req, res) => {
+router.get('/ozon-stores', requireAuth, requirePermission('products.edit'), (req, res) => {
   const stores = [];
   for (const [key, cfg] of Object.entries(OZON_STORES)) {
     const creds = getOzonCredentials(key);
@@ -685,7 +685,7 @@ router.get('/ozon-stores', requireAuth, requireAdmin, (req, res) => {
 });
 
 // POST /api/products/check-ozon — check barcodes on a specific Ozon store (READ ONLY)
-router.post('/check-ozon', requireAuth, requireAdmin, async (req, res) => {
+router.post('/check-ozon', requireAuth, requirePermission('products.edit'), async (req, res) => {
   const { barcodes: inputBarcodes, store = 'ozon_1' } = req.body;
   const bcList = Array.isArray(inputBarcodes) ? inputBarcodes.map(b => String(b).trim()).filter(Boolean) : [];
   if (bcList.length === 0) return res.status(400).json({ error: 'Штрих-коды обязательны' });
@@ -707,7 +707,7 @@ router.post('/check-ozon', requireAuth, requireAdmin, async (req, res) => {
 });
 
 // POST /api/products/check-ozon-all — check ALL products against a specific Ozon store
-router.post('/check-ozon-all', requireAuth, requireAdmin, async (req, res) => {
+router.post('/check-ozon-all', requireAuth, requirePermission('products.edit'), async (req, res) => {
   const { store = 'ozon_1' } = req.body;
   const creds = getOzonCredentials(store);
   if (!creds) return res.status(500).json({ error: `${OZON_STORES[store]?.label || store} API не настроен` });
@@ -766,7 +766,7 @@ router.post('/check-ozon-all', requireAuth, requireAdmin, async (req, res) => {
 });
 
 // PUT /api/products/:id/barcode-type — set marketplace type for a barcode
-router.put('/:id/barcode-type', requireAuth, requireAdmin, async (req, res) => {
+router.put('/:id/barcode-type', requireAuth, requirePermission('products.edit'), async (req, res) => {
   const { value, type } = req.body;
   if (!value?.trim() || !type?.trim()) return res.status(400).json({ error: 'value и type обязательны' });
   try {
@@ -790,7 +790,7 @@ router.put('/:id/barcode-type', requireAuth, requireAdmin, async (req, res) => {
 });
 
 // POST /api/products/:id/barcode — add single barcode
-router.post('/:id/barcode', requireAuth, requireAdmin, async (req, res) => {
+router.post('/:id/barcode', requireAuth, requirePermission('products.edit'), async (req, res) => {
   const { value } = req.body;
   if (!value?.trim()) return res.status(400).json({ error: 'Штрих-код обязателен' });
   try {
@@ -808,7 +808,7 @@ router.post('/:id/barcode', requireAuth, requireAdmin, async (req, res) => {
 });
 
 // DELETE /api/products/:id/barcode — remove single barcode from any field
-router.delete('/:id/barcode', requireAuth, requireAdmin, async (req, res) => {
+router.delete('/:id/barcode', requireAuth, requirePermission('products.edit'), async (req, res) => {
   const { value } = req.body;
   if (!value?.trim()) return res.status(400).json({ error: 'Штрих-код обязателен' });
   const bc = value.trim();
@@ -855,7 +855,7 @@ router.delete('/:id/barcode', requireAuth, requireAdmin, async (req, res) => {
 });
 
 // POST /api/products — create product
-router.post('/', requireAuth, requireAdmin, async (req, res) => {
+router.post('/', requireAuth, requirePermission('products.edit'), async (req, res) => {
   const { name, code, article, entity_type = 'product', barcode_list, production_barcode, stock = 0, reserve = 0 } = req.body;
   if (!name) return res.status(400).json({ error: 'Название обязательно' });
   try {
@@ -871,7 +871,7 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
 });
 
 // PUT /api/products/:id — update product
-router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
+router.put('/:id', requireAuth, requirePermission('products.edit'), async (req, res) => {
   const { name, code, article, entity_type, barcode_list, production_barcode, stock, reserve, archived, sale_price, cost_price, honest_sign } = req.body;
   try {
     const result = await pool.query(
@@ -898,7 +898,7 @@ router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
 });
 
 // DELETE /api/products/:id — delete product
-router.delete('/:id', requireAuth, requireAdmin, async (req, res) => {
+router.delete('/:id', requireAuth, requirePermission('products.edit'), async (req, res) => {
   try {
     await pool.query('DELETE FROM products_s WHERE id = $1', [req.params.id]);
     res.json({ success: true });
@@ -908,7 +908,7 @@ router.delete('/:id', requireAuth, requireAdmin, async (req, res) => {
 });
 
 // POST /api/products/sync — trigger MoySklad import
-router.post('/sync', requireAuth, requireAdmin, async (req, res) => {
+router.post('/sync', requireAuth, requirePermission('products.edit'), async (req, res) => {
   try {
     const result = await importCatalog();
     res.json({ success: true, ...result });
@@ -918,7 +918,7 @@ router.post('/sync', requireAuth, requireAdmin, async (req, res) => {
 });
 
 // GET /api/products/import-history
-router.get('/import/history', requireAuth, requireAdmin, async (req, res) => {
+router.get('/import/history', requireAuth, requirePermission('products.edit', 'products.view'), async (req, res) => {
   try {
     const result = await pool.query(
       'SELECT * FROM import_runs_s ORDER BY created_at DESC LIMIT 10'

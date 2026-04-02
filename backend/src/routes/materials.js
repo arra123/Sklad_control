@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const pool = require('../db/pool');
-const { requireAuth, requireAdmin } = require('../middleware/auth');
+const { requireAuth, requirePermission } = require('../middleware/auth');
 
 // GET /api/materials
 router.get('/', requireAuth, async (req, res) => {
@@ -145,7 +145,7 @@ router.get('/:id', requireAuth, async (req, res) => {
 });
 
 // POST /api/materials — create new material
-router.post('/', requireAuth, requireAdmin, async (req, res) => {
+router.post('/', requireAuth, requirePermission('products.edit'), async (req, res) => {
   try {
     const { name, code, unit, category, material_group, folder_path, stock, buy_price } = req.body;
     if (!name) return res.status(400).json({ error: 'name обязателен' });
@@ -161,7 +161,7 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
 });
 
 // PUT /api/materials/:id
-router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
+router.put('/:id', requireAuth, requirePermission('products.edit'), async (req, res) => {
   try {
     const { name, code, unit, category, archived, buy_price, min_stock, supplier, notes, stock } = req.body;
     const fields = [];
@@ -195,7 +195,7 @@ router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
 });
 
 // POST /api/materials/:id/recipe — add ingredient to material recipe
-router.post('/:id/recipe', requireAuth, requireAdmin, async (req, res) => {
+router.post('/:id/recipe', requireAuth, requirePermission('products.edit'), async (req, res) => {
   try {
     const { ingredient_id, quantity } = req.body;
     if (!ingredient_id) return res.status(400).json({ error: 'ingredient_id обязателен' });
@@ -212,7 +212,7 @@ router.post('/:id/recipe', requireAuth, requireAdmin, async (req, res) => {
 });
 
 // DELETE /api/materials/:id/recipe/:recipeId
-router.delete('/:id/recipe/:recipeId', requireAuth, requireAdmin, async (req, res) => {
+router.delete('/:id/recipe/:recipeId', requireAuth, requirePermission('products.edit'), async (req, res) => {
   try {
     await pool.query('DELETE FROM material_recipe_s WHERE id=$1 AND material_id=$2', [req.params.recipeId, req.params.id]);
     res.json({ deleted: true });
@@ -222,7 +222,7 @@ router.delete('/:id/recipe/:recipeId', requireAuth, requireAdmin, async (req, re
 });
 
 // DELETE /api/materials/:id
-router.delete('/:id', requireAuth, requireAdmin, async (req, res) => {
+router.delete('/:id', requireAuth, requirePermission('products.edit'), async (req, res) => {
   try {
     await pool.query('DELETE FROM tech_card_materials_s WHERE material_id = $1', [req.params.id]);
     const result = await pool.query('DELETE FROM raw_materials_s WHERE id = $1 RETURNING id', [req.params.id]);

@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const pool = require('../db/pool');
-const { requireAuth, requireAdmin } = require('../middleware/auth');
+const { requireAuth, requirePermission } = require('../middleware/auth');
 const path = require('path');
 const fs = require('fs');
 
@@ -76,7 +76,7 @@ router.post('/', requireAuth, handleUpload, async (req, res) => {
 });
 
 // GET / — list (admin)
-router.get('/', requireAuth, requireAdmin, async (req, res) => {
+router.get('/', requireAuth, requirePermission('errors'), async (req, res) => {
   try {
     const { status, category, page = 1, limit = 50 } = req.query;
     const conditions = [];
@@ -97,7 +97,7 @@ router.get('/', requireAuth, requireAdmin, async (req, res) => {
 });
 
 // GET /:id — detail (admin)
-router.get('/:id', requireAuth, requireAdmin, async (req, res) => {
+router.get('/:id', requireAuth, requirePermission('errors'), async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM feedback_s WHERE id = $1', [req.params.id]);
     if (!result.rows.length) return res.status(404).json({ error: 'Не найдено' });
@@ -108,7 +108,7 @@ router.get('/:id', requireAuth, requireAdmin, async (req, res) => {
 });
 
 // PATCH /:id — update status/notes (admin)
-router.patch('/:id', requireAuth, requireAdmin, async (req, res) => {
+router.patch('/:id', requireAuth, requirePermission('errors'), async (req, res) => {
   try {
     const { status, admin_notes } = req.body;
     const sets = ['updated_at = NOW()'];
@@ -132,7 +132,7 @@ router.patch('/:id', requireAuth, requireAdmin, async (req, res) => {
 });
 
 // DELETE /:id (admin)
-router.delete('/:id', requireAuth, requireAdmin, async (req, res) => {
+router.delete('/:id', requireAuth, requirePermission('errors'), async (req, res) => {
   try {
     const item = await pool.query('SELECT screenshot_path, audio_path FROM feedback_s WHERE id = $1', [req.params.id]);
     if (!item.rows.length) return res.status(404).json({ error: 'Не найдено' });

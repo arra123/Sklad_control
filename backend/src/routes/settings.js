@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const pool = require('../db/pool');
-const { requireAuth, requireAdmin } = require('../middleware/auth');
+const { requireAuth, requirePermission } = require('../middleware/auth');
 
 // GET /api/settings — all settings
 router.get('/', requireAuth, async (req, res) => {
@@ -17,7 +17,7 @@ router.get('/', requireAuth, async (req, res) => {
 });
 
 // PUT /api/settings — update multiple settings (admin only)
-router.put('/', requireAuth, requireAdmin, async (req, res) => {
+router.put('/', requireAuth, requirePermission('settings'), async (req, res) => {
   const entries = Object.entries(req.body);
   if (!entries.length) return res.status(400).json({ error: 'Нет данных для обновления' });
   try {

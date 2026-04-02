@@ -3,7 +3,7 @@ const pool = require('../db/pool');
 const { comparePassword } = require('../utils/password');
 const { hashPassword } = require('../utils/password');
 const { signToken } = require('../utils/jwt');
-const { requireAuth, requireAdmin } = require('../middleware/auth');
+const { requireAuth } = require('../middleware/auth');
 
 // POST /api/auth/login
 router.post('/login', async (req, res) => {

@@ -153,15 +153,15 @@ function Breadcrumb() {
 }
 
 const ALL_NAV = [
-  { to: '/admin', icon: LayoutDashboard, label: 'Дашборд', end: true, roles: ['admin', 'manager'], perm: 'dashboard' },
-  { to: '/admin/warehouse', icon: Warehouse, label: 'Склады', roles: ['admin', 'manager'], perm: 'warehouse.view' },
-  { to: '/admin/tasks', icon: ClipboardList, label: 'Задачи', roles: ['admin', 'manager'], perm: 'tasks.view' },
-  { to: '/admin/analytics', icon: BarChart3, label: 'Аналитика', roles: ['admin'], perm: 'analytics' },
-  { to: '/admin/earnings', icon: Coins, label: 'Заработок', roles: ['admin'], perm: 'analytics' },
-  { to: '/admin/movements', icon: ArrowLeftRight, label: 'Перемещения', roles: ['admin'], perm: 'movements.view' },
-  { to: '/admin/errors', icon: AlertTriangle, label: 'Ошибки', roles: ['admin'], perm: 'errors' },
-  { to: '/admin/staff', icon: Users, label: 'Сотрудники', roles: ['admin'], perm: 'staff.view' },
-  { to: '/admin/settings', icon: Settings, label: 'Настройки', roles: ['admin'], perm: 'settings' },
+  { to: '/admin', icon: LayoutDashboard, label: 'Дашборд', end: true, perm: 'dashboard' },
+  { to: '/admin/warehouse', icon: Warehouse, label: 'Склады', perm: 'warehouse.view' },
+  { to: '/admin/tasks', icon: ClipboardList, label: 'Задачи', perm: 'tasks.view' },
+  { to: '/admin/analytics', icon: BarChart3, label: 'Аналитика', perm: 'analytics' },
+  { to: '/admin/earnings', icon: Coins, label: 'Заработок', perm: 'analytics' },
+  { to: '/admin/movements', icon: ArrowLeftRight, label: 'Перемещения', perm: 'movements.view' },
+  { to: '/admin/errors', icon: AlertTriangle, label: 'Ошибки', perm: 'errors' },
+  { to: '/admin/staff', icon: Users, label: 'Сотрудники', perm: 'staff.view' },
+  { to: '/admin/settings', icon: Settings, label: 'Настройки', perm: 'settings' },
 ];
 
 export default function AdminLayout({ children }) {
@@ -171,7 +171,7 @@ export default function AdminLayout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [productsOpen, setProductsOpen] = useState(location.pathname.startsWith('/admin/products'));
   const userPerms = user?.permissions || [];
-  const navItems = ALL_NAV.filter(item => item.to !== '/admin' && (item.roles.includes(user?.role || 'admin') || userPerms.includes(item.perm)));
+  const navItems = ALL_NAV.filter(item => item.to !== '/admin' && (user?.role === 'admin' || userPerms.includes(item.perm)));
   const isProductsActive = location.pathname.startsWith('/admin/products');
 
   const handleLogout = () => {
