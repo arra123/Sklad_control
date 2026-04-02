@@ -59,17 +59,23 @@ async function syncEmployeesFromOsite() {
         );
 
         if (existingUser.rows.length > 0) {
-          // Update login and password to match o_site
-          await pool.query(
-            `UPDATE users_s SET username=$1, password_hash=$2, password_plain=$3 WHERE employee_id=$4`,
-            [ext.login, ext.password_hash, ext.password_plain || null, empId]
-          );
+          // Update login and password — rehash with our bcrypt
+          if (ext.password_plain) {
+            const hash = await hashPassword(ext.password_plain);
+            await pool.query(
+              `UPDATE users_s SET username=$1, password_hash=$2, password_plain=$3 WHERE employee_id=$4`,
+              [ext.login, hash, ext.password_plain, empId]
+            );
+          } else {
+            await pool.query(`UPDATE users_s SET username=$1 WHERE employee_id=$2`, [ext.login, empId]);
+          }
         } else {
-          // Create user with same credentials
+          // Create user — hash password with our bcrypt
+          const hash = ext.password_plain ? await hashPassword(ext.password_plain) : ext.password_hash;
           await pool.query(
             `INSERT INTO users_s (username, password_hash, password_plain, role, employee_id, active)
              VALUES ($1, $2, $3, $4, $5, true)`,
-            [ext.login, ext.password_hash, ext.password_plain || null, ext.role === 'admin' ? 'admin' : 'employee', empId]
+            [ext.login, hash, ext.password_plain || null, ext.role === 'admin' ? 'admin' : 'employee', empId]
           );
         }
       }
