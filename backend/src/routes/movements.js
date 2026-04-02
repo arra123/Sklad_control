@@ -145,10 +145,7 @@ router.post('/move', requireAuth, async (req, res) => {
 
     // Add to destination
     if (dest_type === 'shelf') {
-      await client.query(
-        `INSERT INTO shelf_items_s (shelf_id, product_id, quantity) VALUES ($1,$2,$3)
-         ON CONFLICT (shelf_id, product_id) DO UPDATE SET quantity = shelf_items_s.quantity + $3`,
-        [dest_id, product_id, qty]);
+      throw new Error('Россыпь на полках отключена. Сканируйте коробку на полке');
     } else if (dest_type === 'pallet') {
       await client.query(
         `INSERT INTO pallet_items_s (pallet_id, product_id, quantity) VALUES ($1,$2,$3)

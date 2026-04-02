@@ -210,13 +210,13 @@ function RackModal({ open, onClose, warehouseId, rack, onSuccess }) {
 // ─── Shelf Modal ──────────────────────────────────────────────────────────────
 function ShelfModal({ open, onClose, rackId, shelf, onSuccess }) {
   const toast = useToast();
-  const [form, setForm] = useState({ name: '', number: '', notes: '', uses_boxes: false, uses_loose: true });
+  const [form, setForm] = useState({ name: '', number: '', notes: '', uses_boxes: true, uses_loose: false });
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     setForm(shelf
-      ? { name: shelf.name, number: shelf.number, notes: shelf.notes || '', uses_boxes: shelf.uses_boxes === true, uses_loose: shelf.uses_loose !== false }
-      : { name: '', number: '', notes: '', uses_boxes: false, uses_loose: true }
+      ? { name: shelf.name, number: shelf.number, notes: shelf.notes || '', uses_boxes: shelf.uses_boxes !== false, uses_loose: false }
+      : { name: '', number: '', notes: '', uses_boxes: true, uses_loose: false }
     );
   }, [shelf, open]);
 
@@ -256,15 +256,6 @@ function ShelfModal({ open, onClose, rackId, shelf, onSuccess }) {
           onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
         <div className="space-y-2 py-2">
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Режим хранения</p>
-          <label className="flex items-center gap-3 cursor-pointer">
-            <input type="checkbox" checked={form.uses_loose !== false}
-              onChange={e => setForm(f => ({ ...f, uses_loose: e.target.checked }))}
-              className="w-5 h-5 rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
-            <div>
-              <p className="text-sm font-medium text-gray-800 dark:text-gray-200">Россыпью</p>
-              <p className="text-xs text-gray-400">Товар лежит напрямую на полке</p>
-            </div>
-          </label>
           <label className="flex items-center gap-3 cursor-pointer">
             <input type="checkbox" checked={form.uses_boxes}
               onChange={e => setForm(f => ({ ...f, uses_boxes: e.target.checked }))}
@@ -1454,8 +1445,8 @@ function ShelfDetailView({ shelfId, rackId, onClose, initialBoxId }) {
 
   if (loading) return <div className="flex items-center justify-center h-40"><Spinner size="lg" /></div>;
   if (!shelf) return null;
-  const isBoxMode = shelf.uses_boxes === true;
-  const isLooseMode = shelf.uses_loose !== false;
+  const isBoxMode = true; // всё в коробках
+  const isLooseMode = false; // россыпь отключена — всё в коробках
 
   return (
     <div>
