@@ -32,6 +32,7 @@ const MyInventoryPage = lazy(() => import('./pages/employee/MyInventoryPage'));
 const FBOPage = lazy(() => import('./pages/admin/FBOPage'));
 const MovementsPage = lazy(() => import('./pages/admin/MovementsPage'));
 const MaterialsPage = lazy(() => import('./pages/admin/MaterialsPage'));
+const LiveMonitorPage = lazy(() => import('./pages/admin/LiveMonitorPage'));
 
 class ChunkErrorBoundary extends Component {
   constructor(props) { super(props); this.state = { hasError: false }; }
@@ -117,6 +118,7 @@ function AppRoutes() {
       <Route path="/admin/errors" element={<AdminRoute><ErrorsPage /></AdminRoute>} />
       <Route path="/admin/fbo" element={<AdminRoute><FBOPage /></AdminRoute>} />
       <Route path="/admin/movements" element={<AdminRoute><MovementsPage /></AdminRoute>} />
+      <Route path="/admin/live-monitor" element={<AdminRoute><LiveMonitorPage /></AdminRoute>} />
 
       {/* Employee routes */}
       <Route path="/employee/tasks" element={<EmployeeRoute><MyTasksPage /></EmployeeRoute>} />

@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import {
   Plus, ClipboardList, Clock, CheckCircle2, XCircle, X, Pause, Play,
-  AlertTriangle, ScanLine, RefreshCw, Package, Box, MapPin, ChevronRight
+  AlertTriangle, ScanLine, RefreshCw, Package, Box, MapPin, ChevronRight, Video
 } from 'lucide-react';
 import api from '../../api/client';
 import { qty } from '../../utils/fmt';
@@ -1736,6 +1736,7 @@ function TaskCard({ task, onClick }) {
 
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 export default function TasksPage() {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -1819,9 +1820,18 @@ export default function TasksPage() {
           <h1 className="text-2xl font-bold text-gray-900">Задачи</h1>
           <p className="text-gray-500 text-sm mt-1">Задачи инвентаризации · нажмите для деталей</p>
         </div>
-        <Button icon={<Plus size={15} />} size="sm" onClick={() => setShowCreate(true)}>
-          Создать задачу
-        </Button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => navigate('/admin/live-monitor')}
+            title="Live-мониторинг"
+            className="p-2 rounded-xl text-gray-400 hover:text-primary-600 hover:bg-primary-50 transition-colors"
+          >
+            <Video size={18} />
+          </button>
+          <Button icon={<Plus size={15} />} size="sm" onClick={() => setShowCreate(true)}>
+            Создать задачу
+          </Button>
+        </div>
       </div>
 
       {/* Inline filters */}

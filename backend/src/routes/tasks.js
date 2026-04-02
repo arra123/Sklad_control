@@ -1456,6 +1456,58 @@ router.get('/analytics/summary', requireAuth, requireAdmin, async (req, res) => 
   }
 });
 
+// GET /api/tasks/analytics/live — real-time employee monitoring
+router.get('/analytics/live', requireAuth, requireAdmin, async (_req, res) => {
+  try {
+    const { rows: employees } = await pool.query(`
+      SELECT
+        e.id as employee_id,
+        e.full_name,
+        COALESCE(e.gra_balance, 0) as balance,
+        -- Active task
+        (SELECT json_build_object(
+          'id', t.id, 'title', t.title, 'type', t.task_type, 'status', t.status,
+          'started_at', t.started_at,
+          'scans', (SELECT COUNT(*) FROM inventory_task_scans_s sc WHERE sc.task_id = t.id AND sc.product_id IS NOT NULL),
+          'boxes_done', (SELECT COUNT(*) FROM inventory_task_boxes_s tb WHERE tb.task_id = t.id AND tb.status = 'completed'),
+          'boxes_total', (SELECT COUNT(*) FROM inventory_task_boxes_s tb WHERE tb.task_id = t.id),
+          'assembled', t.assembled_count, 'bundle_qty', t.bundle_qty
+        ) FROM inventory_tasks_s t WHERE t.employee_id = e.id AND t.status = 'in_progress' LIMIT 1) as active_task,
+        -- Today scans
+        COALESCE((SELECT COUNT(*) FROM inventory_task_scans_s sc
+          JOIN inventory_tasks_s t ON t.id = sc.task_id AND t.employee_id = e.id
+          WHERE sc.product_id IS NOT NULL AND sc.created_at >= CURRENT_DATE), 0) as scans_today,
+        -- Today earnings
+        COALESCE((SELECT SUM(amount_delta) FROM employee_earnings_s
+          WHERE employee_id = e.id AND created_at >= CURRENT_DATE AND event_type IN ('inventory_scan','external_order_pick')), 0) as earned_today,
+        -- Tasks completed today
+        COALESCE((SELECT COUNT(*) FROM inventory_tasks_s t
+          WHERE t.employee_id = e.id AND t.status = 'completed' AND t.completed_at >= CURRENT_DATE), 0) as tasks_today,
+        -- Last scan time
+        (SELECT sc.created_at FROM inventory_task_scans_s sc
+          JOIN inventory_tasks_s t ON t.id = sc.task_id AND t.employee_id = e.id
+          WHERE sc.product_id IS NOT NULL ORDER BY sc.created_at DESC LIMIT 1) as last_scan_at,
+        -- Avg scan speed today
+        (SELECT ROUND(AVG(gap)::numeric, 1) FROM (
+          SELECT EXTRACT(EPOCH FROM (sc.created_at - LAG(sc.created_at) OVER (PARTITION BY sc.task_id ORDER BY sc.created_at))) as gap
+          FROM inventory_task_scans_s sc
+          JOIN inventory_tasks_s t ON t.id = sc.task_id AND t.employee_id = e.id
+          WHERE sc.created_at >= CURRENT_DATE
+        ) g WHERE gap > 0 AND gap < 300) as avg_speed_today
+      FROM employees_s e
+      WHERE e.active = true
+        AND (
+          EXISTS (SELECT 1 FROM inventory_tasks_s t WHERE t.employee_id = e.id AND t.status = 'in_progress')
+          OR EXISTS (SELECT 1 FROM inventory_task_scans_s sc JOIN inventory_tasks_s t ON t.id = sc.task_id AND t.employee_id = e.id WHERE sc.created_at >= CURRENT_DATE)
+        )
+      ORDER BY scans_today DESC
+    `);
+    res.json({ employees, timestamp: new Date().toISOString() });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /api/tasks/errors — all scan errors across all tasks
 router.get('/errors', requireAuth, requireAdmin, async (req, res) => {
   try {
