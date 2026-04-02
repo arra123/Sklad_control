@@ -517,6 +517,17 @@ router.post('/:id/scan-component', requireAuth, async (req, res) => {
     // Mark as used in current bundle
     await pool.query('UPDATE assembly_items_s SET used_in_bundle = $1 WHERE id = $2', [currentBundle, item.rows[0].id]);
 
+    // Record scan and award GRA
+    const scanRes = await pool.query(
+      `INSERT INTO inventory_task_scans_s (task_id, product_id, scanned_value, quantity_delta)
+       VALUES ($1, $2, $3, 1) RETURNING id`,
+      [req.params.id, product.id, barcode]);
+    await awardScanReward(pool, {
+      taskId: req.params.id, scanId: scanRes.rows[0].id,
+      employeeId: task.rows[0].employee_id, productId: product.id,
+      taskType: 'bundle_assembly', rewardUnits: 1,
+    });
+
     // Check if all components for this bundle are scanned
     const comps = await pool.query(
       'SELECT component_id, quantity FROM bundle_components_s WHERE bundle_id = $1', [task.rows[0].bundle_product_id]);
@@ -646,6 +657,17 @@ router.post('/:id/scan-place', requireAuth, async (req, res) => {
       `INSERT INTO movements_s (movement_type, product_id, quantity, to_shelf_id, to_pallet_id, to_box_id, performed_by, source, notes)
        VALUES ('bundle_place', $1, 1, $2, $3, $4, $5, 'task', $6)`,
       [productId, shelf_id || null, pallet_id || boxPalletId || null, box_id || null, req.user.id, `task:${req.params.id}`]);
+
+    // Record scan and award GRA for placement
+    const placeScan = await client.query(
+      `INSERT INTO inventory_task_scans_s (task_id, product_id, scanned_value, quantity_delta)
+       VALUES ($1, $2, $3, 1) RETURNING id`,
+      [req.params.id, productId, barcode]);
+    await awardScanReward(client, {
+      taskId: req.params.id, scanId: placeScan.rows[0].id,
+      employeeId: task.rows[0].employee_id, productId,
+      taskType: 'bundle_assembly', rewardUnits: 1,
+    });
 
     const newPlaced = task.rows[0].placed_count + 1;
     const phase = newPlaced >= task.rows[0].bundle_qty ? 'completed' : 'placing';

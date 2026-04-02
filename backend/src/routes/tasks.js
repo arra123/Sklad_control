@@ -39,6 +39,7 @@ const GRA_RATE_KEYS = {
   inventory: 'gra_rate_inventory',
   packaging: 'gra_rate_packaging',
   assembly: 'gra_rate_assembly',
+  bundle_assembly: 'gra_rate_assembly',
   production_transfer: 'gra_rate_production_transfer',
 };
 
