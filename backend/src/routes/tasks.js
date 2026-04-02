@@ -1535,7 +1535,9 @@ router.get('/analytics/live/:employeeId/timeline', requireAuth, requirePermissio
       LEFT JOIN pallets_s pa ON pa.id = t.target_pallet_id
       LEFT JOIN pallet_rows_s pr ON pr.id = pa.row_id
       WHERE t.employee_id = $1
-        AND (t.started_at >= CURRENT_DATE OR (t.status = 'in_progress' AND t.started_at IS NOT NULL))
+        AND (t.started_at >= CURRENT_DATE
+             OR t.completed_at >= CURRENT_DATE
+             OR (t.status = 'in_progress' AND t.started_at IS NOT NULL))
       ORDER BY t.started_at ASC
     `, [employeeId]);
 
