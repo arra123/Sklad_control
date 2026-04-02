@@ -67,7 +67,9 @@ function ActivityTimeline({ buckets, tasks, breaks = [], thresholds }) {
   const [hoveredBucket, setHoveredBucket] = useState(null);
   const [zoomLevel, setZoomLevel] = useState(0);
   const [panOffset, setPanOffset] = useState(0);
-  const [popupTask, setPopupTask] = useState(null); // task clicked in timeline bars
+  const [popupTask, setPopupTask] = useState(null);
+  const dragRef = useRef(null);
+  const barRef = useRef(null);
 
   // Fixed work day: 07:00–17:00
   const now = new Date();
@@ -110,6 +112,17 @@ function ActivityTimeline({ buckets, tasks, breaks = [], thresholds }) {
         ? Math.min(maxBucket, Math.floor((new Date(p.resumed_at) - todayStart) / 300000))
         : Math.min(maxBucket, nowBucket);
       for (let i = pStart; i <= pEnd; i++) taskPauseBuckets.add(i);
+    }
+  }
+
+  // Map bucket → active task name for richer tooltips
+  const bucketTaskMap = {};
+  for (const t of tasks) {
+    if (!t.started_at) continue;
+    const tStart = Math.floor((new Date(t.started_at) - todayStart) / 300000);
+    const tEnd = t.completed_at ? Math.floor((new Date(t.completed_at) - todayStart) / 300000) : nowBucket;
+    for (let i = Math.max(minBucket, tStart); i <= Math.min(maxBucket, tEnd); i++) {
+      bucketTaskMap[i] = taskTypeLabel(t.task_type);
     }
   }
 
@@ -199,7 +212,7 @@ function ActivityTimeline({ buckets, tasks, breaks = [], thresholds }) {
         <div className="flex items-center gap-3 text-[10px] flex-wrap">
           <span className="text-gray-500">Работа: <b className="text-green-700">{fmtDuration(activeMinutes * 60)}</b></span>
           {breakMinutes > 0 && (
-            <span className="text-gray-500">Перерыв: <b className="text-amber-600">{fmtDuration(breakMinutes * 60)}</b></span>
+            <span className="text-gray-500">Тех. пауза: <b className="text-amber-600">{fmtDuration(breakMinutes * 60)}</b></span>
           )}
           {taskPauseMinutes > 0 && (
             <span className="text-gray-500">Пауза: <b className="text-red-400">{fmtDuration(taskPauseMinutes * 60)}</b></span>
@@ -210,7 +223,22 @@ function ActivityTimeline({ buckets, tasks, breaks = [], thresholds }) {
 
       {/* Timeline bar */}
       <div className="relative">
-        <div className="flex h-10 rounded-xl overflow-hidden bg-gray-100 border border-gray-200 relative">
+        <div
+          ref={barRef}
+          className={`flex h-10 rounded-xl overflow-hidden bg-gray-100 border border-gray-200 relative select-none ${zoomLevel > 0 ? 'cursor-grab active:cursor-grabbing' : ''}`}
+          onMouseDown={zoomLevel > 0 ? (e) => {
+            e.preventDefault();
+            dragRef.current = { startX: e.clientX, startOffset: panOffset };
+          } : undefined}
+          onMouseMove={(e) => {
+            if (!dragRef.current || !barRef.current) return;
+            const dx = e.clientX - dragRef.current.startX;
+            const barW = barRef.current.offsetWidth;
+            const bucketsPerPx = totalBuckets / barW;
+            setPanOffset(Math.round(dragRef.current.startOffset - dx * bucketsPerPx));
+          }}
+          onMouseUp={() => { dragRef.current = null; }}
+          onMouseLeave={() => { dragRef.current = null; }}>
           {Array.from({ length: totalBuckets }).map((_, i) => {
             const bNum = minBucket + i;
             const scans = bucketMap[bNum] || 0;
@@ -246,19 +274,21 @@ function ActivityTimeline({ buckets, tasks, breaks = [], thresholds }) {
                 {isHovered && (
                   <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 z-20 px-2.5 py-1.5 bg-gray-900 text-white rounded-lg text-[10px] whitespace-nowrap shadow-lg pointer-events-none">
                     <p className="font-bold">{bucketToTime(bNum)}–{bucketToTime(bNum + 1)}</p>
-                    <p>{isBreak ? '⏸ Перерыв' : isTaskPause ? '⏸ Пауза задачи' : scans > 0 ? `${scans} сканов` : 'Простой'}</p>
+                    <p>{isBreak ? '⏸ Тех. пауза' : isTaskPause ? '⏸ Пауза задачи' : scans > 0 ? `${bucketTaskMap[bNum] || 'Работа'}: ${scans} пиков` : 'Простой'}</p>
                   </div>
                 )}
               </div>
             );
           })}
-          {/* Now marker */}
-          <div
-            className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-10"
-            style={{ left: `${nowPct}%` }}
-          >
-            <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-red-500" />
-          </div>
+          {/* Now marker — only show if in visible range */}
+          {nowPct >= 0 && nowPct <= 100 && (
+            <div
+              className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-10"
+              style={{ left: `${nowPct}%` }}
+            >
+              <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-red-500" />
+            </div>
+          )}
         </div>
 
         {/* Hour labels */}
@@ -281,12 +311,15 @@ function ActivityTimeline({ buckets, tasks, breaks = [], thresholds }) {
         const GAP = 2;
         // Build items with positions
         const items = tasks.filter(t => t.started_at).map(t => {
-          const startB = Math.max(minBucket, Math.floor((new Date(t.started_at) - todayStart) / 300000));
-          const endB = t.completed_at
-            ? Math.min(maxBucket, Math.floor((new Date(t.completed_at) - todayStart) / 300000))
+          const rawStart = Math.floor((new Date(t.started_at) - todayStart) / 300000);
+          const rawEnd = t.completed_at
+            ? Math.floor((new Date(t.completed_at) - todayStart) / 300000)
             : nowBucket;
+          const startB = Math.max(minBucket, rawStart);
+          const endB = Math.min(maxBucket, rawEnd);
           return { ...t, startB, endB };
-        }).sort((a, b) => a.startB - b.startB);
+        }).filter(t => t.endB > minBucket && t.startB < maxBucket)
+          .sort((a, b) => a.startB - b.startB);
 
         // Assign lanes — greedy: put each task in the first lane where it doesn't overlap
         const lanes = []; // lanes[i] = endB of last task in that lane
