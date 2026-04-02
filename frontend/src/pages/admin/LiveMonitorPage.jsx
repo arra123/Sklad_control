@@ -312,16 +312,20 @@ function ActivityTimeline({ buckets, tasks, breaks = [], thresholds }) {
                 />
                 {/* Tooltip */}
                 {isHovered && (
-                  <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 z-20 px-2.5 py-1.5 bg-gray-900 text-white rounded-lg text-[10px] whitespace-nowrap shadow-lg pointer-events-none">
-                    {(() => {
-                      const reg = regionMap[bNum];
-                      const rangeStr = reg ? `${bucketToTime(reg.start)} → ${bucketToTime(reg.end)}` : `${bucketToTime(bNum)}–${bucketToTime(bNum + 1)}`;
-                      const label = isBreak ? '⏸ Тех. пауза' : isTaskPause ? '⏸ Пауза задачи' : scans > 0 ? `${bucketTaskMap[bNum] || 'Работа'}: ${scans} пиков` : 'Простой';
-                      return <>
-                        <p className="font-bold">{rangeStr}</p>
-                        <p>{label}</p>
-                      </>;
-                    })()}
+                  <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 z-20 px-3 py-2 bg-gray-900 text-white rounded-lg text-[10px] whitespace-nowrap shadow-lg pointer-events-none">
+                    <p className="font-bold text-[11px]">{bucketToTime(bNum)} – {bucketToTime(bNum + 1)}</p>
+                    {isBreak ? (
+                      <p className="text-amber-300 mt-0.5">⏸ Перерыв</p>
+                    ) : isTaskPause ? (
+                      <p className="text-red-300 mt-0.5">⏸ Пауза задачи</p>
+                    ) : scans > 0 ? (
+                      <>
+                        <p className="text-green-300 mt-0.5">{bucketTaskMap[bNum] || 'Работа'}</p>
+                        <p className="mt-0.5">{scans} {scans === 1 ? 'скан' : scans < 5 ? 'скана' : 'сканов'}</p>
+                      </>
+                    ) : (
+                      <p className="text-gray-400 mt-0.5">Простой</p>
+                    )}
                   </div>
                 )}
               </div>
@@ -403,6 +407,32 @@ function ActivityTimeline({ buckets, tasks, breaks = [], thresholds }) {
           </div>
         );
       })()}
+
+      {/* Break bars */}
+      {breaks.length > 0 && (
+        <div className="relative h-6 mt-1">
+          {breaks.map((br, idx) => {
+            const bStart = Math.max(minBucket, Math.floor((new Date(br.started_at) - todayStart) / 300000));
+            const bEnd = br.ended_at
+              ? Math.min(maxBucket, Math.floor((new Date(br.ended_at) - todayStart) / 300000))
+              : Math.min(maxBucket, nowBucket);
+            if (bEnd <= minBucket || bStart >= maxBucket) return null;
+            const leftPct = ((bStart - minBucket) / totalBuckets) * 100;
+            const widthPct = Math.max(2, ((bEnd - bStart + 1) / totalBuckets) * 100);
+            return (
+              <div key={idx}
+                className="absolute h-5 bg-amber-100 border border-amber-300 rounded-md flex items-center overflow-hidden px-1.5"
+                style={{ left: `${leftPct}%`, width: `${widthPct}%`, top: 0 }}
+                title={`${fmtTime(br.started_at)} → ${br.ended_at ? fmtTime(br.ended_at) : 'сейчас'}`}
+              >
+                <span className="text-[8px] font-semibold text-amber-600 truncate">
+                  ⏸ {br.break_type === 'lunch' ? 'Обед' : 'Перерыв'} {fmtTime(br.started_at)}–{br.ended_at ? fmtTime(br.ended_at) : '...'}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* Task popup */}
       {popupTask && (() => {
