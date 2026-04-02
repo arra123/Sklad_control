@@ -178,13 +178,6 @@ function ActivityTimeline({ buckets, tasks, breaks = [], thresholds }) {
           </div>
         </div>
         <div className="flex items-center gap-3 text-[10px] flex-wrap">
-          <span className="flex items-center gap-1">
-            <span className="w-2.5 h-2.5 rounded bg-green-200" />
-            <span className="w-2.5 h-2.5 rounded bg-green-400" />
-            <span className="w-2.5 h-2.5 rounded bg-green-500" />
-            <span className="w-2.5 h-2.5 rounded bg-green-600" />
-            <span className="text-gray-400 ml-0.5">1→30+</span>
-          </span>
           <span className="text-gray-500">Работа: <b className="text-green-700">{fmtDuration(activeMinutes * 60)}</b></span>
           {breakMinutes > 0 && (
             <span className="text-gray-500">Обед: <b className="text-amber-600">{fmtDuration(breakMinutes * 60)}</b></span>
