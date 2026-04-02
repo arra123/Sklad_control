@@ -68,8 +68,8 @@ router.get('/summary', requireAuth, requireAdmin, async (_req, res) => {
             COALESCE(SUM(CASE WHEN ee.event_type = 'inventory_scan' THEN ee.amount_delta ELSE 0 END), 0) as total_awarded,
             COALESCE(SUM(CASE WHEN ee.event_type = 'manual_adjustment' THEN ee.amount_delta ELSE 0 END), 0) as total_manual_adjustments,
             COALESCE(SUM(CASE WHEN ee.event_type = 'inventory_scan' THEN ee.reward_units ELSE 0 END), 0) as rewarded_scans,
-            COALESCE(SUM(CASE WHEN ee.event_type = 'external_order_pick' AND ee.source = 'sborka-site' THEN ee.amount_delta ELSE 0 END), 0) as sborka_order_amount,
-            COALESCE(SUM(CASE WHEN ee.event_type = 'external_order_pick' AND ee.source = 'sborka-site' THEN ee.reward_units ELSE 0 END), 0) as sborka_order_units
+            COALESCE(SUM(CASE WHEN ee.event_type IN ('external_order_pick','external_order_collect') AND ee.source = 'sborka-site' THEN ee.amount_delta ELSE 0 END), 0) as sborka_order_amount,
+            COALESCE(SUM(CASE WHEN ee.event_type IN ('external_order_pick','external_order_collect') AND ee.source = 'sborka-site' THEN ee.reward_units ELSE 0 END), 0) as sborka_order_units
           FROM employees_s e
           LEFT JOIN employee_earnings_s ee ON ee.employee_id = e.id
           GROUP BY e.id, e.full_name, e.gra_balance
@@ -93,8 +93,8 @@ router.get('/summary', requireAuth, requireAdmin, async (_req, res) => {
           COALESCE(SUM(CASE WHEN ee.event_type = 'inventory_scan' THEN ee.amount_delta ELSE 0 END), 0) as total_awarded,
           COALESCE(SUM(CASE WHEN ee.event_type = 'inventory_scan' THEN ee.reward_units ELSE 0 END), 0) as rewarded_scans,
           COUNT(DISTINCT ee.task_id) FILTER (WHERE ee.event_type = 'inventory_scan' AND ee.task_id IS NOT NULL) as rewarded_tasks_count,
-          COALESCE(SUM(CASE WHEN ee.event_type = 'external_order_pick' AND ee.source = 'sborka-site' THEN ee.amount_delta ELSE 0 END), 0) as sborka_amount,
-          COALESCE(SUM(CASE WHEN ee.event_type = 'external_order_pick' AND ee.source = 'sborka-site' THEN ee.reward_units ELSE 0 END), 0) as sborka_units,
+          COALESCE(SUM(CASE WHEN ee.event_type IN ('external_order_pick','external_order_collect') AND ee.source = 'sborka-site' THEN ee.amount_delta ELSE 0 END), 0) as sborka_amount,
+          COALESCE(SUM(CASE WHEN ee.event_type IN ('external_order_pick','external_order_collect') AND ee.source = 'sborka-site' THEN ee.reward_units ELSE 0 END), 0) as sborka_units,
           MAX(ee.created_at) as last_earned_at
         FROM employees_s e
         JOIN employee_earnings_s ee ON ee.employee_id = e.id
@@ -163,8 +163,8 @@ router.get('/employees', requireAuth, requireAdmin, async (_req, res) => {
           COALESCE(SUM(amount_delta) FILTER (WHERE event_type = 'manual_adjustment'), 0) as total_manual_adjustments,
           COALESCE(SUM(reward_units) FILTER (WHERE event_type = 'inventory_scan'), 0) as rewarded_scans,
           COUNT(DISTINCT task_id) FILTER (WHERE event_type = 'inventory_scan' AND task_id IS NOT NULL) as rewarded_tasks_count,
-          COALESCE(SUM(amount_delta) FILTER (WHERE event_type = 'external_order_pick' AND source = 'sborka-site'), 0) as sborka_amount,
-          COALESCE(SUM(reward_units) FILTER (WHERE event_type = 'external_order_pick' AND source = 'sborka-site'), 0) as sborka_units,
+          COALESCE(SUM(amount_delta) FILTER (WHERE event_type IN ('external_order_pick','external_order_collect') AND source = 'sborka-site'), 0) as sborka_amount,
+          COALESCE(SUM(reward_units) FILTER (WHERE event_type IN ('external_order_pick','external_order_collect') AND source = 'sborka-site'), 0) as sborka_units,
           MAX(created_at) as last_earned_at
         FROM employee_earnings_s
         GROUP BY employee_id
@@ -199,8 +199,8 @@ router.get('/employees/:employeeId', requireAuth, requireAdmin, async (req, res)
           COALESCE(SUM(CASE WHEN ee.event_type = 'manual_adjustment' THEN ee.amount_delta ELSE 0 END), 0) as total_manual_adjustments,
           COALESCE(SUM(CASE WHEN ee.event_type = 'inventory_scan' THEN ee.reward_units ELSE 0 END), 0) as rewarded_scans,
           COUNT(DISTINCT ee.task_id) FILTER (WHERE ee.event_type = 'inventory_scan' AND ee.task_id IS NOT NULL) as rewarded_tasks_count,
-          COALESCE(SUM(CASE WHEN ee.event_type = 'external_order_pick' AND ee.source = 'sborka-site' THEN ee.amount_delta ELSE 0 END), 0) as sborka_amount,
-          COALESCE(SUM(CASE WHEN ee.event_type = 'external_order_pick' AND ee.source = 'sborka-site' THEN ee.reward_units ELSE 0 END), 0) as sborka_units,
+          COALESCE(SUM(CASE WHEN ee.event_type IN ('external_order_pick','external_order_collect') AND ee.source = 'sborka-site' THEN ee.amount_delta ELSE 0 END), 0) as sborka_amount,
+          COALESCE(SUM(CASE WHEN ee.event_type IN ('external_order_pick','external_order_collect') AND ee.source = 'sborka-site' THEN ee.reward_units ELSE 0 END), 0) as sborka_units,
           MAX(ee.created_at) as last_earned_at
         FROM employees_s e
         LEFT JOIN employee_earnings_s ee ON ee.employee_id = e.id
@@ -257,6 +257,7 @@ router.get('/employees/:employeeId', requireAuth, requireAdmin, async (req, res)
       pool.query(`
         SELECT
           ee.id,
+          ee.event_type,
           ee.created_at,
           ee.amount_delta,
           ee.reward_units,
@@ -271,7 +272,7 @@ router.get('/employees/:employeeId', requireAuth, requireAdmin, async (req, res)
           ee.source_task_id
         FROM employee_earnings_s ee
         WHERE ee.employee_id = $1
-          AND ee.event_type = 'external_order_pick'
+          AND ee.event_type IN ('external_order_pick', 'external_order_collect')
           AND ee.source = 'sborka-site'
         ORDER BY ee.created_at DESC
         LIMIT 200

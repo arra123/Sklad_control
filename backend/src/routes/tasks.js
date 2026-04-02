@@ -1479,7 +1479,7 @@ router.get('/analytics/live', requireAuth, requireAdmin, async (_req, res) => {
           WHERE sc.product_id IS NOT NULL AND sc.created_at >= CURRENT_DATE), 0) as scans_today,
         -- Today earnings
         COALESCE((SELECT SUM(amount_delta) FROM employee_earnings_s
-          WHERE employee_id = e.id AND created_at >= CURRENT_DATE AND event_type IN ('inventory_scan','external_order_pick')), 0) as earned_today,
+          WHERE employee_id = e.id AND created_at >= CURRENT_DATE AND event_type IN ('inventory_scan','external_order_pick','external_order_collect')), 0) as earned_today,
         -- Tasks completed today
         COALESCE((SELECT COUNT(*) FROM inventory_tasks_s t
           WHERE t.employee_id = e.id AND t.status = 'completed' AND t.completed_at >= CURRENT_DATE), 0) as tasks_today,
