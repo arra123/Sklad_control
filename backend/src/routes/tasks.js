@@ -70,31 +70,26 @@ async function awardScanReward(client, { task, taskScanId, activeTaskBox, produc
   const rewardUnits = parseNumeric(quantityDelta, 1);
   if (!(rewardUnits > 0)) return null;
 
-  const [rate, employeeResult] = await Promise.all([
-    getScanRewardRate(client, task.task_type),
-    client.query(
-      `SELECT id, COALESCE(gra_balance, 0) as gra_balance
-       FROM employees_s
-       WHERE id = $1
-       FOR UPDATE`,
-      [task.employee_id]
-    ),
-  ]);
+  const rate = await getScanRewardRate(client, task.task_type);
+  if (!(rate > 0)) return null;
 
-  if (!employeeResult.rows.length || !(rate > 0)) return null;
+  // Check for duplicate reward
+  const dup = await client.query('SELECT id FROM employee_earnings_s WHERE task_scan_id = $1 LIMIT 1', [taskScanId]);
+  if (dup.rows.length) return null;
 
-  const duplicateResult = await client.query(
-    `SELECT id
-     FROM employee_earnings_s
-     WHERE task_scan_id = $1
-     LIMIT 1`,
-    [taskScanId]
-  );
-  if (duplicateResult.rows.length) return null;
-
-  const balanceBefore = Number(employeeResult.rows[0].gra_balance || 0);
   const amountDelta = Number((rate * rewardUnits).toFixed(6));
-  const balanceAfter = Number((balanceBefore + amountDelta).toFixed(6));
+
+  // Atomic balance update — no read-then-write race condition
+  const balResult = await client.query(
+    `UPDATE employees_s
+     SET gra_balance = gra_balance + $1, updated_at = NOW()
+     WHERE id = $2
+     RETURNING COALESCE(gra_balance, 0) as balance_after, COALESCE(gra_balance - $1, 0) as balance_before`,
+    [amountDelta, task.employee_id]
+  );
+  if (!balResult.rows.length) return null;
+
+  const { balance_before, balance_after } = balResult.rows[0];
 
   const rewardResult = await client.query(
     `INSERT INTO employee_earnings_s (
@@ -117,20 +112,12 @@ async function awardScanReward(client, { task, taskScanId, activeTaskBox, produc
       rewardUnits,
       rate,
       amountDelta,
-      balanceBefore,
-      balanceAfter,
+      balance_before,
+      balance_after,
       user.id,
       task.title || null,
       task.task_type || null,
     ]
-  );
-
-  await client.query(
-    `UPDATE employees_s
-     SET gra_balance = $1,
-         updated_at = NOW()
-     WHERE id = $2`,
-    [balanceAfter, task.employee_id]
   );
 
   return rewardResult.rows[0];
