@@ -115,10 +115,25 @@ router.post('/move', requireAuth, async (req, res) => {
       if (newQty <= 0) await client.query('DELETE FROM pallet_items_s WHERE pallet_id=$1 AND product_id=$2', [source_id, product_id]);
       else await client.query('UPDATE pallet_items_s SET quantity=$1 WHERE pallet_id=$2 AND product_id=$3', [newQty, source_id, product_id]);
     } else if (source_type === 'box') {
-      const r = await client.query('SELECT quantity FROM boxes_s WHERE id=$1', [source_id]);
-      if (!r.rows.length || parseInt(r.rows[0].quantity) < qty) throw new Error('Недостаточно товара в коробке');
-      const newQty = parseInt(r.rows[0].quantity) - qty;
-      await client.query('UPDATE boxes_s SET quantity=$1 WHERE id=$2', [newQty, source_id]);
+      // Determine if shelf_box or pallet box
+      const sbx = await client.query('SELECT id FROM shelf_boxes_s WHERE id=$1', [source_id]);
+      if (sbx.rows.length) {
+        // Shelf box — deduct from shelf_box_items_s
+        const r = await client.query('SELECT quantity FROM shelf_box_items_s WHERE shelf_box_id=$1 AND product_id=$2', [source_id, product_id]);
+        if (!r.rows.length || parseFloat(r.rows[0].quantity) < qty) throw new Error('Недостаточно товара в коробке на полке');
+        const newQty = parseFloat(r.rows[0].quantity) - qty;
+        if (newQty <= 0) await client.query('DELETE FROM shelf_box_items_s WHERE shelf_box_id=$1 AND product_id=$2', [source_id, product_id]);
+        else await client.query('UPDATE shelf_box_items_s SET quantity=$1, updated_at=NOW() WHERE shelf_box_id=$2 AND product_id=$3', [newQty, source_id, product_id]);
+      } else {
+        // Pallet box — deduct from box_items_s
+        const r = await client.query('SELECT quantity FROM box_items_s WHERE box_id=$1 AND product_id=$2', [source_id, product_id]);
+        if (!r.rows.length || parseFloat(r.rows[0].quantity) < qty) throw new Error('Недостаточно товара в коробке');
+        const newQty = parseFloat(r.rows[0].quantity) - qty;
+        if (newQty <= 0) await client.query('DELETE FROM box_items_s WHERE box_id=$1 AND product_id=$2', [source_id, product_id]);
+        else await client.query('UPDATE box_items_s SET quantity=$1 WHERE box_id=$2 AND product_id=$3', [newQty, source_id, product_id]);
+        // Update box total quantity
+        await client.query('UPDATE boxes_s SET quantity = GREATEST(0, quantity - $1) WHERE id=$2', [qty, source_id]);
+      }
     } else if (source_type === 'employee') {
       const r = await client.query('SELECT quantity FROM employee_inventory_s WHERE employee_id=$1 AND product_id=$2', [source_id, product_id]);
       if (!r.rows.length || parseFloat(r.rows[0].quantity) < qty) throw new Error('Недостаточно товара у сотрудника');
@@ -140,7 +155,25 @@ router.post('/move', requireAuth, async (req, res) => {
          ON CONFLICT (pallet_id, product_id) DO UPDATE SET quantity = pallet_items_s.quantity + $3`,
         [dest_id, product_id, qty]);
     } else if (dest_type === 'box') {
-      await client.query('UPDATE boxes_s SET quantity = quantity + $1 WHERE id=$2', [qty, dest_id]);
+      // Determine if shelf_box or pallet box
+      const sbx = await client.query('SELECT id FROM shelf_boxes_s WHERE id=$1', [dest_id]);
+      if (sbx.rows.length) {
+        // Shelf box — add to shelf_box_items_s
+        await client.query(
+          `INSERT INTO shelf_box_items_s (shelf_box_id, product_id, quantity, updated_at) VALUES ($1,$2,$3,NOW())
+           ON CONFLICT (shelf_box_id, product_id) DO UPDATE SET quantity = shelf_box_items_s.quantity + $3, updated_at=NOW()`,
+          [dest_id, product_id, qty]);
+      } else {
+        // Pallet box — add to box_items_s
+        const existing = await client.query('SELECT id FROM box_items_s WHERE box_id=$1 AND product_id=$2', [dest_id, product_id]);
+        if (existing.rows.length) {
+          await client.query('UPDATE box_items_s SET quantity = quantity + $1 WHERE box_id=$2 AND product_id=$3', [qty, dest_id, product_id]);
+        } else {
+          await client.query('INSERT INTO box_items_s (box_id, product_id, quantity) VALUES ($1,$2,$3)', [dest_id, product_id, qty]);
+        }
+        // Update box total quantity
+        await client.query('UPDATE boxes_s SET quantity = quantity + $1 WHERE id=$2', [qty, dest_id]);
+      }
     } else if (dest_type === 'employee') {
       await client.query(
         `INSERT INTO employee_inventory_s (employee_id, product_id, quantity) VALUES ($1,$2,$3)
