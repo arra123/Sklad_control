@@ -275,6 +275,7 @@ function ActivityTimeline({ buckets, tasks, breaks = [], thresholds }) {
 // ─── Employee Detail View ───────────────────────────────────────────────────
 
 function EmployeeDetailView({ employeeId, employees, onBack, thresholds }) {
+  const navigate = useNavigate();
   const [timeline, setTimeline] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -364,7 +365,7 @@ function EmployeeDetailView({ employeeId, employees, onBack, thresholds }) {
                   const location = [t.rack_name, t.shelf_code || t.shelf_name, t.pallet_name].filter(Boolean).join(' → ');
 
                   return (
-                    <div key={t.id} className="bg-white rounded-xl border border-gray-100 p-4 hover:border-gray-200 transition-colors">
+                    <div key={t.id} onClick={() => navigate(`/admin/tasks?id=${t.id}`)} className="bg-white rounded-xl border border-gray-100 p-4 hover:border-primary-200 hover:shadow-sm transition-colors cursor-pointer">
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
