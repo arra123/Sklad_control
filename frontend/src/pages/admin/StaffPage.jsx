@@ -757,7 +757,7 @@ function CopyBtn({ text, label }) {
 }
 
 // ─── Users Table (grouped by role) ───────────────────────────────────────────
-function UsersTable({ users, employees, onEdit, onDelete }) {
+function UsersTable({ users, employees, onEdit, onDelete, onDrill }) {
   const [showAdmin, setShowAdmin] = useState(false);
 
   if (users.length === 0) {
@@ -792,19 +792,19 @@ function UsersTable({ users, employees, onEdit, onDelete }) {
   adminUsers.sort((a, b) => (a.employee_name || '').localeCompare(b.employee_name || '', 'ru'));
 
   const renderRow = (user) => (
-    <div key={user.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0">
+    <div key={user.id} onClick={() => onDrill?.(user)} className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0 cursor-pointer">
       {/* Employee name + position */}
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-gray-900 truncate">{user.employee_name || user.username}</p>
         {user.position && <p className="text-[11px] text-gray-400 truncate">{user.position}</p>}
       </div>
       {/* Credentials */}
-      <div className="flex items-center gap-2 flex-shrink-0">
+      <div className="flex items-center gap-2 flex-shrink-0" onClick={e => e.stopPropagation()}>
         <CopyBtn text={user.username} label="логин" />
         {user.password_plain && <CopyBtn text={user.password_plain} label="пароль" />}
       </div>
       {/* Actions */}
-      <div className="flex items-center gap-0.5 flex-shrink-0">
+      <div className="flex items-center gap-0.5 flex-shrink-0" onClick={e => e.stopPropagation()}>
         <button onClick={() => onEdit(user)}
           className="p-1.5 rounded-lg text-gray-300 hover:text-primary-500 hover:bg-primary-50 transition-all">
           <Pencil size={13} />
@@ -814,6 +814,7 @@ function UsersTable({ users, employees, onEdit, onDelete }) {
           <Trash2 size={13} />
         </button>
       </div>
+      <ChevronRight size={14} className="text-gray-200 flex-shrink-0" />
     </div>
   );
 
@@ -1050,7 +1051,7 @@ export default function StaffPage() {
   const canEditStaff = isAdmin || userPerms.includes('staff.edit');
   const canManageRoles = isAdmin || userPerms.includes('roles.manage');
   const [searchParams, setSearchParams] = useSearchParams();
-  const tab = searchParams.get('tab') || 'employees';
+  const tab = searchParams.get('tab') || 'users';
   const setTab = (t) => setSearchParams({ tab: t });
   const [employees, setEmployees] = useState([]);
   const [users, setUsers] = useState([]);
@@ -1111,51 +1112,41 @@ export default function StaffPage() {
           <h1 className="text-2xl font-bold text-gray-900">Сотрудники</h1>
           <p className="text-gray-500 text-sm mt-1">Управление сотрудниками и доступами</p>
         </div>
-        {tab === 'employees' && canEditStaff && (
+        {tab === 'users' && canEditStaff && (
           <Button icon={<Plus size={15} />} size="sm" onClick={() => setShowAddEmpModal(true)}>
             Добавить сотрудника
-          </Button>
-        )}
-        {tab === 'users' && canEditStaff && (
-          <Button icon={<Plus size={15} />} size="sm" onClick={() => setShowUserModal(true)}>
-            Добавить пользователя
           </Button>
         )}
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-5 bg-gray-100 p-1 rounded-xl w-fit">
-        {[
-          { value: 'employees', label: `Сотрудники (${employees.length})`, icon: Users },
-          canEditStaff && { value: 'users', label: `Доступы (${users.length})`, icon: UserCog },
-          canManageRoles && { value: 'roles', label: 'Роли', icon: Shield },
-        ].filter(Boolean).map(({ value, label, icon: Icon }) => (
-          <button
-            key={value}
-            onClick={() => setTab(value)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-              tab === value ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            <Icon size={15} />
-            {label}
-          </button>
-        ))}
-      </div>
+      {canManageRoles && (
+        <div className="flex gap-1 mb-5 bg-gray-100 p-1 rounded-xl w-fit">
+          {[
+            { value: 'users', label: `Сотрудники (${users.length})`, icon: Users },
+            { value: 'roles', label: 'Роли', icon: Shield },
+          ].map(({ value, label, icon: Icon }) => (
+            <button
+              key={value}
+              onClick={() => setTab(value)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                tab === value ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <Icon size={15} />
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {drillId && employees.find(e => String(e.id) === drillId) ? (
         <EmployeeDetailView employee={employees.find(e => String(e.id) === drillId)} onBack={() => { setDrillEmployee(null); loadAll(); }} />
       ) : loading ? (
         <div className="flex items-center justify-center h-48"><Spinner size="lg" /></div>
-      ) : tab === 'employees' ? (
-        <EmployeesTable
-          employees={employees}
-          onEdit={(emp) => { setEditEmployee(emp); setShowEmpModal(true); }}
-          onDelete={deleteEmployee}
-          onDrill={setDrillEmployee}
-        />
       ) : tab === 'users' ? (
-        <UsersTable users={users} employees={employees} onEdit={u => setEditUser(u)} onDelete={deleteUser} />
+        <UsersTable users={users} employees={employees} onEdit={u => setEditUser(u)} onDelete={deleteUser}
+          onDrill={(user) => { const emp = employees.find(e => e.id === user.employee_id); if (emp) setDrillEmployee(emp); }} />
       ) : tab === 'roles' ? (
         <RolesManager />
       ) : null}
