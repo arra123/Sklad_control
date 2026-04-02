@@ -33,7 +33,7 @@ router.get('/:taskId', requireAuth, async (req, res) => {
     if (!task.rows.length) return res.status(404).json({ error: 'Задача не найдена' });
 
     const t = task.rows[0];
-    if (req.user.role === 'employee' && t.employee_id !== req.user.employee_id) {
+    if (req.user.role !== 'admin' && !(req.user.permissions || []).includes('tasks.view') && !(req.user.permissions || []).includes('tasks.create') && t.employee_id !== req.user.employee_id) {
       return res.status(403).json({ error: 'Нет доступа' });
     }
 
@@ -74,7 +74,7 @@ router.post('/:taskId/start', requireAuth, async (req, res) => {
     `, [req.params.taskId]);
     if (!task.rows.length) return res.status(404).json({ error: 'Задача не найдена' });
     const t = task.rows[0];
-    if (req.user.role === 'employee' && t.employee_id !== req.user.employee_id) {
+    if (req.user.role !== 'admin' && !(req.user.permissions || []).includes('tasks.view') && !(req.user.permissions || []).includes('tasks.create') && t.employee_id !== req.user.employee_id) {
       return res.status(403).json({ error: 'Нет доступа' });
     }
     if (t.status !== 'new') return res.status(400).json({ error: 'Задача уже начата' });

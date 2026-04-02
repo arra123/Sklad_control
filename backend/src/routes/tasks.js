@@ -1293,7 +1293,9 @@ router.get('/', requireAuth, async (req, res) => {
     const conditions = [];
     const params = [];
 
-    if (req.user.role === 'employee') {
+    const userPerms = req.user.permissions || [];
+    const canViewAll = req.user.role === 'admin' || userPerms.includes('tasks.view') || userPerms.includes('tasks.create');
+    if (!canViewAll) {
       params.push(req.user.employee_id);
       conditions.push(`t.employee_id = $${params.length}`);
     } else if (employee_id) {
@@ -1988,7 +1990,7 @@ router.get('/:id', requireAuth, async (req, res) => {
     );
     if (!task.rows.length) return res.status(404).json({ error: 'Задача не найдена' });
 
-    if (req.user.role === 'employee' && task.rows[0].employee_id !== req.user.employee_id) {
+    if (req.user.role !== 'admin' && !(req.user.permissions || []).includes('tasks.view') && !(req.user.permissions || []).includes('tasks.create') && task.rows[0].employee_id !== req.user.employee_id) {
       return res.status(403).json({ error: 'Нет доступа' });
     }
 
@@ -2639,7 +2641,7 @@ router.post('/:id/start', requireAuth, async (req, res) => {
     const taskBoxes = taskBoxesResult.rows;
     const hasTaskBoxQueue = taskBoxes.length > 0;
 
-    if (req.user.role === 'employee' && t.employee_id !== req.user.employee_id) {
+    if (req.user.role !== 'admin' && !(req.user.permissions || []).includes('tasks.view') && !(req.user.permissions || []).includes('tasks.create') && t.employee_id !== req.user.employee_id) {
       return res.status(403).json({ error: 'Нет доступа' });
     }
     if (t.status !== 'new' && t.status !== 'in_progress') {
@@ -2869,7 +2871,7 @@ router.post('/:id/scan', requireAuth, async (req, res) => {
     const activeTaskBox = taskBoxes.rows.find(row => row.status === 'in_progress') || null;
     const hasTaskBoxQueue = taskBoxes.rows.length > 0;
 
-    if (req.user.role === 'employee' && t.employee_id !== req.user.employee_id) {
+    if (req.user.role !== 'admin' && !(req.user.permissions || []).includes('tasks.view') && !(req.user.permissions || []).includes('tasks.create') && t.employee_id !== req.user.employee_id) {
       return res.status(403).json({ error: 'Нет доступа' });
     }
     if (t.status !== 'in_progress') {
@@ -3023,7 +3025,7 @@ router.post('/:id/complete', requireAuth, async (req, res) => {
     if (!task.rows.length) return res.status(404).json({ error: 'Задача не найдена' });
     const t = task.rows[0];
 
-    if (req.user.role === 'employee' && t.employee_id !== req.user.employee_id) {
+    if (req.user.role !== 'admin' && !(req.user.permissions || []).includes('tasks.view') && !(req.user.permissions || []).includes('tasks.create') && t.employee_id !== req.user.employee_id) {
       return res.status(403).json({ error: 'Нет доступа' });
     }
     if (t.status !== 'in_progress') {
