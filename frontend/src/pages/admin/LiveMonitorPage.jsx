@@ -122,6 +122,15 @@ function ActivityTimeline({ buckets, tasks, breaks = [], thresholds }) {
     }
   }
 
+  // Build bucket map for fast lookup
+  const bucketMap = {};
+  let maxScans = 1;
+  for (const b of buckets) {
+    const num = parseInt(b.bucket);
+    bucketMap[num] = parseInt(b.scan_count);
+    if (bucketMap[num] > maxScans) maxScans = bucketMap[num];
+  }
+
   // Map bucket → active task name for richer tooltips
   const bucketTaskMap = {};
   for (const t of tasks) {
@@ -159,15 +168,6 @@ function ActivityTimeline({ buckets, tasks, breaks = [], thresholds }) {
         </div>
       </div>
     );
-  }
-
-  // Build bucket map for fast lookup
-  const bucketMap = {};
-  let maxScans = 1;
-  for (const b of buckets) {
-    const num = parseInt(b.bucket);
-    bucketMap[num] = parseInt(b.scan_count);
-    if (bucketMap[num] > maxScans) maxScans = bucketMap[num];
   }
 
   // Calculate active/idle/break time — only up to current time
