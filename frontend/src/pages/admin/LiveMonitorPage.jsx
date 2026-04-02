@@ -336,27 +336,27 @@ function EmployeeDetailView({ employeeId, employees, onBack }) {
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-4 mt-2.5 pt-2.5 border-t border-gray-50">
-                        <span className="flex items-center gap-1 text-xs text-gray-500">
-                          <Clock size={12} />
+                      <div className="flex items-center gap-3 mt-2.5 pt-2.5 border-t border-gray-50 flex-wrap">
+                        <span className="flex items-center gap-1 text-[11px] text-gray-500">
+                          <Clock size={11} className="flex-shrink-0" />
                           {fmtTime(t.started_at)} → {t.completed_at ? fmtTime(t.completed_at) : 'сейчас'}
                         </span>
-                        <span className="flex items-center gap-1 text-xs text-gray-500">
-                          <Timer size={12} />
+                        <span className="flex items-center gap-1 text-[11px] text-gray-500">
+                          <Timer size={11} className="flex-shrink-0" />
                           {fmtDuration(durationSec)}
                         </span>
-                        <span className="flex items-center gap-1 text-xs text-gray-500">
-                          <ScanLine size={12} />
-                          {fmtNum(t.scan_count)} сканов
+                        <span className="flex items-center gap-1 text-[11px] text-gray-500">
+                          <ScanLine size={11} className="flex-shrink-0" />
+                          {fmtNum(t.scan_count)}
                         </span>
-                        <span className="flex items-center gap-1 text-xs font-semibold text-green-600">
-                          <Award size={12} />
-                          {fmtNum(Math.round(parseFloat(t.earned)))} GRA
+                        <span className="flex items-center gap-1 text-[11px] font-semibold text-green-600">
+                          <Award size={11} className="flex-shrink-0" />
+                          {fmtNum(Math.round(parseFloat(t.earned)))}
                         </span>
                         {parseInt(t.boxes_total) > 0 && (
-                          <span className="flex items-center gap-1 text-xs text-gray-500">
-                            <Package size={12} />
-                            {t.boxes_done}/{t.boxes_total} кор.
+                          <span className="flex items-center gap-1 text-[11px] text-gray-500">
+                            <Package size={11} className="flex-shrink-0" />
+                            {t.boxes_done}/{t.boxes_total}
                           </span>
                         )}
                       </div>
@@ -384,6 +384,13 @@ function EmployeeDetailView({ employeeId, employees, onBack }) {
 
 // ─── Employee Card ──────────────────────────────────────────────────────────
 
+function fmtCompact(n) {
+  n = Number(n || 0);
+  if (n >= 100000) return `${(n / 1000).toFixed(0)}k`;
+  if (n >= 10000) return `${(n / 1000).toFixed(1)}k`;
+  return fmtNum(n);
+}
+
 function EmployeeCard({ emp, onClick }) {
   const task = emp.active_task;
   const isActive = task && task.status === 'in_progress';
@@ -396,47 +403,51 @@ function EmployeeCard({ emp, onClick }) {
       : <span className="w-2 h-2 rounded-full bg-gray-200 inline-block" />;
 
   return (
-    <button onClick={onClick} className="w-full text-left bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-primary-200 transition-all p-4 flex flex-col">
-      <div className="flex items-start justify-between gap-2 mb-3">
-        <h3 className="text-[13px] font-bold text-gray-900 leading-tight">{emp.full_name}</h3>
-        {statusDot}
+    <button onClick={onClick} className="w-full text-left bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-primary-200 transition-all p-3.5 flex flex-col">
+      {/* Name + status */}
+      <div className="flex items-start justify-between gap-1.5 mb-2">
+        <h3 className="text-xs font-bold text-gray-900 leading-snug line-clamp-2">{emp.full_name}</h3>
+        <div className="flex-shrink-0 mt-0.5">{statusDot}</div>
       </div>
 
-      <div className="min-h-[52px] mb-3">
+      {/* Task zone — fixed height */}
+      <div className="h-[56px] mb-2">
         {task ? (
-          <div className="px-2.5 py-2 bg-primary-50 rounded-xl border border-primary-100">
-            <p className="text-[11px] font-semibold text-primary-700 truncate">{task.title}</p>
-            <div className="flex items-center gap-1.5 mt-1 text-[10px] text-primary-500 flex-wrap">
-              <span className="bg-primary-100 rounded px-1.5 py-0.5 font-semibold">{taskTypeLabel(task.type)}</span>
-              {task.scans > 0 && <span>· {fmtNum(task.scans)} сканов</span>}
-              {task.boxes_total > 0 && <span>· {task.boxes_done}/{task.boxes_total} кор.</span>}
-              {task.type === 'bundle_assembly' && <span>· {task.assembled}/{task.bundle_qty} собр.</span>}
+          <div className="px-2 py-1.5 bg-primary-50 rounded-lg border border-primary-100 h-full overflow-hidden">
+            <p className="text-[11px] font-semibold text-primary-700 truncate leading-tight">{task.title}</p>
+            <div className="flex items-center gap-1 mt-1 text-[9px] text-primary-500 flex-wrap leading-tight">
+              <span className="bg-primary-100 rounded px-1 py-px font-bold">{taskTypeLabel(task.type)}</span>
+              {task.scans > 0 && <span>· {fmtCompact(task.scans)}</span>}
+              {task.boxes_total > 0 && <span>· {task.boxes_done}/{task.boxes_total}</span>}
+              {task.type === 'bundle_assembly' && <span>· {task.assembled}/{task.bundle_qty}</span>}
             </div>
           </div>
         ) : (
-          <div className="flex items-center justify-center h-full">
-            <p className="text-xs text-gray-300 italic">Нет активной задачи</p>
+          <div className="flex items-center justify-center h-full bg-gray-50 rounded-lg border border-dashed border-gray-200">
+            <p className="text-[11px] text-gray-300 italic">Нет активной задачи</p>
           </div>
         )}
       </div>
 
-      <div className="grid grid-cols-3 gap-1.5 mt-auto">
-        <div className="bg-gray-50 rounded-lg px-2 py-1.5 text-center">
-          <p className="text-[8px] text-gray-400 uppercase font-bold tracking-wider">Сканов</p>
-          <p className="text-sm font-black text-gray-800 leading-tight mt-0.5">{fmtNum(emp.scans_today)}</p>
+      {/* Stats — compact */}
+      <div className="grid grid-cols-3 gap-1 mt-auto">
+        <div className="bg-gray-50 rounded-lg py-1.5 text-center overflow-hidden">
+          <p className="text-[7px] text-gray-400 uppercase font-bold">Сканов</p>
+          <p className="text-xs font-black text-gray-800 leading-tight mt-px truncate px-0.5">{fmtCompact(emp.scans_today)}</p>
         </div>
-        <div className="bg-green-50 rounded-lg px-2 py-1.5 text-center">
-          <p className="text-[8px] text-green-500 uppercase font-bold tracking-wider">Заработок</p>
-          <p className="text-sm font-black text-green-700 leading-tight mt-0.5">{fmtNum(Math.round(emp.earned_today))}</p>
+        <div className="bg-green-50 rounded-lg py-1.5 text-center overflow-hidden">
+          <p className="text-[7px] text-green-500 uppercase font-bold">GRA</p>
+          <p className="text-xs font-black text-green-700 leading-tight mt-px truncate px-0.5">{fmtCompact(Math.round(emp.earned_today))}</p>
         </div>
-        <div className="bg-blue-50 rounded-lg px-2 py-1.5 text-center">
-          <p className="text-[8px] text-blue-500 uppercase font-bold tracking-wider">Скорость</p>
-          <p className="text-sm font-black text-blue-700 leading-tight mt-0.5">{emp.avg_speed_today ? `${emp.avg_speed_today}с` : '—'}</p>
+        <div className="bg-blue-50 rounded-lg py-1.5 text-center overflow-hidden">
+          <p className="text-[7px] text-blue-500 uppercase font-bold">Скорость</p>
+          <p className="text-xs font-black text-blue-700 leading-tight mt-px truncate px-0.5">{emp.avg_speed_today ? `${emp.avg_speed_today}с` : '—'}</p>
         </div>
       </div>
 
-      <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-50 text-[10px] text-gray-400">
-        <span>{emp.tasks_today} задач сегодня</span>
+      {/* Footer */}
+      <div className="flex items-center justify-between mt-1.5 pt-1.5 border-t border-gray-50 text-[9px] text-gray-400">
+        <span>{emp.tasks_today} задач</span>
         <span>{emp.last_scan_at ? timeAgo(emp.last_scan_at) : '—'}</span>
       </div>
     </button>
