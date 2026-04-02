@@ -366,10 +366,12 @@ function ActivityTimeline({ buckets, tasks, breaks = [], thresholds }) {
           ? (new Date(t.completed_at) - new Date(t.started_at)) / 1000
           : t.started_at ? (Date.now() - new Date(t.started_at)) / 1000 : 0;
         const pauses = t.pause_log || [];
+        const todayMidnight = new Date(); todayMidnight.setHours(0,0,0,0);
         const totalPauseSec = pauses.reduce((sum, p) => {
           if (!p.paused_at) return sum;
-          const end = p.resumed_at ? new Date(p.resumed_at) : new Date();
-          return sum + (end - new Date(p.paused_at)) / 1000;
+          const start = Math.max(new Date(p.paused_at).getTime(), todayMidnight.getTime());
+          const end = p.resumed_at ? new Date(p.resumed_at).getTime() : Date.now();
+          return sum + Math.max(0, end - start) / 1000;
         }, 0);
         const location = [t.rack_name, t.shelf_code || t.shelf_name, t.pallet_name].filter(Boolean).join(' → ');
 
