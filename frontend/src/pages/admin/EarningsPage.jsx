@@ -503,7 +503,7 @@ export default function EarningsPage() {
                           <tbody className="divide-y divide-gray-50">
                             {sborkaPicks.map(pick => (
                               <tr key={pick.id} className="hover:bg-gray-50 transition-colors">
-                                <td className="px-4 py-2.5 text-gray-600 whitespace-nowrap">{fmtShort(pick.created_at)}</td>
+                                <td className="px-4 py-2.5 text-gray-600 whitespace-nowrap">{fmtShort(pick.created_at)} <span className="text-gray-400">{pick.created_at ? new Date(pick.created_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : ''}</span></td>
                                 <td className="px-4 py-2.5 text-gray-900 font-medium">{pick.source_marketplace || '—'}</td>
                                 <td className="px-4 py-2.5 text-gray-600 truncate max-w-[160px]">{pick.source_store_name || '—'}</td>
                                 <td className="px-4 py-2.5 text-gray-600 truncate max-w-[200px]">{pick.source_product_name || pick.source_entity_name || '—'}</td>
