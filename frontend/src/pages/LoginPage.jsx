@@ -90,7 +90,7 @@ export default function LoginPage() {
         </div>
 
         <p className="text-center text-xs text-gray-400 mt-6">
-          GRAсклад v2.58.2
+          GRAсклад v2.71.0
         </p>
       </div>
     </div>

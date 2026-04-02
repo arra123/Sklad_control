@@ -72,7 +72,16 @@ siteRouter.use('/api', (_req, res) => {
 
 // Serve frontend in production
 const frontendDist = path.join(__dirname, '../../frontend/dist');
-siteRouter.use(express.static(frontendDist, { maxAge: '1d', immutable: true }));
+// Assets (JS/CSS with hash) — cache aggressively. index.html — never cache.
+siteRouter.use(express.static(frontendDist, {
+  maxAge: '1d',
+  immutable: true,
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.html') || filePath.endsWith('index.html')) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    }
+  },
+}));
 siteRouter.get('*', (req, res) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
