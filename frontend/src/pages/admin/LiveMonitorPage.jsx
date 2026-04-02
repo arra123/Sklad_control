@@ -494,7 +494,17 @@ function EmployeeDetailView({ employeeId, employees, onBack, thresholds }) {
     } catch {} finally { setBreakLoading(false); }
   };
 
-  if (!emp) return null;
+  if (!emp) return (
+    <div className="p-6 max-w-4xl mx-auto">
+      <div className="flex items-center gap-3 mb-6">
+        <button onClick={onBack} className="p-2 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+          <ArrowLeft size={18} />
+        </button>
+        <p className="text-sm text-gray-400">Загрузка данных сотрудника...</p>
+      </div>
+      <div className="flex justify-center py-12"><Spinner size="lg" /></div>
+    </div>
+  );
 
   const task = emp.active_task;
   const isLive = task?.status === 'in_progress' && emp.last_scan_at && (Date.now() - new Date(emp.last_scan_at).getTime()) < 120000;
