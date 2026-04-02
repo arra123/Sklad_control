@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../../api/client';
 import Spinner from '../../components/ui/Spinner';
-import { ArrowLeft, RefreshCw, Zap, TrendingUp, Clock, Package, ScanLine, Award, CheckCircle2, Play, Pause, Timer } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Zap, TrendingUp, Clock, Package, ScanLine, Award, CheckCircle2, Play, Pause, Timer, ChevronDown } from 'lucide-react';
 
 const POLL_MS = 5000;
 
@@ -285,24 +285,19 @@ function ActivityTimeline({ buckets, tasks, breaks = [], thresholds }) {
             const isBreak = breakBuckets.has(bNum);
             // 7 levels: T1/T2/T3/T4/T5/T6/above
             const isTaskPause = taskPauseBuckets.has(bNum);
-            // Task-type specific color palette
-            const tt = bucketTaskType[bNum] || 'inventory';
-            const palette = tt === 'bundle_assembly'
-              ? ['bg-purple-100','bg-purple-200','bg-purple-300','bg-purple-400','bg-purple-400','bg-purple-500','bg-purple-600']
-              : tt === 'packaging'
-              ? ['bg-amber-100','bg-amber-200','bg-amber-300','bg-amber-400','bg-amber-400','bg-amber-500','bg-amber-600']
-              : tt === 'production_transfer'
-              ? ['bg-sky-100','bg-sky-200','bg-sky-300','bg-sky-400','bg-sky-400','bg-sky-500','bg-sky-600']
-              : ['bg-teal-100','bg-teal-200','bg-teal-300','bg-teal-400','bg-teal-400','bg-teal-500','bg-teal-600']; // inventory
-
-            const level = scans <= T1 ? 0 : scans <= T2 ? 1 : scans <= T3 ? 2 : scans <= T4 ? 3 : scans <= T5 ? 4 : scans <= T6 ? 5 : 6;
-
+            // Green intensity scale for activity bars
             const colorClass = isBreak
               ? (isHovered ? 'bg-amber-400' : 'bg-amber-300')
               : isTaskPause
               ? (isHovered ? 'bg-red-300' : 'bg-red-200')
               : scans <= 0 ? (isHovered ? 'bg-gray-200' : 'bg-gray-100')
-              : (isHovered ? palette[Math.min(6, level + 1)] : palette[level]);
+              : scans <= T1 ? (isHovered ? 'bg-green-300' : 'bg-green-100')
+              : scans <= T2 ? (isHovered ? 'bg-green-400' : 'bg-green-200')
+              : scans <= T3 ? (isHovered ? 'bg-green-400' : 'bg-green-300')
+              : scans <= T4 ? (isHovered ? 'bg-green-500' : 'bg-green-400')
+              : scans <= T5 ? (isHovered ? 'bg-green-600' : 'bg-green-500')
+              : scans <= T6 ? (isHovered ? 'bg-green-700' : 'bg-green-600')
+              : (isHovered ? 'bg-green-800' : 'bg-green-700');
 
             return (
               <div
@@ -485,6 +480,7 @@ function EmployeeDetailView({ employeeId, employees, onBack, thresholds }) {
   const [timeline, setTimeline] = useState(null);
   const [loading, setLoading] = useState(true);
   const [breakLoading, setBreakLoading] = useState(false);
+  const [expandedTaskId, setExpandedTaskId] = useState(null);
 
   const emp = useMemo(() => employees.find(e => e.employee_id === employeeId), [employees, employeeId]);
 
@@ -629,11 +625,25 @@ function EmployeeDetailView({ employeeId, employees, onBack, thresholds }) {
                     : t.started_at ? (Date.now() - new Date(t.started_at)) / 1000 : 0;
                   const location = [t.rack_name, t.shelf_code || t.shelf_name, t.pallet_name].filter(Boolean).join(' → ');
 
+                  const isExpanded = expandedTaskId === t.id;
+                  const pauses = t.pause_log || [];
+                  const todayMid = new Date(); todayMid.setHours(0,0,0,0);
+                  const totalPause = pauses.reduce((s, p) => {
+                    if (!p.paused_at) return s;
+                    const start = Math.max(new Date(p.paused_at).getTime(), todayMid.getTime());
+                    const end = p.resumed_at ? new Date(p.resumed_at).getTime() : Date.now();
+                    return s + Math.max(0, end - start) / 1000;
+                  }, 0);
+
                   return (
-                    <div key={t.id} onClick={() => navigate(`/admin/tasks?id=${t.id}`)} className="bg-white rounded-xl border border-gray-100 p-4 hover:border-primary-200 hover:shadow-sm transition-colors cursor-pointer">
-                      <div className="flex items-start justify-between gap-2">
+                    <div key={t.id} className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+                      {/* Header — clickable to expand */}
+                      <button
+                        onClick={() => setExpandedTaskId(isExpanded ? null : t.id)}
+                        className="w-full flex items-center gap-3 p-3.5 text-left hover:bg-gray-50 transition-colors"
+                      >
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
+                          <div className="flex items-center gap-2 mb-0.5">
                             <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${taskTypeBg(t.task_type)}`}>
                               {taskTypeLabel(t.task_type)}
                             </span>
@@ -641,43 +651,65 @@ function EmployeeDetailView({ employeeId, employees, onBack, thresholds }) {
                               <StIcon size={10} /> {st.label}
                             </span>
                           </div>
-                          <p className="text-sm font-semibold text-gray-900 truncate">{t.title}</p>
-                          {location && <p className="text-[11px] text-gray-400 mt-0.5">{location}</p>}
+                          <p className="text-sm font-medium text-gray-900 truncate">{t.title}</p>
+                          {location && <p className="text-[11px] text-gray-400">{location}</p>}
                         </div>
-                      </div>
+                        <div className="text-right flex-shrink-0">
+                          <p className="text-xs text-gray-500">{fmtTime(t.started_at)} → {t.completed_at ? fmtTime(t.completed_at) : '...'}</p>
+                          <p className="text-xs font-bold text-green-600">+{fmtNum(Math.round(parseFloat(t.earned)))} GRA</p>
+                        </div>
+                        <ChevronDown size={16} className={`text-gray-300 transition-transform flex-shrink-0 ${isExpanded ? 'rotate-180' : ''}`} />
+                      </button>
 
-                      <div className="flex items-center gap-3 mt-2.5 pt-2.5 border-t border-gray-50 flex-wrap">
-                        <span className="flex items-center gap-1 text-[11px] text-gray-500">
-                          <Clock size={11} className="flex-shrink-0" />
-                          {fmtTime(t.started_at)} → {t.completed_at ? fmtTime(t.completed_at) : 'сейчас'}
-                        </span>
-                        <span className="flex items-center gap-1 text-[11px] text-gray-500">
-                          <Timer size={11} className="flex-shrink-0" />
-                          {fmtDuration(durationSec)}
-                        </span>
-                        <span className="flex items-center gap-1 text-[11px] text-gray-500">
-                          <ScanLine size={11} className="flex-shrink-0" />
-                          {fmtNum(t.scan_count)}
-                        </span>
-                        <span className="flex items-center gap-1 text-[11px] font-semibold text-green-600">
-                          <Award size={11} className="flex-shrink-0" />
-                          {fmtNum(Math.round(parseFloat(t.earned)))}
-                        </span>
-                        {parseInt(t.boxes_total) > 0 && (
-                          <span className="flex items-center gap-1 text-[11px] text-gray-500">
-                            <Package size={11} className="flex-shrink-0" />
-                            {t.boxes_done}/{t.boxes_total}
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Progress bar for in_progress tasks */}
-                      {t.status === 'in_progress' && parseInt(t.boxes_total) > 0 && (
-                        <div className="mt-2 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-blue-500 rounded-full transition-all"
-                            style={{ width: `${Math.round((parseInt(t.boxes_done) / parseInt(t.boxes_total)) * 100)}%` }}
-                          />
+                      {/* Expanded details */}
+                      {isExpanded && (
+                        <div className="px-3.5 pb-3.5 border-t border-gray-50" style={{ animation: 'fadeIn 0.15s ease-out' }}>
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3">
+                            <div className="bg-gray-50 rounded-lg px-3 py-2">
+                              <p className="text-[9px] text-gray-400 uppercase font-bold">Длит.</p>
+                              <p className="text-xs font-semibold text-gray-700">{fmtDuration(durationSec)}</p>
+                            </div>
+                            <div className="bg-gray-50 rounded-lg px-3 py-2">
+                              <p className="text-[9px] text-gray-400 uppercase font-bold">Сканов</p>
+                              <p className="text-xs font-semibold text-gray-700">{fmtNum(t.scan_count)}</p>
+                            </div>
+                            <div className="bg-gray-50 rounded-lg px-3 py-2">
+                              <p className="text-[9px] text-gray-400 uppercase font-bold">Ср. скорость</p>
+                              <p className="text-xs font-semibold text-gray-700">{t.avg_scan_time ? `${t.avg_scan_time} с` : '—'}</p>
+                            </div>
+                            <div className="bg-green-50 rounded-lg px-3 py-2">
+                              <p className="text-[9px] text-green-500 uppercase font-bold">Заработок</p>
+                              <p className="text-xs font-black text-green-700">+{fmtNum(Math.round(parseFloat(t.earned)))} GRA</p>
+                            </div>
+                          </div>
+                          {parseInt(t.boxes_total) > 0 && (
+                            <div className="mt-2">
+                              <div className="flex items-center justify-between text-[10px] text-gray-400 mb-1">
+                                <span>Коробки</span>
+                                <span>{t.boxes_done}/{t.boxes_total}</span>
+                              </div>
+                              <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                                <div className="h-full bg-teal-400 rounded-full transition-all"
+                                  style={{ width: `${Math.round((parseInt(t.boxes_done) / parseInt(t.boxes_total)) * 100)}%` }} />
+                              </div>
+                            </div>
+                          )}
+                          {pauses.length > 0 && (
+                            <div className="mt-2 pt-2 border-t border-gray-100">
+                              <p className="text-[10px] font-bold text-red-400 mb-1">⏸ Паузы ({pauses.length}) — {fmtDuration(totalPause)}</p>
+                              <div className="flex flex-wrap gap-1">
+                                {pauses.map((p, idx) => (
+                                  <span key={idx} className="text-[10px] bg-red-50 text-red-500 rounded px-1.5 py-0.5">
+                                    {fmtTime(p.paused_at)} → {p.resumed_at ? fmtTime(p.resumed_at) : 'сейчас'}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          <button onClick={() => navigate(`/admin/tasks?id=${t.id}`)}
+                            className="mt-2 text-[11px] text-primary-500 hover:text-primary-700 font-medium">
+                            Открыть задачу →
+                          </button>
                         </div>
                       )}
                     </div>

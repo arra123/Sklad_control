@@ -1521,6 +1521,10 @@ router.get('/analytics/live/:employeeId/timeline', requireAuth, requirePermissio
              t.assembled_count, t.bundle_qty, t.placed_count, t.assembly_phase, t.pause_log,
              (SELECT COUNT(*) FROM inventory_task_scans_s sc
               WHERE sc.task_id = t.id) as scan_count,
+             (SELECT ROUND(AVG(gap)::numeric, 1) FROM (
+               SELECT EXTRACT(EPOCH FROM (sc.created_at - LAG(sc.created_at) OVER (ORDER BY sc.created_at))) as gap
+               FROM inventory_task_scans_s sc WHERE sc.task_id = t.id AND sc.product_id IS NOT NULL
+             ) g WHERE gap > 0 AND gap < 300) as avg_scan_time,
              (SELECT COUNT(*) FROM inventory_task_boxes_s tb WHERE tb.task_id = t.id) as boxes_total,
              (SELECT COUNT(*) FROM inventory_task_boxes_s tb WHERE tb.task_id = t.id AND tb.status = 'completed') as boxes_done,
              COALESCE((SELECT SUM(ee.amount_delta) FROM employee_earnings_s ee
