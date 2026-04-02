@@ -33,11 +33,13 @@ async function syncEmployeesFromOsite() {
       let empId;
       if (existing.rows.length > 0) {
         empId = existing.rows[0].id;
-        // Update name/phone/position
+        // Update name/phone/position and reactivate
         await pool.query(
-          `UPDATE employees_s SET full_name=$1, phone=$2, position=$3, department=$4 WHERE id=$5`,
+          `UPDATE employees_s SET full_name=$1, phone=$2, position=$3, department=$4, active=true WHERE id=$5`,
           [ext.full_name, ext.phone, ext.position_name, ext.department_name || null, empId]
         );
+        // Reactivate user too
+        await pool.query('UPDATE users_s SET active = true WHERE employee_id = $1', [empId]);
       } else {
         // Create new employee
         const res = await pool.query(
@@ -75,7 +77,7 @@ async function syncEmployeesFromOsite() {
 
     // Deactivate employees no longer active on external site
     // Get all external IDs that are active/internship
-    const activeExtIds = new Set(extEmployees.map(e => e.id));
+    const activeExtIds = new Set(extEmployees.map(e => Number(e.id)));
 
     // Get all local employees linked to external DB
     const localLinked = await pool.query(
@@ -84,7 +86,7 @@ async function syncEmployeesFromOsite() {
 
     let deactivated = 0;
     for (const local of localLinked.rows) {
-      if (!activeExtIds.has(local.external_employee_id)) {
+      if (!activeExtIds.has(Number(local.external_employee_id))) {
         // Employee no longer active on external site — deactivate
         await pool.query('UPDATE employees_s SET active = false WHERE id = $1', [local.id]);
         await pool.query('UPDATE users_s SET active = false WHERE employee_id = $1', [local.id]);
