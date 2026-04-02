@@ -414,8 +414,14 @@ export default function AssemblyPage() {
           setPlaceBoxStep(false); setPlaceBox(null);
           playBeep(true); toast.success(`Паллет: ${d.name}`);
         }
+      } else if (d.type === 'box') {
+        // Direct box scan — set as destination immediately
+        setPlaceDest({ name: `${d.location} · ${d.name}` });
+        setPlaceBox({ box_id: d.id, name: d.name });
+        setPlaceBoxStep(false);
+        playBeep(true); toast.success(`Коробка: ${d.name}`);
       } else {
-        playBeep(false); toast.error('Отсканируйте полку или паллет');
+        playBeep(false); toast.error('Отсканируйте полку, паллет или коробку');
       }
     } catch (err) { playBeep(false); toast.error('Место не найдено'); }
   };
@@ -752,7 +758,7 @@ export default function AssemblyPage() {
                 <p className="text-sm font-medium text-amber-800">Отсканируйте место назначения</p>
                 <p className="text-xs text-amber-600 mt-0.5">Полку или паллет, куда положить комплекты</p>
               </div>
-              <ScanInput onScan={handleScanDestination} disabled={actionLoading} placeholder="Сканируйте полку или паллет..." />
+              <ScanInput onScan={handleScanDestination} disabled={actionLoading} placeholder="Сканируйте полку, паллет или коробку..." />
             </div>
           ) : placeBoxStep ? (
             <div className="space-y-3">
