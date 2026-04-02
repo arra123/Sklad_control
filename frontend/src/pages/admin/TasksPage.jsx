@@ -37,7 +37,7 @@ function fmtTime(iso) {
 }
 function fmtDate(iso) {
   if (!iso) return '—';
-  return new Date(iso).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  return new Date(iso).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
 }
 
 // ─── Task Detail Slide Panel ───────────────────────────────────────────────────
@@ -1697,23 +1697,19 @@ function TaskCard({ task, onClick }) {
             <Badge variant={status.variant} className="flex-shrink-0">{status.label}</Badge>
           </div>
 
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-xs text-gray-500">
-            {task.task_type === 'packaging' && (
-              <span className="font-semibold text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded-lg">Оприходование</span>
-            )}
-            {task.task_type === 'production_transfer' && (
-              <span className="font-semibold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-lg">Перенос</span>
-            )}
-            {task.task_type === 'inventory' && (
-              <span className="font-semibold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-lg">Инвентаризация</span>
-            )}
-            {task.task_type === 'bundle_assembly' && (
-              <span className="font-semibold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-lg">Сборка</span>
-            )}
-            {task.employee_name && <span>{task.employee_name}</span>}
-            {task.shelf_code && <span className="inline-flex items-center gap-1"><ShelfIcon size={12} />{task.rack_name} · {task.shelf_name}</span>}
-            {!task.shelf_code && task.pallet_name && <span className="inline-flex items-center gap-1"><PalletIcon size={12} />{task.pallet_row_name || 'Ряд'} · {task.pallet_name}</span>}
-            {task.box_barcode && <span className="inline-flex items-center gap-1"><BoxIcon size={12} />Коробка {task.box_barcode}</span>}
+          {/* Row 1: type badge + employee */}
+          <div className="flex items-center gap-2 mt-1.5 text-xs">
+            {task.task_type === 'packaging' && <span className="font-semibold text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded-lg">Оприходование</span>}
+            {task.task_type === 'production_transfer' && <span className="font-semibold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-lg">Перенос</span>}
+            {task.task_type === 'inventory' && <span className="font-semibold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-lg">Инвентаризация</span>}
+            {task.task_type === 'bundle_assembly' && <span className="font-semibold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-lg">Сборка</span>}
+            {task.employee_name && <span className="text-gray-500">{task.employee_name}</span>}
+            {task.shelf_code && <span className="inline-flex items-center gap-1 text-gray-500"><ShelfIcon size={12} />{task.rack_name} · {task.shelf_name}</span>}
+            {!task.shelf_code && task.pallet_name && <span className="inline-flex items-center gap-1 text-gray-500"><PalletIcon size={12} />{task.pallet_row_name || 'Ряд'} · {task.pallet_name}</span>}
+            {task.box_barcode && <span className="inline-flex items-center gap-1 text-gray-500"><BoxIcon size={12} />Коробка {task.box_barcode}</span>}
+          </div>
+          {/* Row 2: stats grid — fixed positions */}
+          <div className="grid grid-cols-[auto_auto_auto_auto_1fr] gap-x-3 mt-1 text-xs text-gray-500">
             {Number(task.task_boxes_total || 0) > 0 && (
               <span>Коробки {Number(task.task_boxes_completed || 0)} / {Number(task.task_boxes_total || 0)}</span>
             )}
@@ -1722,10 +1718,7 @@ function TaskCard({ task, onClick }) {
             {task.task_type === 'bundle_assembly' && task.assembled_count != null && (
               <span className="text-green-600 font-semibold">{task.assembled_count}/{task.bundle_qty} собрано</span>
             )}
-            {task.duration_minutes && Number(task.duration_minutes) > 0 && (
-              <span>{Number(task.duration_minutes).toFixed(1)} мин</span>
-            )}
-            <span className="text-gray-300">{new Date(task.created_at).toLocaleDateString('ru-RU')}</span>
+            <span className="text-gray-300 text-right">{new Date(task.created_at).toLocaleString('ru-RU', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit'})}</span>
           </div>
 
           {task.notes && (
