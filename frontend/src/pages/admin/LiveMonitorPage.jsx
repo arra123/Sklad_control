@@ -51,8 +51,22 @@ function taskTypeLabel(type) {
 function taskTypeBg(type) {
   if (type === 'bundle_assembly') return 'bg-purple-100 text-purple-700';
   if (type === 'packaging') return 'bg-amber-100 text-amber-700';
-  if (type === 'production_transfer') return 'bg-blue-100 text-blue-700';
-  return 'bg-primary-100 text-primary-700';
+  if (type === 'production_transfer') return 'bg-sky-100 text-sky-700';
+  return 'bg-teal-100 text-teal-700'; // inventory
+}
+
+function taskTypeBarColor(type) {
+  if (type === 'bundle_assembly') return 'bg-purple-100 border-purple-300';
+  if (type === 'packaging') return 'bg-amber-100 border-amber-300';
+  if (type === 'production_transfer') return 'bg-sky-100 border-sky-300';
+  return 'bg-teal-100 border-teal-300'; // inventory
+}
+
+function taskTypeActiveBarColor(type) {
+  if (type === 'bundle_assembly') return 'bg-purple-200 border-purple-400';
+  if (type === 'packaging') return 'bg-amber-200 border-amber-400';
+  if (type === 'production_transfer') return 'bg-sky-200 border-sky-400';
+  return 'bg-teal-200 border-teal-400'; // inventory
 }
 
 function statusBadge(status) {
@@ -131,14 +145,16 @@ function ActivityTimeline({ buckets, tasks, breaks = [], thresholds }) {
     if (bucketMap[num] > maxScans) maxScans = bucketMap[num];
   }
 
-  // Map bucket → active task name for richer tooltips
+  // Map bucket → active task info for richer tooltips and coloring
   const bucketTaskMap = {};
+  const bucketTaskType = {};
   for (const t of tasks) {
     if (!t.started_at) continue;
     const tStart = Math.floor((new Date(t.started_at) - todayStart) / 300000);
     const tEnd = t.completed_at ? Math.floor((new Date(t.completed_at) - todayStart) / 300000) : nowBucket;
     for (let i = Math.max(minBucket, tStart); i <= Math.min(maxBucket, tEnd); i++) {
       bucketTaskMap[i] = taskTypeLabel(t.task_type);
+      bucketTaskType[i] = t.task_type;
     }
   }
 
@@ -269,18 +285,24 @@ function ActivityTimeline({ buckets, tasks, breaks = [], thresholds }) {
             const isBreak = breakBuckets.has(bNum);
             // 7 levels: T1/T2/T3/T4/T5/T6/above
             const isTaskPause = taskPauseBuckets.has(bNum);
+            // Task-type specific color palette
+            const tt = bucketTaskType[bNum] || 'inventory';
+            const palette = tt === 'bundle_assembly'
+              ? ['bg-purple-100','bg-purple-200','bg-purple-300','bg-purple-400','bg-purple-400','bg-purple-500','bg-purple-600']
+              : tt === 'packaging'
+              ? ['bg-amber-100','bg-amber-200','bg-amber-300','bg-amber-400','bg-amber-400','bg-amber-500','bg-amber-600']
+              : tt === 'production_transfer'
+              ? ['bg-sky-100','bg-sky-200','bg-sky-300','bg-sky-400','bg-sky-400','bg-sky-500','bg-sky-600']
+              : ['bg-teal-100','bg-teal-200','bg-teal-300','bg-teal-400','bg-teal-400','bg-teal-500','bg-teal-600']; // inventory
+
+            const level = scans <= T1 ? 0 : scans <= T2 ? 1 : scans <= T3 ? 2 : scans <= T4 ? 3 : scans <= T5 ? 4 : scans <= T6 ? 5 : 6;
+
             const colorClass = isBreak
               ? (isHovered ? 'bg-amber-400' : 'bg-amber-300')
               : isTaskPause
               ? (isHovered ? 'bg-red-300' : 'bg-red-200')
               : scans <= 0 ? (isHovered ? 'bg-gray-200' : 'bg-gray-100')
-              : scans <= T1 ? (isHovered ? 'bg-green-300' : 'bg-green-100')
-              : scans <= T2 ? (isHovered ? 'bg-green-400' : 'bg-green-200')
-              : scans <= T3 ? (isHovered ? 'bg-green-400' : 'bg-green-300')
-              : scans <= T4 ? (isHovered ? 'bg-green-500' : 'bg-green-400')
-              : scans <= T5 ? (isHovered ? 'bg-green-600' : 'bg-green-500')
-              : scans <= T6 ? (isHovered ? 'bg-green-700' : 'bg-green-600')
-              : (isHovered ? 'bg-green-800' : 'bg-green-700');
+              : (isHovered ? palette[Math.min(6, level + 1)] : palette[level]);
 
             return (
               <div
@@ -367,7 +389,7 @@ function ActivityTimeline({ buckets, tasks, breaks = [], thresholds }) {
             {items.map((t, i) => {
               const leftPct = ((t.startB - minBucket) / totalBuckets) * 100;
               const widthPct = Math.max(2, ((t.endB - t.startB + 1) / totalBuckets) * 100);
-              const colors = t.status === 'in_progress' ? 'bg-blue-100 border-blue-300' : 'bg-green-50 border-green-300';
+              const colors = t.status === 'in_progress' ? taskTypeActiveBarColor(t.task_type) : taskTypeBarColor(t.task_type);
               const top = itemLanes[i] * (LANE_H + GAP);
               return (
                 <div

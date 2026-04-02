@@ -574,4 +574,36 @@ router.post('/employees/:employeeId/set-balance', requireAuth, requirePermission
   }
 });
 
+// POST /api/earnings/backfill-assembly — one-time backfill GRA for assembly scans
+router.post('/backfill-assembly', requireAuth, requirePermission('settings'), async (_req, res) => {
+  try {
+    const rate = await pool.query(`SELECT value FROM settings_s WHERE key = 'gra_rate_assembly' LIMIT 1`);
+    const graRate = rate.rows.length ? parseFloat(rate.rows[0].value) || 10 : 10;
+
+    const unrewarded = await pool.query(`
+      SELECT sc.id as scan_id, sc.task_id, sc.product_id, t.employee_id
+      FROM inventory_task_scans_s sc
+      JOIN inventory_tasks_s t ON t.id = sc.task_id AND t.task_type = 'bundle_assembly'
+      WHERE NOT EXISTS (SELECT 1 FROM employee_earnings_s ee WHERE ee.task_scan_id = sc.id)
+        AND t.employee_id IS NOT NULL
+    `);
+
+    let backfilled = 0;
+    for (const scan of unrewarded.rows) {
+      const bal = await pool.query('SELECT COALESCE(gra_balance, 0) as bal FROM employees_s WHERE id=$1', [scan.employee_id]);
+      const balBefore = parseFloat(bal.rows[0]?.bal || 0);
+      const balAfter = balBefore + graRate;
+      await pool.query(
+        `INSERT INTO employee_earnings_s (employee_id, task_id, task_scan_id, product_id, event_type, reward_units, rate_per_unit, amount_delta, balance_before, balance_after, task_type)
+         VALUES ($1, $2, $3, $4, 'inventory_scan', 1, $5, $5, $6, $7, 'bundle_assembly')
+         ON CONFLICT (task_scan_id) DO NOTHING`,
+        [scan.employee_id, scan.task_id, scan.scan_id, scan.product_id, graRate, balBefore, balAfter]);
+      await pool.query('UPDATE employees_s SET gra_balance = $1 WHERE id = $2', [balAfter, scan.employee_id]);
+      backfilled++;
+    }
+
+    res.json({ success: true, backfilled, rate: graRate });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 module.exports = router;

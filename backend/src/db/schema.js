@@ -861,40 +861,6 @@ async function createSchema() {
     await client.query(`INSERT INTO settings_s (key, value) VALUES ('gra_rate_assembly', '10') ON CONFLICT (key) DO NOTHING`);
     await client.query(`INSERT INTO settings_s (key, value) VALUES ('gra_rate_production_transfer', '10') ON CONFLICT (key) DO NOTHING`);
 
-    // ─── One-time: backfill GRA for assembly scans that weren't rewarded ──
-    const assemblyBackfilled = await client.query(`SELECT value FROM settings_s WHERE key = 'assembly_gra_backfilled' LIMIT 1`);
-    if (!assemblyBackfilled.rows.length) {
-      console.log('[DB] Backfilling GRA for assembly tasks...');
-      const rate = await client.query(`SELECT value FROM settings_s WHERE key = 'gra_rate_assembly' LIMIT 1`);
-      const graRate = rate.rows.length ? parseFloat(rate.rows[0].value) || 10 : 10;
-
-      // Find all assembly task scans that have no earnings record
-      const unrewarded = await client.query(`
-        SELECT sc.id as scan_id, sc.task_id, sc.product_id, t.employee_id
-        FROM inventory_task_scans_s sc
-        JOIN inventory_tasks_s t ON t.id = sc.task_id AND t.task_type = 'bundle_assembly'
-        WHERE sc.id NOT IN (SELECT task_scan_id FROM employee_earnings_s WHERE task_scan_id IS NOT NULL)
-          AND t.employee_id IS NOT NULL
-      `);
-
-      let backfilled = 0;
-      for (const scan of unrewarded.rows) {
-        const bal = await client.query('SELECT COALESCE(gra_balance, 0) as bal FROM employees_s WHERE id=$1', [scan.employee_id]);
-        const balBefore = parseFloat(bal.rows[0]?.bal || 0);
-        const balAfter = balBefore + graRate;
-        await client.query(
-          `INSERT INTO employee_earnings_s (employee_id, task_id, task_scan_id, product_id, event_type, reward_units, rate_per_unit, amount_delta, balance_before, balance_after, task_type)
-           VALUES ($1, $2, $3, $4, 'inventory_scan', 1, $5, $5, $6, $7, 'bundle_assembly')
-           ON CONFLICT (task_scan_id) DO NOTHING`,
-          [scan.employee_id, scan.task_id, scan.scan_id, scan.product_id, graRate, balBefore, balAfter]);
-        await client.query('UPDATE employees_s SET gra_balance = $1 WHERE id = $2', [balAfter, scan.employee_id]);
-        backfilled++;
-      }
-
-      await client.query(`INSERT INTO settings_s (key, value) VALUES ('assembly_gra_backfilled', 'true') ON CONFLICT (key) DO NOTHING`);
-      console.log(`[DB] Backfilled ${backfilled} assembly scan rewards`);
-    }
-
     await client.query('COMMIT');
     console.log('[DB] Schema created/verified successfully');
   } catch (err) {

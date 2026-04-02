@@ -1699,10 +1699,10 @@ function TaskCard({ task, onClick }) {
 
           {/* Row 1: type badge + employee */}
           <div className="flex items-center gap-2 mt-1.5 text-xs">
-            {task.task_type === 'packaging' && <span className="font-semibold text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded-lg">Оприходование</span>}
-            {task.task_type === 'production_transfer' && <span className="font-semibold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-lg">Перенос</span>}
-            {task.task_type === 'inventory' && <span className="font-semibold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-lg">Инвентаризация</span>}
-            {task.task_type === 'bundle_assembly' && <span className="font-semibold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-lg">Сборка</span>}
+            {task.task_type === 'packaging' && <span className="font-semibold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded-lg">Оприходование</span>}
+            {task.task_type === 'production_transfer' && <span className="font-semibold text-sky-700 bg-sky-100 px-1.5 py-0.5 rounded-lg">Перенос</span>}
+            {task.task_type === 'inventory' && <span className="font-semibold text-teal-700 bg-teal-100 px-1.5 py-0.5 rounded-lg">Инвентаризация</span>}
+            {task.task_type === 'bundle_assembly' && <span className="font-semibold text-purple-700 bg-purple-100 px-1.5 py-0.5 rounded-lg">Сборка</span>}
             {task.employee_name && <span className="text-gray-500">{task.employee_name}</span>}
             {task.shelf_code && <span className="inline-flex items-center gap-1 text-gray-500"><ShelfIcon size={12} />{task.rack_name} · {task.shelf_name}</span>}
             {!task.shelf_code && task.pallet_name && <span className="inline-flex items-center gap-1 text-gray-500"><PalletIcon size={12} />{task.pallet_row_name || 'Ряд'} · {task.pallet_name}</span>}
