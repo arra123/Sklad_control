@@ -94,16 +94,17 @@ async function syncEmployeesFromOsite() {
       }
     }
 
-    // Also deactivate local-only employees (no external_employee_id) that have no user account or no scans
-    // These are test/manual entries — deactivate users without external link that don't match any external login
+    // Local-only users (no external link): only deactivate if role is 'employee'
+    // Never touch admin/manager accounts or users with role_id set
     const extLogins = new Set(extEmployees.filter(e => e.login).map(e => e.login));
     const localOnlyUsers = await pool.query(
-      `SELECT u.id, u.username, u.employee_id FROM users_s u
+      `SELECT u.id, u.username, u.employee_id, u.role, u.role_id FROM users_s u
        LEFT JOIN employees_s e ON e.id = u.employee_id
        WHERE (e.external_employee_id IS NULL) AND u.active = true`
     );
     for (const u of localOnlyUsers.rows) {
-      // If username doesn't exist on external site — deactivate
+      // Skip admins, managers, and users with custom roles
+      if (u.role === 'admin' || u.role === 'manager' || u.role_id) continue;
       if (!extLogins.has(u.username)) {
         await pool.query('UPDATE users_s SET active = false WHERE id = $1', [u.id]);
         if (u.employee_id) {
@@ -112,6 +113,9 @@ async function syncEmployeesFromOsite() {
         deactivated++;
       }
     }
+
+    // Ensure admin/manager users are always active
+    await pool.query(`UPDATE users_s SET active = true WHERE role IN ('admin', 'manager') AND active = false`);
 
     console.log(`[Sync] Synced ${synced} new, deactivated ${deactivated} from o_site`);
   } catch (err) {
