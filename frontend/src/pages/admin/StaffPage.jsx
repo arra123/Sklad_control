@@ -767,19 +767,39 @@ function positionAvatar(position, roleName) {
 }
 
 // ─── Copy Button ─────────────────────────────────────────────────────────────
+function copyToClipboard(text) {
+  if (navigator.clipboard?.writeText) {
+    return navigator.clipboard.writeText(text).catch(() => fallbackCopy(text));
+  }
+  return fallbackCopy(text);
+}
+function fallbackCopy(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.cssText = 'position:fixed;opacity:0';
+  document.body.appendChild(ta);
+  ta.select();
+  document.execCommand('copy');
+  document.body.removeChild(ta);
+}
+
 function CopyBtn({ text, label }) {
   const [copied, setCopied] = useState(false);
   const copy = (e) => {
     e.stopPropagation();
-    navigator.clipboard.writeText(text);
+    copyToClipboard(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   };
   return (
     <button onClick={copy} title={`Копировать ${label}`}
-      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-mono bg-gray-50 hover:bg-primary-50 hover:text-primary-600 transition-all cursor-pointer group">
+      className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-mono transition-all cursor-pointer ${
+        copied
+          ? 'bg-green-100 text-green-700 ring-1 ring-green-300'
+          : 'bg-gray-50 text-gray-600 hover:bg-primary-50 hover:text-primary-600'
+      }`}>
       <span className="max-w-[140px] truncate">{text}</span>
-      {copied ? <Check size={11} className="text-green-500 flex-shrink-0" /> : <Copy size={11} className="text-gray-300 group-hover:text-primary-400 flex-shrink-0" />}
+      {copied ? <Check size={12} className="text-green-600 flex-shrink-0" /> : <Copy size={12} className="text-gray-300 flex-shrink-0" />}
     </button>
   );
 }
