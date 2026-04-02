@@ -118,6 +118,7 @@ function AppRoutes() {
       <Route path="/admin/errors" element={<AdminRoute><ErrorsPage /></AdminRoute>} />
       <Route path="/admin/fbo" element={<AdminRoute><FBOPage /></AdminRoute>} />
       <Route path="/admin/movements" element={<AdminRoute><MovementsPage /></AdminRoute>} />
+      <Route path="/admin/move" element={<AdminRoute><MovePage /></AdminRoute>} />
       <Route path="/admin/live-monitor" element={<AdminRoute><LiveMonitorPage /></AdminRoute>} />
 
       {/* Employee routes */}

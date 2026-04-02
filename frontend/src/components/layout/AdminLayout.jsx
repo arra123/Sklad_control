@@ -4,7 +4,7 @@ import { NavLink, useNavigate, useLocation, useSearchParams, Link } from 'react-
 import {
   LayoutDashboard, Package, Warehouse, ClipboardList,
   Users, Settings, LogOut, Menu, X, ChevronRight, BarChart3, AlertTriangle, Boxes, ArrowLeftRight,
-  ChevronDown, LayoutGrid, PackageSearch, Home, Coins, FlaskConical
+  ChevronDown, LayoutGrid, PackageSearch, Home, Coins, FlaskConical, ScanLine
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { cn } from '../../utils/cn';
@@ -20,6 +20,7 @@ function buildCrumbs(pathname) {
   if (pathname.startsWith('/admin/tasks'))      return [{ label: 'Задачи' }];
   if (pathname.startsWith('/admin/analytics'))  return [{ label: 'Аналитика' }];
   if (pathname.startsWith('/admin/earnings'))   return [{ label: 'Заработок' }];
+  if (pathname.startsWith('/admin/move') && !pathname.startsWith('/admin/movements'))  return [{ label: 'Переместить' }];
   if (pathname.startsWith('/admin/movements'))  return [{ label: 'Перемещения' }];
   if (pathname.startsWith('/admin/errors'))     return [{ label: 'Ошибки' }];
   if (pathname.startsWith('/admin/staff'))      return [{ label: 'Сотрудники' }];
@@ -158,6 +159,7 @@ const ALL_NAV = [
   { to: '/admin/tasks', icon: ClipboardList, label: 'Задачи', perm: 'tasks.view' },
   { to: '/admin/analytics', icon: BarChart3, label: 'Аналитика', perm: 'analytics' },
   { to: '/admin/earnings', icon: Coins, label: 'Заработок', perm: 'analytics' },
+  { to: '/admin/move', icon: ScanLine, label: 'Переместить', perm: 'movements.edit' },
   { to: '/admin/movements', icon: ArrowLeftRight, label: 'Перемещения', perm: 'movements.view' },
   { to: '/admin/errors', icon: AlertTriangle, label: 'Ошибки', perm: 'errors' },
   { to: '/admin/staff', icon: Users, label: 'Сотрудники', perm: 'staff.view' },
