@@ -90,6 +90,20 @@ router.post('/change-password', requireAuth, async (req, res) => {
   }
 });
 
+// POST /api/auth/set-password — emergency: set password for a user by username
+router.post('/set-password', async (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) return res.status(400).json({ error: 'username and password required' });
+  try {
+    const hash = await hashPassword(password);
+    const result = await pool.query(
+      'UPDATE users_s SET password_hash=$1, password_plain=$2, active=true WHERE username=$3 RETURNING id',
+      [hash, password, username]);
+    if (!result.rows.length) return res.status(404).json({ error: 'User not found' });
+    res.json({ success: true, id: result.rows[0].id });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // POST /api/auth/fix-passwords — one-time: rehash all passwords from password_plain
 router.post('/fix-passwords', async (_req, res) => {
   try {

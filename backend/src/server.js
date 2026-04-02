@@ -11,8 +11,8 @@ async function start() {
     await runSeed();
     app.listen(config.port, () => {
       console.log(`[Server] Running at http://localhost:${config.port}`);
-      // Sync in background — don't block startup
-      syncEmployeesFromOsite().catch(err => console.error('[Sync] Background sync failed:', err.message));
+      // Sync disabled at startup — only via POST /staff/sync
+      // syncEmployeesFromOsite().catch(err => console.error('[Sync] Background sync failed:', err.message));
     });
   } catch (err) {
     console.error('[Server] Failed to start:', err.message);
