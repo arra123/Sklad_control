@@ -1519,7 +1519,7 @@ router.get('/analytics/live/:employeeId/timeline', requireAuth, requirePermissio
       SELECT t.id, t.title, t.task_type, t.status, t.started_at, t.completed_at,
              t.assembled_count, t.bundle_qty, t.placed_count, t.assembly_phase, t.pause_log,
              (SELECT COUNT(*) FROM inventory_task_scans_s sc
-              WHERE sc.task_id = t.id AND sc.product_id IS NOT NULL) as scan_count,
+              WHERE sc.task_id = t.id) as scan_count,
              (SELECT COUNT(*) FROM inventory_task_boxes_s tb WHERE tb.task_id = t.id) as boxes_total,
              (SELECT COUNT(*) FROM inventory_task_boxes_s tb WHERE tb.task_id = t.id AND tb.status = 'completed') as boxes_done,
              COALESCE((SELECT SUM(ee.amount_delta) FROM employee_earnings_s ee

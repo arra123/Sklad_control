@@ -134,7 +134,7 @@ export default function MyEarningsPage() {
                       </div>
                       <div className="text-right flex-shrink-0">
                         <p className="text-sm font-black text-green-700">+{fmtNum(Math.round(parseFloat(t.earned)))}</p>
-                        <p className="text-[10px] text-gray-400">{fmtNum(Math.round(parseFloat(t.scans)))} пиков</p>
+                        <p className="text-[10px] text-gray-400">{fmtNum(parseInt(t.total_scans || t.scans || 0))} пиков</p>
                       </div>
                       <ChevronDown size={16} className={`text-gray-300 transition-transform flex-shrink-0 ${isExpanded ? 'rotate-180' : ''}`} />
                     </button>
