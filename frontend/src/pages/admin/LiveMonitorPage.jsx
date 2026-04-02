@@ -1,7 +1,12 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../api/client';
-import { ArrowLeft, RefreshCw, Zap, TrendingUp, Clock, Package, ScanLine, Award } from 'lucide-react';
+import Spinner from '../../components/ui/Spinner';
+import { ArrowLeft, RefreshCw, Zap, TrendingUp, Clock, Package, ScanLine, Award, CheckCircle2, Play, Pause, Timer } from 'lucide-react';
+
+const POLL_MS = 5000;
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
 
 function timeAgo(iso) {
   if (!iso) return '—';
@@ -15,12 +20,369 @@ function fmtNum(n) {
   return Number(n || 0).toLocaleString('ru-RU');
 }
 
+function fmtDuration(seconds) {
+  if (!seconds || seconds <= 0) return '—';
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  if (h > 0) return `${h}ч ${m}м`;
+  if (m > 0) return `${m}м`;
+  return `${Math.floor(seconds)}с`;
+}
+
+function fmtTime(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+}
+
 function taskTypeLabel(type) {
   if (type === 'bundle_assembly') return 'Сборка';
   if (type === 'packaging') return 'Оприход.';
   if (type === 'production_transfer') return 'Перенос';
   return 'Инвент.';
 }
+
+function taskTypeBg(type) {
+  if (type === 'bundle_assembly') return 'bg-purple-100 text-purple-700';
+  if (type === 'packaging') return 'bg-amber-100 text-amber-700';
+  if (type === 'production_transfer') return 'bg-blue-100 text-blue-700';
+  return 'bg-primary-100 text-primary-700';
+}
+
+function statusBadge(status) {
+  if (status === 'completed') return { bg: 'bg-green-100 text-green-700', label: 'Завершена', icon: CheckCircle2 };
+  if (status === 'in_progress') return { bg: 'bg-blue-100 text-blue-700', label: 'В работе', icon: Play };
+  if (status === 'paused') return { bg: 'bg-amber-100 text-amber-700', label: 'Пауза', icon: Pause };
+  return { bg: 'bg-gray-100 text-gray-600', label: status, icon: Clock };
+}
+
+// ─── Activity Timeline ──────────────────────────────────────────────────────
+
+function ActivityTimeline({ buckets, tasks }) {
+  const [hoveredBucket, setHoveredBucket] = useState(null);
+
+  // Calculate time range: from first activity to now
+  const now = new Date();
+  const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
+  const nowBucket = Math.floor((now - todayStart) / 300000); // current 5-min bucket
+
+  // Find range
+  const allBucketNums = buckets.map(b => parseInt(b.bucket));
+  const taskBuckets = tasks.filter(t => t.started_at).map(t => Math.floor((new Date(t.started_at) - todayStart) / 300000));
+  const allNums = [...allBucketNums, ...taskBuckets];
+
+  if (allNums.length === 0) {
+    return (
+      <div className="bg-white rounded-2xl border border-gray-100 p-5">
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Активность за день</p>
+        <div className="text-center py-6 text-gray-300">
+          <Clock size={24} className="mx-auto mb-2 opacity-40" />
+          <p className="text-sm">Нет активности сегодня</p>
+        </div>
+      </div>
+    );
+  }
+
+  const minBucket = Math.min(...allNums);
+  const maxBucket = Math.max(nowBucket, ...allNums);
+  const totalBuckets = maxBucket - minBucket + 1;
+
+  // Build bucket map for fast lookup
+  const bucketMap = {};
+  let maxScans = 1;
+  for (const b of buckets) {
+    const num = parseInt(b.bucket);
+    bucketMap[num] = parseInt(b.scan_count);
+    if (bucketMap[num] > maxScans) maxScans = bucketMap[num];
+  }
+
+  // Calculate active/idle time
+  let activeBuckets = 0;
+  for (let i = minBucket; i <= maxBucket; i++) {
+    if (bucketMap[i]) activeBuckets++;
+  }
+  const totalWorkBuckets = maxBucket - minBucket + 1;
+  const idleBuckets = totalWorkBuckets - activeBuckets;
+  const activeMinutes = activeBuckets * 5;
+  const idleMinutes = idleBuckets * 5;
+
+  // Hour markers
+  const startHour = Math.floor(minBucket * 5 / 60);
+  const endHour = Math.ceil((maxBucket + 1) * 5 / 60);
+  const hourMarkers = [];
+  for (let h = startHour; h <= endHour; h++) {
+    const hBucket = (h * 60) / 5; // bucket number for this hour
+    if (hBucket >= minBucket && hBucket <= maxBucket) {
+      const pct = ((hBucket - minBucket) / totalBuckets) * 100;
+      hourMarkers.push({ hour: h, pct });
+    }
+  }
+
+  // Now marker position
+  const nowPct = Math.min(100, ((nowBucket - minBucket) / totalBuckets) * 100);
+
+  function bucketToTime(bucketNum) {
+    const minutes = bucketNum * 5;
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  }
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 p-5">
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Активность за день</p>
+        <div className="flex items-center gap-4 text-xs">
+          <span className="flex items-center gap-1.5">
+            <span className="w-3 h-3 rounded bg-green-400" />
+            <span className="text-gray-500">Работа: <b className="text-green-700">{fmtDuration(activeMinutes * 60)}</b></span>
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-3 h-3 rounded bg-gray-200" />
+            <span className="text-gray-500">Простой: <b className="text-red-500">{fmtDuration(idleMinutes * 60)}</b></span>
+          </span>
+        </div>
+      </div>
+
+      {/* Timeline bar */}
+      <div className="relative">
+        <div className="flex h-10 rounded-xl overflow-hidden bg-gray-100 border border-gray-200 relative">
+          {Array.from({ length: totalBuckets }).map((_, i) => {
+            const bNum = minBucket + i;
+            const scans = bucketMap[bNum] || 0;
+            const intensity = scans === 0 ? 0 : Math.max(0.2, Math.min(1, scans / maxScans));
+            const isHovered = hoveredBucket === bNum;
+
+            return (
+              <div
+                key={bNum}
+                className="relative h-full transition-all duration-75"
+                style={{ width: `${100 / totalBuckets}%` }}
+                onMouseEnter={() => setHoveredBucket(bNum)}
+                onMouseLeave={() => setHoveredBucket(null)}
+              >
+                <div
+                  className={`h-full ${scans > 0
+                    ? isHovered ? 'bg-green-500' : 'bg-green-400'
+                    : isHovered ? 'bg-gray-200' : 'bg-gray-100'
+                  } transition-colors`}
+                  style={scans > 0 ? { opacity: intensity } : {}}
+                />
+                {/* Tooltip */}
+                {isHovered && (
+                  <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 z-20 px-2.5 py-1.5 bg-gray-900 text-white rounded-lg text-[10px] whitespace-nowrap shadow-lg pointer-events-none">
+                    <p className="font-bold">{bucketToTime(bNum)}–{bucketToTime(bNum + 1)}</p>
+                    <p>{scans > 0 ? `${scans} сканов` : 'Простой'}</p>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+          {/* Now marker */}
+          <div
+            className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-10"
+            style={{ left: `${nowPct}%` }}
+          >
+            <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-red-500" />
+          </div>
+        </div>
+
+        {/* Hour labels */}
+        <div className="relative h-5 mt-1">
+          {hourMarkers.map(({ hour, pct }) => (
+            <span
+              key={hour}
+              className="absolute text-[10px] text-gray-400 font-medium -translate-x-1/2"
+              style={{ left: `${pct}%` }}
+            >
+              {String(hour).padStart(2, '0')}:00
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* Task spans overlay legend */}
+      {tasks.length > 0 && (
+        <div className="relative h-6 mt-1 mb-1">
+          {tasks.filter(t => t.started_at).map(t => {
+            const startB = Math.max(minBucket, Math.floor((new Date(t.started_at) - todayStart) / 300000));
+            const endB = t.completed_at
+              ? Math.min(maxBucket, Math.floor((new Date(t.completed_at) - todayStart) / 300000))
+              : nowBucket;
+            const leftPct = ((startB - minBucket) / totalBuckets) * 100;
+            const widthPct = Math.max(1, ((endB - startB + 1) / totalBuckets) * 100);
+            const colors = t.status === 'in_progress' ? 'bg-blue-200 border-blue-400' : 'bg-green-100 border-green-300';
+            return (
+              <div
+                key={t.id}
+                className={`absolute h-5 ${colors} border rounded-md flex items-center overflow-hidden px-1`}
+                style={{ left: `${leftPct}%`, width: `${widthPct}%` }}
+                title={t.title}
+              >
+                <span className="text-[8px] font-semibold text-gray-600 truncate">{taskTypeLabel(t.task_type)}</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Employee Detail View ───────────────────────────────────────────────────
+
+function EmployeeDetailView({ employeeId, employees, onBack }) {
+  const [timeline, setTimeline] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const emp = useMemo(() => employees.find(e => e.employee_id === employeeId), [employees, employeeId]);
+
+  useEffect(() => {
+    let alive = true;
+    const load = async () => {
+      try {
+        const res = await api.get(`/tasks/analytics/live/${employeeId}/timeline`);
+        if (alive) { setTimeline(res.data); setLoading(false); }
+      } catch { if (alive) setLoading(false); }
+    };
+    load();
+    const id = setInterval(load, POLL_MS);
+    return () => { alive = false; clearInterval(id); };
+  }, [employeeId]);
+
+  if (!emp) return null;
+
+  const task = emp.active_task;
+  const isLive = task?.status === 'in_progress' && emp.last_scan_at && (Date.now() - new Date(emp.last_scan_at).getTime()) < 120000;
+
+  return (
+    <div className="p-6 max-w-4xl mx-auto">
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-6">
+        <button onClick={onBack} className="p-2 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+          <ArrowLeft size={18} />
+        </button>
+        <div className="flex-1">
+          <div className="flex items-center gap-2">
+            <h2 className="text-xl font-bold text-gray-900">{emp.full_name}</h2>
+            {isLive && (
+              <span className="flex items-center gap-1 text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" /> LIVE
+              </span>
+            )}
+          </div>
+          <p className="text-sm text-gray-400">
+            Баланс: {fmtNum(Math.round(emp.balance))} GRA · Последний скан: {emp.last_scan_at ? timeAgo(emp.last_scan_at) : '—'}
+          </p>
+        </div>
+      </div>
+
+      {/* Stats row */}
+      <div className="grid grid-cols-4 gap-3 mb-5">
+        {[
+          { icon: ScanLine, label: 'Сканов', value: fmtNum(emp.scans_today), bg: 'bg-gray-50', color: 'text-gray-800' },
+          { icon: Award, label: 'Заработок', value: fmtNum(Math.round(emp.earned_today)), bg: 'bg-green-50', color: 'text-green-700' },
+          { icon: Zap, label: 'Скорость', value: emp.avg_speed_today ? `${emp.avg_speed_today}с` : '—', bg: 'bg-blue-50', color: 'text-blue-700' },
+          { icon: TrendingUp, label: 'Задач', value: emp.tasks_today, bg: 'bg-purple-50', color: 'text-purple-700' },
+        ].map((s, i) => (
+          <div key={i} className={`${s.bg} rounded-2xl p-3 text-center`}>
+            <s.icon size={16} className={`mx-auto mb-1 ${s.color} opacity-50`} />
+            <p className={`text-xl font-black ${s.color}`}>{s.value}</p>
+            <p className="text-[9px] uppercase font-semibold text-gray-400 mt-0.5">{s.label}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Activity Timeline */}
+      {loading ? (
+        <div className="flex justify-center py-10"><Spinner size="lg" /></div>
+      ) : timeline ? (
+        <>
+          <ActivityTimeline buckets={timeline.activity_buckets} tasks={timeline.tasks} />
+
+          {/* Tasks list */}
+          <div className="mt-5">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+              Задачи сегодня ({timeline.tasks.length})
+            </p>
+            {timeline.tasks.length === 0 ? (
+              <div className="text-center py-8 text-gray-300 bg-white rounded-2xl border border-gray-100">
+                <Package size={24} className="mx-auto mb-2 opacity-40" />
+                <p className="text-sm">Нет задач сегодня</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {timeline.tasks.map(t => {
+                  const st = statusBadge(t.status);
+                  const StIcon = st.icon;
+                  const durationSec = t.started_at && t.completed_at
+                    ? (new Date(t.completed_at) - new Date(t.started_at)) / 1000
+                    : t.started_at ? (Date.now() - new Date(t.started_at)) / 1000 : 0;
+                  const location = [t.rack_name, t.shelf_code || t.shelf_name, t.pallet_name].filter(Boolean).join(' → ');
+
+                  return (
+                    <div key={t.id} className="bg-white rounded-xl border border-gray-100 p-4 hover:border-gray-200 transition-colors">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${taskTypeBg(t.task_type)}`}>
+                              {taskTypeLabel(t.task_type)}
+                            </span>
+                            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded flex items-center gap-1 ${st.bg}`}>
+                              <StIcon size={10} /> {st.label}
+                            </span>
+                          </div>
+                          <p className="text-sm font-semibold text-gray-900 truncate">{t.title}</p>
+                          {location && <p className="text-[11px] text-gray-400 mt-0.5">{location}</p>}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-4 mt-2.5 pt-2.5 border-t border-gray-50">
+                        <span className="flex items-center gap-1 text-xs text-gray-500">
+                          <Clock size={12} />
+                          {fmtTime(t.started_at)} → {t.completed_at ? fmtTime(t.completed_at) : 'сейчас'}
+                        </span>
+                        <span className="flex items-center gap-1 text-xs text-gray-500">
+                          <Timer size={12} />
+                          {fmtDuration(durationSec)}
+                        </span>
+                        <span className="flex items-center gap-1 text-xs text-gray-500">
+                          <ScanLine size={12} />
+                          {fmtNum(t.scan_count)} сканов
+                        </span>
+                        <span className="flex items-center gap-1 text-xs font-semibold text-green-600">
+                          <Award size={12} />
+                          {fmtNum(Math.round(parseFloat(t.earned)))} GRA
+                        </span>
+                        {parseInt(t.boxes_total) > 0 && (
+                          <span className="flex items-center gap-1 text-xs text-gray-500">
+                            <Package size={12} />
+                            {t.boxes_done}/{t.boxes_total} кор.
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Progress bar for in_progress tasks */}
+                      {t.status === 'in_progress' && parseInt(t.boxes_total) > 0 && (
+                        <div className="mt-2 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-blue-500 rounded-full transition-all"
+                            style={{ width: `${Math.round((parseInt(t.boxes_done) / parseInt(t.boxes_total)) * 100)}%` }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+// ─── Employee Card ──────────────────────────────────────────────────────────
 
 function EmployeeCard({ emp, onClick }) {
   const task = emp.active_task;
@@ -35,13 +397,11 @@ function EmployeeCard({ emp, onClick }) {
 
   return (
     <button onClick={onClick} className="w-full text-left bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-primary-200 transition-all p-4 flex flex-col">
-      {/* Header: Name + status */}
       <div className="flex items-start justify-between gap-2 mb-3">
         <h3 className="text-[13px] font-bold text-gray-900 leading-tight">{emp.full_name}</h3>
         {statusDot}
       </div>
 
-      {/* Active task — fixed height zone */}
       <div className="min-h-[52px] mb-3">
         {task ? (
           <div className="px-2.5 py-2 bg-primary-50 rounded-xl border border-primary-100">
@@ -60,7 +420,6 @@ function EmployeeCard({ emp, onClick }) {
         )}
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-3 gap-1.5 mt-auto">
         <div className="bg-gray-50 rounded-lg px-2 py-1.5 text-center">
           <p className="text-[8px] text-gray-400 uppercase font-bold tracking-wider">Сканов</p>
@@ -76,7 +435,6 @@ function EmployeeCard({ emp, onClick }) {
         </div>
       </div>
 
-      {/* Footer */}
       <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-50 text-[10px] text-gray-400">
         <span>{emp.tasks_today} задач сегодня</span>
         <span>{emp.last_scan_at ? timeAgo(emp.last_scan_at) : '—'}</span>
@@ -85,111 +443,42 @@ function EmployeeCard({ emp, onClick }) {
   );
 }
 
-function EmployeeDetail({ emp, onBack }) {
-  const task = emp.active_task;
-  return (
-    <div className="p-6 max-w-2xl mx-auto">
-      <button onClick={onBack} className="flex items-center gap-2 text-sm text-gray-500 hover:text-primary-600 mb-4">
-        <ArrowLeft size={16} /> Назад к мониторингу
-      </button>
-
-      <h2 className="text-xl font-bold text-gray-900 mb-1">{emp.full_name}</h2>
-      <p className="text-sm text-gray-400 mb-6">Баланс: {fmtNum(Math.round(emp.balance))} GRA</p>
-
-      {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-        {[
-          { icon: ScanLine, label: 'Сканов сегодня', value: fmtNum(emp.scans_today), color: 'text-gray-800 bg-gray-50' },
-          { icon: Award, label: 'Заработано сегодня', value: `${fmtNum(Math.round(emp.earned_today))} GRA`, color: 'text-green-700 bg-green-50' },
-          { icon: Zap, label: 'Скорость', value: emp.avg_speed_today ? `${emp.avg_speed_today} с/шт` : '—', color: 'text-blue-700 bg-blue-50' },
-          { icon: TrendingUp, label: 'Задач сегодня', value: emp.tasks_today, color: 'text-purple-700 bg-purple-50' },
-        ].map((s, i) => (
-          <div key={i} className={`rounded-2xl p-4 ${s.color}`}>
-            <s.icon size={18} className="mb-2 opacity-60" />
-            <p className="text-2xl font-black">{s.value}</p>
-            <p className="text-[10px] uppercase font-semibold opacity-60 mt-1">{s.label}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* Active task */}
-      {task && (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 mb-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Package size={16} className="text-primary-500" />
-            <h3 className="font-bold text-gray-900">Активная задача</h3>
-            <span className="ml-auto flex items-center gap-1.5 text-xs text-green-600">
-              <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" /> В работе
-            </span>
-          </div>
-          <p className="text-sm font-semibold text-gray-800">{task.title}</p>
-          <div className="grid grid-cols-3 gap-2 mt-3">
-            <div className="bg-gray-50 rounded-xl px-3 py-2 text-center">
-              <p className="text-xs text-gray-400">Сканов</p>
-              <p className="text-lg font-bold text-gray-800">{task.scans || 0}</p>
-            </div>
-            {task.boxes_total > 0 && (
-              <div className="bg-gray-50 rounded-xl px-3 py-2 text-center">
-                <p className="text-xs text-gray-400">Коробки</p>
-                <p className="text-lg font-bold text-gray-800">{task.boxes_done}/{task.boxes_total}</p>
-              </div>
-            )}
-            {task.type === 'bundle_assembly' && (
-              <div className="bg-gray-50 rounded-xl px-3 py-2 text-center">
-                <p className="text-xs text-gray-400">Собрано</p>
-                <p className="text-lg font-bold text-gray-800">{task.assembled}/{task.bundle_qty}</p>
-              </div>
-            )}
-            <div className="bg-gray-50 rounded-xl px-3 py-2 text-center">
-              <p className="text-xs text-gray-400">Начата</p>
-              <p className="text-xs font-semibold text-gray-600 mt-1">
-                {task.started_at ? new Date(task.started_at).toLocaleTimeString('ru-RU') : '—'}
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Last scan */}
-      <div className="text-center text-sm text-gray-400 mt-4">
-        <Clock size={14} className="inline mr-1" />
-        Последний скан: {emp.last_scan_at ? new Date(emp.last_scan_at).toLocaleString('ru-RU') : '—'}
-      </div>
-    </div>
-  );
-}
+// ─── Main Page ──────────────────────────────────────────────────────────────
 
 export default function LiveMonitorPage() {
   const navigate = useNavigate();
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedEmp, setSelectedEmp] = useState(null);
+  const [selectedId, setSelectedId] = useState(null);
   const [lastUpdate, setLastUpdate] = useState(null);
-  const intervalRef = useRef(null);
 
-  const load = useCallback(async () => {
+  // Stable polling — no dependency on selectedId
+  const loadGrid = useCallback(async () => {
     try {
       const res = await api.get('/tasks/analytics/live');
       setEmployees(res.data.employees || []);
       setLastUpdate(new Date());
-      if (selectedEmp) {
-        const updated = (res.data.employees || []).find(e => e.employee_id === selectedEmp.employee_id);
-        if (updated) setSelectedEmp(updated);
-      }
     } catch {} finally { setLoading(false); }
-  }, [selectedEmp]);
+  }, []);
 
   useEffect(() => {
-    load();
-    intervalRef.current = setInterval(load, 10000);
-    return () => clearInterval(intervalRef.current);
-  }, [load]);
+    loadGrid();
+    const id = setInterval(loadGrid, POLL_MS);
+    return () => clearInterval(id);
+  }, [loadGrid]);
 
-  if (selectedEmp) {
-    return <EmployeeDetail emp={selectedEmp} onBack={() => setSelectedEmp(null)} />;
+  // Detail view
+  if (selectedId) {
+    return (
+      <EmployeeDetailView
+        employeeId={selectedId}
+        employees={employees}
+        onBack={() => setSelectedId(null)}
+      />
+    );
   }
 
-  // Sort: active + recent scan first, then active, then by scans descending
+  // Sort: active+live first, then active, then by scans
   const sorted = [...employees].sort((a, b) => {
     const aActive = a.active_task?.status === 'in_progress' ? 1 : 0;
     const bActive = b.active_task?.status === 'in_progress' ? 1 : 0;
@@ -217,12 +506,12 @@ export default function LiveMonitorPage() {
               </span>
             </h1>
             <p className="text-sm text-gray-400 mt-0.5">
-              {activeCount} работают · {employees.length} всего · обновление каждые 10с
+              {activeCount} работают · {employees.length} всего · обновление каждые 5с
               {lastUpdate && <span className="ml-2">{lastUpdate.toLocaleTimeString('ru-RU')}</span>}
             </p>
           </div>
         </div>
-        <button onClick={load} className="p-2 rounded-xl text-gray-400 hover:text-primary-600 hover:bg-primary-50 transition-colors">
+        <button onClick={loadGrid} className="p-2 rounded-xl text-gray-400 hover:text-primary-600 hover:bg-primary-50 transition-colors">
           <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
         </button>
       </div>
@@ -237,7 +526,7 @@ export default function LiveMonitorPage() {
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
         {sorted.map(emp => (
-          <EmployeeCard key={emp.employee_id} emp={emp} onClick={() => setSelectedEmp(emp)} />
+          <EmployeeCard key={emp.employee_id} emp={emp} onClick={() => setSelectedId(emp.employee_id)} />
         ))}
       </div>
     </div>

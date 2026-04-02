@@ -1510,6 +1510,58 @@ router.get('/analytics/live', requireAuth, requirePermission('analytics', 'dashb
   }
 });
 
+// GET /api/tasks/analytics/live/:employeeId/timeline — employee day timeline for live monitor detail
+router.get('/analytics/live/:employeeId/timeline', requireAuth, requirePermission('analytics', 'dashboard', 'tasks.view'), async (req, res) => {
+  const employeeId = parseInt(req.params.employeeId);
+  try {
+    // Tasks today
+    const tasksResult = await pool.query(`
+      SELECT t.id, t.title, t.task_type, t.status, t.started_at, t.completed_at,
+             t.assembled_count, t.bundle_qty, t.placed_count, t.assembly_phase,
+             (SELECT COUNT(*) FROM inventory_task_scans_s sc
+              WHERE sc.task_id = t.id AND sc.product_id IS NOT NULL) as scan_count,
+             (SELECT COUNT(*) FROM inventory_task_boxes_s tb WHERE tb.task_id = t.id) as boxes_total,
+             (SELECT COUNT(*) FROM inventory_task_boxes_s tb WHERE tb.task_id = t.id AND tb.status = 'completed') as boxes_done,
+             COALESCE((SELECT SUM(ee.amount_delta) FROM employee_earnings_s ee
+              WHERE ee.task_id = t.id AND ee.employee_id = $1
+                AND ee.event_type IN ('inventory_scan','external_order_pick','external_order_collect')), 0) as earned,
+             s.code as shelf_code, s.name as shelf_name,
+             r.name as rack_name,
+             pa.name as pallet_name, pa.number as pallet_number,
+             pr.name as pallet_row_name
+      FROM inventory_tasks_s t
+      LEFT JOIN shelves_s s ON s.id = t.shelf_id
+      LEFT JOIN racks_s r ON r.id = s.rack_id
+      LEFT JOIN pallets_s pa ON pa.id = t.target_pallet_id
+      LEFT JOIN pallet_rows_s pr ON pr.id = pa.row_id
+      WHERE t.employee_id = $1
+        AND (t.started_at >= CURRENT_DATE OR (t.status = 'in_progress' AND t.started_at IS NOT NULL))
+      ORDER BY t.started_at ASC
+    `, [employeeId]);
+
+    // 5-minute activity buckets
+    const bucketsResult = await pool.query(`
+      SELECT
+        FLOOR(EXTRACT(EPOCH FROM (sc.created_at - CURRENT_DATE)) / 300)::int as bucket,
+        COUNT(*) as scan_count,
+        MIN(sc.created_at) as bucket_start,
+        MAX(sc.created_at) as bucket_end
+      FROM inventory_task_scans_s sc
+      JOIN inventory_tasks_s t ON t.id = sc.task_id AND t.employee_id = $1
+      WHERE sc.created_at >= CURRENT_DATE AND sc.product_id IS NOT NULL
+      GROUP BY bucket
+      ORDER BY bucket
+    `, [employeeId]);
+
+    res.json({
+      tasks: tasksResult.rows,
+      activity_buckets: bucketsResult.rows,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /api/tasks/errors — all scan errors across all tasks
 router.get('/errors', requireAuth, requirePermission('errors', 'tasks.view'), async (req, res) => {
   try {
