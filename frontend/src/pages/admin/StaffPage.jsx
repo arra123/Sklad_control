@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Plus, Users, UserCog, Pencil, Trash2, Eye, EyeOff, Package, ChevronDown, ChevronRight, Search, Copy, Check, X, Shield } from 'lucide-react';
 import api from '../../api/client';
+import { useAuth } from '../../context/AuthContext';
 import { qty } from '../../utils/fmt';
 import Button from '../../components/ui/Button';
 import Modal from '../../components/ui/Modal';
@@ -990,6 +991,11 @@ function RolesManager() {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function StaffPage() {
   const toast = useToast();
+  const { user } = useAuth();
+  const userPerms = user?.permissions || [];
+  const isAdmin = user?.role === 'admin';
+  const canEditStaff = isAdmin || userPerms.includes('staff.edit');
+  const canManageRoles = isAdmin || userPerms.includes('roles.manage');
   const [searchParams, setSearchParams] = useSearchParams();
   const tab = searchParams.get('tab') || 'employees';
   const setTab = (t) => setSearchParams({ tab: t });
@@ -1052,12 +1058,12 @@ export default function StaffPage() {
           <h1 className="text-2xl font-bold text-gray-900">Сотрудники</h1>
           <p className="text-gray-500 text-sm mt-1">Управление сотрудниками и доступами</p>
         </div>
-        {tab === 'employees' && (
+        {tab === 'employees' && canEditStaff && (
           <Button icon={<Plus size={15} />} size="sm" onClick={() => setShowAddEmpModal(true)}>
             Добавить сотрудника
           </Button>
         )}
-        {tab === 'users' && (
+        {tab === 'users' && canEditStaff && (
           <Button icon={<Plus size={15} />} size="sm" onClick={() => setShowUserModal(true)}>
             Добавить пользователя
           </Button>
@@ -1068,9 +1074,9 @@ export default function StaffPage() {
       <div className="flex gap-1 mb-5 bg-gray-100 p-1 rounded-xl w-fit">
         {[
           { value: 'employees', label: `Сотрудники (${employees.length})`, icon: Users },
-          { value: 'users', label: `Доступы (${users.length})`, icon: UserCog },
-          { value: 'roles', label: 'Роли', icon: Shield },
-        ].map(({ value, label, icon: Icon }) => (
+          canEditStaff && { value: 'users', label: `Доступы (${users.length})`, icon: UserCog },
+          canManageRoles && { value: 'roles', label: 'Роли', icon: Shield },
+        ].filter(Boolean).map(({ value, label, icon: Icon }) => (
           <button
             key={value}
             onClick={() => setTab(value)}
