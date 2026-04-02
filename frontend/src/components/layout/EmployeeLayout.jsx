@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import {
   ClipboardList, LogOut, BarChart3, ArrowRightLeft, Package,
-  Sparkles, ChevronRight, UtensilsCrossed
+  Sparkles, ChevronRight, UtensilsCrossed, Award
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { cn } from '../../utils/cn';
@@ -67,6 +67,15 @@ const navItems = [
     activeBg: 'bg-purple-50',
     activeText: 'text-purple-600',
     activeRing: 'ring-purple-200',
+  },
+  {
+    to: '/employee/earnings',
+    icon: Award,
+    label: 'Заработок',
+    color: 'text-amber-500',
+    activeBg: 'bg-amber-50',
+    activeText: 'text-amber-600',
+    activeRing: 'ring-amber-200',
   },
   {
     to: '/employee/inventory',

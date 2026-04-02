@@ -141,6 +141,61 @@ router.get('/summary', requireAuth, requirePermission('analytics', 'staff.view')
   }
 });
 
+// GET /api/earnings/my — employee's own earnings (no admin required)
+router.get('/my', requireAuth, async (req, res) => {
+  const employeeId = req.user.employee_id;
+  if (!employeeId) return res.status(400).json({ error: 'Нет привязки к сотруднику' });
+
+  const period = req.query.period || 'today';
+  let periodFilter = '';
+  if (period === 'today') periodFilter = `AND ee.created_at >= CURRENT_DATE`;
+  else if (period === 'week') periodFilter = `AND ee.created_at >= CURRENT_DATE - INTERVAL '7 days'`;
+  else if (period === 'month') periodFilter = `AND ee.created_at >= CURRENT_DATE - INTERVAL '30 days'`;
+
+  try {
+    const [summaryResult, tasksResult] = await Promise.all([
+      pool.query(`
+        SELECT
+          COALESCE(SUM(ee.amount_delta), 0) as total_earned,
+          COALESCE(SUM(ee.reward_units), 0) as total_scans,
+          COUNT(DISTINCT ee.task_id) FILTER (WHERE ee.task_id IS NOT NULL) as tasks_count
+        FROM employee_earnings_s ee
+        WHERE ee.employee_id = $1
+          AND ee.event_type IN ('inventory_scan','external_order_pick','external_order_collect')
+          ${periodFilter}
+      `, [employeeId]),
+      pool.query(`
+        SELECT
+          ee.task_id,
+          COALESCE(t.title, MAX(ee.task_title), 'Задача') as title,
+          COALESCE(t.task_type, MAX(ee.task_type), 'inventory') as task_type,
+          t.status,
+          t.started_at,
+          t.completed_at,
+          COALESCE(SUM(ee.amount_delta), 0) as earned,
+          COALESCE(SUM(ee.reward_units), 0) as scans,
+          COUNT(ee.id) as events,
+          (SELECT ROUND(AVG(gap)::numeric, 1) FROM (
+            SELECT EXTRACT(EPOCH FROM (sc.created_at - LAG(sc.created_at) OVER (ORDER BY sc.created_at))) as gap
+            FROM inventory_task_scans_s sc WHERE sc.task_id = ee.task_id AND sc.product_id IS NOT NULL
+          ) g WHERE gap > 0 AND gap < 300) as avg_scan_time
+        FROM employee_earnings_s ee
+        LEFT JOIN inventory_tasks_s t ON t.id = ee.task_id
+        WHERE ee.employee_id = $1
+          AND ee.event_type IN ('inventory_scan','external_order_pick','external_order_collect')
+          ${periodFilter}
+        GROUP BY ee.task_id, t.id, t.title, t.task_type, t.status, t.started_at, t.completed_at
+        ORDER BY MAX(ee.created_at) DESC
+      `, [employeeId]),
+    ]);
+
+    res.json({
+      summary: summaryResult.rows[0] || { total_earned: 0, total_scans: 0, tasks_count: 0 },
+      tasks: tasksResult.rows,
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 router.get('/employees', requireAuth, requirePermission('analytics', 'staff.view'), async (_req, res) => {
   try {
     const result = await pool.query(`
