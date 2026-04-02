@@ -131,15 +131,16 @@ function ActivityTimeline({ buckets, tasks }) {
     <div className="bg-white rounded-2xl border border-gray-100 p-5">
       <div className="flex items-center justify-between mb-4">
         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Активность за день</p>
-        <div className="flex items-center gap-4 text-xs">
-          <span className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded bg-green-400" />
-            <span className="text-gray-500">Работа: <b className="text-green-700">{fmtDuration(activeMinutes * 60)}</b></span>
+        <div className="flex items-center gap-3 text-[10px]">
+          <span className="flex items-center gap-1">
+            <span className="w-2.5 h-2.5 rounded bg-green-200" />
+            <span className="w-2.5 h-2.5 rounded bg-green-400" />
+            <span className="w-2.5 h-2.5 rounded bg-green-500" />
+            <span className="w-2.5 h-2.5 rounded bg-green-600" />
+            <span className="text-gray-400 ml-0.5">1→30+</span>
           </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded bg-gray-200" />
-            <span className="text-gray-500">Простой: <b className="text-red-500">{fmtDuration(idleMinutes * 60)}</b></span>
-          </span>
+          <span className="text-gray-500">Работа: <b className="text-green-700">{fmtDuration(activeMinutes * 60)}</b></span>
+          <span className="text-gray-500">Простой: <b className="text-red-500">{fmtDuration(idleMinutes * 60)}</b></span>
         </div>
       </div>
 
@@ -149,8 +150,13 @@ function ActivityTimeline({ buckets, tasks }) {
           {Array.from({ length: totalBuckets }).map((_, i) => {
             const bNum = minBucket + i;
             const scans = bucketMap[bNum] || 0;
-            const intensity = scans === 0 ? 0 : Math.max(0.2, Math.min(1, scans / maxScans));
             const isHovered = hoveredBucket === bNum;
+            // Absolute intensity scale: 1-5 light, 6-15 medium, 16-30 strong, 30+ max
+            const greenClass = scans === 0 ? ''
+              : scans <= 5 ? (isHovered ? 'bg-green-400' : 'bg-green-200')
+              : scans <= 15 ? (isHovered ? 'bg-green-500' : 'bg-green-400')
+              : scans <= 30 ? (isHovered ? 'bg-green-600' : 'bg-green-500')
+              : (isHovered ? 'bg-green-700' : 'bg-green-600');
 
             return (
               <div
@@ -162,10 +168,9 @@ function ActivityTimeline({ buckets, tasks }) {
               >
                 <div
                   className={`h-full ${scans > 0
-                    ? isHovered ? 'bg-green-500' : 'bg-green-400'
+                    ? greenClass
                     : isHovered ? 'bg-gray-200' : 'bg-gray-100'
                   } transition-colors`}
-                  style={scans > 0 ? { opacity: intensity } : {}}
                 />
                 {/* Tooltip */}
                 {isHovered && (
