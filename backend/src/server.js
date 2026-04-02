@@ -9,9 +9,10 @@ async function start() {
   try {
     await createSchema();
     await runSeed();
-    await syncEmployeesFromOsite();
     app.listen(config.port, () => {
       console.log(`[Server] Running at http://localhost:${config.port}`);
+      // Sync in background — don't block startup
+      syncEmployeesFromOsite().catch(err => console.error('[Sync] Background sync failed:', err.message));
     });
   } catch (err) {
     console.error('[Server] Failed to start:', err.message);
