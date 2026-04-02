@@ -12,7 +12,6 @@ import api from '../../api/client';
 
 // ─── Конфигурация хлебных крошек ─────────────────────────────────────────────
 function buildCrumbs(pathname) {
-  if (pathname === '/admin') return [{ label: 'Дашборд' }];
   if (pathname.startsWith('/admin/products/cards')) return [{ label: 'Товары' }, { label: 'Карточки', to: '/admin/products/cards' }];
   if (pathname.startsWith('/admin/products/materials')) return [{ label: 'Товары' }, { label: 'Сырьё' }];
   if (pathname.startsWith('/admin/products/stock')) return [{ label: 'Товары' }, { label: 'Остатки', to: '/admin/products/stock' }];
@@ -20,9 +19,8 @@ function buildCrumbs(pathname) {
   if (pathname.startsWith('/admin/tasks'))      return [{ label: 'Задачи' }];
   if (pathname.startsWith('/admin/analytics'))  return [{ label: 'Аналитика' }];
   if (pathname.startsWith('/admin/earnings'))   return [{ label: 'Заработок' }];
-  if (pathname.startsWith('/admin/move') && !pathname.startsWith('/admin/movements'))  return [{ label: 'Переместить' }];
-  if (pathname.startsWith('/admin/movements'))  return [{ label: 'Перемещения' }];
-  if (pathname.startsWith('/admin/errors'))     return [{ label: 'Ошибки' }];
+  if (pathname.startsWith('/admin/move'))       return [{ label: 'Переместить' }];
+  if (pathname.startsWith('/admin/errors'))     return [{ label: 'Ошибки сканирования' }];
   if (pathname.startsWith('/admin/staff'))      return [{ label: 'Сотрудники' }];
   if (pathname.startsWith('/admin/settings'))   return [{ label: 'Настройки' }];
   if (pathname.startsWith('/admin/fbo'))        return [{ label: 'Паллетный склад' }];
@@ -154,14 +152,11 @@ function Breadcrumb() {
 }
 
 const ALL_NAV = [
-  { to: '/admin', icon: LayoutDashboard, label: 'Дашборд', end: true, perm: 'dashboard' },
   { to: '/admin/warehouse', icon: Warehouse, label: 'Склады', perm: 'warehouse.view' },
   { to: '/admin/tasks', icon: ClipboardList, label: 'Задачи', perm: 'tasks.view' },
   { to: '/admin/analytics', icon: BarChart3, label: 'Аналитика', perm: 'analytics' },
   { to: '/admin/earnings', icon: Coins, label: 'Заработок', perm: 'analytics' },
   { to: '/admin/move', icon: ScanLine, label: 'Переместить', perm: 'movements.edit' },
-  { to: '/admin/movements', icon: ArrowLeftRight, label: 'Перемещения', perm: 'movements.view' },
-  { to: '/admin/errors', icon: AlertTriangle, label: 'Ошибки', perm: 'errors' },
   { to: '/admin/staff', icon: Users, label: 'Сотрудники', perm: 'staff.view' },
   { to: '/admin/settings', icon: Settings, label: 'Настройки', perm: 'settings' },
 ];
@@ -173,7 +168,7 @@ export default function AdminLayout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [productsOpen, setProductsOpen] = useState(location.pathname.startsWith('/admin/products'));
   const userPerms = user?.permissions || [];
-  const navItems = ALL_NAV.filter(item => item.to !== '/admin' && (user?.role === 'admin' || userPerms.includes(item.perm)));
+  const navItems = ALL_NAV.filter(item => user?.role === 'admin' || userPerms.includes(item.perm));
   const isProductsActive = location.pathname.startsWith('/admin/products');
 
   const handleLogout = () => {
@@ -217,17 +212,6 @@ export default function AdminLayout({ children }) {
 
         {/* Nav */}
         <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-0.5">
-          {/* Дашборд */}
-          <NavLink
-            to="/admin"
-            end
-            className={({ isActive }) => cn('sidebar-link', isActive && 'active')}
-            onClick={() => setSidebarOpen(false)}
-          >
-            <LayoutDashboard size={18} className="flex-shrink-0" />
-            <span className="flex-1">Дашборд</span>
-          </NavLink>
-
           {/* Товары — разворачивается */}
           {(user?.role === 'admin' || userPerms.includes('products.view')) && (
             <div>
@@ -287,7 +271,26 @@ export default function AdminLayout({ children }) {
 
         {/* User info */}
         <div className="p-4 border-t border-gray-100 dark:border-gray-800">
-          <div className="flex items-center gap-3 mb-3">
+          {/* Quick action buttons */}
+          <div className="flex items-center gap-1.5 mb-3">
+            <FeedbackButton position="admin" />
+            {(user?.role === 'admin' || userPerms.includes('errors')) && (
+              <NavLink
+                to="/admin/errors"
+                className={({ isActive }) => cn(
+                  'w-8 h-8 rounded-xl flex items-center justify-center transition-all',
+                  isActive
+                    ? 'bg-red-100 text-red-600'
+                    : 'bg-gray-100 dark:bg-gray-800 text-gray-400 hover:text-amber-600 hover:bg-amber-50'
+                )}
+                title="Ошибки сканирования"
+                onClick={() => setSidebarOpen(false)}
+              >
+                <AlertTriangle size={14} />
+              </NavLink>
+            )}
+          </div>
+          <div className="flex items-center gap-3 mb-2">
             <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center">
               <span className="text-primary-700 text-sm font-semibold">
                 {user?.username?.[0]?.toUpperCase()}
@@ -298,16 +301,15 @@ export default function AdminLayout({ children }) {
               <p className="text-xs text-gray-400">{user?.role_name || (user?.role === 'admin' ? 'Администратор' : user?.role === 'manager' ? 'Менеджер' : 'Сотрудник')}</p>
             </div>
           </div>
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-2 w-full px-3 py-2 rounded-xl text-sm text-gray-500 hover:text-red-500 hover:bg-red-50 transition-all"
-          >
-            <LogOut className="w-4 h-4" />
-            Выйти
-          </button>
-          <div className="flex items-center justify-center gap-2 mt-2">
-            <p className="text-[10px] text-gray-300 dark:text-gray-600">v2.63.4</p>
-            <FeedbackButton position="admin" />
+          <div className="flex items-center justify-between">
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              Выйти
+            </button>
+            <p className="text-[10px] text-gray-300 dark:text-gray-600">v2.64.0</p>
           </div>
         </div>
       </aside>

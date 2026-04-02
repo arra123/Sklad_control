@@ -13,7 +13,7 @@ import EmployeeLayout from './components/layout/EmployeeLayout';
 
 // Lazy-loaded pages for code splitting
 const LoginPage = lazy(() => import('./pages/LoginPage'));
-const DashboardPage = lazy(() => import('./pages/admin/DashboardPage'));
+// DashboardPage removed — /admin redirects to /admin/warehouse
 const ProductsPage = lazy(() => import('./pages/admin/ProductsPage'));
 const ProductStockPage = lazy(() => import('./pages/admin/ProductStockPage'));
 const WarehousePage = lazy(() => import('./pages/admin/WarehousePage'));
@@ -30,7 +30,7 @@ const AssemblyPage = lazy(() => import('./pages/employee/AssemblyPage'));
 const MovePage = lazy(() => import('./pages/employee/MovePage'));
 const MyInventoryPage = lazy(() => import('./pages/employee/MyInventoryPage'));
 const FBOPage = lazy(() => import('./pages/admin/FBOPage'));
-const MovementsPage = lazy(() => import('./pages/admin/MovementsPage'));
+// MovementsPage removed — history view no longer in nav
 const MaterialsPage = lazy(() => import('./pages/admin/MaterialsPage'));
 const LiveMonitorPage = lazy(() => import('./pages/admin/LiveMonitorPage'));
 
@@ -69,7 +69,7 @@ function hasAdminAccess(user) {
   if (!user) return false;
   if (user.role === 'admin' || user.role === 'manager') return true;
   const perms = user.permissions || [];
-  return perms.includes('dashboard') || perms.includes('products.view') || perms.includes('warehouse.view') || perms.includes('tasks.view') || perms.includes('staff.view');
+  return perms.includes('products.view') || perms.includes('warehouse.view') || perms.includes('tasks.view') || perms.includes('staff.view') || perms.includes('analytics');
 }
 
 function AdminRoute({ children }) {
@@ -104,7 +104,7 @@ function AppRoutes() {
       <Route path="/login" element={<LoginPage />} />
 
       {/* Admin routes */}
-      <Route path="/admin" element={<AdminRoute><DashboardPage /></AdminRoute>} />
+      <Route path="/admin" element={<Navigate to="/admin/warehouse" replace />} />
       <Route path="/admin/products" element={<Navigate to="/admin/products/cards" replace />} />
       <Route path="/admin/products/cards" element={<AdminRoute><ProductsPage /></AdminRoute>} />
       <Route path="/admin/products/stock" element={<AdminRoute><ProductStockPage /></AdminRoute>} />
@@ -117,7 +117,6 @@ function AppRoutes() {
       <Route path="/admin/earnings" element={<AdminRoute><EarningsPage /></AdminRoute>} />
       <Route path="/admin/errors" element={<AdminRoute><ErrorsPage /></AdminRoute>} />
       <Route path="/admin/fbo" element={<AdminRoute><FBOPage /></AdminRoute>} />
-      <Route path="/admin/movements" element={<AdminRoute><MovementsPage /></AdminRoute>} />
       <Route path="/admin/move" element={<AdminRoute><MovePage /></AdminRoute>} />
       <Route path="/admin/live-monitor" element={<AdminRoute><LiveMonitorPage /></AdminRoute>} />
 
