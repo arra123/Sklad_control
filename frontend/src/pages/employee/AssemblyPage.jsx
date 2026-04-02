@@ -154,6 +154,7 @@ export default function AssemblyPage() {
   const [placeDest, setPlaceDest] = useState(ss?.placeDest || null);
   const [placeBoxStep, setPlaceBoxStep] = useState(false);
   const [placeBox, setPlaceBox] = useState(null);
+  const pickedMaxRef = useRef({});
 
   // ─── Persist picking state on every change ──────────────────────────────
   useEffect(() => {
@@ -199,7 +200,6 @@ export default function AssemblyPage() {
 
   const phase = task.assembly_phase || 'picking';
   const components = task.components || [];
-  const pickedMaxRef = useRef({});
   const pickedMap = {};
   (task.picked_summary || []).forEach(p => {
     const val = Number(p.picked_count);
