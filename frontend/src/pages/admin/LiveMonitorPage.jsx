@@ -126,6 +126,22 @@ function ActivityTimeline({ buckets, tasks, breaks = [], thresholds }) {
     }
   }
 
+  // Pre-compute contiguous regions for range tooltips
+  const bucketType = (b) => {
+    if (breakBuckets.has(b)) return 'break';
+    if (taskPauseBuckets.has(b) && !(bucketMap[b] > 0)) return 'pause';
+    if (bucketMap[b] > 0) return 'active';
+    return 'idle';
+  };
+  const regionMap = {};
+  for (let i = minBucket; i < maxBucket; i++) {
+    if (regionMap[i]) continue;
+    const type = bucketType(i);
+    let end = i;
+    while (end + 1 < maxBucket && bucketType(end + 1) === type) end++;
+    for (let j = i; j <= end; j++) regionMap[j] = { start: i, end: end + 1, type };
+  }
+
   if (buckets.length === 0 && tasks.length === 0) {
     return (
       <div className="bg-white rounded-2xl border border-gray-100 p-5">
@@ -273,8 +289,15 @@ function ActivityTimeline({ buckets, tasks, breaks = [], thresholds }) {
                 {/* Tooltip */}
                 {isHovered && (
                   <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 z-20 px-2.5 py-1.5 bg-gray-900 text-white rounded-lg text-[10px] whitespace-nowrap shadow-lg pointer-events-none">
-                    <p className="font-bold">{bucketToTime(bNum)}–{bucketToTime(bNum + 1)}</p>
-                    <p>{isBreak ? '⏸ Тех. пауза' : isTaskPause ? '⏸ Пауза задачи' : scans > 0 ? `${bucketTaskMap[bNum] || 'Работа'}: ${scans} пиков` : 'Простой'}</p>
+                    {(() => {
+                      const reg = regionMap[bNum];
+                      const rangeStr = reg ? `${bucketToTime(reg.start)} → ${bucketToTime(reg.end)}` : `${bucketToTime(bNum)}–${bucketToTime(bNum + 1)}`;
+                      const label = isBreak ? '⏸ Тех. пауза' : isTaskPause ? '⏸ Пауза задачи' : scans > 0 ? `${bucketTaskMap[bNum] || 'Работа'}: ${scans} пиков` : 'Простой';
+                      return <>
+                        <p className="font-bold">{rangeStr}</p>
+                        <p>{label}</p>
+                      </>;
+                    })()}
                   </div>
                 )}
               </div>
