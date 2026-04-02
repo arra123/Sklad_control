@@ -1148,10 +1148,7 @@ export default function StaffPage() {
     }
   }, []);
 
-  useEffect(() => {
-    // Sync from external site then load
-    api.post('/staff/sync').catch(() => {}).finally(() => loadAll());
-  }, []);
+  useEffect(() => { loadAll(); }, []);
 
   const deleteEmployee = async (id) => {
     if (!confirm('Удалить сотрудника?')) return;

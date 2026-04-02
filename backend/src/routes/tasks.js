@@ -1332,16 +1332,12 @@ router.get('/', requireAuth, async (req, res) => {
               COALESCE(sbx.quantity, bx.quantity) as box_quantity,
               COALESCE(sbp.name, bp.name) as box_product_name,
               COALESCE(sbp.code, bp.code) as box_product_code,
-              (SELECT COUNT(*) FROM inventory_task_scans_s WHERE task_id = t.id AND product_id IS NOT NULL) as scans_count,
-              (SELECT ROUND(AVG(gap)::numeric, 1) FROM (
-                SELECT EXTRACT(EPOCH FROM (sc.created_at - LAG(sc.created_at) OVER (ORDER BY sc.created_at))) as gap
-                FROM inventory_task_scans_s sc WHERE sc.task_id = t.id AND sc.product_id IS NOT NULL
-              ) g WHERE gap > 0 AND gap < 300) as avg_scan_time,
+              sc_agg.scans_count,
               t.assembled_count, t.bundle_qty, t.placed_count, t.assembly_phase,
               CASE WHEN t.started_at IS NOT NULL AND t.completed_at IS NOT NULL
                 THEN ROUND(EXTRACT(EPOCH FROM (t.completed_at - t.started_at)) / 60.0, 1) END as duration_minutes,
-              (SELECT COUNT(*) FROM inventory_task_boxes_s tb WHERE tb.task_id = t.id) as task_boxes_total,
-              (SELECT COUNT(*) FROM inventory_task_boxes_s tb WHERE tb.task_id = t.id AND tb.status = 'completed') as task_boxes_completed
+              tb_agg.task_boxes_total,
+              tb_agg.task_boxes_completed
        FROM inventory_tasks_s t
        LEFT JOIN employees_s e ON e.id = t.employee_id
        LEFT JOIN shelves_s s ON s.id = t.shelf_id
@@ -1354,6 +1350,15 @@ router.get('/', requireAuth, async (req, res) => {
        LEFT JOIN pallets_s pa ON pa.id = COALESCE(t.target_pallet_id, bx.pallet_id)
        LEFT JOIN pallet_rows_s pr ON pr.id = pa.row_id
        LEFT JOIN warehouses_s pw ON pw.id = pr.warehouse_id
+       LEFT JOIN LATERAL (
+         SELECT COUNT(*) as scans_count
+         FROM inventory_task_scans_s sc WHERE sc.task_id = t.id AND sc.product_id IS NOT NULL
+       ) sc_agg ON true
+       LEFT JOIN LATERAL (
+         SELECT COUNT(*) as task_boxes_total,
+                COUNT(*) FILTER (WHERE tb.status = 'completed') as task_boxes_completed
+         FROM inventory_task_boxes_s tb WHERE tb.task_id = t.id
+       ) tb_agg ON true
        ${where}
        ORDER BY t.created_at DESC
        LIMIT $${params.length - 1} OFFSET $${params.length}`,
@@ -1459,8 +1464,13 @@ router.get('/analytics/summary', requireAuth, requirePermission('analytics', 'ta
   }
 });
 
-// GET /api/tasks/analytics/live — real-time employee monitoring
+// GET /api/tasks/analytics/live — real-time employee monitoring (cached 3s)
+let liveCache = { data: null, ts: 0 };
 router.get('/analytics/live', requireAuth, requirePermission('analytics', 'dashboard', 'tasks.view'), async (_req, res) => {
+  // Return cached if fresh (multiple admins polling at 5s)
+  if (liveCache.data && Date.now() - liveCache.ts < 3000) {
+    return res.json(liveCache.data);
+  }
   try {
     const { rows: employees } = await pool.query(`
       SELECT
@@ -1505,7 +1515,9 @@ router.get('/analytics/live', requireAuth, requirePermission('analytics', 'dashb
         )
       ORDER BY scans_today DESC
     `);
-    res.json({ employees, timestamp: new Date().toISOString() });
+    const result = { employees, timestamp: new Date().toISOString() };
+    liveCache = { data: result, ts: Date.now() };
+    res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

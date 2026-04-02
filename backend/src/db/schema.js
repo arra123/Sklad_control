@@ -832,6 +832,13 @@ async function createSchema() {
     await client.query(`CREATE INDEX IF NOT EXISTS idx_assembly_items_task ON assembly_items_s(task_id)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_assembly_items_bundle ON assembly_items_s(task_id, used_in_bundle)`);
 
+    // ─── Performance indexes ─────────────────────────────────────
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_inv_tasks_employee_status ON inventory_tasks_s(employee_id, status)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_inv_tasks_employee_completed ON inventory_tasks_s(employee_id, completed_at DESC) WHERE completed_at IS NOT NULL`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_task_boxes_task_status ON inventory_task_boxes_s(task_id, status)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_earnings_emp_date_type ON employee_earnings_s(employee_id, event_type, created_at DESC)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_task_scans_task_created ON inventory_task_scans_s(task_id, created_at DESC)`);
+
     // ─── One-time: clear test GRACoin data ──────────────────────────
     const graCleared = await client.query(`SELECT value FROM settings_s WHERE key = 'gra_test_data_cleared' LIMIT 1`);
     if (!graCleared.rows.length) {
