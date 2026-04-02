@@ -4,7 +4,7 @@ import {
   Settings, Palette, Sun, Moon, Check, RefreshCw, Info, Search,
   Volume2, VolumeX, Zap, Package, Table2, Bell, ScanLine,
   Play, ChevronUp, ChevronDown, History, Eye, MessageSquare,
-  Bug, Lightbulb, HelpCircle, Trash2, ChevronRight, X, Coins, Save
+  Bug, Lightbulb, HelpCircle, Trash2, ChevronRight, X, Coins, Save, BarChart3
 } from 'lucide-react';
 const APP_VERSION = '1.27.0';
 import api from '../../api/client';
@@ -1250,6 +1250,32 @@ export default function SettingsPage() {
               <NumberStepper value={s.scan_slow_threshold} onChange={v => updateSetting('scan_slow_threshold', v)} min={s.scan_fast_threshold + 1} max={60} step={0.5} unit="с" />
             </SettingRow>
             <SpeedPreview fast={s.scan_fast_threshold} slow={s.scan_slow_threshold} />
+          </div>
+
+          <div className="card p-6">
+            <div className="flex items-center gap-2 mb-1">
+              <BarChart3 className="w-5 h-5 text-green-500" />
+              <h2 className="font-semibold text-gray-900 dark:text-white">Live-мониторинг — шкала активности</h2>
+            </div>
+            <p className="text-xs text-gray-400 mb-4">
+              Пороги сканов за 5-минутный отрезок для цветовой индикации на таймлайне.
+            </p>
+            <SettingRow label="Бледный (мало)" hint="До этого кол-ва — бледно-зелёный">
+              <NumberStepper value={s.live_scan_low ?? 5} onChange={v => updateSetting('live_scan_low', v)} min={1} max={(s.live_scan_mid ?? 15) - 1} step={1} unit="шт" />
+            </SettingRow>
+            <SettingRow label="Средний" hint="До этого — средне-зелёный">
+              <NumberStepper value={s.live_scan_mid ?? 15} onChange={v => updateSetting('live_scan_mid', v)} min={(s.live_scan_low ?? 5) + 1} max={(s.live_scan_high ?? 30) - 1} step={1} unit="шт" />
+            </SettingRow>
+            <SettingRow label="Насыщенный (много)" hint="Выше этого — максимально яркий">
+              <NumberStepper value={s.live_scan_high ?? 30} onChange={v => updateSetting('live_scan_high', v)} min={(s.live_scan_mid ?? 15) + 1} max={200} step={1} unit="шт" />
+            </SettingRow>
+            <div className="flex items-center gap-2 mt-3 text-[11px] text-gray-500">
+              <span>Пример:</span>
+              <span className="w-5 h-5 rounded bg-green-200" /> <span>1–{s.live_scan_low ?? 5}</span>
+              <span className="w-5 h-5 rounded bg-green-400" /> <span>{(s.live_scan_low ?? 5)+1}–{s.live_scan_mid ?? 15}</span>
+              <span className="w-5 h-5 rounded bg-green-500" /> <span>{(s.live_scan_mid ?? 15)+1}–{s.live_scan_high ?? 30}</span>
+              <span className="w-5 h-5 rounded bg-green-600" /> <span>{(s.live_scan_high ?? 30)+1}+</span>
+            </div>
           </div>
 
           <div className="card p-6">

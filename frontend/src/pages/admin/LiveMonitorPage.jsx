@@ -57,7 +57,10 @@ function statusBadge(status) {
 
 // ─── Activity Timeline ──────────────────────────────────────────────────────
 
-function ActivityTimeline({ buckets, tasks, breaks = [] }) {
+function ActivityTimeline({ buckets, tasks, breaks = [], thresholds }) {
+  const LOW = thresholds?.low || 5;
+  const MID = thresholds?.mid || 15;
+  const HIGH = thresholds?.high || 30;
   const [hoveredBucket, setHoveredBucket] = useState(null);
 
   // Fixed work day: 07:00–17:00
@@ -163,13 +166,12 @@ function ActivityTimeline({ buckets, tasks, breaks = [] }) {
             const scans = bucketMap[bNum] || 0;
             const isHovered = hoveredBucket === bNum;
             const isBreak = breakBuckets.has(bNum);
-            // Absolute intensity scale: 1-5 light, 6-15 medium, 16-30 strong, 30+ max
             const colorClass = isBreak
               ? (isHovered ? 'bg-amber-400' : 'bg-amber-300')
               : scans <= 0 ? (isHovered ? 'bg-gray-200' : 'bg-gray-100')
-              : scans <= 5 ? (isHovered ? 'bg-green-400' : 'bg-green-200')
-              : scans <= 15 ? (isHovered ? 'bg-green-500' : 'bg-green-400')
-              : scans <= 30 ? (isHovered ? 'bg-green-600' : 'bg-green-500')
+              : scans <= LOW ? (isHovered ? 'bg-green-400' : 'bg-green-200')
+              : scans <= MID ? (isHovered ? 'bg-green-500' : 'bg-green-400')
+              : scans <= HIGH ? (isHovered ? 'bg-green-600' : 'bg-green-500')
               : (isHovered ? 'bg-green-700' : 'bg-green-600');
 
             return (
@@ -270,7 +272,7 @@ function ActivityTimeline({ buckets, tasks, breaks = [] }) {
 
 // ─── Employee Detail View ───────────────────────────────────────────────────
 
-function EmployeeDetailView({ employeeId, employees, onBack }) {
+function EmployeeDetailView({ employeeId, employees, onBack, thresholds }) {
   const [timeline, setTimeline] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -337,7 +339,7 @@ function EmployeeDetailView({ employeeId, employees, onBack }) {
         <div className="flex justify-center py-10"><Spinner size="lg" /></div>
       ) : timeline ? (
         <>
-          <ActivityTimeline buckets={timeline.activity_buckets} tasks={timeline.tasks} breaks={timeline.breaks} />
+          <ActivityTimeline buckets={timeline.activity_buckets} tasks={timeline.tasks} breaks={timeline.breaks} thresholds={thresholds} />
 
           {/* Tasks list */}
           <div className="mt-5">
@@ -502,6 +504,19 @@ export default function LiveMonitorPage() {
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState(null);
   const [lastUpdate, setLastUpdate] = useState(null);
+  const [thresholds, setThresholds] = useState({ low: 5, mid: 15, high: 30 });
+
+  // Load settings once
+  useEffect(() => {
+    api.get('/settings').then(r => {
+      const s = r.data;
+      setThresholds({
+        low: Number(s.live_scan_low) || 5,
+        mid: Number(s.live_scan_mid) || 15,
+        high: Number(s.live_scan_high) || 30,
+      });
+    }).catch(() => {});
+  }, []);
 
   // Stable polling — no dependency on selectedId
   const loadGrid = useCallback(async () => {
@@ -525,6 +540,7 @@ export default function LiveMonitorPage() {
         employeeId={selectedId}
         employees={employees}
         onBack={() => setSelectedId(null)}
+        thresholds={thresholds}
       />
     );
   }
