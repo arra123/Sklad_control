@@ -205,30 +205,54 @@ function ActivityTimeline({ buckets, tasks }) {
         </div>
       </div>
 
-      {/* Task spans overlay legend */}
-      {tasks.length > 0 && (
-        <div className="relative h-6 mt-1 mb-1">
-          {tasks.filter(t => t.started_at).map(t => {
-            const startB = Math.max(minBucket, Math.floor((new Date(t.started_at) - todayStart) / 300000));
-            const endB = t.completed_at
-              ? Math.min(maxBucket, Math.floor((new Date(t.completed_at) - todayStart) / 300000))
-              : nowBucket;
-            const leftPct = ((startB - minBucket) / totalBuckets) * 100;
-            const widthPct = Math.max(1, ((endB - startB + 1) / totalBuckets) * 100);
-            const colors = t.status === 'in_progress' ? 'bg-blue-200 border-blue-400' : 'bg-green-100 border-green-300';
-            return (
-              <div
-                key={t.id}
-                className={`absolute h-5 ${colors} border rounded-md flex items-center overflow-hidden px-1`}
-                style={{ left: `${leftPct}%`, width: `${widthPct}%` }}
-                title={t.title}
-              >
-                <span className="text-[8px] font-semibold text-gray-600 truncate">{taskTypeLabel(t.task_type)}</span>
-              </div>
-            );
-          })}
-        </div>
-      )}
+      {/* Task spans — lane layout to avoid overlaps */}
+      {tasks.length > 0 && (() => {
+        const LANE_H = 22; // px per lane
+        const GAP = 2;
+        // Build items with positions
+        const items = tasks.filter(t => t.started_at).map(t => {
+          const startB = Math.max(minBucket, Math.floor((new Date(t.started_at) - todayStart) / 300000));
+          const endB = t.completed_at
+            ? Math.min(maxBucket, Math.floor((new Date(t.completed_at) - todayStart) / 300000))
+            : nowBucket;
+          return { ...t, startB, endB };
+        }).sort((a, b) => a.startB - b.startB);
+
+        // Assign lanes — greedy: put each task in the first lane where it doesn't overlap
+        const lanes = []; // lanes[i] = endB of last task in that lane
+        const itemLanes = items.map(item => {
+          let lane = lanes.findIndex(laneEnd => item.startB > laneEnd);
+          if (lane === -1) { lane = lanes.length; lanes.push(0); }
+          lanes[lane] = item.endB;
+          return lane;
+        });
+
+        const totalLanes = lanes.length || 1;
+
+        return (
+          <div className="relative mt-1 mb-1" style={{ height: totalLanes * (LANE_H + GAP) }}>
+            {items.map((t, i) => {
+              const leftPct = ((t.startB - minBucket) / totalBuckets) * 100;
+              const widthPct = Math.max(2, ((t.endB - t.startB + 1) / totalBuckets) * 100);
+              const colors = t.status === 'in_progress' ? 'bg-blue-100 border-blue-300' : 'bg-green-50 border-green-300';
+              const top = itemLanes[i] * (LANE_H + GAP);
+              return (
+                <div
+                  key={t.id}
+                  className={`absolute ${colors} border rounded-md flex items-center overflow-hidden px-1.5`}
+                  style={{ left: `${leftPct}%`, width: `${widthPct}%`, top, height: LANE_H }}
+                  title={`${t.title}\n${fmtTime(t.started_at)} → ${t.completed_at ? fmtTime(t.completed_at) : 'сейчас'}`}
+                >
+                  <span className="text-[8px] font-semibold text-gray-600 truncate">
+                    {taskTypeLabel(t.task_type)}
+                    {t.completed_at && <span className="text-gray-400 ml-1">{fmtTime(t.started_at)}–{fmtTime(t.completed_at)}</span>}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        );
+      })()}
     </div>
   );
 }
