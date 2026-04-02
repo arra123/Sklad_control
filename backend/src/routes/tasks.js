@@ -2627,39 +2627,60 @@ router.post('/:id/start', requireAuth, async (req, res) => {
         }
       }
     } else if (hasTaskBoxQueue) {
-      const trimmed = (box_barcode || '').trim();
-      if (!trimmed) {
-        return res.status(400).json({ error: 'Необходимо отсканировать штрих-код коробки' });
-      }
-
-      const matchedBox = taskBoxes.find(box => box.box_barcode === trimmed);
-      if (!matchedBox) {
-        return res.status(400).json({ error: 'Эта коробка не входит в назначенную инвентаризацию.' });
-      }
-      if (matchedBox.status === 'completed') {
-        return res.status(400).json({ error: 'Эта коробка уже завершена в этой задаче.' });
-      }
-
-      const activeBox = taskBoxes.find(box => box.status === 'in_progress');
-      if (activeBox && activeBox.id !== matchedBox.id) {
-        return res.status(400).json({ error: `Сначала завершите текущую коробку ${activeBox.box_barcode}.` });
-      }
-
-      if (!alreadyStarted) {
+      // Shelf-based tasks with boxes: first scan must be the shelf barcode
+      if (!alreadyStarted && t.shelf_id && t.shelf_barcode_expected) {
+        const trimmedShelf = (shelf_barcode || '').trim();
+        if (!trimmedShelf) {
+          return res.status(400).json({ error: 'Необходимо отсканировать штрих-код полки' });
+        }
+        // Reject rack barcodes
+        const rackCheck = await pool.query('SELECT id FROM racks_s WHERE barcode_value = $1', [trimmedShelf]);
+        if (rackCheck.rows.length > 0) {
+          return res.status(400).json({ error: 'Это штрих-код стеллажа. Отсканируйте штрих-код полки.' });
+        }
+        if (t.shelf_barcode_expected !== trimmedShelf) {
+          return res.status(400).json({ error: 'Штрих-код не совпадает с назначенной полкой.' });
+        }
         await pool.query(
           'UPDATE inventory_tasks_s SET status = $1, started_at = NOW() WHERE id = $2',
           ['in_progress', req.params.id]
         );
-      }
+      } else {
+        // Already started (or pallet task with boxes) — scan box barcode
+        const trimmed = (box_barcode || '').trim();
+        if (!trimmed) {
+          return res.status(400).json({ error: 'Необходимо отсканировать штрих-код коробки' });
+        }
 
-      if (matchedBox.status !== 'in_progress') {
-        await pool.query(
-          `UPDATE inventory_task_boxes_s
-           SET status = 'in_progress',
-               started_at = COALESCE(started_at, NOW())
-           WHERE id = $1`,
-          [matchedBox.id]
-        );
+        const matchedBox = taskBoxes.find(box => box.box_barcode === trimmed);
+        if (!matchedBox) {
+          return res.status(400).json({ error: 'Эта коробка не входит в назначенную инвентаризацию.' });
+        }
+        if (matchedBox.status === 'completed') {
+          return res.status(400).json({ error: 'Эта коробка уже завершена в этой задаче.' });
+        }
+
+        const activeBox = taskBoxes.find(box => box.status === 'in_progress');
+        if (activeBox && activeBox.id !== matchedBox.id) {
+          return res.status(400).json({ error: `Сначала завершите текущую коробку ${activeBox.box_barcode}.` });
+        }
+
+        if (!alreadyStarted) {
+          await pool.query(
+            'UPDATE inventory_tasks_s SET status = $1, started_at = NOW() WHERE id = $2',
+            ['in_progress', req.params.id]
+          );
+        }
+
+        if (matchedBox.status !== 'in_progress') {
+          await pool.query(
+            `UPDATE inventory_task_boxes_s
+             SET status = 'in_progress',
+                 started_at = COALESCE(started_at, NOW())
+             WHERE id = $1`,
+            [matchedBox.id]
+          );
+        }
       }
     } else if (t.task_type === 'production_transfer') {
       // Must scan pallet barcode
