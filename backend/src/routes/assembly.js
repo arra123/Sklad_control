@@ -443,6 +443,32 @@ router.post('/:id/start-assembling', requireAuth, async (req, res) => {
   }
 });
 
+// ─── GET /:id/component-status — Current bundle component status ─────────
+router.get('/:id/component-status', requireAuth, async (req, res) => {
+  try {
+    const task = await pool.query('SELECT * FROM inventory_tasks_s WHERE id = $1 AND task_type = $2', [req.params.id, 'bundle_assembly']);
+    if (!task.rows.length) return res.status(404).json({ error: 'Задача не найдена' });
+    const currentBundle = task.rows[0].assembled_count + 1;
+    const comps = await pool.query(
+      'SELECT component_id, quantity FROM bundle_components_s WHERE bundle_id = $1', [task.rows[0].bundle_product_id]);
+    const scanned = await pool.query(
+      `SELECT product_id, COUNT(*) as cnt FROM assembly_items_s WHERE task_id = $1 AND used_in_bundle = $2 GROUP BY product_id`,
+      [req.params.id, currentBundle]);
+    const scannedMap = {};
+    scanned.rows.forEach(r => { scannedMap[r.product_id] = Number(r.cnt); });
+    let allDone = true;
+    const status = comps.rows.map(c => {
+      const needed = Number(c.quantity);
+      const have = scannedMap[c.component_id] || 0;
+      if (have < needed) allDone = false;
+      return { product_id: c.component_id, needed, have, done: have >= needed };
+    });
+    res.json({ bundle_number: currentBundle, components_status: status, all_components_scanned: allDone });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── POST /:id/scan-component — Scan component into current bundle ─────────
 router.post('/:id/scan-component', requireAuth, async (req, res) => {
   const { barcode } = req.body;

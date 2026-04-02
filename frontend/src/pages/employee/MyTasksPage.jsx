@@ -44,7 +44,7 @@ export default function MyTasksPage() {
 
   useEffect(() => { load(); }, []);
 
-  const activeTasks = tasks.filter(t => t.status === 'new' || t.status === 'in_progress');
+  const activeTasks = tasks.filter(t => t.status === 'new' || t.status === 'in_progress' || t.status === 'paused');
   const doneTasks = tasks.filter(t => t.status === 'completed' || t.status === 'cancelled');
 
   if (loading) {

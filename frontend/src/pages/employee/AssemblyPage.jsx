@@ -171,6 +171,18 @@ export default function AssemblyPage() {
     try {
       const res = await api.get(`/assembly/${id}`);
       setTask(res.data);
+      // Restore component status for current bundle (e.g. after page reload)
+      if (res.data.assembly_phase === 'assembling') {
+        try {
+          const cs = await api.get(`/assembly/${id}/component-status`);
+          setComponentStatus(cs.data.components_status || []);
+          if (cs.data.all_components_scanned) {
+            const allBc = (res.data.bundle_barcodes || '').split(';').map(s => s.trim()).filter(Boolean);
+            const systemBc = allBc.find(b => /^[124]0{5,}\d+$/.test(b));
+            setPrintBarcode(systemBc || res.data.bundle_barcode || allBc[0] || '');
+          }
+        } catch {}
+      }
     } catch (err) {
       toast.error('Не удалось загрузить задачу');
     } finally { setLoading(false); }
@@ -476,6 +488,17 @@ export default function AssemblyPage() {
           </div>
         ))}
       </div>
+
+      {/* ═══ PAUSED ═══ */}
+      {task.status === 'paused' && (
+        <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
+          <div className="w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center mb-4">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
+          </div>
+          <h3 className="text-lg font-bold text-gray-800 mb-2">Задача на паузе</h3>
+          <p className="text-sm text-gray-500 max-w-xs">Администратор приостановил эту задачу. Дождитесь возобновления.</p>
+        </div>
+      )}
 
       {/* ═══ NOT STARTED ═══ */}
       {task.status === 'new' && (
