@@ -475,7 +475,7 @@ function ActivityTimeline({ buckets, tasks, breaks = [], thresholds }) {
 
 // ─── Employee Detail View ───────────────────────────────────────────────────
 
-function EmployeeDetailView({ employeeId, employees, onBack, thresholds }) {
+function EmployeeDetailView({ employeeId, employees, onBack, thresholds, date, isToday = true }) {
   const navigate = useNavigate();
   const [timeline, setTimeline] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -486,7 +486,8 @@ function EmployeeDetailView({ employeeId, employees, onBack, thresholds }) {
 
   const loadTimeline = useCallback(async () => {
     try {
-      const res = await api.get(`/tasks/analytics/live/${employeeId}/timeline`);
+      const dateQ = !isToday && date ? `?date=${date}` : '';
+      const res = await api.get(`/tasks/analytics/live/${employeeId}/timeline${dateQ}`);
       setTimeline(res.data);
       setLoading(false);
     } catch { setLoading(false); }
@@ -494,9 +495,11 @@ function EmployeeDetailView({ employeeId, employees, onBack, thresholds }) {
 
   useEffect(() => {
     loadTimeline();
-    const id = setInterval(loadTimeline, POLL_MS);
-    return () => clearInterval(id);
-  }, [loadTimeline]);
+    if (isToday) {
+      const id = setInterval(loadTimeline, POLL_MS);
+      return () => clearInterval(id);
+    }
+  }, [loadTimeline, isToday]);
 
   const [showBreakForm, setShowBreakForm] = useState(false);
   const [breakFrom, setBreakFrom] = useState('');
@@ -797,7 +800,15 @@ export default function LiveMonitorPage() {
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const selectedId = searchParams.get('emp') ? parseInt(searchParams.get('emp')) : null;
-  const setSelectedId = (id) => id ? setSearchParams({ emp: id }) : setSearchParams({});
+  const setSelectedId = (id) => {
+    const p = {};
+    if (id) p.emp = id;
+    if (selectedDate !== todayStr) p.date = selectedDate;
+    setSearchParams(p);
+  };
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const [selectedDate, setSelectedDate] = useState(searchParams.get('date') || todayStr);
+  const isToday = selectedDate === todayStr;
   const [lastUpdate, setLastUpdate] = useState(null);
   const [thresholds, setThresholds] = useState({ t1:3, t2:6, t3:10, t4:15, t5:22, t6:30 });
 
@@ -816,19 +827,21 @@ export default function LiveMonitorPage() {
     }).catch(() => {});
   }, []);
 
-  // Stable polling — no dependency on selectedId
   const loadGrid = useCallback(async () => {
     try {
-      const res = await api.get('/tasks/analytics/live');
+      const res = await api.get(`/tasks/analytics/live${!isToday ? `?date=${selectedDate}` : ''}`);
       setEmployees(res.data.employees || []);
       setLastUpdate(new Date());
     } catch {} finally { setLoading(false); }
-  }, []);
+  }, [selectedDate, isToday]);
 
   useEffect(() => {
+    setLoading(true);
     loadGrid();
-    const id = setInterval(loadGrid, POLL_MS);
-    return () => clearInterval(id);
+    if (isToday) {
+      const id = setInterval(loadGrid, POLL_MS);
+      return () => clearInterval(id);
+    }
   }, [loadGrid]);
 
   // Detail view
@@ -839,6 +852,8 @@ export default function LiveMonitorPage() {
         employees={employees}
         onBack={() => setSelectedId(null)}
         thresholds={thresholds}
+        date={selectedDate}
+        isToday={isToday}
       />
     );
   }
@@ -865,20 +880,37 @@ export default function LiveMonitorPage() {
           </button>
           <div>
             <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-              Live-мониторинг
-              <span className="flex items-center gap-1 text-xs font-semibold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
-                <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" /> LIVE
-              </span>
+              Мониторинг
+              {isToday && (
+                <span className="flex items-center gap-1 text-xs font-semibold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" /> LIVE
+                </span>
+              )}
             </h1>
             <p className="text-sm text-gray-400 mt-0.5">
-              {activeCount} работают · {employees.length} всего · обновление каждые 5с
-              {lastUpdate && <span className="ml-2">{lastUpdate.toLocaleTimeString('ru-RU')}</span>}
+              {isToday ? `${activeCount} работают · ` : ''}{employees.length} сотрудников
+              {isToday && lastUpdate && <span className="ml-1">· {lastUpdate.toLocaleTimeString('ru-RU')}</span>}
             </p>
           </div>
         </div>
-        <button onClick={loadGrid} className="p-2 rounded-xl text-gray-400 hover:text-primary-600 hover:bg-primary-50 transition-colors">
-          <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
-        </button>
+        <div className="flex items-center gap-2">
+          <input
+            type="date"
+            value={selectedDate}
+            max={todayStr}
+            onChange={e => { setSelectedDate(e.target.value); setSearchParams(e.target.value !== todayStr ? { date: e.target.value } : {}); }}
+            className="px-3 py-1.5 rounded-xl border border-gray-200 text-sm text-gray-600 focus:outline-none focus:ring-1 focus:ring-primary-400"
+          />
+          {!isToday && (
+            <button onClick={() => { setSelectedDate(todayStr); setSearchParams({}); }}
+              className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-green-50 text-green-600 hover:bg-green-100 transition-colors">
+              Сегодня
+            </button>
+          )}
+          <button onClick={loadGrid} className="p-2 rounded-xl text-gray-400 hover:text-primary-600 hover:bg-primary-50 transition-colors">
+            <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
+          </button>
+        </div>
       </div>
 
       {employees.length === 0 && !loading && (

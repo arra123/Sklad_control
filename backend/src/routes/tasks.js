@@ -1463,11 +1463,19 @@ router.get('/analytics/summary', requireAuth, requirePermission('analytics', 'ta
 
 // GET /api/tasks/analytics/live — real-time employee monitoring (cached 3s)
 let liveCache = { data: null, ts: 0 };
-router.get('/analytics/live', requireAuth, requirePermission('analytics', 'dashboard', 'tasks.view'), async (_req, res) => {
-  // Return cached if fresh (multiple admins polling at 5s)
-  if (liveCache.data && Date.now() - liveCache.ts < 3000) {
+router.get('/analytics/live', requireAuth, requirePermission('analytics', 'dashboard', 'tasks.view'), async (req, res) => {
+  const dateParam = req.query.date; // optional: YYYY-MM-DD
+  const isToday = !dateParam || dateParam === new Date().toISOString().slice(0, 10);
+
+  // Cache only for today
+  if (isToday && liveCache.data && Date.now() - liveCache.ts < 3000) {
     return res.json(liveCache.data);
   }
+  const dayStart = dateParam ? new Date(dateParam + 'T00:00:00') : null;
+  const dayEnd = dateParam ? new Date(dateParam + 'T23:59:59') : null;
+  const dateFilterSql = dateParam ? `$1::date` : 'CURRENT_DATE';
+  const params = dateParam ? [dateParam] : [];
+
   try {
     const { rows: employees } = await pool.query(`
       SELECT
@@ -1483,37 +1491,34 @@ router.get('/analytics/live', requireAuth, requirePermission('analytics', 'dashb
           'boxes_total', (SELECT COUNT(*) FROM inventory_task_boxes_s tb WHERE tb.task_id = t.id),
           'assembled', t.assembled_count, 'bundle_qty', t.bundle_qty
         ) FROM inventory_tasks_s t WHERE t.employee_id = e.id AND t.status = 'in_progress' LIMIT 1) as active_task,
-        -- Today scans
         COALESCE((SELECT COUNT(*) FROM inventory_task_scans_s sc
           JOIN inventory_tasks_s t ON t.id = sc.task_id AND t.employee_id = e.id
-          WHERE sc.product_id IS NOT NULL AND sc.created_at >= CURRENT_DATE), 0) as scans_today,
-        -- Today earnings
+          WHERE sc.product_id IS NOT NULL AND sc.created_at >= ${dateFilterSql}), 0) as scans_today,
         COALESCE((SELECT SUM(amount_delta) FROM employee_earnings_s
-          WHERE employee_id = e.id AND created_at >= CURRENT_DATE AND event_type IN ('inventory_scan','external_order_pick','external_order_collect')), 0) as earned_today,
-        -- Tasks completed today
+          WHERE employee_id = e.id AND created_at >= ${dateFilterSql} AND created_at < ${dateFilterSql} + INTERVAL '1 day'
+            AND event_type IN ('inventory_scan','external_order_pick','external_order_collect')), 0) as earned_today,
         COALESCE((SELECT COUNT(*) FROM inventory_tasks_s t
-          WHERE t.employee_id = e.id AND t.status = 'completed' AND t.completed_at >= CURRENT_DATE), 0) as tasks_today,
-        -- Last scan time
+          WHERE t.employee_id = e.id AND t.status = 'completed' AND t.completed_at >= ${dateFilterSql} AND t.completed_at < ${dateFilterSql} + INTERVAL '1 day'), 0) as tasks_today,
         (SELECT sc.created_at FROM inventory_task_scans_s sc
           JOIN inventory_tasks_s t ON t.id = sc.task_id AND t.employee_id = e.id
-          WHERE sc.product_id IS NOT NULL ORDER BY sc.created_at DESC LIMIT 1) as last_scan_at,
-        -- Avg scan speed today
+          WHERE sc.product_id IS NOT NULL AND sc.created_at >= ${dateFilterSql} AND sc.created_at < ${dateFilterSql} + INTERVAL '1 day'
+          ORDER BY sc.created_at DESC LIMIT 1) as last_scan_at,
         (SELECT ROUND(AVG(gap)::numeric, 1) FROM (
           SELECT EXTRACT(EPOCH FROM (sc.created_at - LAG(sc.created_at) OVER (PARTITION BY sc.task_id ORDER BY sc.created_at))) as gap
           FROM inventory_task_scans_s sc
           JOIN inventory_tasks_s t ON t.id = sc.task_id AND t.employee_id = e.id
-          WHERE sc.created_at >= CURRENT_DATE
+          WHERE sc.created_at >= ${dateFilterSql} AND sc.created_at < ${dateFilterSql} + INTERVAL '1 day'
         ) g WHERE gap > 0 AND gap < 300) as avg_speed_today
       FROM employees_s e
       WHERE e.active = true
         AND (
-          EXISTS (SELECT 1 FROM inventory_tasks_s t WHERE t.employee_id = e.id AND t.status = 'in_progress')
-          OR EXISTS (SELECT 1 FROM inventory_task_scans_s sc JOIN inventory_tasks_s t ON t.id = sc.task_id AND t.employee_id = e.id WHERE sc.created_at >= CURRENT_DATE)
+          ${isToday ? `EXISTS (SELECT 1 FROM inventory_tasks_s t WHERE t.employee_id = e.id AND t.status = 'in_progress') OR` : ''}
+          EXISTS (SELECT 1 FROM inventory_task_scans_s sc JOIN inventory_tasks_s t ON t.id = sc.task_id AND t.employee_id = e.id WHERE sc.created_at >= ${dateFilterSql} AND sc.created_at < ${dateFilterSql} + INTERVAL '1 day')
         )
       ORDER BY scans_today DESC
-    `);
-    const result = { employees, timestamp: new Date().toISOString() };
-    liveCache = { data: result, ts: Date.now() };
+    `, params);
+    const result = { employees, timestamp: new Date().toISOString(), date: dateParam || new Date().toISOString().slice(0,10) };
+    if (isToday) liveCache = { data: result, ts: Date.now() };
     res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1523,8 +1528,9 @@ router.get('/analytics/live', requireAuth, requirePermission('analytics', 'dashb
 // GET /api/tasks/analytics/live/:employeeId/timeline — employee day timeline for live monitor detail
 router.get('/analytics/live/:employeeId/timeline', requireAuth, requirePermission('analytics', 'dashboard', 'tasks.view'), async (req, res) => {
   const employeeId = parseInt(req.params.employeeId);
+  const dateParam = req.query.date;
+  const dateVal = dateParam || new Date().toISOString().slice(0, 10);
   try {
-    // Tasks today
     const tasksResult = await pool.query(`
       SELECT t.id, t.title, t.task_type, t.status, t.started_at, t.completed_at,
              t.assembled_count, t.bundle_qty, t.placed_count, t.assembly_phase, t.pause_log,
@@ -1548,33 +1554,33 @@ router.get('/analytics/live/:employeeId/timeline', requireAuth, requirePermissio
       LEFT JOIN pallets_s pa ON pa.id = t.target_pallet_id
       LEFT JOIN pallet_rows_s pr ON pr.id = pa.row_id
       WHERE t.employee_id = $1
-        AND (t.started_at >= CURRENT_DATE
-             OR t.completed_at >= CURRENT_DATE
+        AND (t.started_at >= $2::date
+             OR t.completed_at >= $2::date
              OR (t.status = 'in_progress' AND t.started_at IS NOT NULL))
       ORDER BY t.started_at ASC
-    `, [employeeId]);
+    `, [employeeId, dateVal]);
 
     // 5-minute activity buckets
     const bucketsResult = await pool.query(`
       SELECT
-        FLOOR(EXTRACT(EPOCH FROM (sc.created_at - CURRENT_DATE)) / 300)::int as bucket,
+        FLOOR(EXTRACT(EPOCH FROM (sc.created_at - $2::date)) / 300)::int as bucket,
         COUNT(*) as scan_count,
         MIN(sc.created_at) as bucket_start,
         MAX(sc.created_at) as bucket_end
       FROM inventory_task_scans_s sc
       JOIN inventory_tasks_s t ON t.id = sc.task_id AND t.employee_id = $1
-      WHERE sc.created_at >= CURRENT_DATE AND sc.product_id IS NOT NULL
+      WHERE sc.created_at >= $2::date AND sc.created_at < $2::date + INTERVAL '1 day' AND sc.product_id IS NOT NULL
       GROUP BY bucket
       ORDER BY bucket
-    `, [employeeId]);
+    `, [employeeId, dateVal]);
 
     // Breaks today
     const breaksResult = await pool.query(`
       SELECT id, break_type, started_at, ended_at
       FROM employee_breaks_s
-      WHERE employee_id = $1 AND started_at >= CURRENT_DATE
+      WHERE employee_id = $1 AND started_at >= $2::date AND started_at < $2::date + INTERVAL '1 day'
       ORDER BY started_at ASC
-    `, [employeeId]);
+    `, [employeeId, dateVal]);
 
     res.json({
       tasks: tasksResult.rows,
