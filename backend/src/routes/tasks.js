@@ -2981,6 +2981,23 @@ router.post('/:id/complete', requireAuth, async (req, res) => {
     const taskBoxes = await getTaskBoxRows(client, taskId);
     if (taskBoxes.length > 0) {
       const activeTaskBox = taskBoxes.find(row => row.status === 'in_progress');
+      const allBoxesCompleted = taskBoxes.every(row => row.status === 'completed');
+
+      // All boxes already completed — finish the task
+      if (!activeTaskBox && allBoxesCompleted) {
+        await client.query(
+          'UPDATE inventory_tasks_s SET status = $1, completed_at = NOW() WHERE id = $2',
+          ['completed', taskId]
+        );
+        await client.query('COMMIT');
+        return res.json({
+          success: true,
+          task_completed: true,
+          completed_boxes: taskBoxes.length,
+          total_boxes: taskBoxes.length,
+        });
+      }
+
       if (!activeTaskBox) {
         return res.status(400).json({ error: 'Сначала отсканируйте следующую коробку из этой задачи.' });
       }
