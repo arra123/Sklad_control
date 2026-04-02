@@ -388,6 +388,7 @@ router.post('/:id/scan-pick', requireAuth, async (req, res) => {
       `INSERT INTO inventory_task_scans_s (task_id, product_id, scanned_value, quantity_delta, shelf_id)
        VALUES ($1, $2, $3, 1, $4) RETURNING id`,
       [req.params.id, product.id, barcode, shelf_id || null]);
+    await client.query('UPDATE inventory_tasks_s SET scans_count = scans_count + 1 WHERE id = $1', [req.params.id]);
 
     // Award GRACoin for scan
     const t = task.rows[0];
@@ -517,15 +518,24 @@ router.post('/:id/scan-component', requireAuth, async (req, res) => {
     // Mark as used in current bundle
     await pool.query('UPDATE assembly_items_s SET used_in_bundle = $1 WHERE id = $2', [currentBundle, item.rows[0].id]);
 
-    // Record scan and award GRA
-    const scanRes = await pool.query(
-      `INSERT INTO inventory_task_scans_s (task_id, product_id, scanned_value, quantity_delta)
-       VALUES ($1, $2, $3, 1) RETURNING id`,
-      [req.params.id, product.id, barcode]);
-    await awardScanReward(pool, {
-      task: task.rows[0], taskScanId: scanRes.rows[0].id,
-      productId: product.id, quantityDelta: 1, user: req.user,
-    });
+    // Record scan and award GRA (in transaction)
+    const scanClient = await pool.connect();
+    try {
+      await scanClient.query('BEGIN');
+      const scanRes = await scanClient.query(
+        `INSERT INTO inventory_task_scans_s (task_id, product_id, scanned_value, quantity_delta)
+         VALUES ($1, $2, $3, 1) RETURNING id`,
+        [req.params.id, product.id, barcode]);
+      await scanClient.query('UPDATE inventory_tasks_s SET scans_count = scans_count + 1 WHERE id = $1', [req.params.id]);
+      await awardScanReward(scanClient, {
+        task: task.rows[0], taskScanId: scanRes.rows[0].id,
+        productId: product.id, quantityDelta: 1, user: req.user,
+      });
+      await scanClient.query('COMMIT');
+    } catch (e) {
+      await scanClient.query('ROLLBACK');
+      throw e;
+    } finally { scanClient.release(); }
 
     // Check if all components for this bundle are scanned
     const comps = await pool.query(
@@ -672,6 +682,7 @@ router.post('/:id/scan-place', requireAuth, async (req, res) => {
       `INSERT INTO inventory_task_scans_s (task_id, product_id, scanned_value, quantity_delta)
        VALUES ($1, $2, $3, 1) RETURNING id`,
       [req.params.id, productId, barcode]);
+    await client.query('UPDATE inventory_tasks_s SET scans_count = scans_count + 1 WHERE id = $1', [req.params.id]);
     await awardScanReward(client, {
       task: task.rows[0], taskScanId: placeScan.rows[0].id,
       productId, quantityDelta: 1, user: req.user,

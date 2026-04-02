@@ -832,6 +832,14 @@ async function createSchema() {
     await client.query(`CREATE INDEX IF NOT EXISTS idx_assembly_items_task ON assembly_items_s(task_id)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_assembly_items_bundle ON assembly_items_s(task_id, used_in_bundle)`);
 
+    // ─── Denormalized scan count on tasks ──────────────────────────
+    await client.query(`ALTER TABLE inventory_tasks_s ADD COLUMN IF NOT EXISTS scans_count INTEGER NOT NULL DEFAULT 0`);
+    await client.query(`
+      UPDATE inventory_tasks_s t SET scans_count = sub.cnt
+      FROM (SELECT task_id, COUNT(*) as cnt FROM inventory_task_scans_s WHERE product_id IS NOT NULL GROUP BY task_id) sub
+      WHERE sub.task_id = t.id AND t.scans_count = 0
+    `);
+
     // ─── Performance indexes ─────────────────────────────────────
     await client.query(`CREATE INDEX IF NOT EXISTS idx_inv_tasks_employee_status ON inventory_tasks_s(employee_id, status)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_inv_tasks_employee_completed ON inventory_tasks_s(employee_id, completed_at DESC) WHERE completed_at IS NOT NULL`);

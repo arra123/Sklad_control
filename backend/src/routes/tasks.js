@@ -1332,7 +1332,7 @@ router.get('/', requireAuth, async (req, res) => {
               COALESCE(sbx.quantity, bx.quantity) as box_quantity,
               COALESCE(sbp.name, bp.name) as box_product_name,
               COALESCE(sbp.code, bp.code) as box_product_code,
-              sc_agg.scans_count,
+              t.scans_count,
               t.assembled_count, t.bundle_qty, t.placed_count, t.assembly_phase,
               CASE WHEN t.started_at IS NOT NULL AND t.completed_at IS NOT NULL
                 THEN ROUND(EXTRACT(EPOCH FROM (t.completed_at - t.started_at)) / 60.0, 1) END as duration_minutes,
@@ -1350,10 +1350,7 @@ router.get('/', requireAuth, async (req, res) => {
        LEFT JOIN pallets_s pa ON pa.id = COALESCE(t.target_pallet_id, bx.pallet_id)
        LEFT JOIN pallet_rows_s pr ON pr.id = pa.row_id
        LEFT JOIN warehouses_s pw ON pw.id = pr.warehouse_id
-       LEFT JOIN LATERAL (
-         SELECT COUNT(*) as scans_count
-         FROM inventory_task_scans_s sc WHERE sc.task_id = t.id AND sc.product_id IS NOT NULL
-       ) sc_agg ON true
+       -- scans_count is denormalized on inventory_tasks_s
        LEFT JOIN LATERAL (
          SELECT COUNT(*) as task_boxes_total,
                 COUNT(*) FILTER (WHERE tb.status = 'completed') as task_boxes_completed
@@ -1531,8 +1528,7 @@ router.get('/analytics/live/:employeeId/timeline', requireAuth, requirePermissio
     const tasksResult = await pool.query(`
       SELECT t.id, t.title, t.task_type, t.status, t.started_at, t.completed_at,
              t.assembled_count, t.bundle_qty, t.placed_count, t.assembly_phase, t.pause_log,
-             (SELECT COUNT(*) FROM inventory_task_scans_s sc
-              WHERE sc.task_id = t.id AND sc.product_id IS NOT NULL) as scan_count,
+             t.scans_count as scan_count,
              (SELECT ROUND(AVG(gap)::numeric, 1) FROM (
                SELECT EXTRACT(EPOCH FROM (sc.created_at - LAG(sc.created_at) OVER (ORDER BY sc.created_at))) as gap
                FROM inventory_task_scans_s sc WHERE sc.task_id = t.id AND sc.product_id IS NOT NULL
@@ -3032,6 +3028,9 @@ router.post('/:id/scan', requireAuth, async (req, res) => {
        RETURNING id`,
       [taskId, activeTaskBox?.id || null, productRow.id, productRow.external_id || null, scanned_value, parseFloat(quantity_delta), t.shelf_id || null]
     );
+
+    // Increment denormalized scan count
+    await client.query('UPDATE inventory_tasks_s SET scans_count = scans_count + 1 WHERE id = $1', [taskId]);
 
     const reward = await awardScanReward(client, {
       task: { ...t, id: Number(taskId) },

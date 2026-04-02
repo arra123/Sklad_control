@@ -245,6 +245,7 @@ router.post('/:taskId/scan', requireAuth, async (req, res) => {
       'INSERT INTO inventory_task_scans_s (task_id, product_id, scanned_value, quantity_delta) VALUES ($1,$2,$3,1) RETURNING id',
       [t.id, prod.id, scanned_value]
     );
+    await client.query('UPDATE inventory_tasks_s SET scans_count = scans_count + 1 WHERE id = $1', [t.id]);
 
     // Award GRACoin for scan
     await awardScanReward(client, {
