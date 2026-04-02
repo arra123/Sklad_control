@@ -415,17 +415,23 @@ function EmployeeDetailView({ employeeId, employees, onBack, thresholds }) {
     return () => clearInterval(id);
   }, [loadTimeline]);
 
-  // Check if employee currently has an active tech break
-  const activeBreak = timeline?.breaks?.find(b => !b.ended_at);
+  const [showBreakForm, setShowBreakForm] = useState(false);
+  const [breakFrom, setBreakFrom] = useState('');
+  const [breakTo, setBreakTo] = useState('');
 
-  const toggleTechBreak = async () => {
+  const addTechBreak = async () => {
+    if (!breakFrom || !breakTo) return;
     setBreakLoading(true);
     try {
-      if (activeBreak) {
-        await api.post('/staff/breaks/admin-end', { employee_id: employeeId });
-      } else {
-        await api.post('/staff/breaks/admin-add', { employee_id: employeeId, break_type: 'tech' });
-      }
+      const today = new Date().toISOString().slice(0, 10);
+      await api.post('/staff/breaks/admin-add', {
+        employee_id: employeeId,
+        break_type: 'tech',
+        started_at: new Date(`${today}T${breakFrom}`).toISOString(),
+        ended_at: new Date(`${today}T${breakTo}`).toISOString(),
+      });
+      setShowBreakForm(false);
+      setBreakFrom(''); setBreakTo('');
       await loadTimeline();
     } catch {} finally { setBreakLoading(false); }
   };
@@ -456,18 +462,32 @@ function EmployeeDetailView({ employeeId, employees, onBack, thresholds }) {
           </p>
         </div>
         <button
-          onClick={toggleTechBreak}
-          disabled={breakLoading}
-          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all flex-shrink-0 ${
-            activeBreak
-              ? 'bg-orange-100 text-orange-700 hover:bg-orange-200 ring-1 ring-orange-300'
-              : 'bg-gray-100 text-gray-500 hover:bg-orange-50 hover:text-orange-600'
-          }`}
+          onClick={() => setShowBreakForm(v => !v)}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all flex-shrink-0 bg-gray-100 text-gray-500 hover:bg-orange-50 hover:text-orange-600"
         >
           <Pause size={14} />
-          {activeBreak ? 'Снять паузу' : 'Техн. пауза'}
+          Техн. пауза
         </button>
       </div>
+
+      {/* Tech break form */}
+      {showBreakForm && (
+        <div className="mb-4 bg-orange-50 border border-orange-200 rounded-xl p-4 flex items-center gap-3 flex-wrap" style={{ animation: 'fadeIn 0.15s ease-out' }}>
+          <span className="text-xs font-semibold text-orange-700">Добавить паузу:</span>
+          <div className="flex items-center gap-1.5">
+            <input type="time" value={breakFrom} onChange={e => setBreakFrom(e.target.value)}
+              className="px-2 py-1.5 rounded-lg border border-orange-200 text-xs bg-white w-24 focus:outline-none focus:ring-1 focus:ring-orange-400" />
+            <span className="text-gray-400 text-xs">→</span>
+            <input type="time" value={breakTo} onChange={e => setBreakTo(e.target.value)}
+              className="px-2 py-1.5 rounded-lg border border-orange-200 text-xs bg-white w-24 focus:outline-none focus:ring-1 focus:ring-orange-400" />
+          </div>
+          <button onClick={addTechBreak} disabled={breakLoading || !breakFrom || !breakTo}
+            className="px-3 py-1.5 rounded-lg bg-orange-500 text-white text-xs font-semibold hover:bg-orange-600 disabled:opacity-40 transition-colors">
+            Добавить
+          </button>
+          <button onClick={() => setShowBreakForm(false)} className="text-xs text-gray-400 hover:text-gray-600">Отмена</button>
+        </div>
+      )}
 
       {/* Stats row */}
       <div className="grid grid-cols-4 gap-3 mb-5">
