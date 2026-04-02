@@ -65,8 +65,9 @@ function ActivityTimeline({ buckets, tasks, breaks = [], thresholds }) {
   const T5 = thresholds?.t5 || 22;
   const T6 = thresholds?.t6 || 30;
   const [hoveredBucket, setHoveredBucket] = useState(null);
-  const [zoomLevel, setZoomLevel] = useState(0); // 0=full, 1=half, 2=quarter
-  const [panOffset, setPanOffset] = useState(0); // buckets offset from center
+  const [zoomLevel, setZoomLevel] = useState(0);
+  const [panOffset, setPanOffset] = useState(0);
+  const [popupTask, setPopupTask] = useState(null); // task clicked in timeline bars
 
   // Fixed work day: 07:00–17:00
   const now = new Date();
@@ -98,6 +99,20 @@ function ActivityTimeline({ buckets, tasks, breaks = [], thresholds }) {
     for (let i = bStart; i <= bEnd; i++) breakBuckets.add(i);
   }
 
+  // Build task pause buckets from pause_log
+  const taskPauseBuckets = new Set();
+  for (const t of tasks) {
+    const log = t.pause_log || [];
+    for (const p of log) {
+      if (!p.paused_at) continue;
+      const pStart = Math.max(minBucket, Math.floor((new Date(p.paused_at) - todayStart) / 300000));
+      const pEnd = p.resumed_at
+        ? Math.min(maxBucket, Math.floor((new Date(p.resumed_at) - todayStart) / 300000))
+        : Math.min(maxBucket, nowBucket);
+      for (let i = pStart; i <= pEnd; i++) taskPauseBuckets.add(i);
+    }
+  }
+
   if (buckets.length === 0 && tasks.length === 0) {
     return (
       <div className="bg-white rounded-2xl border border-gray-100 p-5">
@@ -123,14 +138,17 @@ function ActivityTimeline({ buckets, tasks, breaks = [], thresholds }) {
   const countUpTo = Math.min(nowBucket, maxBucket);
   let activeBuckets = 0;
   let breakBucketCount = 0;
+  let taskPauseCount = 0;
   for (let i = minBucket; i < countUpTo; i++) {
     if (breakBuckets.has(i)) breakBucketCount++;
+    else if (taskPauseBuckets.has(i) && !bucketMap[i]) taskPauseCount++;
     else if (bucketMap[i]) activeBuckets++;
   }
   const elapsedBuckets = Math.max(0, countUpTo - minBucket);
   const activeMinutes = activeBuckets * 5;
   const breakMinutes = breakBucketCount * 5;
-  const idleBuckets = elapsedBuckets - activeBuckets - breakBucketCount;
+  const taskPauseMinutes = taskPauseCount * 5;
+  const idleBuckets = elapsedBuckets - activeBuckets - breakBucketCount - taskPauseCount;
   const idleMinutes = Math.max(0, idleBuckets) * 5;
 
   // Hour markers
@@ -181,7 +199,10 @@ function ActivityTimeline({ buckets, tasks, breaks = [], thresholds }) {
         <div className="flex items-center gap-3 text-[10px] flex-wrap">
           <span className="text-gray-500">Работа: <b className="text-green-700">{fmtDuration(activeMinutes * 60)}</b></span>
           {breakMinutes > 0 && (
-            <span className="text-gray-500">Паузы: <b className="text-amber-600">{fmtDuration(breakMinutes * 60)}</b></span>
+            <span className="text-gray-500">Перерыв: <b className="text-amber-600">{fmtDuration(breakMinutes * 60)}</b></span>
+          )}
+          {taskPauseMinutes > 0 && (
+            <span className="text-gray-500">Пауза: <b className="text-red-400">{fmtDuration(taskPauseMinutes * 60)}</b></span>
           )}
           <span className="text-gray-500">Простой: <b className="text-red-500">{fmtDuration(idleMinutes * 60)}</b></span>
         </div>
@@ -196,8 +217,11 @@ function ActivityTimeline({ buckets, tasks, breaks = [], thresholds }) {
             const isHovered = hoveredBucket === bNum;
             const isBreak = breakBuckets.has(bNum);
             // 7 levels: T1/T2/T3/T4/T5/T6/above
+            const isTaskPause = taskPauseBuckets.has(bNum);
             const colorClass = isBreak
               ? (isHovered ? 'bg-amber-400' : 'bg-amber-300')
+              : isTaskPause
+              ? (isHovered ? 'bg-red-300' : 'bg-red-200')
               : scans <= 0 ? (isHovered ? 'bg-gray-200' : 'bg-gray-100')
               : scans <= T1 ? (isHovered ? 'bg-green-300' : 'bg-green-100')
               : scans <= T2 ? (isHovered ? 'bg-green-400' : 'bg-green-200')
@@ -222,7 +246,7 @@ function ActivityTimeline({ buckets, tasks, breaks = [], thresholds }) {
                 {isHovered && (
                   <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 z-20 px-2.5 py-1.5 bg-gray-900 text-white rounded-lg text-[10px] whitespace-nowrap shadow-lg pointer-events-none">
                     <p className="font-bold">{bucketToTime(bNum)}–{bucketToTime(bNum + 1)}</p>
-                    <p>{isBreak ? '⏸ Пауза' : scans > 0 ? `${scans} сканов` : 'Простой'}</p>
+                    <p>{isBreak ? '⏸ Перерыв' : isTaskPause ? '⏸ Пауза задачи' : scans > 0 ? `${scans} сканов` : 'Простой'}</p>
                   </div>
                 )}
               </div>
@@ -285,9 +309,9 @@ function ActivityTimeline({ buckets, tasks, breaks = [], thresholds }) {
               return (
                 <div
                   key={t.id}
-                  className={`absolute ${colors} border rounded-md flex items-center overflow-hidden px-1.5`}
+                  onClick={() => setPopupTask(popupTask?.id === t.id ? null : t)}
+                  className={`absolute ${colors} border rounded-md flex items-center overflow-hidden px-1.5 cursor-pointer hover:opacity-80 transition-opacity`}
                   style={{ left: `${leftPct}%`, width: `${widthPct}%`, top, height: LANE_H }}
-                  title={`${t.title}\n${fmtTime(t.started_at)} → ${t.completed_at ? fmtTime(t.completed_at) : 'сейчас'}`}
                 >
                   <span className="text-[8px] font-semibold text-gray-600 truncate">
                     {taskTypeLabel(t.task_type)}
@@ -296,6 +320,70 @@ function ActivityTimeline({ buckets, tasks, breaks = [], thresholds }) {
                 </div>
               );
             })}
+          </div>
+        );
+      })()}
+
+      {/* Task popup */}
+      {popupTask && (() => {
+        const t = popupTask;
+        const st = statusBadge(t.status);
+        const StIcon = st.icon;
+        const durationSec = t.started_at && t.completed_at
+          ? (new Date(t.completed_at) - new Date(t.started_at)) / 1000
+          : t.started_at ? (Date.now() - new Date(t.started_at)) / 1000 : 0;
+        const pauses = t.pause_log || [];
+        const totalPauseSec = pauses.reduce((sum, p) => {
+          if (!p.paused_at) return sum;
+          const end = p.resumed_at ? new Date(p.resumed_at) : new Date();
+          return sum + (end - new Date(p.paused_at)) / 1000;
+        }, 0);
+        const location = [t.rack_name, t.shelf_code || t.shelf_name, t.pallet_name].filter(Boolean).join(' → ');
+
+        return (
+          <div className="mt-2 bg-gray-50 rounded-xl border border-gray-200 p-4 animate-[fadeIn_0.2s_ease-out]"
+               style={{ animation: 'fadeIn 0.2s ease-out' }}>
+            <div className="flex items-start justify-between gap-2 mb-2">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${taskTypeBg(t.task_type)}`}>{taskTypeLabel(t.task_type)}</span>
+                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded flex items-center gap-1 ${st.bg}`}><StIcon size={10} /> {st.label}</span>
+                </div>
+                <p className="text-sm font-semibold text-gray-900">{t.title}</p>
+                {location && <p className="text-[11px] text-gray-400">{location}</p>}
+              </div>
+              <button onClick={() => setPopupTask(null)} className="p-1 rounded-lg text-gray-300 hover:text-gray-500 hover:bg-gray-200 transition-colors">✕</button>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+              <div className="bg-white rounded-lg px-3 py-2">
+                <p className="text-[9px] text-gray-400 uppercase font-bold">Время</p>
+                <p className="font-semibold text-gray-800">{fmtTime(t.started_at)} → {t.completed_at ? fmtTime(t.completed_at) : 'сейчас'}</p>
+              </div>
+              <div className="bg-white rounded-lg px-3 py-2">
+                <p className="text-[9px] text-gray-400 uppercase font-bold">Длит.</p>
+                <p className="font-semibold text-gray-800">{fmtDuration(durationSec)}</p>
+              </div>
+              <div className="bg-white rounded-lg px-3 py-2">
+                <p className="text-[9px] text-gray-400 uppercase font-bold">Сканов</p>
+                <p className="font-semibold text-gray-800">{fmtNum(t.scan_count)}</p>
+              </div>
+              <div className="bg-white rounded-lg px-3 py-2">
+                <p className="text-[9px] text-gray-400 uppercase font-bold">GRA</p>
+                <p className="font-semibold text-green-700">{fmtNum(Math.round(parseFloat(t.earned)))}</p>
+              </div>
+            </div>
+            {pauses.length > 0 && (
+              <div className="mt-2 pt-2 border-t border-gray-200">
+                <p className="text-[10px] font-bold text-red-400 mb-1">⏸ Паузы ({pauses.length}) — всего {fmtDuration(totalPauseSec)}</p>
+                <div className="flex flex-wrap gap-1">
+                  {pauses.map((p, idx) => (
+                    <span key={idx} className="text-[10px] bg-red-50 text-red-500 rounded px-1.5 py-0.5">
+                      {fmtTime(p.paused_at)} → {p.resumed_at ? fmtTime(p.resumed_at) : 'сейчас'}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         );
       })()}
