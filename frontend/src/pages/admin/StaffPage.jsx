@@ -738,9 +738,27 @@ function EmployeesTable({ employees, onEdit, onDelete, onDrill }) {
   );
 }
 
-// ─── Users Table ──────────────────────────────────────────────────────────────
-function UsersTable({ users, onEdit, onDelete }) {
-  const { sorted, sort, toggle } = useSort(users, 'username');
+// ─── Copy Button ─────────────────────────────────────────────────────────────
+function CopyBtn({ text, label }) {
+  const [copied, setCopied] = useState(false);
+  const copy = (e) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+  return (
+    <button onClick={copy} title={`Копировать ${label}`}
+      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-mono bg-gray-50 hover:bg-primary-50 hover:text-primary-600 transition-all cursor-pointer group">
+      <span className="max-w-[140px] truncate">{text}</span>
+      {copied ? <Check size={11} className="text-green-500 flex-shrink-0" /> : <Copy size={11} className="text-gray-300 group-hover:text-primary-400 flex-shrink-0" />}
+    </button>
+  );
+}
+
+// ─── Users Table (grouped by role) ───────────────────────────────────────────
+function UsersTable({ users, employees, onEdit, onDelete }) {
+  const [showAdmin, setShowAdmin] = useState(false);
 
   if (users.length === 0) {
     return (
@@ -751,51 +769,86 @@ function UsersTable({ users, onEdit, onDelete }) {
     );
   }
 
+  // Enrich users with employee data (position, department)
+  const enriched = users.map(u => {
+    const emp = employees.find(e => e.id === u.employee_id);
+    return { ...u, position: emp?.position, department: emp?.department };
+  });
+
+  // Group by role_name, separate production vs admin
+  const roleGroups = {};
+  const adminUsers = [];
+  for (const u of enriched) {
+    const isAdmin = u.department && !['Производство', 'производство'].includes(u.department);
+    if (isAdmin) { adminUsers.push(u); continue; }
+    const roleName = u.role_name || (u.role === 'admin' ? 'Администратор' : u.role === 'manager' ? 'Менеджер' : 'Сотрудник');
+    if (!roleGroups[roleName]) roleGroups[roleName] = [];
+    roleGroups[roleName].push(u);
+  }
+
+  // Sort groups: by name, users inside by employee_name
+  const sortedGroups = Object.entries(roleGroups).sort(([a], [b]) => a.localeCompare(b, 'ru'));
+  for (const [, list] of sortedGroups) list.sort((a, b) => (a.employee_name || '').localeCompare(b.employee_name || '', 'ru'));
+  adminUsers.sort((a, b) => (a.employee_name || '').localeCompare(b.employee_name || '', 'ru'));
+
+  const renderRow = (user) => (
+    <div key={user.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0">
+      {/* Employee name + position */}
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-gray-900 truncate">{user.employee_name || user.username}</p>
+        {user.position && <p className="text-[11px] text-gray-400 truncate">{user.position}</p>}
+      </div>
+      {/* Credentials */}
+      <div className="flex items-center gap-2 flex-shrink-0">
+        <CopyBtn text={user.username} label="логин" />
+        {user.password_plain && <CopyBtn text={user.password_plain} label="пароль" />}
+      </div>
+      {/* Actions */}
+      <div className="flex items-center gap-0.5 flex-shrink-0">
+        <button onClick={() => onEdit(user)}
+          className="p-1.5 rounded-lg text-gray-300 hover:text-primary-500 hover:bg-primary-50 transition-all">
+          <Pencil size={13} />
+        </button>
+        <button onClick={() => onDelete(user.id)}
+          className="p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all">
+          <Trash2 size={13} />
+        </button>
+      </div>
+    </div>
+  );
+
   return (
-    <div className="card overflow-hidden">
-      <table className="data-table">
-        <thead>
-          <tr>
-            <SortTh label="Логин" sortKey="username" sort={sort} onSort={toggle} />
-            <th className="text-xs text-gray-500 font-medium">Пароль</th>
-            <SortTh label="Роль" sortKey="role_name" sort={sort} onSort={toggle} />
-            <SortTh label="Сотрудник" sortKey="employee_name" sort={sort} onSort={toggle} />
-            <SortTh label="Статус" sortKey="active" sort={sort} onSort={toggle} />
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          {sorted.map(user => (
-            <tr key={user.id}>
-              <td className="font-mono font-medium text-gray-900">{user.username}</td>
-              <td className="font-mono text-xs text-gray-500">{user.password_plain || '—'}</td>
-              <td>
-                <Badge variant={user.role === 'admin' ? 'primary' : user.role === 'manager' ? 'warning' : 'info'}>
-                  {user.role_name || (user.role === 'admin' ? 'Администратор' : user.role === 'manager' ? 'Менеджер' : 'Сотрудник')}
-                </Badge>
-              </td>
-              <td className="text-gray-500 text-xs">{user.employee_name || '—'}</td>
-              <td>
-                <Badge variant={user.active ? 'success' : 'default'} dot>
-                  {user.active ? 'Активен' : 'Неактивен'}
-                </Badge>
-              </td>
-              <td>
-                <div className="flex items-center gap-1 justify-end">
-                  <button onClick={() => onEdit(user)}
-                    className="p-1.5 rounded-lg text-gray-300 hover:text-primary-500 hover:bg-primary-50 transition-all">
-                    <Pencil size={14} />
-                  </button>
-                  <button onClick={() => onDelete(user.id)}
-                    className="p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all">
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="space-y-3">
+      {sortedGroups.map(([roleName, list]) => (
+        <div key={roleName} className="card overflow-hidden">
+          <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Shield size={14} className="text-primary-400" />
+              <span className="text-xs font-bold text-gray-700">{roleName}</span>
+            </div>
+            <span className="text-[10px] text-gray-400 font-medium">{list.length} чел.</span>
+          </div>
+          {list.map(renderRow)}
+        </div>
+      ))}
+
+      {/* Admin/non-production users — collapsed */}
+      {adminUsers.length > 0 && (
+        <div className="card overflow-hidden">
+          <button onClick={() => setShowAdmin(v => !v)}
+            className="w-full px-4 py-2.5 bg-gray-50 border-b border-gray-100 flex items-center justify-between hover:bg-gray-100 transition-colors">
+            <div className="flex items-center gap-2">
+              <UserCog size={14} className="text-gray-400" />
+              <span className="text-xs font-bold text-gray-500">Администрация / не производство</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-gray-400 font-medium">{adminUsers.length} чел.</span>
+              <ChevronDown size={14} className={`text-gray-400 transition-transform ${showAdmin ? 'rotate-180' : ''}`} />
+            </div>
+          </button>
+          {showAdmin && adminUsers.map(renderRow)}
+        </div>
+      )}
     </div>
   );
 }
@@ -1102,7 +1155,7 @@ export default function StaffPage() {
           onDrill={setDrillEmployee}
         />
       ) : tab === 'users' ? (
-        <UsersTable users={users} onEdit={u => setEditUser(u)} onDelete={deleteUser} />
+        <UsersTable users={users} employees={employees} onEdit={u => setEditUser(u)} onDelete={deleteUser} />
       ) : tab === 'roles' ? (
         <RolesManager />
       ) : null}
