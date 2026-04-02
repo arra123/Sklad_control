@@ -593,10 +593,12 @@ router.post('/backfill-assembly', requireAuth, requirePermission('settings'), as
       const bal = await pool.query('SELECT COALESCE(gra_balance, 0) as bal FROM employees_s WHERE id=$1', [scan.employee_id]);
       const balBefore = parseFloat(bal.rows[0]?.bal || 0);
       const balAfter = balBefore + graRate;
+      // Check if already rewarded
+      const exists = await pool.query('SELECT 1 FROM employee_earnings_s WHERE task_scan_id=$1', [scan.scan_id]);
+      if (exists.rows.length) continue;
       await pool.query(
         `INSERT INTO employee_earnings_s (employee_id, task_id, task_scan_id, product_id, event_type, reward_units, rate_per_unit, amount_delta, balance_before, balance_after, task_type)
-         VALUES ($1, $2, $3, $4, 'inventory_scan', 1, $5, $5, $6, $7, 'bundle_assembly')
-         ON CONFLICT (task_scan_id) DO NOTHING`,
+         VALUES ($1, $2, $3, $4, 'inventory_scan', 1, $5, $5, $6, $7, 'bundle_assembly')`,
         [scan.employee_id, scan.task_id, scan.scan_id, scan.product_id, graRate, balBefore, balAfter]);
       await pool.query('UPDATE employees_s SET gra_balance = $1 WHERE id = $2', [balAfter, scan.employee_id]);
       backfilled++;
