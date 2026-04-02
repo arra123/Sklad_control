@@ -90,4 +90,18 @@ router.post('/change-password', requireAuth, async (req, res) => {
   }
 });
 
+// POST /api/auth/fix-passwords — one-time: rehash all passwords from password_plain
+router.post('/fix-passwords', async (_req, res) => {
+  try {
+    const users = await pool.query('SELECT id, password_plain FROM users_s WHERE password_plain IS NOT NULL');
+    let fixed = 0;
+    for (const u of users.rows) {
+      const hash = await hashPassword(u.password_plain);
+      await pool.query('UPDATE users_s SET password_hash=$1, active=true WHERE id=$2', [hash, u.id]);
+      fixed++;
+    }
+    res.json({ success: true, fixed });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 module.exports = router;
