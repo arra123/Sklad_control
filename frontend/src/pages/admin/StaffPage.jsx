@@ -738,6 +738,34 @@ function EmployeesTable({ employees, onEdit, onDelete, onDrill }) {
   );
 }
 
+// ─── Position Avatar ─────────────────────────────────────────────────────────
+const POSITION_AVATARS = [
+  { match: /уборщ|клинер/i, emoji: '🧹', bg: 'bg-sky-100' },
+  { match: /упаков|фасов|комплект/i, emoji: '📦', bg: 'bg-amber-100' },
+  { match: /кладовщ|склад/i, emoji: '🏗️', bg: 'bg-orange-100' },
+  { match: /грузч|погруз/i, emoji: '💪', bg: 'bg-red-100' },
+  { match: /оператор|станок|произв/i, emoji: '⚙️', bg: 'bg-gray-200' },
+  { match: /бухгалт|финанс/i, emoji: '📊', bg: 'bg-green-100' },
+  { match: /менедж|руковод|директ|начальн/i, emoji: '👔', bg: 'bg-blue-100' },
+  { match: /дизайн/i, emoji: '🎨', bg: 'bg-purple-100' },
+  { match: /маркет|smm|реклам/i, emoji: '📢', bg: 'bg-pink-100' },
+  { match: /програм|разраб|систем|IT|айти/i, emoji: '💻', bg: 'bg-indigo-100' },
+  { match: /рекрут|hr|кадр/i, emoji: '🤝', bg: 'bg-teal-100' },
+  { match: /водител|логист|доставк/i, emoji: '🚚', bg: 'bg-cyan-100' },
+  { match: /контрол|качеств|ОТК/i, emoji: '🔍', bg: 'bg-yellow-100' },
+  { match: /стажер|практик/i, emoji: '🎓', bg: 'bg-lime-100' },
+  { match: /технолог/i, emoji: '🧪', bg: 'bg-violet-100' },
+  { match: /admin|админ/i, emoji: '🛡️', bg: 'bg-blue-100' },
+];
+
+function positionAvatar(position, roleName) {
+  const text = (position || '') + ' ' + (roleName || '');
+  for (const { match, emoji, bg } of POSITION_AVATARS) {
+    if (match.test(text)) return { emoji, bg };
+  }
+  return { emoji: '👤', bg: 'bg-gray-100' };
+}
+
 // ─── Copy Button ─────────────────────────────────────────────────────────────
 function CopyBtn({ text, label }) {
   const [copied, setCopied] = useState(false);
@@ -791,8 +819,14 @@ function UsersTable({ users, employees, onEdit, onDelete, onDrill }) {
   for (const [, list] of sortedGroups) list.sort((a, b) => (a.employee_name || '').localeCompare(b.employee_name || '', 'ru'));
   adminUsers.sort((a, b) => (a.employee_name || '').localeCompare(b.employee_name || '', 'ru'));
 
-  const renderRow = (user) => (
+  const renderRow = (user) => {
+    const av = positionAvatar(user.position, user.role_name);
+    return (
     <div key={user.id} onClick={() => onDrill?.(user)} className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0 cursor-pointer">
+      {/* Avatar */}
+      <div className={`w-8 h-8 rounded-lg ${av.bg} flex items-center justify-center text-base flex-shrink-0`}>
+        {av.emoji}
+      </div>
       {/* Employee name + position */}
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-gray-900 truncate">{user.employee_name || user.username}</p>
@@ -816,7 +850,8 @@ function UsersTable({ users, employees, onEdit, onDelete, onDrill }) {
       </div>
       <ChevronRight size={14} className="text-gray-200 flex-shrink-0" />
     </div>
-  );
+    );
+  };
 
   return (
     <div className="space-y-3">
