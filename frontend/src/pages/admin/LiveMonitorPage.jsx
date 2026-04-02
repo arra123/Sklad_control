@@ -20,6 +20,13 @@ function fmtNum(n) {
   return Number(n || 0).toLocaleString('ru-RU');
 }
 
+function fmtCompact(n) {
+  n = Number(n || 0);
+  if (n >= 100000) return `${(n / 1000).toFixed(0)}k`;
+  if (n >= 10000) return `${(n / 1000).toFixed(1)}k`;
+  return fmtNum(n);
+}
+
 function fmtDuration(seconds) {
   if (!seconds || seconds <= 0) return '—';
   const h = Math.floor(seconds / 3600);
@@ -664,13 +671,6 @@ function EmployeeDetailView({ employeeId, employees, onBack, thresholds }) {
 }
 
 // ─── Employee Card ──────────────────────────────────────────────────────────
-
-function fmtCompact(n) {
-  n = Number(n || 0);
-  if (n >= 100000) return `${(n / 1000).toFixed(0)}k`;
-  if (n >= 10000) return `${(n / 1000).toFixed(1)}k`;
-  return fmtNum(n);
-}
 
 function EmployeeCard({ emp, onClick }) {
   const task = emp.active_task;
