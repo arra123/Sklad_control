@@ -3,6 +3,15 @@ const pool = require('../db/pool');
 const externalPool = require('../db/externalPool');
 const { requireAuth, requirePermission } = require('../middleware/auth');
 const { hashPassword } = require('../utils/password');
+const { syncEmployeesFromOsite } = require('../utils/syncFromOsite');
+
+// POST /api/staff/sync — trigger sync from external site
+router.post('/sync', requireAuth, requirePermission('staff.view', 'staff.edit'), async (_req, res) => {
+  try {
+    await syncEmployeesFromOsite();
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
 
 // ─── Employees ────────────────────────────────────────────────────────────────
 

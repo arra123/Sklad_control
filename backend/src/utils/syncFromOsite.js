@@ -73,11 +73,45 @@ async function syncEmployeesFromOsite() {
       }
     }
 
-    if (synced > 0) {
-      console.log(`[Sync] Synced ${synced} new employees from o_site`);
-    } else {
-      console.log('[Sync] All employees already synced');
+    // Deactivate employees no longer active on external site
+    // Get all external IDs that are active/internship
+    const activeExtIds = new Set(extEmployees.map(e => e.id));
+
+    // Get all local employees linked to external DB
+    const localLinked = await pool.query(
+      'SELECT id, external_employee_id FROM employees_s WHERE external_employee_id IS NOT NULL AND active = true'
+    );
+
+    let deactivated = 0;
+    for (const local of localLinked.rows) {
+      if (!activeExtIds.has(local.external_employee_id)) {
+        // Employee no longer active on external site — deactivate
+        await pool.query('UPDATE employees_s SET active = false WHERE id = $1', [local.id]);
+        await pool.query('UPDATE users_s SET active = false WHERE employee_id = $1', [local.id]);
+        deactivated++;
+      }
     }
+
+    // Also deactivate local-only employees (no external_employee_id) that have no user account or no scans
+    // These are test/manual entries — deactivate users without external link that don't match any external login
+    const extLogins = new Set(extEmployees.filter(e => e.login).map(e => e.login));
+    const localOnlyUsers = await pool.query(
+      `SELECT u.id, u.username, u.employee_id FROM users_s u
+       LEFT JOIN employees_s e ON e.id = u.employee_id
+       WHERE (e.external_employee_id IS NULL) AND u.active = true`
+    );
+    for (const u of localOnlyUsers.rows) {
+      // If username doesn't exist on external site — deactivate
+      if (!extLogins.has(u.username)) {
+        await pool.query('UPDATE users_s SET active = false WHERE id = $1', [u.id]);
+        if (u.employee_id) {
+          await pool.query('UPDATE employees_s SET active = false WHERE id = $1', [u.employee_id]);
+        }
+        deactivated++;
+      }
+    }
+
+    console.log(`[Sync] Synced ${synced} new, deactivated ${deactivated} from o_site`);
   } catch (err) {
     console.error('[Sync] Error syncing from o_site:', err.message);
   }

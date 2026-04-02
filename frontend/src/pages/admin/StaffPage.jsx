@@ -763,7 +763,19 @@ function positionAvatar(position, roleName) {
   for (const { match, emoji, bg } of POSITION_AVATARS) {
     if (match.test(text)) return { emoji, bg };
   }
+  // Fallback based on position first letter or generic
+  if (position) return { emoji: '🏭', bg: 'bg-gray-100' };
   return { emoji: '👤', bg: 'bg-gray-100' };
+}
+
+const ROLE_ICONS = {
+  'Администратор': { emoji: '🛡️', color: 'text-blue-500' },
+  'Менеджер': { emoji: '👔', color: 'text-indigo-500' },
+  'Сотрудник': { emoji: '👷', color: 'text-amber-500' },
+  'Старший кладовщик': { emoji: '🏗️', color: 'text-orange-500' },
+};
+function roleIcon(roleName) {
+  return ROLE_ICONS[roleName] || { emoji: '👥', color: 'text-gray-400' };
 }
 
 // ─── Copy Button ─────────────────────────────────────────────────────────────
@@ -879,7 +891,7 @@ function UsersTable({ users, employees, onEdit, onDelete, onDrill }) {
         <div key={roleName} className="card overflow-hidden">
           <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Shield size={14} className="text-primary-400" />
+              <span className="text-base">{roleIcon(roleName).emoji}</span>
               <span className="text-xs font-bold text-gray-700">{roleName}</span>
             </div>
             <span className="text-[10px] text-gray-400 font-medium">{list.length} чел.</span>
@@ -1129,14 +1141,17 @@ export default function StaffPage() {
         api.get('/staff/employees'),
         api.get('/staff/users'),
       ]);
-      if (emp.status === 'fulfilled') setEmployees(emp.value.data);
-      if (usr.status === 'fulfilled') setUsers(usr.value.data);
+      if (emp.status === 'fulfilled') setEmployees(emp.value.data.filter(e => e.active !== false));
+      if (usr.status === 'fulfilled') setUsers(usr.value.data.filter(u => u.active !== false));
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => { loadAll(); }, []);
+  useEffect(() => {
+    // Sync from external site then load
+    api.post('/staff/sync').catch(() => {}).finally(() => loadAll());
+  }, []);
 
   const deleteEmployee = async (id) => {
     if (!confirm('Удалить сотрудника?')) return;
