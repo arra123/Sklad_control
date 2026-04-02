@@ -129,7 +129,7 @@ function StartStep({ task, onStart }) {
           )}
           {scanTarget === 'shelf' && (
             <StepItem num={1} active title="Подойдите к полке и отсканируйте"
-              sub={<>{task.rack_name} → {task.shelf_name}<span className="block text-xs font-mono text-primary-500 mt-0.5">ШК: {task.shelf_barcode}</span></>}
+              sub={<>{task.warehouse_name && <span className="block text-xs text-gray-400 mb-0.5">{task.warehouse_name}</span>}{task.rack_name} → {task.shelf_name}</>}
             />
           )}
         </div>
