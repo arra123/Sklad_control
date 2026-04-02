@@ -52,21 +52,21 @@ function taskTypeBg(type) {
   if (type === 'bundle_assembly') return 'bg-purple-100 text-purple-700';
   if (type === 'packaging') return 'bg-amber-100 text-amber-700';
   if (type === 'production_transfer') return 'bg-sky-100 text-sky-700';
-  return 'bg-teal-100 text-teal-700'; // inventory
+  return 'bg-indigo-100 text-indigo-700'; // inventory
 }
 
 function taskTypeBarColor(type) {
   if (type === 'bundle_assembly') return 'bg-purple-100 border-purple-300';
   if (type === 'packaging') return 'bg-amber-100 border-amber-300';
   if (type === 'production_transfer') return 'bg-sky-100 border-sky-300';
-  return 'bg-teal-100 border-teal-300'; // inventory
+  return 'bg-indigo-100 border-indigo-300'; // inventory
 }
 
 function taskTypeActiveBarColor(type) {
   if (type === 'bundle_assembly') return 'bg-purple-200 border-purple-400';
   if (type === 'packaging') return 'bg-amber-200 border-amber-400';
   if (type === 'production_transfer') return 'bg-sky-200 border-sky-400';
-  return 'bg-teal-200 border-teal-400'; // inventory
+  return 'bg-indigo-200 border-indigo-400'; // inventory
 }
 
 function statusBadge(status) {
@@ -689,7 +689,7 @@ function EmployeeDetailView({ employeeId, employees, onBack, thresholds }) {
                                 <span>{t.boxes_done}/{t.boxes_total}</span>
                               </div>
                               <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                                <div className="h-full bg-teal-400 rounded-full transition-all"
+                                <div className="h-full bg-indigo-400 rounded-full transition-all"
                                   style={{ width: `${Math.round((parseInt(t.boxes_done) / parseInt(t.boxes_total)) * 100)}%` }} />
                               </div>
                             </div>
