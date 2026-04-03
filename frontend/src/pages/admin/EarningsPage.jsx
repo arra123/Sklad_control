@@ -395,10 +395,13 @@ export default function EarningsPage() {
                       <button key={k} onClick={() => setDetailTab(k)} className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${detailTab === k ? 'bg-white shadow-sm text-gray-900 font-semibold' : 'text-gray-500'}`}>{l}</button>
                     ))}
                   </div>
-                  <div className="flex gap-1 bg-gray-100 p-1 rounded-xl">
+                  <div className="flex gap-1 bg-gray-100 p-1 rounded-xl items-center">
                     {[['all', 'Всё время'], ['month', 'Месяц'], ['week', 'Неделя'], ['today', 'Сегодня']].map(([k, l]) => (
                       <button key={k} onClick={() => setPeriod(k)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${period === k ? 'bg-white shadow-sm text-gray-900 font-semibold' : 'text-gray-500'}`}>{l}</button>
                     ))}
+                    <input type="date" value={/^\d{4}-\d{2}-\d{2}$/.test(period) ? period : ''} onChange={e => { if (e.target.value) setPeriod(e.target.value); }}
+                      className={`px-2 py-1 rounded-lg text-xs font-medium border-0 bg-transparent cursor-pointer transition-all ${/^\d{4}-\d{2}-\d{2}$/.test(period) ? 'bg-white shadow-sm text-gray-900 font-semibold' : 'text-gray-400'}`}
+                      title="Выбрать день" />
                   </div>
                 </div>
 

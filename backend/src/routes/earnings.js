@@ -247,6 +247,7 @@ router.get('/employees/:employeeId', requireAuth, requirePermission('analytics',
     if (period === 'today') periodFilter = `AND ee.created_at >= CURRENT_DATE`;
     else if (period === 'week') periodFilter = `AND ee.created_at >= CURRENT_DATE - INTERVAL '7 days'`;
     else if (period === 'month') periodFilter = `AND ee.created_at >= CURRENT_DATE - INTERVAL '30 days'`;
+    else if (/^\d{4}-\d{2}-\d{2}$/.test(period)) periodFilter = `AND ee.created_at >= '${period}'::date AND ee.created_at < '${period}'::date + INTERVAL '1 day'`;
 
     const [employeeResult, tasksResult, adjustmentsResult, sborkaResult] = await Promise.all([
       pool.query(`
