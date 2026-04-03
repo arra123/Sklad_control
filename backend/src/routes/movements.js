@@ -451,4 +451,109 @@ router.post('/move-box', requireAuth, async (req, res) => {
   } finally { client.release(); }
 });
 
+// POST /api/movements/take-box-contents — move ALL contents of a box into employee inventory
+router.post('/take-box-contents', requireAuth, async (req, res) => {
+  const { box_id } = req.body;
+  const employeeId = req.user.employee_id;
+  if (!box_id) return res.status(400).json({ error: 'box_id обязателен' });
+  if (!employeeId) return res.status(400).json({ error: 'Нет привязки к сотруднику' });
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    // Get all items in the box
+    const items = await client.query('SELECT product_id, quantity FROM box_items_s WHERE box_id=$1 AND quantity > 0', [box_id]);
+    if (!items.rows.length) throw new Error('Коробка пуста');
+
+    let totalQty = 0;
+    for (const item of items.rows) {
+      const qty = parseFloat(item.quantity);
+      // Add to employee inventory
+      await client.query(
+        `INSERT INTO employee_inventory_s (employee_id, product_id, quantity) VALUES ($1,$2,$3)
+         ON CONFLICT (employee_id, product_id) DO UPDATE SET quantity = employee_inventory_s.quantity + $3`,
+        [employeeId, item.product_id, qty]);
+      // Remove from box
+      await client.query('DELETE FROM box_items_s WHERE box_id=$1 AND product_id=$2', [box_id, item.product_id]);
+      totalQty += qty;
+    }
+    // Update box quantity
+    await client.query('UPDATE boxes_s SET quantity = 0 WHERE id=$1', [box_id]);
+
+    // Get box info for response
+    const boxInfo = await client.query(
+      `SELECT b.barcode_value, b.pallet_id, p.name as pallet_name, pr.name as row_name
+       FROM boxes_s b LEFT JOIN pallets_s p ON p.id=b.pallet_id LEFT JOIN pallet_rows_s pr ON pr.id=p.row_id
+       WHERE b.id=$1`, [box_id]);
+
+    // Log movement
+    await client.query(
+      `INSERT INTO movements_s (movement_type, quantity, from_box_id, to_employee_id, performed_by, source, notes)
+       VALUES ('box_to_employee', $1, $2, $3, $4, 'scan', 'Пересыпка из коробки')`,
+      [totalQty, box_id, employeeId, req.user.id]);
+
+    await client.query('COMMIT');
+    res.json({ success: true, items_count: items.rows.length, total_qty: totalQty, box: boxInfo.rows[0] || null });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(400).json({ error: err.message });
+  } finally { client.release(); }
+});
+
+// POST /api/movements/put-to-box — move ALL employee inventory into a box
+router.post('/put-to-box', requireAuth, async (req, res) => {
+  const { box_id } = req.body;
+  const employeeId = req.user.employee_id;
+  if (!box_id) return res.status(400).json({ error: 'box_id обязателен' });
+  if (!employeeId) return res.status(400).json({ error: 'Нет привязки к сотруднику' });
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    // Get all employee inventory
+    const items = await client.query('SELECT product_id, quantity FROM employee_inventory_s WHERE employee_id=$1 AND quantity > 0', [employeeId]);
+    if (!items.rows.length) throw new Error('У вас нет товара');
+
+    let totalQty = 0;
+    // Detect box type (shelf_box or pallet box)
+    const isShelfBox = await client.query('SELECT id FROM shelf_boxes_s WHERE id=$1', [box_id]);
+
+    for (const item of items.rows) {
+      const qty = parseFloat(item.quantity);
+      if (isShelfBox.rows.length) {
+        await client.query(
+          `INSERT INTO shelf_box_items_s (shelf_box_id, product_id, quantity, updated_at) VALUES ($1,$2,$3,NOW())
+           ON CONFLICT (shelf_box_id, product_id) DO UPDATE SET quantity = shelf_box_items_s.quantity + $3, updated_at=NOW()`,
+          [box_id, item.product_id, qty]);
+      } else {
+        const ex = await client.query('SELECT id FROM box_items_s WHERE box_id=$1 AND product_id=$2', [box_id, item.product_id]);
+        if (ex.rows.length) {
+          await client.query('UPDATE box_items_s SET quantity = quantity + $1 WHERE box_id=$2 AND product_id=$3', [qty, box_id, item.product_id]);
+        } else {
+          await client.query('INSERT INTO box_items_s (box_id, product_id, quantity) VALUES ($1,$2,$3)', [box_id, item.product_id, qty]);
+        }
+      }
+      // Remove from employee
+      await client.query('DELETE FROM employee_inventory_s WHERE employee_id=$1 AND product_id=$2', [employeeId, item.product_id]);
+      totalQty += qty;
+    }
+    // Update box quantity
+    if (isShelfBox.rows.length) {
+      await client.query('UPDATE shelf_boxes_s SET quantity = quantity + $1 WHERE id=$2', [totalQty, box_id]);
+    } else {
+      await client.query('UPDATE boxes_s SET quantity = quantity + $1 WHERE id=$2', [totalQty, box_id]);
+    }
+
+    // Log movement
+    await client.query(
+      `INSERT INTO movements_s (movement_type, quantity, from_employee_id, to_box_id, performed_by, source, notes)
+       VALUES ('employee_to_box', $1, $2, $3, $4, 'scan', 'Пересыпка в коробку')`,
+      [totalQty, employeeId, box_id, req.user.id]);
+
+    await client.query('COMMIT');
+    res.json({ success: true, items_count: items.rows.length, total_qty: totalQty });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(400).json({ error: err.message });
+  } finally { client.release(); }
+});
+
 module.exports = router;
