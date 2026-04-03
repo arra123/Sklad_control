@@ -310,24 +310,7 @@ function ActivityTimeline({ buckets, tasks, breaks = [], thresholds }) {
                 <div
                   className={`h-full ${colorClass} transition-colors`}
                 />
-                {/* Tooltip */}
-                {isHovered && (
-                  <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 z-20 px-3 py-2 bg-gray-900 text-white rounded-lg text-[10px] whitespace-nowrap shadow-lg pointer-events-none">
-                    <p className="font-bold text-[11px]">{bucketToTime(bNum)} – {bucketToTime(bNum + 1)}</p>
-                    {isBreak ? (
-                      <p className="text-amber-300 mt-0.5">⏸ Перерыв</p>
-                    ) : isTaskPause ? (
-                      <p className="text-red-300 mt-0.5">⏸ Пауза задачи</p>
-                    ) : scans > 0 ? (
-                      <>
-                        <p className="text-green-300 mt-0.5">{bucketTaskMap[bNum] || 'Работа'}</p>
-                        <p className="mt-0.5">{scans} {scans === 1 ? 'скан' : scans < 5 ? 'скана' : 'сканов'}</p>
-                      </>
-                    ) : (
-                      <p className="text-gray-400 mt-0.5">Простой</p>
-                    )}
-                  </div>
-                )}
+                {/* Tooltip rendered outside overflow container below */}
               </div>
             );
           })}
@@ -341,6 +324,35 @@ function ActivityTimeline({ buckets, tasks, breaks = [], thresholds }) {
             </div>
           )}
         </div>
+
+        {/* Floating tooltip — rendered outside overflow:hidden container */}
+        {hoveredBucket !== null && (() => {
+          const bNum = hoveredBucket;
+          const scans = bucketMap[bNum] || 0;
+          const isBreak = breakBuckets.has(bNum);
+          const isTaskPause = taskPauseBuckets.has(bNum) && !(bucketMap[bNum] > 0);
+          const leftPct = ((bNum - minBucket + 0.5) / totalBuckets) * 100;
+          return (
+            <div className="relative" style={{ height: 0 }}>
+              <div className="absolute z-30 px-3 py-2 bg-gray-900 text-white rounded-lg text-[10px] whitespace-nowrap shadow-lg pointer-events-none -translate-x-1/2"
+                style={{ left: `${leftPct}%`, bottom: 8 }}>
+                <p className="font-bold text-[11px]">{bucketToTime(bNum)} – {bucketToTime(bNum + 1)}</p>
+                {isBreak ? (
+                  <p className="text-amber-300 mt-0.5">⏸ Перерыв</p>
+                ) : isTaskPause ? (
+                  <p className="text-red-300 mt-0.5">⏸ Пауза задачи</p>
+                ) : scans > 0 ? (
+                  <>
+                    <p className="text-green-300 mt-0.5">{bucketTaskMap[bNum] || 'Работа'}</p>
+                    <p className="mt-0.5">{scans} {scans === 1 ? 'скан' : scans < 5 ? 'скана' : 'сканов'}</p>
+                  </>
+                ) : (
+                  <p className="text-gray-400 mt-0.5">Простой</p>
+                )}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Hour labels */}
         <div className="relative h-5 mt-1">
