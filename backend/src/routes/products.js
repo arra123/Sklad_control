@@ -598,17 +598,10 @@ router.post('/check-wb-all', requireAuth, requirePermission('products.edit'), as
         if (wbMap.has(bc)) {
           foundOnWb = true;
           productMatches.push({ barcode: bc, wb: wbMap.get(bc) });
-          const existing = mbj.find(m => m.value === bc);
-          if (existing) { existing.type = store; }
-          else { mbj.push({ value: bc, type: store }); }
         }
       }
 
       if (foundOnWb) {
-        await pool.query(
-          'UPDATE products_s SET marketplace_barcodes_json=$1, updated_at=NOW() WHERE id=$2',
-          [JSON.stringify(mbj), product.id]
-        );
         matched.push({ id: product.id, name: product.name, code: product.code, matches: productMatches });
       } else {
         notFound.push({ id: product.id, name: product.name, code: product.code, barcodes: [...allBc] });
@@ -735,17 +728,10 @@ router.post('/check-ozon-all', requireAuth, requirePermission('products.edit'), 
         if (ozonMap.has(bc)) {
           foundOnOzon = true;
           productMatches.push({ barcode: bc, ozon: ozonMap.get(bc) });
-          const existing = mbj.find(m => m.value === bc);
-          if (existing) { existing.type = store; }
-          else { mbj.push({ value: bc, type: store }); }
         }
       }
 
       if (foundOnOzon) {
-        await pool.query(
-          'UPDATE products_s SET marketplace_barcodes_json=$1, updated_at=NOW() WHERE id=$2',
-          [JSON.stringify(mbj), product.id]
-        );
         matched.push({ id: product.id, name: product.name, code: product.code, matches: productMatches });
       } else {
         notFound.push({ id: product.id, name: product.name, code: product.code, barcodes: [...allBc] });

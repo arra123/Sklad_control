@@ -1324,7 +1324,7 @@ export default function ProductsPage() {
       <ProductDetailModal
         productId={selectedId}
         onClose={closeProduct}
-        onEdit={product => { setEditProduct(product); setShowForm(true); }}
+        onEdit={handleReload}
         onDelete={handleReload}
       />
 
