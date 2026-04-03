@@ -221,6 +221,19 @@ export default function MovePage() {
   const handleMove = async () => {
     setMoving(true); setError('');
     try {
+      // Check if this is a whole-box transfer (box → pallet)
+      if (mode === 'location' && currentDest?.type === 'pallet' && cart.length > 0) {
+        const boxIds = new Set(cart.filter(c => c.source_item_source === 'box' && c.source_item_id).map(c => c.source_item_id));
+        if (boxIds.size === 1 && cart.every(c => c.source_item_source === 'box')) {
+          // All items from one box → move entire box
+          const boxId = [...boxIds][0];
+          await api.post('/movements/move-box', { box_id: boxId, dest_pallet_id: currentDest.id });
+          setSuccess('Коробка перенесена на паллет');
+          setTimeout(reset, 2500);
+          return;
+        }
+      }
+
       for (const item of cart) {
         const body = { product_id: item.product_id, quantity: item.quantity };
         if (mode === 'take') {

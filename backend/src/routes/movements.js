@@ -417,4 +417,38 @@ router.post('/employee-inventory/:employeeId', requireAuth, requirePermission('m
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// POST /api/movements/move-box — move entire pallet box to another pallet
+router.post('/move-box', requireAuth, async (req, res) => {
+  const { box_id, dest_pallet_id } = req.body;
+  if (!box_id || !dest_pallet_id) return res.status(400).json({ error: 'box_id и dest_pallet_id обязательны' });
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // Get box info
+    const box = await client.query('SELECT id, pallet_id, barcode_value, quantity FROM boxes_s WHERE id=$1', [box_id]);
+    if (!box.rows.length) throw new Error('Коробка не найдена');
+    const b = box.rows[0];
+    const oldPalletId = b.pallet_id;
+
+    if (oldPalletId === parseInt(dest_pallet_id)) throw new Error('Коробка уже на этом паллете');
+
+    // Move box to new pallet
+    await client.query('UPDATE boxes_s SET pallet_id=$1 WHERE id=$2', [dest_pallet_id, box_id]);
+
+    // Log movement
+    await client.query(
+      `INSERT INTO movements_s (movement_type, quantity, from_pallet_id, to_pallet_id, from_box_id, performed_by, source, notes)
+       VALUES ('box_transfer', $1, $2, $3, $4, $5, 'scan', $6)`,
+      [b.quantity || 0, oldPalletId, dest_pallet_id, box_id, req.user.id, `Перенос коробки ${b.barcode_value}`]
+    );
+
+    await client.query('COMMIT');
+    res.json({ success: true, box_id, from_pallet: oldPalletId, to_pallet: dest_pallet_id });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(400).json({ error: err.message });
+  } finally { client.release(); }
+});
+
 module.exports = router;
