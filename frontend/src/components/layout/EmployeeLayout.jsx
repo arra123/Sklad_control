@@ -157,18 +157,6 @@ export default function EmployeeLayout({ children }) {
 
           {/* Right: User info + logout */}
           <div className="flex items-center justify-end gap-1.5 sm:gap-2 min-w-0">
-            {/* Break button */}
-            <button
-              onClick={() => activeBreak ? (activeBreak.break_type === 'tech' ? null : endBreak()) : setShowBreakMenu(true)}
-              disabled={breakLoading || (activeBreak?.break_type === 'tech')}
-              className={cn(
-                'flex items-center gap-1 px-2 py-1.5 rounded-xl text-[10px] sm:text-xs font-semibold transition-all flex-shrink-0',
-                breakColor
-              )}
-            >
-              {activeBreak?.break_type === 'tech' ? <Wrench size={14} /> : activeBreak ? <UtensilsCrossed size={14} /> : <PauseCircle size={14} />}
-              <span className="hidden sm:inline">{activeBreak ? breakLabel : 'Перерыв'}</span>
-            </button>
             {/* Avatar */}
             <div className="w-7 h-7 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 text-white flex items-center justify-center text-[10px] font-bold flex-shrink-0 shadow-sm">
               {(user?.employee_name || user?.username || 'С').slice(0, 1).toUpperCase()}
@@ -218,6 +206,26 @@ export default function EmployeeLayout({ children }) {
               )}
             </NavLink>
           ))}
+          {/* Break button in nav */}
+          <button
+            onClick={() => activeBreak ? (activeBreak.break_type === 'tech' ? null : endBreak()) : setShowBreakMenu(true)}
+            disabled={breakLoading || (activeBreak?.break_type === 'tech')}
+            className={cn(
+              'employee-nav-item group relative flex flex-col items-center gap-0.5 px-3 py-2 rounded-2xl transition-all duration-200',
+              activeBreak
+                ? activeBreak.break_type === 'tech'
+                  ? 'bg-red-50 text-red-600 ring-1 ring-red-200 shadow-sm'
+                  : 'bg-amber-50 text-amber-600 ring-1 ring-amber-200 shadow-sm animate-pulse'
+                : 'text-gray-400 hover:text-gray-600'
+            )}
+          >
+            <div className="relative transition-transform duration-200">
+              {activeBreak?.break_type === 'tech' ? <Wrench size={22} /> : activeBreak ? <UtensilsCrossed size={22} /> : <PauseCircle size={22} />}
+            </div>
+            <span className="text-[10px] font-semibold leading-tight">
+              {activeBreak ? breakLabel : 'Перерыв'}
+            </span>
+          </button>
         </div>
       </nav>
 
