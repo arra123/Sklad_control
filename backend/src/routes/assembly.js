@@ -579,7 +579,24 @@ router.post('/:id/confirm-bundle', requireAuth, async (req, res) => {
     if (bundle.rows[0].production_barcode) barcodes.push(bundle.rows[0].production_barcode);
     if (!barcodes.includes(barcode)) return res.status(400).json({ error: 'ШК не совпадает с комплектом' });
 
-    const newCount = task.rows[0].assembled_count + 1;
+    // Verify all components for current bundle are scanned
+    const currentBundle = task.rows[0].assembled_count + 1;
+    const comps = await pool.query(
+      'SELECT component_id, quantity FROM bundle_components_s WHERE bundle_id = $1', [task.rows[0].bundle_product_id]);
+    const scanned = await pool.query(
+      `SELECT product_id, COUNT(*) as cnt FROM assembly_items_s WHERE task_id = $1 AND used_in_bundle = $2 GROUP BY product_id`,
+      [req.params.id, currentBundle]);
+    const scannedMap = {};
+    scanned.rows.forEach(r => { scannedMap[r.product_id] = Number(r.cnt); });
+    for (const c of comps.rows) {
+      const needed = Number(c.quantity);
+      const have = scannedMap[c.component_id] || 0;
+      if (have < needed) {
+        return res.status(400).json({ error: `Не все компоненты отсканированы для комплекта №${currentBundle}. Отсканируйте все компоненты` });
+      }
+    }
+
+    const newCount = currentBundle;
     const phase = newCount >= task.rows[0].bundle_qty ? 'placing' : 'assembling';
 
     await pool.query(
@@ -711,9 +728,21 @@ router.post('/:id/scan-place', requireAuth, async (req, res) => {
   }
 });
 
-// ─── POST /:id/complete — Force complete ────────────────────────────────────
+// ─── POST /:id/complete — Complete (with validation) ────────────────────────
 router.post('/:id/complete', requireAuth, async (req, res) => {
   try {
+    const task = await pool.query(
+      'SELECT * FROM inventory_tasks_s WHERE id = $1 AND task_type = $2',
+      [req.params.id, 'bundle_assembly']);
+    if (!task.rows.length) return res.status(404).json({ error: 'Задача не найдена' });
+
+    const t = task.rows[0];
+    if (t.placed_count < t.bundle_qty) {
+      return res.status(400).json({
+        error: `Размещено ${t.placed_count}/${t.bundle_qty} комплектов. Завершите размещение`
+      });
+    }
+
     await pool.query(
       `UPDATE inventory_tasks_s SET status = 'completed', assembly_phase = 'completed', completed_at = NOW()
        WHERE id = $1 AND task_type = 'bundle_assembly'`, [req.params.id]);
