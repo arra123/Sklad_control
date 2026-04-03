@@ -112,14 +112,18 @@ function ActivityTimeline({ buckets, tasks, breaks = [], thresholds }) {
   const canPanLeft = minBucket > WORK_START;
   const canPanRight = maxBucket < WORK_END;
 
-  // Build break bucket set for coloring
+  // Build break bucket sets per type for coloring
   const breakBuckets = new Set();
+  const lunchBuckets = new Set();
+  const restBuckets = new Set();
+  const techBuckets = new Set();
   for (const br of breaks) {
     const bStart = Math.max(minBucket, Math.floor((new Date(br.started_at) - todayStart) / 300000));
     const bEnd = br.ended_at
       ? Math.min(maxBucket, Math.floor((new Date(br.ended_at) - todayStart) / 300000))
       : Math.min(maxBucket, nowBucket);
-    for (let i = bStart; i <= bEnd; i++) breakBuckets.add(i);
+    const typeSet = br.break_type === 'lunch' ? lunchBuckets : br.break_type === 'rest' ? restBuckets : techBuckets;
+    for (let i = bStart; i <= bEnd; i++) { breakBuckets.add(i); typeSet.add(i); }
   }
 
   // Build task pause buckets from pause_log
@@ -190,15 +194,26 @@ function ActivityTimeline({ buckets, tasks, breaks = [], thresholds }) {
   const countUpTo = Math.min(nowBucket, maxBucket);
   let activeBuckets = 0;
   let breakBucketCount = 0;
+  let lunchBucketCount = 0;
+  let restBucketCount = 0;
+  let techBucketCount = 0;
   let taskPauseCount = 0;
   for (let i = minBucket; i < countUpTo; i++) {
-    if (breakBuckets.has(i)) breakBucketCount++;
+    if (breakBuckets.has(i)) {
+      breakBucketCount++;
+      if (lunchBuckets.has(i)) lunchBucketCount++;
+      else if (restBuckets.has(i)) restBucketCount++;
+      else techBucketCount++;
+    }
     else if (taskPauseBuckets.has(i) && !bucketMap[i]) taskPauseCount++;
     else if (bucketMap[i]) activeBuckets++;
   }
   const elapsedBuckets = Math.max(0, countUpTo - minBucket);
   const activeMinutes = activeBuckets * 5;
   const breakMinutes = breakBucketCount * 5;
+  const lunchMinutes = lunchBucketCount * 5;
+  const restMinutes = restBucketCount * 5;
+  const techMinutes = techBucketCount * 5;
   const taskPauseMinutes = taskPauseCount * 5;
   const idleBuckets = elapsedBuckets - activeBuckets - breakBucketCount - taskPauseCount;
   const idleMinutes = Math.max(0, idleBuckets) * 5;
@@ -250,8 +265,14 @@ function ActivityTimeline({ buckets, tasks, breaks = [], thresholds }) {
         </div>
         <div className="flex items-center gap-3 text-[10px] flex-wrap">
           <span className="text-gray-500">Работа: <b className="text-green-700">{fmtDuration(activeMinutes * 60)}</b></span>
-          {breakMinutes > 0 && (
-            <span className="text-gray-500">Тех. пауза: <b className="text-amber-600">{fmtDuration(breakMinutes * 60)}</b></span>
+          {lunchMinutes > 0 && (
+            <span className="text-gray-500">Обед: <b className="text-pink-600">{fmtDuration(lunchMinutes * 60)}</b></span>
+          )}
+          {restMinutes > 0 && (
+            <span className="text-gray-500">Отдых: <b className="text-blue-600">{fmtDuration(restMinutes * 60)}</b></span>
+          )}
+          {techMinutes > 0 && (
+            <span className="text-gray-500">Тех. пауза: <b className="text-amber-600">{fmtDuration(techMinutes * 60)}</b></span>
           )}
           {taskPauseMinutes > 0 && (
             <span className="text-gray-500">Пауза: <b className="text-red-400">{fmtDuration(taskPauseMinutes * 60)}</b></span>
@@ -287,7 +308,9 @@ function ActivityTimeline({ buckets, tasks, breaks = [], thresholds }) {
             const isTaskPause = taskPauseBuckets.has(bNum);
             // Green intensity scale for activity bars
             const colorClass = isBreak
-              ? (isHovered ? 'bg-amber-400' : 'bg-amber-300')
+              ? lunchBuckets.has(bNum) ? (isHovered ? 'bg-pink-400' : 'bg-pink-300')
+              : restBuckets.has(bNum) ? (isHovered ? 'bg-blue-400' : 'bg-blue-300')
+              : (isHovered ? 'bg-amber-400' : 'bg-amber-300')
               : isTaskPause
               ? (isHovered ? 'bg-red-300' : 'bg-red-200')
               : scans <= 0 ? (isHovered ? 'bg-gray-200' : 'bg-gray-100')
@@ -433,12 +456,20 @@ function ActivityTimeline({ buckets, tasks, breaks = [], thresholds }) {
             const widthPct = Math.max(2, ((bEnd - bStart + 1) / totalBuckets) * 100);
             return (
               <div key={idx}
-                className="absolute h-5 bg-amber-100 border border-amber-300 rounded-md flex items-center overflow-hidden px-1.5"
+                className={`absolute h-5 rounded-md flex items-center overflow-hidden px-1.5 border ${
+                  br.break_type === 'lunch' ? 'bg-pink-100 border-pink-300' :
+                  br.break_type === 'rest' ? 'bg-blue-100 border-blue-300' :
+                  'bg-amber-100 border-amber-300'
+                }`}
                 style={{ left: `${leftPct}%`, width: `${widthPct}%`, top: 0 }}
                 title={`${fmtTime(br.started_at)} → ${br.ended_at ? fmtTime(br.ended_at) : 'сейчас'}`}
               >
-                <span className="text-[8px] font-semibold text-amber-600 truncate">
-                  ⏸ {br.break_type === 'lunch' ? 'Обед' : 'Перерыв'} {fmtTime(br.started_at)}–{br.ended_at ? fmtTime(br.ended_at) : '...'}
+                <span className={`text-[8px] font-semibold truncate ${
+                  br.break_type === 'lunch' ? 'text-pink-600' :
+                  br.break_type === 'rest' ? 'text-blue-600' :
+                  'text-amber-600'
+                }`}>
+                  {br.break_type === 'lunch' ? '🍽 Обед' : br.break_type === 'rest' ? '☕ Отдых' : '⏸ Тех. пауза'} {fmtTime(br.started_at)}–{br.ended_at ? fmtTime(br.ended_at) : '...'}
                 </span>
               </div>
             );
