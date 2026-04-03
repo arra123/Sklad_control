@@ -113,10 +113,11 @@ export default function EarningsPage() {
   const fmtRate = (v) => showRub ? fmtRubRate(v) : fmtGra(v);
   const unit = showRub ? '₽' : 'GRA';
 
-  const loadBase = useCallback(async (background = false) => {
+  const loadBase = useCallback(async (background = false, p) => {
     if (background) setRefreshing(true); else setLoading(true);
+    const params = { period: p || period };
     try {
-      const [summaryRes, employeesRes] = await Promise.all([api.get('/earnings/summary'), api.get('/earnings/employees')]);
+      const [summaryRes, employeesRes] = await Promise.all([api.get('/earnings/summary', { params }), api.get('/earnings/employees')]);
       setSummary(summaryRes.data);
       setEmployees(employeesRes.data || []);
       setSelectedEmployeeId(prev => {
@@ -168,7 +169,10 @@ export default function EarningsPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedEmployeeId, loadEmployeeDetails]);
   useEffect(() => { if (selectedTaskId) loadTaskDetails(selectedTaskId); }, [selectedTaskId, loadTaskDetails]);
-  useEffect(() => { if (selectedEmployeeId) loadEmployeeDetails(selectedEmployeeId, period); }, [period]);
+  useEffect(() => {
+    if (selectedEmployeeId) loadEmployeeDetails(selectedEmployeeId, period);
+    loadBase(true, period);
+  }, [period]);
 
   const selectedEmployee = useMemo(() => {
     if (!selectedEmployeeId) return null;
@@ -216,16 +220,24 @@ export default function EarningsPage() {
             <p className="text-xs text-gray-400">GRACoin — система вознаграждений</p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <div className="flex bg-gray-100 rounded-xl p-1 gap-0.5">
             {[['summary', 'Сводка'], ['history', 'История']].map(([k, l]) => (
               <button key={k} onClick={() => setTab(k)} className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${tab === k ? 'bg-white shadow-sm text-gray-900 font-semibold' : 'text-gray-500 hover:text-gray-700'}`}>{l}</button>
             ))}
           </div>
+          <div className="flex gap-1 bg-gray-100 p-1 rounded-xl items-center">
+            {[['all', 'Всё'], ['month', 'Месяц'], ['week', 'Неделя'], ['today', 'Сегодня']].map(([k, l]) => (
+              <button key={k} onClick={() => setPeriod(k)} className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${period === k ? 'bg-white shadow-sm text-gray-900 font-semibold' : 'text-gray-500'}`}>{l}</button>
+            ))}
+            <input type="date" value={/^\d{4}-\d{2}-\d{2}$/.test(period) ? period : ''} onChange={e => { if (e.target.value) setPeriod(e.target.value); }}
+              className={`px-2 py-1 rounded-lg text-xs font-medium border-0 bg-transparent cursor-pointer transition-all ${/^\d{4}-\d{2}-\d{2}$/.test(period) ? 'bg-white shadow-sm text-gray-900 font-semibold' : 'text-gray-400'}`}
+              title="Выбрать день" />
+          </div>
           <button onClick={() => setShowRub(!showRub)} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${showRub ? 'bg-green-50 border-green-200 text-green-700' : 'bg-amber-50 border-amber-200 text-amber-700'}`}>
             {showRub ? '₽ рубли' : 'G GRACoin'}
           </button>
-          <button onClick={() => loadBase(true)} className="p-2 rounded-xl text-gray-400 hover:text-primary-500 hover:bg-primary-50 transition-all">
+          <button onClick={() => loadBase(true, period)} className="p-2 rounded-xl text-gray-400 hover:text-primary-500 hover:bg-primary-50 transition-all">
             <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />
           </button>
         </div>

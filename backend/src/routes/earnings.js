@@ -53,7 +53,14 @@ async function getAllGraRates(client = pool) {
   };
 }
 
-router.get('/summary', requireAuth, requirePermission('analytics', 'staff.view'), async (_req, res) => {
+router.get('/summary', requireAuth, requirePermission('analytics', 'staff.view'), async (req, res) => {
+  const period = req.query.period || 'all';
+  let pf = '';
+  if (period === 'today') pf = `AND ee.created_at >= CURRENT_DATE`;
+  else if (period === 'week') pf = `AND ee.created_at >= CURRENT_DATE - INTERVAL '7 days'`;
+  else if (period === 'month') pf = `AND ee.created_at >= CURRENT_DATE - INTERVAL '30 days'`;
+  else if (/^\d{4}-\d{2}-\d{2}$/.test(period)) pf = `AND ee.created_at >= '${period}'::date AND ee.created_at < '${period}'::date + INTERVAL '1 day'`;
+
   for (let attempt = 1; attempt <= 3; attempt++) {
   try {
     const [rate, overviewResult, leadersResult, recentAdjustmentsResult] = await Promise.all([
@@ -71,7 +78,7 @@ router.get('/summary', requireAuth, requirePermission('analytics', 'staff.view')
             COALESCE(SUM(CASE WHEN ee.event_type IN ('external_order_pick','external_order_collect') AND ee.source = 'sborka-site' THEN ee.amount_delta ELSE 0 END), 0) as sborka_order_amount,
             COALESCE(SUM(CASE WHEN ee.event_type IN ('external_order_pick','external_order_collect') AND ee.source = 'sborka-site' THEN ee.reward_units ELSE 0 END), 0) as sborka_order_units
           FROM employees_s e
-          LEFT JOIN employee_earnings_s ee ON ee.employee_id = e.id
+          LEFT JOIN employee_earnings_s ee ON ee.employee_id = e.id ${pf}
           GROUP BY e.id, e.full_name, e.gra_balance
         )
         SELECT
@@ -98,9 +105,10 @@ router.get('/summary', requireAuth, requirePermission('analytics', 'staff.view')
           MAX(ee.created_at) as last_earned_at
         FROM employees_s e
         JOIN employee_earnings_s ee ON ee.employee_id = e.id
+        WHERE 1=1 ${pf}
         GROUP BY e.id, e.full_name, e.gra_balance
         HAVING COUNT(ee.id) > 0
-        ORDER BY COALESCE(e.gra_balance, 0) DESC, total_awarded DESC, rewarded_scans DESC
+        ORDER BY COALESCE(SUM(CASE WHEN ee.event_type = 'inventory_scan' THEN ee.amount_delta ELSE 0 END), 0) DESC, rewarded_scans DESC
         LIMIT 12
       `),
       pool.query(`
