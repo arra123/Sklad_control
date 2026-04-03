@@ -515,22 +515,27 @@ router.post('/:id/scan-component', requireAuth, async (req, res) => {
       [req.params.id, product.id]);
     if (!item.rows.length) return res.status(400).json({ error: `Нет забранных ${product.name} — сначала заберите с паллета` });
 
-    // Mark as used in current bundle
-    await pool.query('UPDATE assembly_items_s SET used_in_bundle = $1 WHERE id = $2', [currentBundle, item.rows[0].id]);
-
-    // Record scan and award GRA (in transaction)
+    // All writes in one transaction
     const scanClient = await pool.connect();
     try {
       await scanClient.query('BEGIN');
+      // Mark as used in current bundle
+      await scanClient.query('UPDATE assembly_items_s SET used_in_bundle = $1 WHERE id = $2', [currentBundle, item.rows[0].id]);
+      // Record scan
       const scanRes = await scanClient.query(
         `INSERT INTO inventory_task_scans_s (task_id, product_id, scanned_value, quantity_delta)
          VALUES ($1, $2, $3, 1) RETURNING id`,
         [req.params.id, product.id, barcode]);
       await scanClient.query('UPDATE inventory_tasks_s SET scans_count = scans_count + 1 WHERE id = $1', [req.params.id]);
-      await awardScanReward(scanClient, {
-        task: task.rows[0], taskScanId: scanRes.rows[0].id,
-        productId: product.id, quantityDelta: 1, user: req.user,
-      });
+      // Award GRA — non-critical, don't break scan if reward fails
+      try {
+        await awardScanReward(scanClient, {
+          task: task.rows[0], taskScanId: scanRes.rows[0].id,
+          productId: product.id, quantityDelta: 1, user: req.user,
+        });
+      } catch (rewardErr) {
+        console.error('awardScanReward error (non-critical):', rewardErr.message);
+      }
       await scanClient.query('COMMIT');
     } catch (e) {
       await scanClient.query('ROLLBACK');
