@@ -485,6 +485,15 @@ export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
   const [addLocForm, setAddLocForm] = useState({ warehouse_id: '', shelf_id: '', pallet_id: '', quantity: '1' });
   const [availShelves, setAvailShelves] = useState([]);
   const [availPallets, setAvailPallets] = useState([]);
+  const [tcEditing, setTcEditing] = useState(false);
+  const [tcOutput, setTcOutput] = useState('1');
+  const [tcCost, setTcCost] = useState('');
+  const [tcAddMat, setTcAddMat] = useState(false);
+  const [tcMatSearch, setTcMatSearch] = useState('');
+  const [tcMatResults, setTcMatResults] = useState([]);
+  const [tcMatQty, setTcMatQty] = useState('1');
+  const [tcEditingMat, setTcEditingMat] = useState(null);
+  const [tcEditMatQty, setTcEditMatQty] = useState('');
   const toast = useToast();
 
   const loadProduct = useCallback(() => {
@@ -628,6 +637,60 @@ export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
       toast.success('Системный ШК установлен');
       loadProduct();
       onEdit?.();
+    } catch (err) { toast.error(err.response?.data?.error || 'Ошибка'); }
+  };
+
+  // ─── Tech card handlers ─────────────────────────────────────────────────
+  const startTcEdit = () => {
+    setTcOutput(product?.tech_card?.output_quantity?.toString() || '1');
+    setTcCost(product?.tech_card?.cost != null ? String(product.tech_card.cost) : '');
+    setTcEditing(true);
+  };
+  const saveTechCard = async () => {
+    try {
+      await api.put(`/products/${productId}/tech-card`, { output_quantity: tcOutput, cost: tcCost || null });
+      toast.success('Техкарта сохранена');
+      setTcEditing(false);
+      loadProduct();
+    } catch (err) { toast.error(err.response?.data?.error || 'Ошибка'); }
+  };
+  const deleteTechCard = async () => {
+    try {
+      await api.delete(`/products/${productId}/tech-card`);
+      toast.success('Техкарта удалена');
+      setTcEditing(false);
+      loadProduct();
+    } catch (err) { toast.error(err.response?.data?.error || 'Ошибка'); }
+  };
+  const searchMaterials = async (q) => {
+    setTcMatSearch(q);
+    if (q.length < 2) { setTcMatResults([]); return; }
+    try {
+      const res = await api.get('/materials', { params: { search: q, limit: 10 } });
+      setTcMatResults(res.data?.materials || res.data || []);
+    } catch { setTcMatResults([]); }
+  };
+  const addTcMaterial = async (matId) => {
+    try {
+      await api.post(`/products/${productId}/tech-card/materials`, { material_id: matId, quantity: parseFloat(tcMatQty) || 1 });
+      toast.success('Материал добавлен');
+      setTcAddMat(false); setTcMatSearch(''); setTcMatResults([]); setTcMatQty('1');
+      loadProduct();
+    } catch (err) { toast.error(err.response?.data?.error || 'Ошибка'); }
+  };
+  const updateTcMatQty = async (matId) => {
+    try {
+      await api.put(`/products/${productId}/tech-card/materials/${matId}`, { quantity: parseFloat(tcEditMatQty) || 0 });
+      toast.success('Количество обновлено');
+      setTcEditingMat(null);
+      loadProduct();
+    } catch (err) { toast.error(err.response?.data?.error || 'Ошибка'); }
+  };
+  const removeTcMaterial = async (matId) => {
+    try {
+      await api.delete(`/products/${productId}/tech-card/materials/${matId}`);
+      toast.success('Материал удалён');
+      loadProduct();
     } catch (err) { toast.error(err.response?.data?.error || 'Ошибка'); }
   };
 
@@ -841,29 +904,98 @@ export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
             {/* COLUMN 3: техкарта + бандл */}
             <div className="space-y-4">
               {/* Тех. карта */}
-              <FormSection title={`Техкарта${product.tech_card ? ` (${product.tech_card.materials?.length || 0} мат.)` : ''}`} icon={<span className="text-gray-400 text-sm">🧪</span>}>
+              <FormSection title={`Техкарта${product.tech_card ? ` (${product.tech_card.materials?.length || 0} мат.)` : ''}`} icon={<span className="text-gray-400 text-sm">🧪</span>}
+                action={product.tech_card
+                  ? <button onClick={startTcEdit} className="text-xs text-primary-600 hover:text-primary-800 font-medium flex items-center gap-1"><Pencil size={11} /> Ред.</button>
+                  : <button onClick={() => { setTcOutput('1'); setTcCost(''); saveTechCard(); }} className="text-xs text-primary-600 hover:text-primary-800 font-medium flex items-center gap-1"><Plus size={12} /> Создать</button>
+                }>
                 {product.tech_card ? (
                   <div className="space-y-2">
-                    <div className="flex items-center gap-3 px-3 py-2 bg-amber-50 dark:bg-amber-900/10 rounded-xl border border-amber-100 dark:border-amber-800/30">
-                      <span className="text-xs text-amber-600 font-medium">Выход:</span>
-                      <span className="text-sm font-bold text-amber-700">{fmtQty(product.tech_card.output_quantity)} шт.</span>
-                      {product.tech_card.cost > 0 && (
-                        <span className="text-xs text-amber-500 ml-auto">Себестоимость: {fmtQty(product.tech_card.cost)} ₽</span>
-                      )}
-                    </div>
+                    {/* Output & cost — editable */}
+                    {tcEditing ? (
+                      <div className="space-y-2 px-3 py-2 bg-amber-50 rounded-xl border border-amber-200">
+                        <div className="grid grid-cols-2 gap-2">
+                          <label className="block"><span className="text-[10px] text-amber-600">Выход (шт.)</span>
+                            <input type="number" min="1" step="1" value={tcOutput} onChange={e => setTcOutput(e.target.value)}
+                              className="w-full rounded-lg border border-amber-200 px-2 py-1 text-sm" /></label>
+                          <label className="block"><span className="text-[10px] text-amber-600">Себестоимость (₽)</span>
+                            <input type="number" min="0" step="0.01" value={tcCost} onChange={e => setTcCost(e.target.value)}
+                              className="w-full rounded-lg border border-amber-200 px-2 py-1 text-sm" placeholder="—" /></label>
+                        </div>
+                        <div className="flex gap-2">
+                          <button onClick={saveTechCard} className="px-3 py-1 rounded-lg bg-primary-600 text-white text-xs font-semibold hover:bg-primary-700">Сохранить</button>
+                          <button onClick={() => setTcEditing(false)} className="px-3 py-1 rounded-lg bg-gray-100 text-gray-600 text-xs font-semibold hover:bg-gray-200">Отмена</button>
+                          <button onClick={deleteTechCard} className="ml-auto px-2 py-1 rounded-lg text-red-400 text-xs hover:text-red-600 hover:bg-red-50">Удалить</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-3 px-3 py-2 bg-amber-50 dark:bg-amber-900/10 rounded-xl border border-amber-100 dark:border-amber-800/30">
+                        <span className="text-xs text-amber-600 font-medium">Выход:</span>
+                        <span className="text-sm font-bold text-amber-700">{fmtQty(product.tech_card.output_quantity)} шт.</span>
+                        {product.tech_card.cost > 0 && (
+                          <span className="text-xs text-amber-500 ml-auto">Себестоимость: {fmtQty(product.tech_card.cost)} ₽</span>
+                        )}
+                      </div>
+                    )}
+                    {/* Materials list */}
                     <div className="space-y-1 max-h-52 overflow-y-auto">
                       {(product.tech_card.materials || []).filter(m => m.id).map((m, i) => (
                         <div key={m.id || i}
-                          className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-gray-50 dark:bg-gray-800 hover:bg-purple-50 dark:hover:bg-purple-900/10 cursor-pointer transition-colors border border-transparent hover:border-purple-200"
-                          onClick={() => { onClose(); navigate(`/admin/products/materials?id=${m.id}`); }}>
-                          <span className="flex-shrink-0">{matIcon(m)}</span>
-                          <div className="flex-1 min-w-0">
+                          className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-gray-50 dark:bg-gray-800 hover:bg-purple-50 dark:hover:bg-purple-900/10 transition-colors border border-transparent hover:border-purple-200 group">
+                          <span className="flex-shrink-0 cursor-pointer" onClick={() => { onClose(); navigate(`/admin/products/materials?id=${m.id}`); }}>{matIcon(m)}</span>
+                          <div className="flex-1 min-w-0 cursor-pointer" onClick={() => { onClose(); navigate(`/admin/products/materials?id=${m.id}`); }}>
                             <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">{m.name}</p>
                           </div>
-                          <span className="text-xs font-bold text-gray-600 dark:text-gray-400 bg-white dark:bg-gray-700 px-2 py-0.5 rounded-lg">{fmtQty(m.quantity)} {m.unit}</span>
+                          {tcEditingMat === m.id ? (
+                            <div className="flex items-center gap-1">
+                              <input type="number" min="0" step="0.01" value={tcEditMatQty} onChange={e => setTcEditMatQty(e.target.value)}
+                                className="w-16 rounded-lg border border-gray-300 px-1.5 py-0.5 text-xs" autoFocus
+                                onKeyDown={e => { if (e.key === 'Enter') updateTcMatQty(m.id); if (e.key === 'Escape') setTcEditingMat(null); }} />
+                              <span className="text-[10px] text-gray-400">{m.unit}</span>
+                              <button onClick={() => updateTcMatQty(m.id)} className="text-green-500 hover:text-green-700"><Check size={14} /></button>
+                              <button onClick={() => setTcEditingMat(null)} className="text-gray-400 hover:text-gray-600"><X size={14} /></button>
+                            </div>
+                          ) : (
+                            <button onClick={() => { setTcEditingMat(m.id); setTcEditMatQty(String(m.quantity)); }}
+                              className="text-xs font-bold text-gray-600 dark:text-gray-400 bg-white dark:bg-gray-700 px-2 py-0.5 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors">
+                              {fmtQty(m.quantity)} {m.unit}
+                            </button>
+                          )}
+                          <button onClick={() => removeTcMaterial(m.id)}
+                            className="flex-shrink-0 opacity-0 group-hover:opacity-100 text-red-300 hover:text-red-500 transition-all"><X size={14} /></button>
                         </div>
                       ))}
                     </div>
+                    {/* Add material */}
+                    {tcAddMat ? (
+                      <div className="space-y-2 px-3 py-2 bg-purple-50 rounded-xl border border-purple-200">
+                        <input type="text" value={tcMatSearch} onChange={e => searchMaterials(e.target.value)}
+                          placeholder="Поиск материала..." className="w-full rounded-lg border border-purple-200 px-3 py-1.5 text-sm" autoFocus />
+                        {tcMatResults.length > 0 && (
+                          <div className="max-h-32 overflow-y-auto space-y-0.5">
+                            {tcMatResults.map(m => (
+                              <button key={m.id} onClick={() => addTcMaterial(m.id)}
+                                className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-purple-100 text-sm flex items-center gap-2 transition-colors">
+                                <span className="flex-1 truncate">{m.name}</span>
+                                <span className="text-[10px] text-gray-400">{m.unit}</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                        <div className="flex items-center gap-2">
+                          <label className="text-[10px] text-purple-600">Кол-во:</label>
+                          <input type="number" min="0" step="0.01" value={tcMatQty} onChange={e => setTcMatQty(e.target.value)}
+                            className="w-20 rounded-lg border border-purple-200 px-2 py-1 text-xs" />
+                          <button onClick={() => { setTcAddMat(false); setTcMatSearch(''); setTcMatResults([]); }}
+                            className="ml-auto text-xs text-gray-500 hover:text-gray-700">Отмена</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button onClick={() => setTcAddMat(true)}
+                        className="flex items-center gap-1 text-xs text-primary-600 hover:text-primary-800 font-medium">
+                        <Plus size={13} /> Добавить материал
+                      </button>
+                    )}
                   </div>
                 ) : (
                   <p className="text-sm text-gray-300 text-center py-4">Нет техкарты</p>

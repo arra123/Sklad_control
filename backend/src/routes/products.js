@@ -384,7 +384,7 @@ router.get('/:id', requireAuth, async (req, res, next) => {
     );
 
     const techCardResult = await pool.query(
-      `SELECT tc.id, tc.name, tc.folder_path, tc.output_quantity
+      `SELECT tc.id, tc.name, tc.folder_path, tc.output_quantity, tc.cost
        FROM tech_cards_s tc
        WHERE tc.product_id = $1`,
       [product.id]
@@ -897,6 +897,77 @@ router.put('/:id/system-barcode', requireAuth, requirePermission('products.edit'
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// ─── Tech Card CRUD ─────────────────────────────────────────────────────────
+
+// PUT /api/products/:id/tech-card — create or update tech card
+router.put('/:id/tech-card', requireAuth, requirePermission('products.edit'), async (req, res) => {
+  const { output_quantity, cost } = req.body;
+  try {
+    const existing = await pool.query('SELECT id FROM tech_cards_s WHERE product_id = $1', [req.params.id]);
+    let tcId;
+    if (existing.rows.length) {
+      tcId = existing.rows[0].id;
+      await pool.query(
+        'UPDATE tech_cards_s SET output_quantity = $1, cost = $2, updated_at = NOW() WHERE id = $3',
+        [parseFloat(output_quantity) || 1, cost != null ? parseFloat(cost) : null, tcId]);
+    } else {
+      const product = await pool.query('SELECT name FROM products_s WHERE id = $1', [req.params.id]);
+      if (!product.rows.length) return res.status(404).json({ error: 'Товар не найден' });
+      const ins = await pool.query(
+        'INSERT INTO tech_cards_s (product_id, name, output_quantity, cost) VALUES ($1, $2, $3, $4) RETURNING id',
+        [req.params.id, product.rows[0].name, parseFloat(output_quantity) || 1, cost != null ? parseFloat(cost) : null]);
+      tcId = ins.rows[0].id;
+    }
+    res.json({ ok: true, tech_card_id: tcId });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// DELETE /api/products/:id/tech-card — delete tech card
+router.delete('/:id/tech-card', requireAuth, requirePermission('products.edit'), async (req, res) => {
+  try {
+    await pool.query('DELETE FROM tech_cards_s WHERE product_id = $1', [req.params.id]);
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// POST /api/products/:id/tech-card/materials — add material
+router.post('/:id/tech-card/materials', requireAuth, requirePermission('products.edit'), async (req, res) => {
+  const { material_id, quantity } = req.body;
+  if (!material_id) return res.status(400).json({ error: 'material_id обязателен' });
+  try {
+    const tc = await pool.query('SELECT id FROM tech_cards_s WHERE product_id = $1', [req.params.id]);
+    if (!tc.rows.length) return res.status(404).json({ error: 'Техкарта не найдена. Сначала создайте техкарту' });
+    const maxOrder = await pool.query('SELECT COALESCE(MAX(sort_order), 0) + 1 as next FROM tech_card_materials_s WHERE tech_card_id = $1', [tc.rows[0].id]);
+    await pool.query(
+      'INSERT INTO tech_card_materials_s (tech_card_id, material_id, quantity, sort_order) VALUES ($1, $2, $3, $4) ON CONFLICT (tech_card_id, material_id) DO UPDATE SET quantity = $3',
+      [tc.rows[0].id, material_id, parseFloat(quantity) || 1, maxOrder.rows[0].next]);
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// PUT /api/products/:id/tech-card/materials/:matId — update quantity
+router.put('/:id/tech-card/materials/:matId', requireAuth, requirePermission('products.edit'), async (req, res) => {
+  const { quantity } = req.body;
+  try {
+    const tc = await pool.query('SELECT id FROM tech_cards_s WHERE product_id = $1', [req.params.id]);
+    if (!tc.rows.length) return res.status(404).json({ error: 'Техкарта не найдена' });
+    await pool.query(
+      'UPDATE tech_card_materials_s SET quantity = $1 WHERE tech_card_id = $2 AND material_id = $3',
+      [parseFloat(quantity) || 0, tc.rows[0].id, req.params.matId]);
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// DELETE /api/products/:id/tech-card/materials/:matId — remove material
+router.delete('/:id/tech-card/materials/:matId', requireAuth, requirePermission('products.edit'), async (req, res) => {
+  try {
+    const tc = await pool.query('SELECT id FROM tech_cards_s WHERE product_id = $1', [req.params.id]);
+    if (!tc.rows.length) return res.status(404).json({ error: 'Техкарта не найдена' });
+    await pool.query('DELETE FROM tech_card_materials_s WHERE tech_card_id = $1 AND material_id = $2', [tc.rows[0].id, req.params.matId]);
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // DELETE /api/products/:id — delete product
