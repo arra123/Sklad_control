@@ -608,7 +608,7 @@ function TaskDetailPanel({ task, onClose, onReload }) {
                           </div>
                           <div className="flex items-center gap-1 mt-1">
                             <span className="text-[10px] text-gray-400 font-mono">{c.code} · × {Number(c.quantity)}</span>
-                            {(() => { const allBc = []; if (c.production_barcode) allBc.push(c.production_barcode); (c.barcode_list||'').split(';').map(s=>s.trim()).filter(Boolean).forEach(b => { if (!allBc.includes(b)) allBc.push(b); }); const mbj = Array.isArray(c.marketplace_barcodes_json) ? c.marketplace_barcodes_json : []; mbj.forEach(m => { if (m.value && !allBc.includes(m.value)) allBc.push(m.value); }); const mpValues = new Set(mbj.map(m => m.value)); const isMP = b => mpValues.has(b) || /^(OZN|MRKT|SBER)/i.test(b); const sbc = allBc.find(b => !isMP(b)) || allBc[0]; return sbc ? <CopyBadge value={sbc} /> : null; })()}
+                            {(() => { const sbc = c.production_barcode || (() => { const allBc = (c.barcode_list||'').split(';').map(s=>s.trim()).filter(Boolean); const mbj = Array.isArray(c.marketplace_barcodes_json) ? c.marketplace_barcodes_json : []; const mpValues = new Set(mbj.map(m => m.value)); const isMP = b => mpValues.has(b) || /^(OZN|MRKT|SBER)/i.test(b); return allBc.find(b => !isMP(b)) || allBc[0]; })(); return sbc ? <CopyBadge value={sbc} /> : null; })()}
                           </div>
                         </div>
                       );

@@ -897,6 +897,22 @@ router.put('/:id', requireAuth, requirePermission('products.edit'), async (req, 
   }
 });
 
+// PUT /api/products/:id/system-barcode — set system barcode
+router.put('/:id/system-barcode', requireAuth, requirePermission('products.edit'), async (req, res) => {
+  const { value } = req.body;
+  if (!value) return res.status(400).json({ error: 'Не указан штрих-код' });
+  try {
+    const result = await pool.query(
+      `UPDATE products_s SET production_barcode = $1, updated_at = NOW() WHERE id = $2 RETURNING *`,
+      [value, req.params.id]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'Товар не найден' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // DELETE /api/products/:id — delete product
 router.delete('/:id', requireAuth, requirePermission('products.edit'), async (req, res) => {
   try {

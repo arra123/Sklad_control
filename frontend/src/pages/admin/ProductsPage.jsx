@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import {
   Search, Package, Boxes, ChevronLeft, ChevronRight,
   Copy, Check, ArrowRight, Plus, Pencil, Trash2, X, MapPin,
-  ArrowUp, ArrowDown, Settings2, GripVertical, Save
+  ArrowUp, ArrowDown, Settings2, GripVertical, Save, Star
 } from 'lucide-react';
 import { ProductIcon, BundleIcon, PowderIcon, SemiProductIcon, LabelIcon, SuppliesIcon, MixIcon, PackagingMaterialIcon, JarLidIcon, PetJarIcon, VacuumFlaskIcon, MembraneIcon, CapsuleEmptyIcon } from '../../components/ui/WarehouseIcons';
 import api from '../../api/client';
@@ -44,17 +44,20 @@ const MARKETPLACE_COLORS = {
 function parseBarcodes(product) {
   const result = [];
   const added = new Set();
-  // Collect ALL barcodes from all sources — all are equal
+  const sysBc = product.production_barcode || null;
+  // Collect ALL barcodes from all sources
   const allBarcodes = [];
-  if (product.production_barcode) allBarcodes.push(product.production_barcode);
+  if (sysBc) allBarcodes.push(sysBc);
   (product.barcode_list || '').split(';').map(s => s.trim()).filter(Boolean).forEach(bc => allBarcodes.push(bc));
   const mbj = Array.isArray(product.marketplace_barcodes_json) ? product.marketplace_barcodes_json : [];
   mbj.forEach(b => { if (b.value) allBarcodes.push(b.value); });
-  // Deduplicate and classify — system barcode FIRST (before marketplace check)
+  // Deduplicate and classify
   allBarcodes.forEach(bc => {
     if (added.has(bc)) return;
     added.add(bc);
-    // Check if it's a marketplace barcode first
+    // System barcode = production_barcode
+    if (bc === sysBc) { result.push({ label: 'Системный', value: bc, kind: 'system', storeKey: 'system', isSystem: true }); return; }
+    // Marketplace barcodes
     const mp = mbj.find(m => m.value === bc);
     if (mp?.type === 'ozon_1') { result.push({ label: 'Ozon ИП И.', value: bc, kind: 'ozon', storeKey: 'ozon_1' }); return; }
     if (mp?.type === 'ozon_2') { result.push({ label: 'Ozon ИП Е.', value: bc, kind: 'ozon', storeKey: 'ozon_2' }); return; }
@@ -64,8 +67,8 @@ function parseBarcodes(product) {
     if (mp?.type === 'ozon' || bc.startsWith('OZN')) { result.push({ label: 'Ozon', value: bc, kind: 'ozon' }); return; }
     if (bc.startsWith('MRKT')) { result.push({ label: 'Яндекс Маркет', value: bc, kind: 'yandex' }); return; }
     if (bc.startsWith('SBER')) { result.push({ label: 'СберМегаМаркет', value: bc, kind: 'sber' }); return; }
-    // Everything else is a system/product barcode
-    result.push({ label: 'Системный', value: bc, kind: 'system', storeKey: 'system' });
+    // Unclassified
+    result.push({ label: null, value: bc, kind: 'unknown' });
   });
   return result;
 }
@@ -95,15 +98,22 @@ function matIcon(m, size = 16) {
   return <I size={size} />;
 }
 
-function BarcodeRow({ label, value, kind, onDelete }) {
+function BarcodeRow({ label, value, kind, isSystem, onDelete, onSetSystem }) {
   const colors = MARKETPLACE_COLORS[kind] || MARKETPLACE_COLORS.unknown;
   return (
-    <div className={cn('flex items-center gap-2 px-3 py-2 rounded-xl border group', colors.bg, colors.border)}>
+    <div className={cn('flex items-center gap-2 px-3 py-2 rounded-xl border group', isSystem ? 'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800' : colors.bg, !isSystem && colors.border)}>
       <div className="w-24 flex-shrink-0">
-        {label ? <span className={cn('text-xs font-semibold', colors.text)}>{label}</span>
-               : <span className="text-xs text-gray-300 italic">—</span>}
+        {isSystem ? <span className="text-xs font-semibold text-green-600">Системный</span>
+          : label ? <span className={cn('text-xs font-semibold', colors.text)}>{label}</span>
+          : <span className="text-xs text-gray-300 italic">—</span>}
       </div>
       <CopyBadge value={value} variant="ghost" className="flex-1 min-w-0" />
+      {!isSystem && onSetSystem && (
+        <button onClick={() => onSetSystem(value)} title="Сделать системным"
+          className="flex-shrink-0 opacity-0 group-hover:opacity-100 text-gray-300 hover:text-green-500 transition-all">
+          <Star size={14} />
+        </button>
+      )}
       {onDelete && (
         <button onClick={() => onDelete(value)}
           className="flex-shrink-0 opacity-0 group-hover:opacity-100 text-red-300 hover:text-red-500 transition-all">
@@ -612,6 +622,15 @@ export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
     } catch (err) { toast.error(err.response?.data?.error || 'Ошибка'); }
   };
 
+  const handleSetSystemBarcode = async (value) => {
+    try {
+      await api.put(`/products/${productId}/system-barcode`, { value });
+      toast.success('Системный ШК установлен');
+      loadProduct();
+      onEdit?.();
+    } catch (err) { toast.error(err.response?.data?.error || 'Ошибка'); }
+  };
+
   const handleAddBarcode = async () => {
     if (!newBarcode.trim()) return;
     try {
@@ -730,7 +749,7 @@ export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
                 {barcodes.length > 0 ? (
                   <div className="space-y-1 max-h-48 overflow-y-auto">
                     {barcodes.map((bc, i) => (
-                      <BarcodeRow key={i} {...bc} onDelete={handleDeleteBarcode} />
+                      <BarcodeRow key={i} {...bc} onDelete={handleDeleteBarcode} onSetSystem={handleSetSystemBarcode} />
                     ))}
                   </div>
                 ) : <p className="text-sm text-gray-300 text-center py-3">Нет штрихкодов</p>}
@@ -1175,7 +1194,7 @@ function ProductTable({ entityType, onSelect, onEdit }) {
                         </td>
                       );
                       if (col.key === 'code') return <td key="code" className="text-gray-500 text-xs font-mono">{item.code || '—'}</td>;
-                      if (col.key === 'barcode') { const allBc = []; if (item.production_barcode) allBc.push(item.production_barcode); (item.barcode_list||'').split(';').map(s=>s.trim()).filter(Boolean).forEach(b => { if (!allBc.includes(b)) allBc.push(b); }); const mbj = Array.isArray(item.marketplace_barcodes_json) ? item.marketplace_barcodes_json : []; mbj.forEach(m => { if (m.value && !allBc.includes(m.value)) allBc.push(m.value); }); const mpValues = new Set(mbj.map(m => m.value)); const isMarketplace = b => mpValues.has(b) || /^(OZN|MRKT|SBER)/i.test(b); const systemBc = allBc.find(b => !isMarketplace(b)) || allBc[0]; return <td key="barcode">{systemBc ? <CopyBadge value={systemBc} /> : <span className="text-xs text-gray-300">—</span>}</td>; }
+                      if (col.key === 'barcode') { const systemBc = item.production_barcode || (() => { const allBc = (item.barcode_list||'').split(';').map(s=>s.trim()).filter(Boolean); const mbj = Array.isArray(item.marketplace_barcodes_json) ? item.marketplace_barcodes_json : []; const mpValues = new Set(mbj.map(m => m.value)); const isMP = b => mpValues.has(b) || /^(OZN|MRKT|SBER)/i.test(b); return allBc.find(b => !isMP(b)) || allBc[0]; })(); return <td key="barcode">{systemBc ? <CopyBadge value={systemBc} /> : <span className="text-xs text-gray-300">—</span>}</td>; }
                       if (col.key === 'stock') return <td key="stock"><StockBadge stock={Number(item.warehouse_qty || item.stock || 0)} /></td>;
                       if (col.key === 'shelf_codes') return (
                         <td key="shelf_codes">
