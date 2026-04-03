@@ -89,6 +89,7 @@ function ActivityTimeline({ buckets, tasks, breaks = [], thresholds }) {
   const [zoomLevel, setZoomLevel] = useState(0);
   const [panOffset, setPanOffset] = useState(0);
   const [popupTask, setPopupTask] = useState(null);
+  const [expandedBreak, setExpandedBreak] = useState(null);
   const dragRef = useRef(null);
   const barRef = useRef(null);
 
@@ -348,20 +349,24 @@ function ActivityTimeline({ buckets, tasks, breaks = [], thresholds }) {
           )}
         </div>
 
-        {/* Floating tooltip — rendered outside overflow:hidden container */}
+        {/* Floating tooltip — rendered below the timeline bar */}
         {hoveredBucket !== null && (() => {
           const bNum = hoveredBucket;
           const scans = bucketMap[bNum] || 0;
           const isBreak = breakBuckets.has(bNum);
+          const isLunch = lunchBuckets.has(bNum);
+          const isRest = restBuckets.has(bNum);
           const isTaskPause = taskPauseBuckets.has(bNum) && !(bucketMap[bNum] > 0);
           const leftPct = ((bNum - minBucket + 0.5) / totalBuckets) * 100;
           return (
             <div className="relative" style={{ height: 0 }}>
               <div className="absolute z-30 px-3 py-2 bg-gray-900 text-white rounded-lg text-[10px] whitespace-nowrap shadow-lg pointer-events-none -translate-x-1/2"
-                style={{ left: `${leftPct}%`, bottom: 8 }}>
+                style={{ left: `${leftPct}%`, top: 4 }}>
                 <p className="font-bold text-[11px]">{bucketToTime(bNum)} – {bucketToTime(bNum + 1)}</p>
                 {isBreak ? (
-                  <p className="text-amber-300 mt-0.5">⏸ Перерыв</p>
+                  <p className={`mt-0.5 ${isLunch ? 'text-pink-300' : isRest ? 'text-blue-300' : 'text-amber-300'}`}>
+                    {isLunch ? '🍽 Обед' : isRest ? '☕ Отдых' : '⏸ Тех. пауза'}
+                  </p>
                 ) : isTaskPause ? (
                   <p className="text-red-300 mt-0.5">⏸ Пауза задачи</p>
                 ) : scans > 0 ? (
@@ -445,35 +450,58 @@ function ActivityTimeline({ buckets, tasks, breaks = [], thresholds }) {
 
       {/* Break bars */}
       {breaks.length > 0 && (
-        <div className="relative h-6 mt-1">
-          {breaks.map((br, idx) => {
-            const bStart = Math.max(minBucket, Math.floor((new Date(br.started_at) - todayStart) / 300000));
-            const bEnd = br.ended_at
-              ? Math.min(maxBucket, Math.floor((new Date(br.ended_at) - todayStart) / 300000))
-              : Math.min(maxBucket, nowBucket);
-            if (bEnd <= minBucket || bStart >= maxBucket) return null;
-            const leftPct = ((bStart - minBucket) / totalBuckets) * 100;
-            const widthPct = Math.max(2, ((bEnd - bStart + 1) / totalBuckets) * 100);
+        <div className="mt-1 space-y-1">
+          <div className="relative h-6">
+            {breaks.map((br, idx) => {
+              const bStart = Math.max(minBucket, Math.floor((new Date(br.started_at) - todayStart) / 300000));
+              const bEnd = br.ended_at
+                ? Math.min(maxBucket, Math.floor((new Date(br.ended_at) - todayStart) / 300000))
+                : Math.min(maxBucket, nowBucket);
+              if (bEnd <= minBucket || bStart >= maxBucket) return null;
+              const leftPct = ((bStart - minBucket) / totalBuckets) * 100;
+              const widthPct = Math.max(2, ((bEnd - bStart + 1) / totalBuckets) * 100);
+              const isExpanded = expandedBreak === idx;
+              return (
+                <div key={idx}
+                  className={`absolute h-5 rounded-md flex items-center overflow-hidden px-1.5 border cursor-pointer transition-all ${
+                    br.break_type === 'lunch' ? 'bg-pink-100 border-pink-300 hover:bg-pink-200' :
+                    br.break_type === 'rest' ? 'bg-blue-100 border-blue-300 hover:bg-blue-200' :
+                    'bg-amber-100 border-amber-300 hover:bg-amber-200'
+                  } ${isExpanded ? 'ring-2 ring-offset-1 ' + (br.break_type === 'lunch' ? 'ring-pink-400' : br.break_type === 'rest' ? 'ring-blue-400' : 'ring-amber-400') : ''}`}
+                  style={{ left: `${leftPct}%`, width: `${widthPct}%`, top: 0 }}
+                  onClick={() => setExpandedBreak(isExpanded ? null : idx)}
+                >
+                  <span className={`text-[8px] font-semibold truncate ${
+                    br.break_type === 'lunch' ? 'text-pink-600' :
+                    br.break_type === 'rest' ? 'text-blue-600' :
+                    'text-amber-600'
+                  }`}>
+                    {br.break_type === 'lunch' ? '🍽 Обед' : br.break_type === 'rest' ? '☕ Отдых' : '⏸ Тех. пауза'}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+          {/* Expanded break detail */}
+          {expandedBreak !== null && breaks[expandedBreak] && (() => {
+            const br = breaks[expandedBreak];
+            const startTime = fmtTime(br.started_at);
+            const endTime = br.ended_at ? fmtTime(br.ended_at) : 'сейчас';
+            const durationMs = (br.ended_at ? new Date(br.ended_at) : new Date()) - new Date(br.started_at);
+            const durationMin = Math.round(durationMs / 60000);
+            const typeLabel = br.break_type === 'lunch' ? '🍽 Обед' : br.break_type === 'rest' ? '☕ Отдых' : '⏸ Тех. пауза';
+            const colors = br.break_type === 'lunch' ? 'bg-pink-50 border-pink-200 text-pink-700'
+              : br.break_type === 'rest' ? 'bg-blue-50 border-blue-200 text-blue-700'
+              : 'bg-amber-50 border-amber-200 text-amber-700';
             return (
-              <div key={idx}
-                className={`absolute h-5 rounded-md flex items-center overflow-hidden px-1.5 border ${
-                  br.break_type === 'lunch' ? 'bg-pink-100 border-pink-300' :
-                  br.break_type === 'rest' ? 'bg-blue-100 border-blue-300' :
-                  'bg-amber-100 border-amber-300'
-                }`}
-                style={{ left: `${leftPct}%`, width: `${widthPct}%`, top: 0 }}
-                title={`${fmtTime(br.started_at)} → ${br.ended_at ? fmtTime(br.ended_at) : 'сейчас'}`}
-              >
-                <span className={`text-[8px] font-semibold truncate ${
-                  br.break_type === 'lunch' ? 'text-pink-600' :
-                  br.break_type === 'rest' ? 'text-blue-600' :
-                  'text-amber-600'
-                }`}>
-                  {br.break_type === 'lunch' ? '🍽 Обед' : br.break_type === 'rest' ? '☕ Отдых' : '⏸ Тех. пауза'} {fmtTime(br.started_at)}–{br.ended_at ? fmtTime(br.ended_at) : '...'}
-                </span>
+              <div className={`rounded-xl border px-4 py-2.5 flex items-center gap-4 ${colors}`}>
+                <span className="text-sm font-semibold">{typeLabel}</span>
+                <span className="text-xs font-mono">{startTime} → {endTime}</span>
+                <span className="text-xs font-bold">{durationMin} мин</span>
+                <button onClick={() => setExpandedBreak(null)} className="ml-auto text-xs opacity-50 hover:opacity-100">✕</button>
               </div>
             );
-          })}
+          })()}
         </div>
       )}
 
