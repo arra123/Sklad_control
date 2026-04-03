@@ -2946,6 +2946,18 @@ router.post('/:id/scan', requireAuth, async (req, res) => {
     if (t.status !== 'in_progress') {
       return res.status(400).json({ error: 'Задача не в состоянии "в работе"' });
     }
+    // Check if employee is on a break
+    if (t.employee_id) {
+      const activeBreak = await client.query(
+        'SELECT id, break_type FROM employee_breaks_s WHERE employee_id = $1 AND ended_at IS NULL LIMIT 1',
+        [t.employee_id]);
+      if (activeBreak.rows.length) {
+        const bt = activeBreak.rows[0].break_type;
+        const label = bt === 'lunch' ? 'обеде' : bt === 'rest' ? 'отдыхе' : 'тех. паузе';
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: `Вы на ${label}. Завершите перерыв, чтобы продолжить сканирование` });
+      }
+    }
     if (hasTaskBoxQueue && !activeTaskBox) {
       return res.status(400).json({ error: 'Сначала отсканируйте коробку из этой инвентаризации.' });
     }

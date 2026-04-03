@@ -305,6 +305,11 @@ router.post('/:id/scan-pick', requireAuth, async (req, res) => {
     if (!task.rows.length) { await client.query('ROLLBACK'); client.release(); return res.status(404).json({ error: 'Задача не найдена' }); }
     if (task.rows[0].status !== 'in_progress') { await client.query('ROLLBACK'); client.release(); return res.status(400).json({ error: 'Задача не начата. Нажмите «Начать забор»' }); }
     if (task.rows[0].assembly_phase !== 'picking') { await client.query('ROLLBACK'); client.release(); return res.status(400).json({ error: 'Задача не в фазе забора' }); }
+    // Check employee break
+    if (task.rows[0].employee_id) {
+      const ab = await client.query('SELECT break_type FROM employee_breaks_s WHERE employee_id = $1 AND ended_at IS NULL LIMIT 1', [task.rows[0].employee_id]);
+      if (ab.rows.length) { const l = ab.rows[0].break_type === 'lunch' ? 'обеде' : ab.rows[0].break_type === 'rest' ? 'отдыхе' : 'тех. паузе'; await client.query('ROLLBACK'); client.release(); return res.status(400).json({ error: `Вы на ${l}. Завершите перерыв` }); }
+    }
     if (!box_id && !shelf_id && !pallet_id) { await client.query('ROLLBACK'); client.release(); return res.status(400).json({ error: 'Укажите источник (box_id / shelf_id / pallet_id)' }); }
 
     let product = await resolveProduct(client, barcode);
@@ -479,6 +484,11 @@ router.post('/:id/scan-component', requireAuth, async (req, res) => {
     const task = await pool.query('SELECT * FROM inventory_tasks_s WHERE id = $1 AND task_type = $2', [req.params.id, 'bundle_assembly']);
     if (!task.rows.length) return res.status(404).json({ error: 'Задача не найдена' });
     if (task.rows[0].assembly_phase !== 'assembling') return res.status(400).json({ error: 'Задача не в фазе сборки' });
+    // Check employee break
+    if (task.rows[0].employee_id) {
+      const ab = await pool.query('SELECT break_type FROM employee_breaks_s WHERE employee_id = $1 AND ended_at IS NULL LIMIT 1', [task.rows[0].employee_id]);
+      if (ab.rows.length) { const l = ab.rows[0].break_type === 'lunch' ? 'обеде' : ab.rows[0].break_type === 'rest' ? 'отдыхе' : 'тех. паузе'; return res.status(400).json({ error: `Вы на ${l}. Завершите перерыв` }); }
+    }
 
     const currentBundle = task.rows[0].assembled_count + 1;
 
@@ -639,6 +649,11 @@ router.post('/:id/scan-place', requireAuth, async (req, res) => {
     if (task.rows[0].assembly_phase !== 'placing') {
       await client.query('ROLLBACK'); client.release();
       return res.status(400).json({ error: 'Задача не в фазе размещения' });
+    }
+    // Check employee break
+    if (task.rows[0].employee_id) {
+      const ab = await client.query('SELECT break_type FROM employee_breaks_s WHERE employee_id = $1 AND ended_at IS NULL LIMIT 1', [task.rows[0].employee_id]);
+      if (ab.rows.length) { const l = ab.rows[0].break_type === 'lunch' ? 'обеде' : ab.rows[0].break_type === 'rest' ? 'отдыхе' : 'тех. паузе'; await client.query('ROLLBACK'); client.release(); return res.status(400).json({ error: `Вы на ${l}. Завершите перерыв` }); }
     }
 
     if (task.rows[0].placed_count >= task.rows[0].bundle_qty) {
