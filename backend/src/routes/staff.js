@@ -287,16 +287,27 @@ router.post('/breaks/start', requireAuth, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// POST /api/staff/breaks/end — employee ends a break
+// POST /api/staff/breaks/end — employee ends a break (tech breaks need admin)
 router.post('/breaks/end', requireAuth, async (req, res) => {
-  const employeeId = req.user.employee_id;
+  const employeeId = req.body.employee_id || req.user.employee_id;
   if (!employeeId) return res.status(400).json({ error: 'Нет привязки к сотруднику' });
   try {
+    const active = await pool.query(
+      'SELECT * FROM employee_breaks_s WHERE employee_id=$1 AND ended_at IS NULL LIMIT 1',
+      [employeeId]
+    );
+    if (!active.rows.length) return res.status(400).json({ error: 'Нет активного перерыва' });
+    // Tech break — only admin/manager can end
+    if (active.rows[0].break_type === 'tech' && req.user.employee_id === parseInt(employeeId)) {
+      const perms = req.user.permissions || [];
+      if (req.user.role !== 'admin' && !perms.includes('tasks.view')) {
+        return res.status(403).json({ error: 'Технический перерыв может снять только администратор' });
+      }
+    }
     const result = await pool.query(
       'UPDATE employee_breaks_s SET ended_at=NOW() WHERE employee_id=$1 AND ended_at IS NULL RETURNING *',
       [employeeId]
     );
-    if (!result.rows.length) return res.status(400).json({ error: 'Нет активного перерыва' });
     res.json(result.rows[0]);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });

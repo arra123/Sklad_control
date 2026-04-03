@@ -599,13 +599,31 @@ function EmployeeDetailView({ employeeId, employees, onBack, thresholds, date, i
             Баланс: {fmtNum(Math.round(emp.balance))} GRA · Последний скан: {emp.last_scan_at ? timeAgo(emp.last_scan_at) : '—'}
           </p>
         </div>
-        <button
-          onClick={() => setShowBreakForm(v => !v)}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all flex-shrink-0 bg-gray-100 text-gray-500 hover:bg-orange-50 hover:text-orange-600"
-        >
-          <Pause size={14} />
-          Техн. пауза
-        </button>
+        {/* Active break indicator + end button */}
+        {(() => {
+          const activeBr = timeline?.breaks?.find(b => !b.ended_at);
+          if (activeBr) {
+            const brLabel = activeBr.break_type === 'lunch' ? '🍽 Обед' : activeBr.break_type === 'rest' ? '☕ Перерыв' : '🔧 Тех. проблема';
+            return (
+              <button onClick={async () => {
+                setBreakLoading(true);
+                try {
+                  await api.post('/staff/breaks/end', { employee_id: employeeId });
+                  await loadTimeline();
+                } catch {} finally { setBreakLoading(false); }
+              }} disabled={breakLoading}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-red-100 text-red-700 hover:bg-red-200 ring-1 ring-red-300 transition-all flex-shrink-0">
+                {brLabel} — Снять
+              </button>
+            );
+          }
+          return (
+            <button onClick={() => setShowBreakForm(v => !v)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-gray-100 text-gray-500 hover:bg-orange-50 hover:text-orange-600 transition-all flex-shrink-0">
+              <Pause size={14} /> Доб. паузу
+            </button>
+          );
+        })()}
       </div>
 
       {/* Tech break form */}

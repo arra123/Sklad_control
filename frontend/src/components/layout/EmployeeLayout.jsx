@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import {
   ClipboardList, LogOut, BarChart3, ArrowRightLeft, Package,
-  Sparkles, ChevronRight, UtensilsCrossed, Award
+  Sparkles, ChevronRight, UtensilsCrossed, Award, Coffee, Wrench, PauseCircle, X
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { cn } from '../../utils/cn';
@@ -92,30 +92,45 @@ export default function EmployeeLayout({ children }) {
   const { user, logout, rewardFx } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [onBreak, setOnBreak] = useState(false);
+  const [activeBreak, setActiveBreak] = useState(null); // { id, break_type, started_at }
   const [breakLoading, setBreakLoading] = useState(false);
-  const [breakStart, setBreakStart] = useState(null);
+  const [showBreakMenu, setShowBreakMenu] = useState(false);
 
-  // Check break status on mount
-  useEffect(() => {
+  const loadBreak = useCallback(() => {
     api.get('/staff/breaks/active').then(r => {
-      setOnBreak(r.data.on_break);
-      if (r.data.break) setBreakStart(r.data.break.started_at);
+      setActiveBreak(r.data.on_break ? r.data.break : null);
     }).catch(() => {});
   }, []);
 
-  const toggleBreak = useCallback(async () => {
+  useEffect(() => { loadBreak(); }, [loadBreak]);
+
+  const startBreak = async (type) => {
     setBreakLoading(true);
     try {
-      if (onBreak) {
-        await api.post('/staff/breaks/end');
-        setOnBreak(false); setBreakStart(null);
-      } else {
-        const r = await api.post('/staff/breaks/start', { break_type: 'lunch' });
-        setOnBreak(true); setBreakStart(r.data.started_at);
-      }
+      const r = await api.post('/staff/breaks/start', { break_type: type });
+      setActiveBreak(r.data);
+      setShowBreakMenu(false);
     } catch {} finally { setBreakLoading(false); }
-  }, [onBreak]);
+  };
+
+  const endBreak = async () => {
+    setBreakLoading(true);
+    try {
+      await api.post('/staff/breaks/end');
+      setActiveBreak(null);
+    } catch (err) {
+      if (err.response?.data?.error) alert(err.response.data.error);
+    } finally { setBreakLoading(false); }
+  };
+
+  const breakLabel = activeBreak?.break_type === 'lunch' ? 'Обед'
+    : activeBreak?.break_type === 'rest' ? 'Перерыв'
+    : activeBreak?.break_type === 'tech' ? 'Тех. проблема' : 'Перерыв';
+
+  const breakColor = activeBreak?.break_type === 'tech'
+    ? 'bg-red-100 text-red-700 ring-1 ring-red-300'
+    : activeBreak ? 'bg-amber-100 text-amber-700 ring-1 ring-amber-300 animate-pulse'
+    : 'bg-gray-100 text-gray-500';
 
   const currentNav = navItems.find(n => location.pathname.startsWith(n.to));
 
@@ -144,17 +159,15 @@ export default function EmployeeLayout({ children }) {
           <div className="flex items-center justify-end gap-1.5 sm:gap-2 min-w-0">
             {/* Break button */}
             <button
-              onClick={toggleBreak}
-              disabled={breakLoading}
+              onClick={() => activeBreak ? (activeBreak.break_type === 'tech' ? null : endBreak()) : setShowBreakMenu(true)}
+              disabled={breakLoading || (activeBreak?.break_type === 'tech')}
               className={cn(
                 'flex items-center gap-1 px-2 py-1.5 rounded-xl text-[10px] sm:text-xs font-semibold transition-all flex-shrink-0',
-                onBreak
-                  ? 'bg-amber-100 text-amber-700 hover:bg-amber-200 ring-1 ring-amber-300 animate-pulse'
-                  : 'bg-gray-100 text-gray-500 hover:bg-amber-50 hover:text-amber-600'
+                breakColor
               )}
             >
-              <UtensilsCrossed size={14} />
-              <span className="hidden sm:inline">{onBreak ? 'Вернуться' : 'Обед'}</span>
+              {activeBreak?.break_type === 'tech' ? <Wrench size={14} /> : activeBreak ? <UtensilsCrossed size={14} /> : <PauseCircle size={14} />}
+              <span className="hidden sm:inline">{activeBreak ? breakLabel : 'Перерыв'}</span>
             </button>
             {/* Avatar */}
             <div className="w-7 h-7 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 text-white flex items-center justify-center text-[10px] font-bold flex-shrink-0 shadow-sm">
@@ -207,6 +220,43 @@ export default function EmployeeLayout({ children }) {
           ))}
         </div>
       </nav>
+
+      {/* Break type selection modal */}
+      {showBreakMenu && (
+        <>
+          <div className="fixed inset-0 bg-black/30 z-40" onClick={() => setShowBreakMenu(false)} />
+          <div className="fixed bottom-24 left-4 right-4 max-w-sm mx-auto z-50 bg-white rounded-2xl shadow-xl p-4 space-y-2" style={{ animation: 'fadeIn 0.15s ease-out' }}>
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-sm font-bold text-gray-900">Выберите перерыв</p>
+              <button onClick={() => setShowBreakMenu(false)} className="p-1 text-gray-400 hover:text-gray-600"><X size={16} /></button>
+            </div>
+            <button onClick={() => startBreak('lunch')} disabled={breakLoading}
+              className="w-full flex items-center gap-3 p-3 rounded-xl bg-amber-50 hover:bg-amber-100 transition-colors">
+              <UtensilsCrossed size={20} className="text-amber-600" />
+              <div className="text-left">
+                <p className="text-sm font-semibold text-gray-900">Обеденный перерыв</p>
+                <p className="text-[10px] text-gray-400">Вы сами снимете когда вернётесь</p>
+              </div>
+            </button>
+            <button onClick={() => startBreak('rest')} disabled={breakLoading}
+              className="w-full flex items-center gap-3 p-3 rounded-xl bg-blue-50 hover:bg-blue-100 transition-colors">
+              <Coffee size={20} className="text-blue-600" />
+              <div className="text-left">
+                <p className="text-sm font-semibold text-gray-900">Обычный перерыв</p>
+                <p className="text-[10px] text-gray-400">Вы сами снимете когда вернётесь</p>
+              </div>
+            </button>
+            <button onClick={() => startBreak('tech')} disabled={breakLoading}
+              className="w-full flex items-center gap-3 p-3 rounded-xl bg-red-50 hover:bg-red-100 transition-colors">
+              <Wrench size={20} className="text-red-600" />
+              <div className="text-left">
+                <p className="text-sm font-semibold text-gray-900">Техническая проблема</p>
+                <p className="text-[10px] text-gray-400">Снять может только администратор</p>
+              </div>
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }
