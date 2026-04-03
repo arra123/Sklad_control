@@ -858,17 +858,17 @@ router.post('/', requireAuth, requirePermission('products.edit'), async (req, re
 
 // PUT /api/products/:id — update product
 router.put('/:id', requireAuth, requirePermission('products.edit'), async (req, res) => {
-  const { name, code, article, entity_type, barcode_list, production_barcode, stock, reserve, archived, sale_price, cost_price, honest_sign } = req.body;
+  const { name, code, article, entity_type, barcode_list, stock, reserve, archived, sale_price, cost_price, honest_sign } = req.body;
   try {
     const result = await pool.query(
       `UPDATE products_s SET
          name = $1, code = $2, article = $3, entity_type = $4,
-         barcode_list = $5, production_barcode = $6,
-         stock = $7, reserve = $8, archived = $9,
-         sale_price = $10, cost_price = $11, honest_sign = $12, updated_at = NOW()
-       WHERE id = $13 RETURNING *`,
+         barcode_list = $5,
+         stock = $6, reserve = $7, archived = $8,
+         sale_price = $9, cost_price = $10, honest_sign = $11, updated_at = NOW()
+       WHERE id = $12 RETURNING *`,
       [name, code || null, article || null, entity_type || 'product',
-       barcode_list || null, production_barcode || null,
+       barcode_list || null,
        parseFloat(stock) || 0, parseFloat(reserve) || 0,
        archived === true,
        sale_price != null ? parseFloat(sale_price) || null : null,
