@@ -644,6 +644,7 @@ router.post('/:id/scan-place', requireAuth, async (req, res) => {
         } else {
           await client.query('INSERT INTO shelf_box_items_s (shelf_box_id, product_id, quantity, updated_at) VALUES ($1,$2,1,NOW())', [box_id, productId]);
         }
+        await client.query('UPDATE shelf_boxes_s SET quantity = quantity + 1 WHERE id = $1', [box_id]);
       } else {
         const existing = await client.query('SELECT id FROM box_items_s WHERE box_id=$1 AND product_id=$2', [box_id, productId]);
         if (existing.rows.length) {

@@ -118,12 +118,13 @@ router.post('/move', requireAuth, async (req, res) => {
       // Determine if shelf_box or pallet box
       const sbx = await client.query('SELECT id FROM shelf_boxes_s WHERE id=$1', [source_id]);
       if (sbx.rows.length) {
-        // Shelf box — deduct from shelf_box_items_s
+        // Shelf box — deduct from shelf_box_items_s + update box quantity
         const r = await client.query('SELECT quantity FROM shelf_box_items_s WHERE shelf_box_id=$1 AND product_id=$2', [source_id, product_id]);
         if (!r.rows.length || parseFloat(r.rows[0].quantity) < qty) throw new Error('Недостаточно товара в коробке на полке');
         const newQty = parseFloat(r.rows[0].quantity) - qty;
         if (newQty <= 0) await client.query('DELETE FROM shelf_box_items_s WHERE shelf_box_id=$1 AND product_id=$2', [source_id, product_id]);
         else await client.query('UPDATE shelf_box_items_s SET quantity=$1, updated_at=NOW() WHERE shelf_box_id=$2 AND product_id=$3', [newQty, source_id, product_id]);
+        await client.query('UPDATE shelf_boxes_s SET quantity = GREATEST(0, quantity - $1) WHERE id = $2', [qty, source_id]);
       } else {
         // Pallet box — deduct from box_items_s
         const r = await client.query('SELECT quantity FROM box_items_s WHERE box_id=$1 AND product_id=$2', [source_id, product_id]);
@@ -155,11 +156,12 @@ router.post('/move', requireAuth, async (req, res) => {
       // Determine if shelf_box or pallet box
       const sbx = await client.query('SELECT id FROM shelf_boxes_s WHERE id=$1', [dest_id]);
       if (sbx.rows.length) {
-        // Shelf box — add to shelf_box_items_s
+        // Shelf box — add to shelf_box_items_s + update box quantity
         await client.query(
           `INSERT INTO shelf_box_items_s (shelf_box_id, product_id, quantity, updated_at) VALUES ($1,$2,$3,NOW())
            ON CONFLICT (shelf_box_id, product_id) DO UPDATE SET quantity = shelf_box_items_s.quantity + $3, updated_at=NOW()`,
           [dest_id, product_id, qty]);
+        await client.query('UPDATE shelf_boxes_s SET quantity = quantity + $1 WHERE id = $2', [qty, dest_id]);
       } else {
         // Pallet box — add to box_items_s
         const existing = await client.query('SELECT id FROM box_items_s WHERE box_id=$1 AND product_id=$2', [dest_id, product_id]);
