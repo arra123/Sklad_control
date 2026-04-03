@@ -346,11 +346,21 @@ export default function PalletWarehouseView() {
   const [selected,  setSelected]  = useState(null);
   const [activeBox, setActiveBox] = useState(null);
   const [drag,      setDrag]      = useState(null);
+  const [transferBoxId, setTransferBoxId] = useState(null);
   const dropRef = useRef(null);
+  const transferRef = useRef(null);
 
   useEffect(() => {
     if (selected) setSelected(pallets.find(p => p.id === selected.id) || null);
   }, [pallets]);
+
+  // Close transfer popup on outside click
+  useEffect(() => {
+    if (!transferBoxId) return;
+    const handler = e => { if (transferRef.current && !transferRef.current.contains(e.target)) setTransferBoxId(null); };
+    document.addEventListener('pointerdown', handler);
+    return () => document.removeEventListener('pointerdown', handler);
+  }, [transferBoxId]);
 
   const moveBox = useCallback((boxId, fromId, toId) => {
     setPallets(prev => {
@@ -520,30 +530,65 @@ export default function PalletWarehouseView() {
                   </p>
                   <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
                     {selected.boxes.map((box, i) => (
-                      <div key={box.id} onClick={() => setActiveBox(a => a?.id === box.id ? null : box)}
-                        style={{ display:'flex', alignItems:'center', gap:10, padding:'7px 10px',
-                          borderRadius:8, cursor:'pointer', transition:'all .12s',
-                          background: activeBox?.id === box.id ? lighten(box.product?.color||'#b87830',.87) : '#fff',
-                          border:`1px solid ${activeBox?.id === box.id ? (box.product?.color||'#b87830')+'55' : '#eee'}`,
-                          boxShadow: activeBox?.id === box.id ? `0 2px 8px ${rgba(box.product?.color||'#b87830',.14)}` : '0 1px 3px rgba(0,0,0,.05)' }}>
-                        <div style={{ width:26, height:26, flexShrink:0, borderRadius:5,
-                          background: box.product?.color||'#c07830',
-                          display:'flex', alignItems:'center', justifyContent:'center',
-                          boxShadow:`inset 0 1px 0 rgba(255,255,255,.3)` }}>
-                          <span style={{ fontSize:9, fontWeight:900, fontFamily:FONT, color:'#fff' }}>{i+1}</span>
+                      <div key={box.id} style={{ position:'relative' }}>
+                        <div onClick={() => setActiveBox(a => a?.id === box.id ? null : box)}
+                          style={{ display:'flex', alignItems:'center', gap:10, padding:'7px 10px',
+                            borderRadius:8, cursor:'pointer', transition:'all .12s',
+                            background: activeBox?.id === box.id ? lighten(box.product?.color||'#b87830',.87) : '#fff',
+                            border:`1px solid ${activeBox?.id === box.id ? (box.product?.color||'#b87830')+'55' : '#eee'}`,
+                            boxShadow: activeBox?.id === box.id ? `0 2px 8px ${rgba(box.product?.color||'#b87830',.14)}` : '0 1px 3px rgba(0,0,0,.05)' }}>
+                          <div style={{ width:26, height:26, flexShrink:0, borderRadius:5,
+                            background: box.product?.color||'#c07830',
+                            display:'flex', alignItems:'center', justifyContent:'center',
+                            boxShadow:`inset 0 1px 0 rgba(255,255,255,.3)` }}>
+                            <span style={{ fontSize:9, fontWeight:900, fontFamily:FONT, color:'#fff' }}>{i+1}</span>
+                          </div>
+                          <div style={{ flex:1, minWidth:0 }}>
+                            <p style={{ fontSize:11, fontWeight:700, fontFamily:FONT, color:'#1c1917',
+                              margin:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                              {box.product?.name||'—'}
+                            </p>
+                            <p style={{ fontSize:9, fontFamily:'monospace', color:'#c4b9ac', margin:0 }}>
+                              {box.barcode_value}
+                            </p>
+                          </div>
+                          <span style={{ fontSize:11, fontFamily:FONT, fontWeight:600, color:'#888', flexShrink:0 }}>
+                            {box.qty} шт.
+                          </span>
+                          {/* Transfer button */}
+                          <button onClick={e => { e.stopPropagation(); setTransferBoxId(transferBoxId === box.id ? null : box.id); }}
+                            title="Перенести на другой паллет"
+                            style={{ width:24, height:24, flexShrink:0, border:'1px solid #e0dbd4', borderRadius:5,
+                              background: transferBoxId === box.id ? '#e5e7eb' : '#f3f0ec', cursor:'pointer',
+                              display:'flex', alignItems:'center', justifyContent:'center',
+                              color:'#a09080', fontSize:12, lineHeight:1, transition:'background .1s' }}>
+                            ↗
+                          </button>
                         </div>
-                        <div style={{ flex:1, minWidth:0 }}>
-                          <p style={{ fontSize:11, fontWeight:700, fontFamily:FONT, color:'#1c1917',
-                            margin:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                            {box.product?.name||'—'}
-                          </p>
-                          <p style={{ fontSize:9, fontFamily:'monospace', color:'#c4b9ac', margin:0 }}>
-                            {box.barcode_value}
-                          </p>
-                        </div>
-                        <span style={{ fontSize:11, fontFamily:FONT, fontWeight:600, color:'#888', flexShrink:0 }}>
-                          {box.qty} шт.
-                        </span>
+                        {/* Transfer dropdown */}
+                        {transferBoxId === box.id && (
+                          <div ref={transferRef} style={{ position:'absolute', right:0, top:'100%', zIndex:50,
+                            marginTop:4, background:'#fff', border:'1px solid #e5e0d8', borderRadius:8,
+                            boxShadow:'0 8px 24px rgba(0,0,0,.15)', padding:'6px 0', minWidth:180, maxHeight:220, overflowY:'auto' }}>
+                            <p style={{ fontSize:9, fontWeight:800, color:'#a09080', letterSpacing:'.1em',
+                              textTransform:'uppercase', margin:'2px 10px 6px', userSelect:'none' }}>Перенести на:</p>
+                            {pallets.filter(p => p.id !== selected.id).map(p => {
+                              const full = p.boxes.length >= MAX_BOXES;
+                              return (
+                                <div key={p.id} onClick={() => { if (full) return; moveBox(box.id, selected.id, p.id); setTransferBoxId(null); }}
+                                  style={{ padding:'5px 12px', cursor: full ? 'not-allowed' : 'pointer', display:'flex', alignItems:'center', gap:8,
+                                    opacity: full ? 0.4 : 1, transition:'background .08s',
+                                    background: full ? 'transparent' : undefined }}
+                                  onMouseEnter={e => { if (!full) e.currentTarget.style.background='#f5f0e8'; }}
+                                  onMouseLeave={e => { e.currentTarget.style.background='transparent'; }}>
+                                  <span style={{ fontSize:11, fontWeight:700, fontFamily:'monospace', color:'#1c1917' }}>{p.code}</span>
+                                  <span style={{ fontSize:9, color:'#bbb', fontFamily:'monospace' }}>{p.boxes.length}/{MAX_BOXES}</span>
+                                  {full && <span style={{ fontSize:8, color:'#ef4444', fontWeight:600 }}>полный</span>}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
