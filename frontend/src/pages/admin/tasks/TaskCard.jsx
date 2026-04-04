@@ -46,7 +46,7 @@ export default function TaskCard({ task, onClick }) {
             {Number(task.task_boxes_total || 0) > 0 && (
               <span>Коробки {Number(task.task_boxes_completed || 0)} / {Number(task.task_boxes_total || 0)}</span>
             )}
-            {Number(task.scans_count) > 0 && <span>{task.scans_count} сканов</span>}
+            {Number(task.scans_count) > 0 && <span>{task.scans_count} {task.task_type === 'returns' ? 'разложено' : 'сканов'}</span>}
             {task.avg_scan_time && <span className="text-primary-500">{Number(task.avg_scan_time).toFixed(1)}с</span>}
             {task.task_type === 'bundle_assembly' && task.assembled_count != null && (
               <span className="text-green-600 font-semibold">{task.assembled_count}/{task.bundle_qty} собрано</span>
