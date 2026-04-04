@@ -22,7 +22,7 @@ async function syncEmployeesFromOsite() {
       LEFT JOIN positions_d p ON p.id = e.position_id
       LEFT JOIN departments_d d ON d.id = e.department_id
       LEFT JOIN users_d u ON u.employee_id = e.id
-      WHERE e.status IN ('active', 'internship')
+      WHERE e.status IN ('active', 'internship', 'pending_employment')
       ORDER BY e.full_name
     `);
 
@@ -96,11 +96,7 @@ async function syncEmployeesFromOsite() {
     for (const local of localLinked.rows) {
       if (!activeExtIds.has(Number(local.external_employee_id))) {
         await pool.query('UPDATE employees_s SET active = false WHERE id = $1', [local.id]);
-        // Don't deactivate admin/manager users even if their employee is deactivated
-        await pool.query(
-          `UPDATE users_s SET active = false WHERE employee_id = $1 AND role NOT IN ('admin', 'manager')`,
-          [local.id]
-        );
+        await pool.query('UPDATE users_s SET active = false WHERE employee_id = $1', [local.id]);
         deactivated++;
       }
     }
@@ -114,7 +110,6 @@ async function syncEmployeesFromOsite() {
       WHERE u.employee_id = e.id
         AND e.active = false
         AND u.active = true
-        AND u.role NOT IN ('admin', 'manager')
     `);
     if (fixedUsers > 0) console.log(`[Sync] Fixed ${fixedUsers} stale user accounts`);
 
