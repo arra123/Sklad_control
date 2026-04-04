@@ -41,7 +41,7 @@ export function TabsProvider({ children }) {
   const switchTab = useCallback((id) => {
     switchingRef.current = true;
     setActiveId(id);
-    setTimeout(() => { switchingRef.current = false; }, 150);
+    setTimeout(() => { switchingRef.current = false; }, 50);
   }, []);
 
   const createTab = useCallback(() => {
@@ -49,7 +49,7 @@ export function TabsProvider({ children }) {
     switchingRef.current = true;
     setTabs(prev => [...prev, { id, path: '/admin/new-tab', title: 'Новая вкладка', state: {} }]);
     setActiveId(id);
-    setTimeout(() => { switchingRef.current = false; }, 150);
+    setTimeout(() => { switchingRef.current = false; }, 50);
     return id;
   }, []);
 

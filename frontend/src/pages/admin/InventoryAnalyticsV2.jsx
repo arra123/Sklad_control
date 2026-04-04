@@ -151,7 +151,7 @@ function TreeNode({ node, type, depth = 0, expandedNodes, selectedNodeId, onTogg
 
   const getFolderIcon = () => {
     if (isBox) return <BoxIcon size={16} />;
-    if (type === 'warehouse') return <WarehouseIcon size={18} colorIndex={(node.id || 0) % 10} />;
+    if (type === 'warehouse') return <WarehouseIcon size={18} colorIndex={node._colorIdx ?? ((node.id || 0) % 10)} />;
     if (type === 'rack') return <RackIcon size={16} />;
     if (type === 'row') return <RowIcon size={16} />;
     if (type === 'shelf') return <ShelfIcon size={16} />;
@@ -474,7 +474,7 @@ function OverviewPanel({ data, settings, singleWarehouse, onSelectNode }) {
         <div className="flex items-center gap-4 flex-wrap">
           <div className="flex items-center gap-3.5 flex-1 min-w-0">
             {isSingle
-              ? <WarehouseIcon size={44} colorIndex={(wh.id || 0) % 10} />
+              ? <WarehouseIcon size={44} colorIndex={wh._colorIdx ?? ((wh.id || 0) % 10)} />
               : <WarehouseIcon size={44} colorIndex={0} />
             }
             <div className="min-w-0">
@@ -944,7 +944,13 @@ export default function InventoryAnalyticsV2() {
   useEffect(() => {
     setLoading(true);
     api.get('/tasks/analytics/inventory-overview')
-      .then(res => setData(res.data))
+      .then(res => {
+        // Assign unique color index to each warehouse
+        if (res.data?.warehouses) {
+          res.data.warehouses.forEach((wh, i) => { wh._colorIdx = i + 1; });
+        }
+        setData(res.data);
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);

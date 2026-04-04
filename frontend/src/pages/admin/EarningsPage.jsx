@@ -124,9 +124,9 @@ export default function EarningsPage() {
         if (prev && (employeesRes.data || []).some(item => Number(item.employee_id) === Number(prev))) return prev;
         return employeesRes.data?.[0]?.employee_id || null;
       });
-    } catch (err) { toast.error(err.response?.data?.error || 'Не удалось загрузить'); }
+    } catch (err) { if (!background) toast.error(err.response?.data?.error || 'Не удалось загрузить'); }
     finally { if (background) setRefreshing(false); else setLoading(false); }
-  }, [toast, period]);
+  }, [toast]);
 
   const employeeAbort = useRef(null);
   const taskAbort = useRef(null);
@@ -161,14 +161,17 @@ export default function EarningsPage() {
     } finally { if (!ctrl.signal.aborted) setTaskLoading(false); }
   }, [toast]);
 
-  useEffect(() => { loadBase(); }, [loadBase]);
+  // Initial load (once)
+  useEffect(() => { loadBase(); }, []);
   useEffect(() => {
     setEmployeeDetails(null); setTaskDetails(null); setExpandedTask(null);
     if (selectedEmployeeId) loadEmployeeDetails(selectedEmployeeId);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedEmployeeId, loadEmployeeDetails]);
+  }, [selectedEmployeeId]);
   useEffect(() => { if (selectedTaskId) loadTaskDetails(selectedTaskId); }, [selectedTaskId, loadTaskDetails]);
+  // Period change — reload with new period
   useEffect(() => {
+    loadBase(true);
     if (selectedEmployeeId) loadEmployeeDetails(selectedEmployeeId, period);
   }, [period]);
 
