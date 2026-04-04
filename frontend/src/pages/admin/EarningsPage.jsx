@@ -171,7 +171,7 @@ export default function EarningsPage() {
   useEffect(() => { if (selectedTaskId) loadTaskDetails(selectedTaskId); }, [selectedTaskId, loadTaskDetails]);
   // Period change — reload with new period
   useEffect(() => {
-    loadBase(true);
+    loadBase(true, period);
     if (selectedEmployeeId) loadEmployeeDetails(selectedEmployeeId, period);
   }, [period]);
 

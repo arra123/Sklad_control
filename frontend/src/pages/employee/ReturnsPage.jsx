@@ -79,8 +79,9 @@ export default function ReturnsPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Check for existing active returns task on mount
+  // Check for existing active returns task on mount (only if still on start phase)
   useEffect(() => {
+    if (phase !== 'start') return;
     api.get('/tasks', { params: { limit: 10 } })
       .then(res => {
         const active = (res.data.items || []).find(t => t.task_type === 'returns' && t.status === 'in_progress' && t.employee_id === user?.employee_id);
@@ -89,7 +90,7 @@ export default function ReturnsPage() {
           setPhase('scanning');
         }
       }).catch(() => {});
-  }, [user?.employee_id]);
+  }, []);
 
   // Accumulated items to deliver: [{ product_id, product_name, quantity, locations: [...] }]
   const [items, setItems] = useState([]);

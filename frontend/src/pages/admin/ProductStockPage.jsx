@@ -759,7 +759,7 @@ export default function ProductStockPage() {
                   : 'text-gray-600 hover:bg-white/80 border border-transparent'
               )}
             >
-              <WarehouseIcon size={18} colorIndex={(w.id || 0) % 10} />
+              <WarehouseIcon size={18} colorIndex={warehouses.indexOf(w) + 1} />
               {w.name}
             </button>
           ))}
