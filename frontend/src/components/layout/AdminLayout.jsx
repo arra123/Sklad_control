@@ -332,10 +332,8 @@ export default function AdminLayout({ children }) {
           </div>
         </header>
 
-        {/* Breadcrumb + Tabs on same line */}
-        <div className="flex items-center border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900">
-          <Breadcrumb />
-          <div className="w-px h-5 bg-gray-200 dark:bg-gray-700 mx-1 flex-shrink-0" />
+        {/* Tabs bar — fixed height, always visible */}
+        <div className="flex items-center h-10 px-2 border-b border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900 flex-shrink-0">
           <TabBar />
         </div>
 

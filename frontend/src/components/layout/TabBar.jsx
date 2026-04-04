@@ -1,19 +1,27 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useEffect } from 'react';
-import { X, Plus } from 'lucide-react';
+import { X, Plus, Warehouse, ClipboardList, BarChart3, Coins, Users, Settings, AlertTriangle, Package, ScanLine, Activity } from 'lucide-react';
 import { useTabs } from '../../context/TabsContext';
 
-const TITLES = {
-  '/admin/warehouse': 'Склады', '/admin/tasks': 'Задачи', '/admin/analytics': 'Аналитика',
-  '/admin/earnings': 'Заработок', '/admin/staff': 'Сотрудники', '/admin/settings': 'Настройки',
-  '/admin/errors': 'Ошибки', '/admin/products/cards': 'Карточки', '/admin/products/stock': 'Остатки',
-  '/admin/products/materials': 'Сырьё', '/admin/live-monitor': 'Мониторинг', '/admin/move': 'Переместить',
-  '/admin/fbo': 'FBO', '/admin/new-tab': 'Новая вкладка',
+const TAB_META = {
+  '/admin/warehouse':  { title: 'Склады',      icon: Warehouse,     color: 'text-blue-500',   bg: 'bg-blue-50',   border: 'border-blue-200' },
+  '/admin/tasks':      { title: 'Задачи',      icon: ClipboardList, color: 'text-indigo-500', bg: 'bg-indigo-50', border: 'border-indigo-200' },
+  '/admin/analytics':  { title: 'Аналитика',   icon: BarChart3,     color: 'text-purple-500', bg: 'bg-purple-50', border: 'border-purple-200' },
+  '/admin/earnings':   { title: 'Заработок',   icon: Coins,         color: 'text-amber-500',  bg: 'bg-amber-50',  border: 'border-amber-200' },
+  '/admin/staff':      { title: 'Сотрудники',  icon: Users,         color: 'text-orange-500', bg: 'bg-orange-50', border: 'border-orange-200' },
+  '/admin/settings':   { title: 'Настройки',   icon: Settings,      color: 'text-gray-500',   bg: 'bg-gray-50',   border: 'border-gray-200' },
+  '/admin/errors':     { title: 'Ошибки',      icon: AlertTriangle, color: 'text-red-500',    bg: 'bg-red-50',    border: 'border-red-200' },
+  '/admin/products':   { title: 'Товары',      icon: Package,       color: 'text-green-500',  bg: 'bg-green-50',  border: 'border-green-200' },
+  '/admin/live-monitor':{ title: 'Мониторинг', icon: Activity,      color: 'text-emerald-500',bg: 'bg-emerald-50',border: 'border-emerald-200' },
+  '/admin/move':       { title: 'Переместить', icon: ScanLine,      color: 'text-teal-500',   bg: 'bg-teal-50',   border: 'border-teal-200' },
+  '/admin/new-tab':    { title: 'Новая',       icon: Plus,          color: 'text-gray-400',   bg: 'bg-gray-50',   border: 'border-gray-200' },
 };
 
-function getTitle(path) {
-  for (const [k, v] of Object.entries(TITLES)) { if (path.startsWith(k)) return v; }
-  return 'Страница';
+function getMeta(path) {
+  for (const [k, v] of Object.entries(TAB_META)) {
+    if (path.startsWith(k)) return v;
+  }
+  return { title: 'Страница', icon: Package, color: 'text-gray-500', bg: 'bg-gray-50', border: 'border-gray-200' };
 }
 
 export default function TabBar() {
@@ -22,11 +30,11 @@ export default function TabBar() {
   const { tabs, activeId, switchTab, createTab, closeTab, updateActiveUrl, isSwitching } = useTabs();
   const currentPath = location.pathname + location.search;
 
-  // Sync URL → active tab (only for user navigation, NOT tab switching)
   useEffect(() => {
     if (isSwitching()) return;
     if (currentPath.includes('new-tab')) return;
-    updateActiveUrl(currentPath, getTitle(location.pathname));
+    const meta = getMeta(location.pathname);
+    updateActiveUrl(currentPath, meta.title);
   }, [currentPath]);
 
   const handleSwitch = (id) => {
@@ -50,38 +58,42 @@ export default function TabBar() {
     if (wasActive) {
       const remaining = tabs.filter(t => t.id !== id);
       const newIdx = Math.min(idx, remaining.length - 1);
-      if (remaining[newIdx]) {
-        setTimeout(() => navigate(remaining[newIdx].path), 50);
-      }
+      if (remaining[newIdx]) setTimeout(() => navigate(remaining[newIdx].path), 50);
     }
   };
 
   return (
-    <div className="flex items-center gap-0.5 px-1 flex-shrink-0" style={{ minWidth: 0 }}>
-      {tabs.map(tab => (
-        <div
-          key={tab.id}
-          onClick={() => handleSwitch(tab.id)}
-          className={`flex items-center gap-1 px-3 py-1 rounded-lg text-[11px] font-medium transition-colors whitespace-nowrap group border cursor-pointer select-none ${
-            tab.id === activeId
-              ? 'bg-white text-gray-900 shadow-sm border-gray-200'
-              : 'text-gray-400 hover:text-gray-600 bg-transparent border-transparent hover:bg-gray-50'
-          }`}
-          style={{ width: 150, minWidth: 150, maxWidth: 150 }}
-        >
-          <span className="truncate flex-1 text-left">{tab.title}</span>
-          {tabs.length > 1 && (
-            <span onClick={(e) => handleClose(tab.id, e)}
-              className="opacity-0 group-hover:opacity-100 hover:text-red-500 transition-opacity flex-shrink-0 ml-1">
-              <X size={10} />
-            </span>
-          )}
-        </div>
-      ))}
+    <div className="flex items-center gap-1 flex-1 overflow-x-auto no-scrollbar">
+      {tabs.map(tab => {
+        const meta = getMeta(tab.path);
+        const Icon = meta.icon;
+        const isActive = tab.id === activeId;
+        return (
+          <div
+            key={tab.id}
+            onClick={() => handleSwitch(tab.id)}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap group cursor-pointer select-none border ${
+              isActive
+                ? `bg-white ${meta.border} shadow-sm text-gray-900`
+                : 'text-gray-400 border-transparent hover:bg-white/60 hover:text-gray-600'
+            }`}
+            style={{ minWidth: 130, maxWidth: 180 }}
+          >
+            <Icon size={14} className={isActive ? meta.color : 'text-gray-400'} />
+            <span className="truncate flex-1">{tab.title}</span>
+            {tabs.length > 1 && (
+              <span onClick={(e) => handleClose(tab.id, e)}
+                className="opacity-0 group-hover:opacity-100 hover:text-red-500 transition-opacity flex-shrink-0">
+                <X size={11} />
+              </span>
+            )}
+          </div>
+        );
+      })}
       <button onClick={handleCreate}
-        className="p-1.5 rounded-lg text-gray-300 hover:text-primary-600 hover:bg-gray-100 transition-colors flex-shrink-0"
+        className="p-1.5 rounded-lg text-gray-300 hover:text-primary-600 hover:bg-white transition-colors flex-shrink-0"
         title="Новая вкладка">
-        <Plus size={14} />
+        <Plus size={16} />
       </button>
     </div>
   );
