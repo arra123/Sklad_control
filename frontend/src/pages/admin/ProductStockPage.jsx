@@ -732,11 +732,7 @@ export default function ProductStockPage() {
   return (
     <div className="p-6 max-w-7xl mx-auto">
       {/* Шапка */}
-      <div className="flex items-start justify-between gap-4 mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Остатки</h1>
-          <p className="text-gray-500 text-sm mt-1">Физическое наличие товаров на складах</p>
-        </div>
+      <div className="flex items-center justify-end gap-4 mb-4">
         <Button variant="outline" size="sm" icon={<Users size={15} />} onClick={() => setShowEmployeeInventory(true)}>
           Сотрудники с остатками
         </Button>
@@ -780,13 +776,13 @@ export default function ProductStockPage() {
           {/* Статистика */}
           {stats && (
             <div className="grid grid-cols-2 gap-3 mb-5">
-              <div className="bg-indigo-50 border border-indigo-100 rounded-2xl px-4 py-3 text-center">
-                <p className="text-2xl font-black text-indigo-600">{total.toLocaleString('ru-RU')}</p>
-                <p className="text-[11px] text-indigo-400 font-medium">Товаров</p>
+              <div className="bg-indigo-50 border border-indigo-100 rounded-xl px-3 py-1.5 text-center">
+                <p className="text-lg font-black text-indigo-600">{total.toLocaleString('ru-RU')}</p>
+                <p className="text-[10px] text-indigo-400 font-medium">Товаров</p>
               </div>
-              <div className="bg-green-50 border border-green-100 rounded-2xl px-4 py-3 text-center">
-                <p className="text-2xl font-black text-green-600">{Math.round(Number(stats.warehouse_total || 0)).toLocaleString('ru-RU')}</p>
-                <p className="text-[11px] text-green-400 font-medium">Общий остаток (шт)</p>
+              <div className="bg-green-50 border border-green-100 rounded-xl px-3 py-1.5 text-center">
+                <p className="text-lg font-black text-green-600">{Math.round(Number(stats.warehouse_total || 0)).toLocaleString('ru-RU')}</p>
+                <p className="text-[10px] text-green-400 font-medium">Остаток (шт)</p>
               </div>
             </div>
           )}

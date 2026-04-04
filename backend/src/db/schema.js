@@ -1,8 +1,10 @@
 const pool = require('./pool');
 
-async function createSchema() {
+async function createSchema(attempt = 1) {
   const client = await pool.connect();
   try {
+    // Advisory lock to prevent deadlocks during concurrent migrations
+    await client.query('SELECT pg_advisory_lock(42)');
     await client.query('BEGIN');
 
     // ─── Users & Employees ───────────────────────────────────────────
@@ -906,10 +908,18 @@ async function createSchema() {
     await client.query('COMMIT');
     console.log('[DB] Schema created/verified successfully');
   } catch (err) {
-    await client.query('ROLLBACK');
+    await client.query('ROLLBACK').catch(() => {});
+    await client.query('SELECT pg_advisory_unlock(42)').catch(() => {});
+    client.release();
+    if (err.message.includes('deadlock') && attempt < 3) {
+      console.warn(`[DB] Deadlock on attempt ${attempt}, retrying in 2s...`);
+      await new Promise(r => setTimeout(r, 2000));
+      return createSchema(attempt + 1);
+    }
     console.error('[DB] Schema creation failed:', err.message);
     throw err;
   } finally {
+    await client.query('SELECT pg_advisory_unlock(42)').catch(() => {});
     client.release();
   }
 }

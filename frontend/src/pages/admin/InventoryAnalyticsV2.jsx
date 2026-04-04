@@ -578,17 +578,17 @@ function OverviewPanel({ data, settings, singleWarehouse, onSelectNode }) {
 
       {/* Bottom 3 cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-amber-50 border border-amber-100 rounded-2xl p-5 text-center">
-          <p className="text-2xl font-black text-amber-600">{fmtDuration(totalDuration)}</p>
-          <p className="text-[11px] text-amber-500 font-medium mt-1">Время на инвентаризацию</p>
+        <div className="bg-amber-50 border border-amber-100 rounded-xl px-3 py-2 text-center">
+          <p className="text-lg font-black text-amber-600">{fmtDuration(totalDuration)}</p>
+          <p className="text-[10px] text-amber-500 font-medium">Время</p>
         </div>
-        <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-5 text-center">
-          <p className="text-2xl font-black text-indigo-600">{avgSpeed ? `${avgSpeed} с/шт` : '—'}</p>
-          <p className="text-[11px] text-indigo-500 font-medium mt-1">Средняя скорость</p>
+        <div className="bg-indigo-50 border border-indigo-100 rounded-xl px-3 py-2 text-center">
+          <p className="text-lg font-black text-indigo-600">{avgSpeed ? `${avgSpeed} с/шт` : '—'}</p>
+          <p className="text-[10px] text-indigo-500 font-medium">Скорость</p>
         </div>
-        <div className="bg-green-50 border border-green-100 rounded-2xl p-5 text-center">
-          <p className="text-2xl font-black text-green-600">{accuracy}%</p>
-          <p className="text-[11px] text-green-500 font-medium mt-1">Точность</p>
+        <div className="bg-green-50 border border-green-100 rounded-xl px-3 py-2 text-center">
+          <p className="text-lg font-black text-green-600">{accuracy}%</p>
+          <p className="text-[10px] text-green-500 font-medium">Точность</p>
         </div>
       </div>
     </div>

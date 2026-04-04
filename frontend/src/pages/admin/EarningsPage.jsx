@@ -255,10 +255,9 @@ export default function EarningsPage() {
               { Icon: OrderPickIcon, label: 'Сборки', value: `${fmt(overview.total_sborka_amount)} ${unit}`, hint: `${fmtGra(overview.total_sborka_units || 0)} пиков`, bg: 'bg-pink-50' },
               { Icon: RateGearIcon, label: 'Ставка', value: `${fmtRate(summary?.settings?.gra_inventory_scan_rate || 0)} ${unit}`, color: 'text-amber-600', bg: 'bg-amber-50' },
             ].map((s, i) => (
-              <div key={i} className="bg-white rounded-2xl p-4 border border-gray-100">
-                <div className={`w-8 h-8 rounded-lg ${s.bg} flex items-center justify-center mb-2`}><s.Icon size={20} /></div>
-                <p className={`text-2xl font-black ${s.color || 'text-gray-900'}`}>{s.value}</p>
-                <p className="text-[10px] text-gray-400 uppercase tracking-wider">{s.label}</p>
+              <div key={i} className="bg-white rounded-xl p-3 border border-gray-100">
+                <div className="flex items-center gap-2 mb-1"><div className={`w-6 h-6 rounded-md ${s.bg} flex items-center justify-center`}><s.Icon size={14} /></div><span className="text-[9px] text-gray-400 uppercase tracking-wider">{s.label}</span></div>
+                <p className={`text-lg font-black ${s.color || 'text-gray-900'}`}>{s.value}</p>
                 {s.hint && <p className="text-[9px] text-gray-300">{s.hint}</p>}
               </div>
             ))}

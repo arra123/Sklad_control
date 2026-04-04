@@ -48,12 +48,12 @@ export function WarehouseListView({ warehouses, selectedId, onSelect, onReload, 
               key={wh.id}
               onClick={() => onSelect(wh)}
               className={cn(
-                'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all whitespace-nowrap',
+                'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all whitespace-nowrap border',
                 selectedId === wh.id
-                  ? 'bg-primary-600 text-white shadow-sm'
+                  ? 'bg-primary-50 text-primary-700 border-primary-200 shadow-sm'
                   : wh.active === false
-                    ? 'bg-gray-50 border border-dashed border-gray-300 text-gray-400'
-                    : 'bg-white border border-gray-200 text-gray-600 hover:border-primary-300'
+                    ? 'bg-gray-50 border-dashed border-gray-300 text-gray-400'
+                    : 'bg-white/80 border-gray-200 text-gray-600 hover:border-primary-300 hover:bg-primary-50/50'
               )}
             >
               <WarehouseIcon size={18} className={wh.active === false ? 'opacity-40' : ''} />
