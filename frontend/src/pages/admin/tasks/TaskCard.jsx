@@ -51,6 +51,7 @@ export default function TaskCard({ task, onClick }) {
             {task.task_type === 'bundle_assembly' && task.assembled_count != null && (
               <span className="text-green-600 font-semibold">{task.assembled_count}/{task.bundle_qty} собрано</span>
             )}
+            {task.duration_minutes && <span className="text-gray-400">{Number(task.duration_minutes) < 60 ? `${Number(task.duration_minutes).toFixed(0)}м` : `${Math.floor(Number(task.duration_minutes)/60)}ч${Math.round(Number(task.duration_minutes)%60)}м`}</span>}
             <span className="text-gray-300 text-right">{new Date(task.created_at).toLocaleString('ru-RU', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit'})}</span>
           </div>
 
