@@ -1,11 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ClipboardList, Clock, CheckCircle2, ChevronRight, RefreshCw,
   Box, ScanLine, Package, ArrowRight, Layers, AlertCircle, Pause
 } from 'lucide-react';
 import api from '../../api/client';
-import { InventoryIcon, PackagingIcon, TransferIcon } from '../../components/ui/WarehouseIcons';
+import { InventoryIcon, PackagingIcon, TransferIcon, BundleIcon, ReturnsIcon } from '../../components/ui/WarehouseIcons';
 import Spinner from '../../components/ui/Spinner';
 import Badge from '../../components/ui/Badge';
 import FeedbackButton from '../../components/ui/FeedbackButton';
@@ -23,8 +23,8 @@ const TASK_TYPE_STYLE = {
   inventory: { SvgIcon: InventoryIcon, label: 'Инвентаризация', bg: 'bg-blue-50', text: 'text-blue-600', border: 'border-blue-200' },
   packaging: { SvgIcon: PackagingIcon, label: 'Оприходование', bg: 'bg-purple-50', text: 'text-purple-600', border: 'border-purple-200' },
   production_transfer: { SvgIcon: TransferIcon, label: 'Перенос', bg: 'bg-amber-50', text: 'text-amber-600', border: 'border-amber-200' },
-  bundle_assembly: { SvgIcon: PackagingIcon, label: 'Сборка комплектов', bg: 'bg-green-50', text: 'text-green-600', border: 'border-green-200' },
-  returns: { SvgIcon: InventoryIcon, label: 'Возвраты', bg: 'bg-teal-50', text: 'text-teal-600', border: 'border-teal-200' },
+  bundle_assembly: { SvgIcon: BundleIcon, label: 'Сборка комплектов', bg: 'bg-green-50', text: 'text-green-600', border: 'border-green-200' },
+  returns: { SvgIcon: ReturnsIcon, label: 'Возвраты', bg: 'bg-teal-50', text: 'text-teal-600', border: 'border-teal-200' },
   default: { SvgIcon: InventoryIcon, label: 'Задача', bg: 'bg-primary-50', text: 'text-primary-600', border: 'border-primary-200' },
 };
 
@@ -34,6 +34,7 @@ const TASK_FILTERS = [
   { key: 'packaging', label: 'Оприходование' },
   { key: 'bundle_assembly', label: 'Сборка' },
   { key: 'production_transfer', label: 'Перенос' },
+  { key: 'returns', label: 'Возвраты' },
 ];
 
 export default function MyTasksPage() {
@@ -53,6 +54,16 @@ export default function MyTasksPage() {
   }, []);
 
   useEffect(() => { load(); }, []);
+
+  // Auto-refresh every 30s when active tasks exist
+  const pollRef = useRef(null);
+  useEffect(() => {
+    clearInterval(pollRef.current);
+    if (tasks.some(t => t.status === 'in_progress')) {
+      pollRef.current = setInterval(load, 30000);
+    }
+    return () => clearInterval(pollRef.current);
+  }, [tasks, load]);
 
   const filtered = typeFilter === 'all' ? tasks : tasks.filter(t => t.task_type === typeFilter);
   const activeTasks = filtered.filter(t => t.status === 'new' || t.status === 'in_progress' || t.status === 'paused');
@@ -176,6 +187,21 @@ function TaskCard({ task, onClick, muted, index = 0 }) {
   const status = STATUS_MAP[task.status] || STATUS_MAP.new;
   const typeStyle = TASK_TYPE_STYLE[task.task_type] || TASK_TYPE_STYLE.default;
   const TypeSvgIcon = typeStyle.SvgIcon;
+  const [elapsed, setElapsed] = useState('');
+
+  useEffect(() => {
+    if (task.status !== 'in_progress' || !task.started_at) return;
+    const tick = () => {
+      const diff = Math.floor((Date.now() - new Date(task.started_at).getTime()) / 1000);
+      const h = Math.floor(diff / 3600);
+      const m = Math.floor((diff % 3600) / 60);
+      const s = diff % 60;
+      setElapsed(`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`);
+    };
+    tick();
+    const iv = setInterval(tick, 1000);
+    return () => clearInterval(iv);
+  }, [task.status, task.started_at]);
 
   return (
     <button
@@ -201,7 +227,7 @@ function TaskCard({ task, onClick, muted, index = 0 }) {
 
         <div className="flex-1 min-w-0">
           {/* Task type badge */}
-          {(task.task_type === 'packaging' || task.task_type === 'production_transfer') && !muted && (
+          {task.task_type && !muted && (
             <span className={cn(
               'inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-lg mb-1',
               typeStyle.bg, typeStyle.text
@@ -254,6 +280,9 @@ function TaskCard({ task, onClick, muted, index = 0 }) {
         {/* Right side: status + arrow */}
         <div className="flex flex-col items-end gap-2 flex-shrink-0">
           <Badge variant={status.variant}>{status.label}</Badge>
+          {elapsed && (
+            <span className="text-[11px] font-mono text-amber-500 font-semibold">{elapsed}</span>
+          )}
           {task.scans_count > 0 && (
             <span className="inline-flex items-center gap-1 text-[10px] text-gray-400 font-medium">
               <ScanLine size={10} />

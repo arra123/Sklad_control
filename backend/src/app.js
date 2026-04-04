@@ -18,6 +18,7 @@ const movementsRoutes = require('./routes/movements');
 const earningsRoutes = require('./routes/earnings');
 const materialsRoutes = require('./routes/materials');
 const feedbackRoutes = require('./routes/feedback');
+const crypto = require('crypto');
 const { requireAuth } = require('./middleware/auth');
 
 const app = express();
@@ -26,6 +27,13 @@ const siteRouter = express.Router();
 app.use(cors());
 app.use(compression());
 app.use(express.json({ limit: '1mb' }));
+
+// Request ID for tracing
+app.use((req, res, _next) => {
+  req.id = crypto.randomUUID().slice(0, 8);
+  res.setHeader('X-Request-Id', req.id);
+  _next();
+});
 
 // Rate limiting for sensitive endpoints
 const loginLimiter = rateLimit({
