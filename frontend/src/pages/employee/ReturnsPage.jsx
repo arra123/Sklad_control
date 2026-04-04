@@ -189,6 +189,11 @@ export default function ReturnsPage() {
         dest_id: data.id,
       });
 
+      // Log delivery scan in task
+      if (taskId) {
+        try { await api.post(`/tasks/${taskId}/log-scan`, { scanned_value: barcode, product_id: item.product_id }); } catch {}
+      }
+
       playBeep(true);
       toast.success(`${item.quantity} шт. переложено в коробку`);
 
