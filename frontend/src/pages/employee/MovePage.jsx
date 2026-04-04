@@ -426,6 +426,11 @@ export default function MovePage() {
           )}
         </div>
 
+        </div>
+
+        {/* Возвраты — визуально отделён */}
+        <div className="mt-6 pt-5 border-t border-gray-100">
+          <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold mb-3">Другое</p>
           <button onClick={() => navigate('/employee/returns')}
             className="w-full bg-gradient-to-br from-teal-500 to-teal-600 text-white rounded-2xl p-5 text-left shadow-lg shadow-teal-200 hover:shadow-xl hover:scale-[1.02] transition-all active:scale-[0.98]">
             <div className="flex items-center gap-4">
@@ -438,6 +443,7 @@ export default function MovePage() {
               </div>
             </div>
           </button>
+        </div>
       </div>
     );
   }
