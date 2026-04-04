@@ -1128,6 +1128,7 @@ export default function StaffPage() {
   const [editEmployee, setEditEmployee] = useState(null);
   const [showUserModal, setShowUserModal] = useState(false);
   const [editUser, setEditUser] = useState(null);
+  const [search, setSearch] = useState('');
   const drillId = searchParams.get('employee');
   const setDrillEmployee = (emp) => {
     if (emp) setSearchParams({ tab, employee: emp.id });
@@ -1172,6 +1173,21 @@ export default function StaffPage() {
     }
   };
 
+  // Filter users/employees by search
+  const searchLower = search.toLowerCase();
+  const filteredUsers = searchLower
+    ? users.filter(u => (u.employee_name || u.username || '').toLowerCase().includes(searchLower) ||
+        (u.username || '').toLowerCase().includes(searchLower) ||
+        (u.role_name || '').toLowerCase().includes(searchLower))
+    : users;
+  // Employees without user accounts (not visible in UsersTable)
+  const userEmpIds = new Set(users.map(u => u.employee_id).filter(Boolean));
+  const employeesWithoutAccount = employees.filter(e => !userEmpIds.has(e.id));
+  const filteredNoAccount = searchLower
+    ? employeesWithoutAccount.filter(e => e.full_name.toLowerCase().includes(searchLower) ||
+        (e.position || '').toLowerCase().includes(searchLower))
+    : employeesWithoutAccount;
+
   return (
     <div className="p-6 max-w-5xl mx-auto">
       <div className="flex items-start justify-between gap-4 mb-6">
@@ -1190,7 +1206,7 @@ export default function StaffPage() {
       {canManageRoles && (
         <div className="flex gap-1 mb-5 bg-gray-100 p-1 rounded-xl w-fit">
           {[
-            { value: 'users', label: `Сотрудники (${users.length})`, icon: Users },
+            { value: 'users', label: `Сотрудники (${employees.length})`, icon: Users },
             { value: 'roles', label: 'Роли', icon: Shield },
           ].map(({ value, label, icon: Icon }) => (
             <button
@@ -1207,13 +1223,67 @@ export default function StaffPage() {
         </div>
       )}
 
+      {/* Search */}
+      {tab === 'users' && !drillId && (
+        <div className="mb-4">
+          <Input placeholder="Поиск по имени, логину, роли..." value={search} onChange={e => setSearch(e.target.value)}
+            icon={<Search size={15} />}
+            iconRight={search && (
+              <button onClick={() => setSearch('')} className="text-gray-400 hover:text-gray-600">
+                <X size={14} />
+              </button>
+            )} />
+        </div>
+      )}
+
       {drillId && employees.find(e => String(e.id) === drillId) ? (
         <EmployeeDetailView employee={employees.find(e => String(e.id) === drillId)} onBack={() => { setDrillEmployee(null); loadAll(); }} />
       ) : loading ? (
         <div className="flex items-center justify-center h-48"><Spinner size="lg" /></div>
       ) : tab === 'users' ? (
-        <UsersTable users={users} employees={employees} onEdit={u => setEditUser(u)} onDelete={deleteUser}
-          onDrill={(user) => { const emp = employees.find(e => e.id === user.employee_id); if (emp) setDrillEmployee(emp); }} />
+        <>
+          <UsersTable users={filteredUsers} employees={employees} onEdit={u => setEditUser(u)} onDelete={deleteUser}
+            onDrill={(user) => { const emp = employees.find(e => e.id === user.employee_id); if (emp) setDrillEmployee(emp); }} />
+          {/* Employees without user accounts */}
+          {filteredNoAccount.length > 0 && (
+            <div className="mt-3 card overflow-hidden">
+              <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Users size={14} className="text-gray-400" />
+                  <span className="text-xs font-bold text-gray-500">Без учётной записи</span>
+                </div>
+                <span className="text-[10px] text-gray-400 font-medium">{filteredNoAccount.length} чел.</span>
+              </div>
+              {filteredNoAccount.map(emp => {
+                const av = positionAvatar(emp.position);
+                return (
+                  <div key={emp.id} onClick={() => setDrillEmployee(emp)}
+                    className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0 cursor-pointer">
+                    <div className={`w-8 h-8 rounded-lg ${av.bg} flex items-center justify-center text-base flex-shrink-0`}>
+                      {av.emoji}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">{emp.full_name}</p>
+                      {emp.position && <p className="text-[11px] text-gray-400 truncate">{emp.position}</p>}
+                    </div>
+                    <Badge variant="default">Нет аккаунта</Badge>
+                    <div className="flex items-center gap-0.5 flex-shrink-0" onClick={e => e.stopPropagation()}>
+                      <button onClick={() => { setEditEmployee(emp); setShowEmpModal(true); }}
+                        className="p-1.5 rounded-lg text-gray-300 hover:text-primary-500 hover:bg-primary-50 transition-all">
+                        <Pencil size={13} />
+                      </button>
+                      <button onClick={() => deleteEmployee(emp.id)}
+                        className="p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all">
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                    <ChevronRight size={14} className="text-gray-200 flex-shrink-0" />
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </>
       ) : tab === 'roles' ? (
         <RolesManager />
       ) : null}
