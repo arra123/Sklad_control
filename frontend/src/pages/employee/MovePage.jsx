@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Check, ArrowLeft, ScanLine, Layers, ArrowRightLeft, Package, Settings2, ChevronDown } from 'lucide-react';
+import { Check, ArrowLeft, ScanLine, Layers, ArrowRightLeft, Package, Settings2, ChevronDown, RotateCcw } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import api from '../../api/client';
 import { PalletIcon, BoxIcon } from '../../components/ui/WarehouseIcons';
 import Spinner from '../../components/ui/Spinner';
@@ -331,6 +332,7 @@ function AdminTransfer({ onBack, onDone }) {
 export default function MovePage() {
   const { user } = useAuth();
   const toast = useToast();
+  const navigate = useNavigate();
   const [mode, setMode] = useState(null); // 'piece' | 'whole' | 'box_transfer' | 'admin'
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -423,6 +425,13 @@ export default function MovePage() {
             </button>
           )}
         </div>
+
+        {/* Возвраты — отдельная ссылка внизу */}
+        <button onClick={() => navigate('/employee/returns')}
+          className="w-full mt-6 flex items-center justify-center gap-2 py-3 rounded-xl border border-teal-200 bg-teal-50 text-teal-700 text-sm font-medium hover:bg-teal-100 transition-colors">
+          <RotateCcw size={16} />
+          Разложить возвраты
+        </button>
       </div>
     );
   }
