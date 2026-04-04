@@ -63,6 +63,16 @@ siteRouter.use('/api', (_req, res, next) => {
   res.setHeader('Cache-Control', 'no-store');
   next();
 });
+// Health check
+siteRouter.get('/api/health', async (_req, res) => {
+  try {
+    const pool = require('./db/pool');
+    await pool.query('SELECT 1');
+    res.json({ status: 'ok', uptime: process.uptime(), timestamp: new Date().toISOString() });
+  } catch (err) {
+    res.status(503).json({ status: 'error', error: err.message });
+  }
+});
 siteRouter.use('/api/auth', authRoutes);
 siteRouter.use('/api/products', productsRoutes);
 siteRouter.use('/api/warehouse', warehouseRoutes);

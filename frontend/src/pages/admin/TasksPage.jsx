@@ -19,6 +19,8 @@ export default function TasksPage() {
   const [pageSize] = useState(50);
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdate, setLastUpdate] = useState(null);
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [bulkMode, setBulkMode] = useState(false);
 
   // URL-backed state
   const selectedTaskId = searchParams.get('id');
@@ -127,6 +129,20 @@ export default function TasksPage() {
   });
 
   const searchRef = useRef(null);
+  const toggleSelect = (id) => setSelectedIds(prev => {
+    const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next;
+  });
+
+  const bulkDelete = async () => {
+    if (!selectedIds.size || !confirm(`Удалить ${selectedIds.size} задач?`)) return;
+    for (const id of selectedIds) {
+      try { await api.delete(`/tasks/${id}`, { params: { refund: '0' } }); } catch {}
+    }
+    setSelectedIds(new Set());
+    setBulkMode(false);
+    load();
+  };
+
   const exportCSV = () => {
     const headers = ['ID', 'Название', 'Тип', 'Статус', 'Сотрудник', 'Сканов', 'Длительность (мин)', 'Создана', 'Завершена'];
     const rows = filtered.map(t => [
@@ -175,6 +191,13 @@ export default function TasksPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => { setBulkMode(!bulkMode); setSelectedIds(new Set()); }}
+            title="Массовые действия"
+            className={`p-2 rounded-xl transition-colors ${bulkMode ? 'text-red-500 bg-red-50' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`}
+          >
+            <ClipboardList size={16} />
+          </button>
           <button
             onClick={exportCSV}
             title="Экспорт в CSV"
@@ -290,6 +313,15 @@ export default function TasksPage() {
         </select>
       </div>
 
+      {/* Bulk actions bar */}
+      {bulkMode && selectedIds.size > 0 && (
+        <div className="flex items-center gap-3 mb-3 px-4 py-2.5 bg-red-50 border border-red-200 rounded-2xl">
+          <span className="text-sm font-semibold text-red-700">Выбрано: {selectedIds.size}</span>
+          <button onClick={bulkDelete} className="px-3 py-1 rounded-xl bg-red-500 text-white text-xs font-bold hover:bg-red-600 transition-colors">Удалить</button>
+          <button onClick={() => { setSelectedIds(new Set()); setBulkMode(false); }} className="px-3 py-1 rounded-xl text-xs text-gray-500 hover:bg-gray-100 transition-colors">Отмена</button>
+        </div>
+      )}
+
       {loading ? (
         <div className="flex items-center justify-center h-48"><Spinner size="lg" /></div>
       ) : filtered.length === 0 ? (
@@ -303,7 +335,19 @@ export default function TasksPage() {
       ) : (
         <div className="space-y-3">
           {filtered.map(task => (
-            <TaskCard key={task.id} task={task} onClick={setSelectedTask} />
+            <div key={task.id} className="flex items-start gap-2">
+              {bulkMode && (
+                <input
+                  type="checkbox"
+                  checked={selectedIds.has(task.id)}
+                  onChange={() => toggleSelect(task.id)}
+                  className="mt-5 w-4 h-4 rounded border-gray-300 text-primary-600 flex-shrink-0"
+                />
+              )}
+              <div className="flex-1">
+                <TaskCard task={task} onClick={bulkMode ? () => toggleSelect(task.id) : setSelectedTask} />
+              </div>
+            </div>
           ))}
           {items.length < totalCount && (
             <button
