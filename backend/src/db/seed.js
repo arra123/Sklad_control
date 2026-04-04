@@ -34,19 +34,39 @@ async function seedDefaultSettings() {
 
 async function seedMissingEmployees() {
   const employees = [
-    { full_name: 'Степанова Дарья Игоревна' },
+    { full_name: 'Степанова Дарья Игоревна', department: 'Производство', position: 'Сотрудник производства', username: 'степанова.дарья', password: 'степанова.дарья' },
   ];
   for (const emp of employees) {
     const existing = await pool.query('SELECT id FROM employees_s WHERE full_name = $1', [emp.full_name]);
+    let empId;
     if (existing.rows.length > 0) {
-      console.log(`[Seed] Employee already exists: ${emp.full_name}`);
-      continue;
+      empId = existing.rows[0].id;
+      // Update department/position if missing
+      await pool.query(
+        'UPDATE employees_s SET department = COALESCE(department, $1), position = COALESCE(position, $2) WHERE id = $3',
+        [emp.department, emp.position, empId]
+      );
+      console.log(`[Seed] Employee updated: ${emp.full_name}`);
+    } else {
+      const res = await pool.query(
+        'INSERT INTO employees_s (full_name, department, position) VALUES ($1, $2, $3) RETURNING id',
+        [emp.full_name, emp.department, emp.position]
+      );
+      empId = res.rows[0].id;
+      console.log(`[Seed] Employee created: ${emp.full_name}`);
     }
-    await pool.query(
-      'INSERT INTO employees_s (full_name) VALUES ($1)',
-      [emp.full_name]
-    );
-    console.log(`[Seed] Employee created: ${emp.full_name}`);
+    // Create user account if missing
+    if (emp.username && empId) {
+      const userExists = await pool.query('SELECT id FROM users_s WHERE employee_id = $1', [empId]);
+      if (userExists.rows.length === 0) {
+        const hash = await hashPassword(emp.password);
+        await pool.query(
+          'INSERT INTO users_s (username, password_hash, password_plain, role, employee_id) VALUES ($1, $2, $3, $4, $5)',
+          [emp.username, hash, emp.password, 'employee', empId]
+        );
+        console.log(`[Seed] User created for: ${emp.full_name}`);
+      }
+    }
   }
 }
 
