@@ -251,21 +251,21 @@ export default function TasksPage() {
       {/* Stats cards */}
       {!loading && items.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-4">
-          <button onClick={() => { setFilterStatus('in_progress'); setFilterPeriod('all'); }} className="bg-amber-50 dark:bg-amber-950/30 border border-amber-100 dark:border-amber-800 rounded-xl px-3 py-1.5 text-center hover:shadow-sm transition-all">
-            <p className="text-lg font-black text-amber-600 dark:text-amber-400">{statsInProgress}</p>
-            <p className="text-[11px] text-amber-500 font-medium">В работе</p>
+          <button onClick={() => { setFilterStatus('in_progress'); setFilterPeriod('all'); }} className="bg-white border border-gray-100 rounded-lg px-3 py-1 text-center hover:border-amber-200 transition-all">
+            <p className="text-base font-bold text-gray-800">{statsInProgress}</p>
+            <p className="text-[10px] text-gray-400 flex items-center justify-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block"></span>В работе</p>
           </button>
-          <button onClick={() => { setFilterStatus('new'); setFilterPeriod('all'); }} className="bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl px-3 py-1.5 text-center hover:shadow-sm transition-all">
-            <p className="text-lg font-black text-gray-500 dark:text-gray-300">{statsNew}</p>
-            <p className="text-[11px] text-gray-400 font-medium">Новых</p>
+          <button onClick={() => { setFilterStatus('new'); setFilterPeriod('all'); }} className="bg-white border border-gray-100 rounded-lg px-3 py-1 text-center hover:border-gray-300 transition-all">
+            <p className="text-base font-bold text-gray-800">{statsNew}</p>
+            <p className="text-[10px] text-gray-400">Новых</p>
           </button>
-          <button onClick={() => { setFilterStatus('completed'); setFilterPeriod('today'); }} className="bg-green-50 dark:bg-green-950/30 border border-green-100 dark:border-green-800 rounded-xl px-3 py-1.5 text-center hover:shadow-sm transition-all">
-            <p className="text-lg font-black text-green-600 dark:text-green-400">{statsCompletedToday}</p>
-            <p className="text-[11px] text-green-500 font-medium">Выполнено</p>
+          <button onClick={() => { setFilterStatus('completed'); setFilterPeriod('today'); }} className="bg-white border border-gray-100 rounded-lg px-3 py-1 text-center hover:border-green-200 transition-all">
+            <p className="text-base font-bold text-gray-800">{statsCompletedToday}</p>
+            <p className="text-[10px] text-gray-400 flex items-center justify-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-green-400 inline-block"></span>Выполнено</p>
           </button>
-          <button onClick={() => { setFilterStatus(''); setFilterPeriod('today'); }} className="bg-blue-50 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-800 rounded-xl px-3 py-1.5 text-center hover:shadow-sm transition-all">
-            <p className="text-lg font-black text-blue-600 dark:text-blue-400">{totalScansToday.toLocaleString('ru-RU')}</p>
-            <p className="text-[11px] text-blue-500 font-medium">Сканов</p>
+          <button onClick={() => { setFilterStatus(''); setFilterPeriod('today'); }} className="bg-white border border-gray-100 rounded-lg px-3 py-1 text-center hover:border-blue-200 transition-all">
+            <p className="text-base font-bold text-gray-800">{totalScansToday.toLocaleString('ru-RU')}</p>
+            <p className="text-[10px] text-gray-400 flex items-center justify-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-blue-400 inline-block"></span>Сканов</p>
           </button>
         </div>
       )}

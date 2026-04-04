@@ -79,6 +79,18 @@ export default function ReturnsPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // Check for existing active returns task on mount
+  useEffect(() => {
+    api.get('/tasks', { params: { limit: 10 } })
+      .then(res => {
+        const active = (res.data.items || []).find(t => t.task_type === 'returns' && t.status === 'in_progress' && t.employee_id === user?.employee_id);
+        if (active) {
+          setTaskId(active.id);
+          setPhase('scanning');
+        }
+      }).catch(() => {});
+  }, [user?.employee_id]);
+
   // Accumulated items to deliver: [{ product_id, product_name, quantity, locations: [...] }]
   const [items, setItems] = useState([]);
   // Currently delivering item index
@@ -296,6 +308,14 @@ export default function ReturnsPage() {
         )}
 
         <ScanInput placeholder="Наведите сканер на банку..." onScan={handleScanProduct} />
+
+        {/* Complete button — always visible */}
+        {items.length === 0 && (
+          <button onClick={handleComplete}
+            className="w-full py-3 rounded-xl border-2 border-dashed border-gray-200 text-gray-500 text-sm font-medium hover:bg-gray-50 transition-colors mt-4">
+            Завершить задачу
+          </button>
+        )}
 
         {/* Accumulated items */}
         {items.length > 0 && (
