@@ -1,11 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Eye, EyeOff, X } from 'lucide-react';
+import { Eye, EyeOff, X, Search, Package, ChevronDown, ChevronRight, Users, UserCog, Pencil, Trash2, Plus, Shield, Copy, Check } from 'lucide-react';
 import api from '../../../api/client';
 import Button from '../../../components/ui/Button';
 import Modal from '../../../components/ui/Modal';
 import Input from '../../../components/ui/Input';
 import Select from '../../../components/ui/Select';
+import Spinner from '../../../components/ui/Spinner';
+import Badge from '../../../components/ui/Badge';
 import { useToast } from '../../../components/ui/Toast';
+import { useAuth } from '../../../context/AuthContext';
 
 // ─── Employee Modal (edit existing) ──────────────────────────────────────────
 function EmployeeModal({ open, onClose, employee, onSuccess }) {
