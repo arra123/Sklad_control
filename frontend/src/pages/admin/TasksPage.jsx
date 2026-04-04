@@ -320,16 +320,6 @@ export default function TasksPage() {
           <option value="cancelled">Отменённые</option>
         </select>
         <select
-          value={filterLocation}
-          onChange={e => setFilterLocation(e.target.value)}
-          className="px-2 py-1 text-xs rounded-lg border border-gray-200 bg-white focus:outline-none focus:border-primary-400 text-gray-600"
-        >
-          <option value="">Все локации</option>
-          {uniqueLocations.map(loc => (
-            <option key={loc} value={loc}>{loc}</option>
-          ))}
-        </select>
-        <select
           value={filterType}
           onChange={e => setFilterType(e.target.value)}
           className="px-2 py-1 text-xs rounded-lg border border-gray-200 bg-white focus:outline-none focus:border-primary-400 text-gray-600"

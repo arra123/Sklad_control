@@ -514,7 +514,7 @@ function OverviewPanel({ data, settings, singleWarehouse, onSelectNode }) {
                   <th
                     key={col.key}
                     onClick={() => handleSort(col.key)}
-                    className="text-left px-2.5 py-3 text-[11px] font-bold uppercase tracking-wider text-gray-400 border-b-2 border-gray-100 cursor-pointer hover:text-[#7c3aed] select-none whitespace-nowrap"
+                    className="text-left px-2.5 py-2 text-[10px] font-bold uppercase tracking-wider text-gray-400 border-b border-gray-100 cursor-pointer hover:text-primary-600 select-none whitespace-nowrap bg-gray-50/50"
                   >
                     {col.label} <span className="text-[10px] opacity-40">{sortCol === col.key ? (sortAsc ? '\u2191' : '\u2193') : '\u2195'}</span>
                   </th>

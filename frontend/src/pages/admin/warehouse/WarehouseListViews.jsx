@@ -42,18 +42,18 @@ export function WarehouseListView({ warehouses, selectedId, onSelect, onReload, 
   return (
     <>
       <div className="flex items-center gap-2 mb-1">
-        <div className="flex-1 flex gap-2 overflow-x-auto pb-1">
+        <div className="flex-1 flex gap-2 overflow-x-auto pb-1 bg-gray-50/80 rounded-2xl p-2 border border-gray-100">
           {warehouses.map(wh => (
             <button
               key={wh.id}
               onClick={() => onSelect(wh)}
               className={cn(
-                'flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all whitespace-nowrap border',
+                'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all whitespace-nowrap',
                 selectedId === wh.id
-                  ? 'bg-primary-600 text-white border-primary-600 shadow-md'
+                  ? 'bg-white text-primary-700 shadow-sm border border-primary-200'
                   : wh.active === false
-                    ? 'bg-gray-50 border-dashed border-gray-300 text-gray-400'
-                    : 'bg-white border-gray-200 text-gray-700 hover:border-primary-300 hover:shadow-sm'
+                    ? 'text-gray-400 border border-dashed border-gray-300'
+                    : 'text-gray-600 hover:bg-white/80 hover:shadow-sm border border-transparent'
               )}
             >
               <WarehouseIcon size={18} colorIndex={warehouses.indexOf(wh)} className={wh.active === false ? 'opacity-40' : ''} />
