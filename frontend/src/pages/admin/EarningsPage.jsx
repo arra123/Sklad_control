@@ -108,7 +108,8 @@ export default function EarningsPage() {
   const [savingBalance, setSavingBalance] = useState(false);
   const [expandedTask, setExpandedTask] = useState(null);
   const [showRub, setShowRub] = useState(false);
-  const [period, setPeriod] = useState('all');
+  const period = searchParams.get('period') || 'all';
+  const setPeriod = useCallback((v) => setSearchParams(prev => { const p = new URLSearchParams(prev); p.set('period', v); return p; }, { replace: true }), [setSearchParams]);
   const fmt = (v) => showRub ? fmtRub(v) : fmtGra(v);
   const fmtRate = (v) => showRub ? fmtRubRate(v) : fmtGra(v);
   const unit = showRub ? '₽' : 'GRA';
@@ -120,10 +121,11 @@ export default function EarningsPage() {
       const [summaryRes, employeesRes] = await Promise.all([api.get('/earnings/summary', { params }), api.get('/earnings/employees', { params })]);
       setSummary(summaryRes.data);
       setEmployees(employeesRes.data || []);
-      setSelectedEmployeeId(prev => {
-        if (prev && (employeesRes.data || []).some(item => Number(item.employee_id) === Number(prev))) return prev;
-        return employeesRes.data?.[0]?.employee_id || null;
-      });
+      // Auto-select first employee if none selected
+      const currentEmp = new URLSearchParams(window.location.search).get('employee');
+      if (!currentEmp && employeesRes.data?.length > 0) {
+        setSelectedEmployeeId(employeesRes.data[0].employee_id);
+      }
     } catch (err) { if (!background) toast.error(err.response?.data?.error || 'Не удалось загрузить'); }
     finally { if (background) setRefreshing(false); else setLoading(false); }
   }, [toast]);
@@ -161,21 +163,19 @@ export default function EarningsPage() {
     } finally { if (!ctrl.signal.aborted) setTaskLoading(false); }
   }, [toast]);
 
-  // Initial load (once)
-  useEffect(() => { loadBase(false, period); }, []);
+  // Load on mount and when period changes
   useEffect(() => {
-    setEmployeeDetails(null); setTaskDetails(null); setExpandedTask(null);
-    if (selectedEmployeeId) loadEmployeeDetails(selectedEmployeeId, period);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedEmployeeId]);
-  useEffect(() => { if (selectedTaskId) loadTaskDetails(selectedTaskId); }, [selectedTaskId, loadTaskDetails]);
-  // Period change — reload with new period
-  useEffect(() => {
-    try {
-      loadBase(true, period);
-      if (selectedEmployeeId) loadEmployeeDetails(selectedEmployeeId, period);
-    } catch (e) { console.error('[Earnings] period change error:', e); }
+    loadBase(false, period);
   }, [period]);
+
+  // Load employee details when employee or period changes
+  useEffect(() => {
+    if (!selectedEmployeeId) { setEmployeeDetails(null); return; }
+    setTaskDetails(null); setExpandedTask(null);
+    loadEmployeeDetails(selectedEmployeeId, period);
+  }, [selectedEmployeeId, period]);
+
+  useEffect(() => { if (selectedTaskId) loadTaskDetails(selectedTaskId); }, [selectedTaskId, loadTaskDetails]);
 
   const selectedEmployee = useMemo(() => {
     if (!selectedEmployeeId) return null;
