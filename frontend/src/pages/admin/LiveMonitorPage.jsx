@@ -878,7 +878,10 @@ function EmployeeCard({ emp, onClick }) {
         <div className="w-7 h-7 rounded-lg bg-amber-50 border border-amber-100 flex items-center justify-center flex-shrink-0">
           <WorkerAvatar size={20} />
         </div>
-        <h3 className="text-xs font-bold text-gray-900 leading-snug line-clamp-2 flex-1">{emp.full_name}</h3>
+        <div className="flex-1 min-w-0">
+          <h3 className="text-xs font-bold text-gray-900 leading-snug truncate">{emp.full_name}</h3>
+          {emp.position && <p className="text-[9px] text-gray-400 truncate">{emp.position}</p>}
+        </div>
         <div className="flex-shrink-0 mt-0.5">{statusDot}</div>
       </div>
 
@@ -1022,7 +1025,7 @@ export default function LiveMonitorPage() {
               )}
             </h1>
             <p className="text-sm text-gray-400 mt-0.5">
-              {isToday ? `${activeCount} работают · ` : ''}{employees.length} сотрудников
+              {isToday ? `${activeCount} работают · ` : ''}{employees.length} сотрудников · {employees.reduce((s, e) => s + Number(e.scans_today || 0), 0).toLocaleString('ru-RU')} сканов
               {isToday && lastUpdate && <span className="ml-1">· {lastUpdate.toLocaleTimeString('ru-RU')}</span>}
             </p>
           </div>

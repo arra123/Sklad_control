@@ -1205,7 +1205,14 @@ export default function StaffPage() {
       <div className="flex items-start justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Сотрудники</h1>
-          <p className="text-gray-500 text-sm mt-1">Управление сотрудниками и доступами</p>
+          <p className="text-gray-500 text-sm mt-1">
+            {(() => {
+              const onlineCount = users.filter(u => u.last_active_at && (Date.now() - new Date(u.last_active_at).getTime()) < 600000).length;
+              return onlineCount > 0
+                ? <><span className="inline-block w-2 h-2 rounded-full bg-green-500 mr-1" />{onlineCount} онлайн · {employees.length} всего</>
+                : `${employees.length} сотрудников`;
+            })()}
+          </p>
         </div>
         {tab === 'users' && canEditStaff && (
           <Button icon={<Plus size={15} />} size="sm" onClick={() => setShowAddEmpModal(true)}>

@@ -1482,6 +1482,7 @@ router.get('/analytics/live', requireAuth, requirePermission('analytics', 'dashb
       SELECT
         e.id as employee_id,
         e.full_name,
+        e.position,
         COALESCE(e.gra_balance, 0) as balance,
         -- Active task
         (SELECT json_build_object(
