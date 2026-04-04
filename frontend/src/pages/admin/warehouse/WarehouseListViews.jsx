@@ -56,7 +56,7 @@ export function WarehouseListView({ warehouses, selectedId, onSelect, onReload, 
                     : 'bg-white border-gray-200 text-gray-700 hover:border-primary-300 hover:shadow-sm'
               )}
             >
-              <WarehouseIcon size={18} className={wh.active === false ? 'opacity-40' : ''} />
+              <WarehouseIcon size={18} colorIndex={warehouses.indexOf(wh)} className={wh.active === false ? 'opacity-40' : ''} />
               <span className={wh.active === false ? 'line-through opacity-60' : ''}>{wh.name}</span>
               {wh.active === false && <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-200 text-gray-500">скрыт</span>}
               <span className={cn(
