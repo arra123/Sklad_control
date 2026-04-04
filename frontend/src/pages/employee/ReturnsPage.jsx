@@ -79,17 +79,18 @@ export default function ReturnsPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Check for existing active returns task on mount (only if still on start phase)
+  // Check for existing active returns task on mount
+  const [checking, setChecking] = useState(true);
   useEffect(() => {
-    if (phase !== 'start') return;
-    api.get('/tasks', { params: { limit: 10 } })
+    api.get('/tasks', { params: { limit: 50 } })
       .then(res => {
-        const active = (res.data.items || []).find(t => t.task_type === 'returns' && t.status === 'in_progress' && t.employee_id === user?.employee_id);
-        if (active) {
+        const active = (res.data.items || []).find(t => t.task_type === 'returns' && t.status === 'in_progress');
+        if (active && phase === 'start') {
           setTaskId(active.id);
           setPhase('scanning');
         }
-      }).catch(() => {});
+      }).catch(() => {})
+      .finally(() => setChecking(false));
   }, []);
 
   // Accumulated items to deliver: [{ product_id, product_name, quantity, locations: [...] }]
@@ -225,9 +226,15 @@ export default function ReturnsPage() {
   // ─── Complete task ─────────────────────────────────────────────────────
   const handleComplete = async () => {
     if (taskId) {
-      try { await api.post(`/tasks/${taskId}/complete`); } catch {}
+      try {
+        await api.post(`/tasks/${taskId}/complete`);
+      } catch (err) {
+        console.error('[Returns] Complete failed:', err.response?.data?.error || err.message);
+      }
     }
+    setTaskId(null);
     setPhase('done');
+    setItems([]);
   };
 
   // ─── Remove item from list (just remove from UI, inventory stays with employee) ─
@@ -238,6 +245,11 @@ export default function ReturnsPage() {
   // ═══════════════════════════════════════════════════════════════════════
   // RENDER
   // ═══════════════════════════════════════════════════════════════════════
+
+  // ─── CHECKING ──────────────────────────────────────────────────────────
+  if (checking) {
+    return <div className="flex items-center justify-center h-64"><Spinner size="lg" /></div>;
+  }
 
   // ─── START PHASE ───────────────────────────────────────────────────────
   if (phase === 'start') {
