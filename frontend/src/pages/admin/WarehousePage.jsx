@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTabState } from '../../hooks/useTabState';
+import { useTabs } from '../../context/TabsContext';
 import { qty } from '../../utils/fmt';
 import {
   Plus, Pencil, Trash2, Search,
@@ -368,6 +369,7 @@ function WarehouseContent({ warehouse, initialRackId, initialShelfId, initialRow
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function WarehousePage() {
+  const { activeId } = useTabs();
   const [searchParams, setSearchParams] = useSearchParams();
   const initialRackId = searchParams.get('rack');
   const initialShelfId = searchParams.get('shelf');
@@ -454,7 +456,7 @@ export default function WarehousePage() {
           </div>
           {selectedWh && (
             <WarehouseContent
-              key={selectedWh.id}
+              key={`${activeId}_${selectedWh.id}`}
               warehouse={selectedWh}
               initialRackId={initialRackId}
               initialShelfId={initialShelfId}
