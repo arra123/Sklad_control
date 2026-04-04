@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  X, Pause, Play, AlertTriangle, ScanLine, Package, Box, MapPin, ChevronRight
+  X, Pause, Play, AlertTriangle, ScanLine, Package, Box, MapPin, ChevronRight, Copy
 } from 'lucide-react';
 import api from '../../../api/client';
 import { qty } from '../../../utils/fmt';
@@ -87,6 +87,22 @@ export default function TaskDetailPanel({ task, onClose, onReload }) {
       onClose();
       onReload();
     } catch (err) { toast.error(err.response?.data?.error || 'Ошибка'); }
+  };
+
+  const handleDuplicate = async () => {
+    try {
+      const body = {
+        title: task.title,
+        task_type: task.task_type || 'inventory',
+        employee_id: task.employee_id || undefined,
+        shelf_id: task.shelf_id || undefined,
+        target_pallet_id: task.target_pallet_id || undefined,
+        notes: task.notes || undefined,
+      };
+      await api.post('/tasks', body);
+      toast.success('Задача дублирована');
+      onReload();
+    } catch (err) { toast.error(err.response?.data?.error || 'Ошибка дублирования'); }
   };
 
   const handleDeleteClick = () => setDeleteConfirm('ask');
@@ -736,6 +752,7 @@ export default function TaskDetailPanel({ task, onClose, onReload }) {
         )}
         {(task.status === 'completed' || task.status === 'cancelled') && (
           <div className="flex gap-2 px-4 py-4 border-t border-gray-100 dark:border-gray-800">
+            <Button variant="outline" size="sm" icon={<Copy size={14} />} onClick={handleDuplicate}>Дублировать</Button>
             <Button variant="danger" size="sm" onClick={handleDeleteClick}>Удалить</Button>
           </div>
         )}

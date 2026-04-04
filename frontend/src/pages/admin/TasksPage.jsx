@@ -56,6 +56,7 @@ export default function TasksPage() {
   const [searchText, setSearchText] = useState('');
   const [filterLocation, setFilterLocation] = useState('');
   const [filterType, setFilterType] = useState('');
+  const [filterPeriod, setFilterPeriod] = useState('all');
 
   const loadRef = useRef(0);
   const load = useCallback(async () => {
@@ -110,6 +111,15 @@ export default function TasksPage() {
       if (loc !== filterLocation) return false;
     }
     if (filterType && task.task_type !== filterType) return false;
+    if (filterPeriod !== 'all') {
+      const taskDate = new Date(task.created_at).toDateString();
+      const now = new Date();
+      if (filterPeriod === 'today' && taskDate !== now.toDateString()) return false;
+      if (filterPeriod === 'yesterday') {
+        const yesterday = new Date(now); yesterday.setDate(yesterday.getDate() - 1);
+        if (taskDate !== yesterday.toDateString()) return false;
+      }
+    }
     return true;
   });
 
@@ -157,6 +167,16 @@ export default function TasksPage() {
           </div>
         </div>
       )}
+
+      {/* Period quick filter */}
+      <div className="flex gap-1 mb-3 bg-gray-50 rounded-2xl p-1.5 w-fit border border-gray-200">
+        {[['all', 'Все'], ['today', 'Сегодня'], ['yesterday', 'Вчера']].map(([k, l]) => (
+          <button key={k} onClick={() => setFilterPeriod(k)}
+            className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all border ${
+              filterPeriod === k ? 'bg-white shadow-sm text-gray-900 border-gray-200' : 'text-gray-500 border-transparent hover:text-gray-700'
+            }`}>{l}</button>
+        ))}
+      </div>
 
       {/* Inline filters */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-4">
