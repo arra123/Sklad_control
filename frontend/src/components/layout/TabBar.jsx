@@ -24,10 +24,11 @@ export default function TabBar() {
 
   // Sync current URL to active tab
   useEffect(() => {
-    if (currentPath !== '/admin/new-tab') {
-      updateActiveUrl(currentPath, getTitle(location.pathname));
-    }
-  }, [currentPath, location.pathname, updateActiveUrl]);
+    const activeTab = tabs.find(t => t.id === activeId);
+    // Don't overwrite new-tab with the old URL during transition
+    if (activeTab?.path === '/admin/new-tab' && !currentPath.includes('new-tab')) return;
+    updateActiveUrl(currentPath, getTitle(location.pathname));
+  }, [currentPath, location.pathname, updateActiveUrl, activeId, tabs]);
 
   const handleSwitch = (id) => {
     if (id === activeId) return;
@@ -37,8 +38,9 @@ export default function TabBar() {
   };
 
   const handleCreate = () => {
-    createTab();
-    navigate('/admin/new-tab');
+    const id = createTab();
+    // Small delay to let state update before navigate
+    setTimeout(() => navigate('/admin/new-tab'), 0);
   };
 
   const handleClose = (id, e) => {
