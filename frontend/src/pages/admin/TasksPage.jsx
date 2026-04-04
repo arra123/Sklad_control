@@ -116,7 +116,8 @@ export default function TasksPage() {
   const filtered = items.filter(task => {
     if (searchText) {
       const q = searchText.toLowerCase();
-      if (!(task.title || '').toLowerCase().includes(q)) return false;
+      const haystack = [task.title, task.employee_name, task.shelf_code, task.rack_name, task.pallet_name, task.box_barcode].filter(Boolean).join(' ').toLowerCase();
+      if (!haystack.includes(q)) return false;
     }
     if (filterEmployee && task.employee_name !== filterEmployee) return false;
     if (filterStatus && task.status !== filterStatus) return false;
@@ -340,11 +341,22 @@ export default function TasksPage() {
       </div>
 
       {/* Bulk actions bar */}
-      {bulkMode && selectedIds.size > 0 && (
+      {bulkMode && (
         <div className="flex items-center gap-3 mb-3 px-4 py-2.5 bg-red-50 border border-red-200 rounded-2xl">
-          <span className="text-sm font-semibold text-red-700">Выбрано: {selectedIds.size}</span>
-          <button onClick={bulkDelete} className="px-3 py-1 rounded-xl bg-red-500 text-white text-xs font-bold hover:bg-red-600 transition-colors">Удалить</button>
-          <button onClick={() => { setSelectedIds(new Set()); setBulkMode(false); }} className="px-3 py-1 rounded-xl text-xs text-gray-500 hover:bg-gray-100 transition-colors">Отмена</button>
+          <input
+            type="checkbox"
+            checked={selectedIds.size === filtered.length && filtered.length > 0}
+            onChange={() => {
+              if (selectedIds.size === filtered.length) setSelectedIds(new Set());
+              else setSelectedIds(new Set(filtered.map(t => t.id)));
+            }}
+            className="w-4 h-4 rounded border-gray-300 text-red-500"
+          />
+          <span className="text-sm font-semibold text-red-700">{selectedIds.size > 0 ? `Выбрано: ${selectedIds.size}` : 'Выберите задачи'}</span>
+          {selectedIds.size > 0 && (
+            <button onClick={bulkDelete} className="px-3 py-1 rounded-xl bg-red-500 text-white text-xs font-bold hover:bg-red-600 transition-colors">Удалить</button>
+          )}
+          <button onClick={() => { setSelectedIds(new Set()); setBulkMode(false); }} className="px-3 py-1 rounded-xl text-xs text-gray-500 hover:bg-gray-100 transition-colors">Выйти</button>
         </div>
       )}
 
