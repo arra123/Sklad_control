@@ -134,7 +134,9 @@ export default function TasksPage() {
       <div className="flex items-start justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Задачи</h1>
-          <p className="text-gray-500 text-sm mt-1">Задачи инвентаризации · нажмите для деталей</p>
+          <p className="text-gray-500 text-sm mt-1">
+            {filtered.length !== items.length ? `${filtered.length} из ${items.length} задач` : `${items.length} задач`} · нажмите для деталей
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <button
