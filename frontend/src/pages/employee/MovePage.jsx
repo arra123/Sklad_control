@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { Check, ArrowLeft, ScanLine, Layers, ArrowRightLeft, Package, Settings2, ChevronDown, RotateCcw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../api/client';
-import { PalletIcon, BoxIcon } from '../../components/ui/WarehouseIcons';
+import { PalletIcon, BoxIcon, ShelfIcon, TransferIcon } from '../../components/ui/WarehouseIcons';
 import Spinner from '../../components/ui/Spinner';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../components/ui/Toast';
@@ -344,14 +344,21 @@ export default function MovePage() {
     const isAdmin = user?.role === 'admin';
     return (
       <div className="p-4 max-w-md mx-auto animate-fade-in">
-        <h1 className="text-xl font-bold text-gray-900 mb-1">Перемещение</h1>
-        <p className="text-sm text-gray-400 mb-6">Выберите тип перемещения</p>
+        <div className="flex items-center gap-3 mb-5">
+          <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center">
+            <TransferIcon size={24} />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold text-gray-900">Перемещение</h1>
+            <p className="text-sm text-gray-400">Выберите тип</p>
+          </div>
+        </div>
         <div className="space-y-3">
           <button onClick={() => { setMode('piece'); setStep(1); }}
             className="w-full bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-2xl p-5 text-left shadow-lg shadow-blue-200 hover:shadow-xl hover:scale-[1.02] transition-all active:scale-[0.98]">
             <div className="flex items-center gap-4">
               <div className="w-14 h-14 rounded-xl bg-white/20 flex items-center justify-center">
-                <ScanLine size={28} />
+                <ShelfIcon size={32} />
               </div>
               <div>
                 <p className="font-bold text-base">Поштучно</p>
@@ -364,7 +371,7 @@ export default function MovePage() {
             className="w-full bg-gradient-to-br from-purple-500 to-purple-600 text-white rounded-2xl p-5 text-left shadow-lg shadow-purple-200 hover:shadow-xl hover:scale-[1.02] transition-all active:scale-[0.98]">
             <div className="flex items-center gap-4">
               <div className="w-14 h-14 rounded-xl bg-white/20 flex items-center justify-center">
-                <Layers size={28} />
+                <BoxIcon size={32} />
               </div>
               <div>
                 <p className="font-bold text-base">Весь товар из коробки</p>
@@ -377,7 +384,7 @@ export default function MovePage() {
             className="w-full bg-gradient-to-br from-indigo-500 to-indigo-600 text-white rounded-2xl p-5 text-left shadow-lg shadow-indigo-200 hover:shadow-xl hover:scale-[1.02] transition-all active:scale-[0.98]">
             <div className="flex items-center gap-4">
               <div className="w-14 h-14 rounded-xl bg-white/20 flex items-center justify-center">
-                <ArrowRightLeft size={28} />
+                <PalletIcon size={32} />
               </div>
               <div>
                 <p className="font-bold text-base">Переставить коробку</p>

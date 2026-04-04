@@ -443,6 +443,7 @@ export default function WarehousePage() {
           </div>
           {selectedWh && (
             <WarehouseContent
+              key={selectedWh.id}
               warehouse={selectedWh}
               initialRackId={initialRackId}
               initialShelfId={initialShelfId}

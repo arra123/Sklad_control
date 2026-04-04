@@ -126,7 +126,7 @@ export default function EarningsPage() {
       });
     } catch (err) { toast.error(err.response?.data?.error || 'Не удалось загрузить'); }
     finally { if (background) setRefreshing(false); else setLoading(false); }
-  }, [toast]);
+  }, [toast, period]);
 
   const employeeAbort = useRef(null);
   const taskAbort = useRef(null);
@@ -163,7 +163,6 @@ export default function EarningsPage() {
 
   useEffect(() => { loadBase(); }, [loadBase]);
   useEffect(() => {
-    setSearchParams(prev => { const p = new URLSearchParams(prev); p.delete('task'); p.set('dtab', 'sklad'); return p; }, { replace: true });
     setEmployeeDetails(null); setTaskDetails(null); setExpandedTask(null);
     if (selectedEmployeeId) loadEmployeeDetails(selectedEmployeeId);
   // eslint-disable-next-line react-hooks/exhaustive-deps
