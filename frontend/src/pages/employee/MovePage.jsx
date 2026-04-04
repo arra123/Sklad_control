@@ -426,12 +426,18 @@ export default function MovePage() {
           )}
         </div>
 
-        {/* Возвраты — отдельная ссылка внизу */}
-        <button onClick={() => navigate('/employee/returns')}
-          className="w-full mt-6 flex items-center justify-center gap-2 py-3 rounded-xl border border-teal-200 bg-teal-50 text-teal-700 text-sm font-medium hover:bg-teal-100 transition-colors">
-          <RotateCcw size={16} />
-          Разложить возвраты
-        </button>
+          <button onClick={() => navigate('/employee/returns')}
+            className="w-full bg-gradient-to-br from-teal-500 to-teal-600 text-white rounded-2xl p-5 text-left shadow-lg shadow-teal-200 hover:shadow-xl hover:scale-[1.02] transition-all active:scale-[0.98]">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-xl bg-white/20 flex items-center justify-center">
+                <RotateCcw size={28} />
+              </div>
+              <div>
+                <p className="font-bold text-base">Разложить возвраты</p>
+                <p className="text-xs text-teal-100 mt-0.5">Отсканировать и разложить по полкам</p>
+              </div>
+            </div>
+          </button>
       </div>
     );
   }
