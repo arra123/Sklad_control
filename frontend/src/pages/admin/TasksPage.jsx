@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Plus, ClipboardList, Video } from 'lucide-react';
 import api from '../../api/client';
@@ -68,6 +68,16 @@ export default function TasksPage() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  // Auto-refresh when tasks are in progress
+  const pollRef = useRef(null);
+  useEffect(() => {
+    clearInterval(pollRef.current);
+    if (items.some(t => t.status === 'in_progress')) {
+      pollRef.current = setInterval(load, 30000);
+    }
+    return () => clearInterval(pollRef.current);
+  }, [items, load]);
 
   // Derive unique employees, statuses, locations for dropdown options
   const uniqueEmployees = [...new Set(items.map(t => t.employee_name).filter(Boolean))].sort();

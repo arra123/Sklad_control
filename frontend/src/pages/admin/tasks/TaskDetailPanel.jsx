@@ -26,6 +26,8 @@ export default function TaskDetailPanel({ task, onClose, onReload }) {
   const [assemblySourceBoxes, setAssemblySourceBoxes] = useState([]);
   const [showAssemblyModal, setShowAssemblyModal] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null); // null | 'ask' | 'refund'
+  const [employees, setEmployees] = useState([]);
+  const [showAssign, setShowAssign] = useState(false);
 
   // Reset state when task changes to avoid showing stale data
   useEffect(() => {
@@ -102,6 +104,22 @@ export default function TaskDetailPanel({ task, onClose, onReload }) {
     } catch { toast.error('Ошибка удаления'); }
   };
 
+  // Load employees for assignment
+  useEffect(() => {
+    if (showAssign && employees.length === 0) {
+      api.get('/employees').then(r => setEmployees(r.data.filter(e => e.status === 'active'))).catch(() => {});
+    }
+  }, [showAssign, employees.length]);
+
+  const handleAssign = async (empId) => {
+    try {
+      await api.patch(`/tasks/${task.id}`, { employee_id: empId || null });
+      toast.success(empId ? 'Сотрудник назначен' : 'Сотрудник снят');
+      setShowAssign(false);
+      onReload();
+    } catch { toast.error('Ошибка назначения'); }
+  };
+
   const status = STATUS_MAP[task.status] || STATUS_MAP.new;
   const scans = analytics?.scans || [];
   const errors = analytics?.errors || [];
@@ -141,7 +159,15 @@ export default function TaskDetailPanel({ task, onClose, onReload }) {
             </div>
             <h2 className="text-base font-bold text-gray-900 dark:text-white leading-tight">{task.title}</h2>
             <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1.5 text-xs text-gray-400">
-              {task.employee_name && <span>{task.employee_name}</span>}
+              {task.employee_name ? (
+                <button onClick={() => setShowAssign(!showAssign)} className="text-primary-500 hover:text-primary-700 font-medium transition-colors">
+                  {task.employee_name} ✎
+                </button>
+              ) : (
+                <button onClick={() => setShowAssign(!showAssign)} className="text-primary-500 hover:text-primary-700 font-medium transition-colors">
+                  + Назначить
+                </button>
+              )}
               {task.rack_name && <span>{task.rack_name}{task.shelf_name ? ` · ${task.shelf_name}` : ''}</span>}
               {!task.rack_name && task.pallet_name && <span>{task.pallet_row_name || 'Ряд'} · {task.pallet_name}</span>}
               {Number(task.task_boxes_total || 0) > 0 && <span>Коробки {Number(task.task_boxes_completed || 0)} / {Number(task.task_boxes_total || 0)}</span>}
@@ -153,6 +179,23 @@ export default function TaskDetailPanel({ task, onClose, onReload }) {
             <X size={18} />
           </button>
         </div>
+
+        {/* Assign employee dropdown */}
+        {showAssign && (
+          <div className="mx-4 mt-2 p-2 rounded-xl border border-primary-200 bg-primary-50 max-h-48 overflow-y-auto">
+            <button onClick={() => handleAssign(null)} className="w-full text-left px-3 py-1.5 text-sm text-gray-400 hover:bg-white rounded-lg transition-colors">
+              — Снять назначение —
+            </button>
+            {employees.map(e => (
+              <button key={e.id} onClick={() => handleAssign(e.id)}
+                className={`w-full text-left px-3 py-1.5 text-sm rounded-lg transition-colors ${
+                  e.id === task.employee_id ? 'bg-primary-100 text-primary-700 font-semibold' : 'text-gray-700 hover:bg-white'
+                }`}>
+                {e.full_name}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Stats row */}
         {analytics && (() => {
