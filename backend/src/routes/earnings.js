@@ -371,8 +371,9 @@ router.get('/employees/:employeeId', requireAuth, requirePermission('analytics',
       sborka_picks: sborkaResult.rows,
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+    if (err.message.includes('deadlock') && attempt < 3) { await new Promise(r => setTimeout(r, 500 * attempt)); continue; }
+    return res.status(500).json({ error: err.message });
+  } }
 });
 
 router.get('/tasks/:taskId', requireAuth, requirePermission('analytics', 'staff.view'), async (req, res) => {
@@ -530,9 +531,8 @@ router.get('/tasks/:taskId', requireAuth, requirePermission('analytics', 'staff.
       scans,
     });
   } catch (err) {
-    if (err.message.includes('deadlock') && attempt < 3) { await new Promise(r => setTimeout(r, 500 * attempt)); continue; }
-    return res.status(500).json({ error: err.message });
-  } }
+    res.status(500).json({ error: err.message });
+  }
 });
 
 router.post('/employees/:employeeId/set-balance', requireAuth, requirePermission('staff.edit'), async (req, res) => {
