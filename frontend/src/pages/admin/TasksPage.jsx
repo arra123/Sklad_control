@@ -126,7 +126,20 @@ export default function TasksPage() {
     return true;
   });
 
+  const searchRef = useRef(null);
   const hasActiveFilters = searchText || filterEmployee || filterStatus || filterLocation || filterType || filterPeriod !== 'all';
+
+  // Keyboard shortcut: "/" to focus search
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.key === '/' && !e.ctrlKey && !e.metaKey && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, []);
   const resetFilters = () => { setSearchText(''); setFilterEmployee(''); setFilterStatus(''); setFilterLocation(''); setFilterType(''); setFilterPeriod('all'); };
 
   // Stats
@@ -201,8 +214,9 @@ export default function TasksPage() {
       {/* Inline filters */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-4">
         <input
+          ref={searchRef}
           type="text"
-          placeholder="Поиск по названию..."
+          placeholder="Поиск ( / )"
           value={searchText}
           onChange={e => setSearchText(e.target.value)}
           className="px-3 py-2 text-sm rounded-xl border border-gray-200 bg-white focus:outline-none focus:border-primary-400 focus:ring-1 focus:ring-primary-200 transition-colors"

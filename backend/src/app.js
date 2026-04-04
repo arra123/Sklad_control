@@ -58,6 +58,11 @@ siteRouter.get('/api/health', (_req, res) => {
 
 siteRouter.use('/api/auth/login', loginLimiter);
 siteRouter.use('/api/errors/system', errorReportLimiter);
+// No-cache for API responses
+siteRouter.use('/api', (_req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store');
+  next();
+});
 siteRouter.use('/api/auth', authRoutes);
 siteRouter.use('/api/products', productsRoutes);
 siteRouter.use('/api/warehouse', warehouseRoutes);

@@ -304,10 +304,17 @@ function TaskCard({ task, onClick, muted, index = 0 }) {
 
       {/* Footer */}
       <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-gray-50 dark:border-gray-800">
-        <span className="inline-flex items-center gap-1.5 text-xs text-gray-400">
-          <Clock size={11} />
-          {new Date(task.created_at).toLocaleDateString('ru-RU')}
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="inline-flex items-center gap-1.5 text-xs text-gray-400">
+            <Clock size={11} />
+            {new Date(task.created_at).toLocaleDateString('ru-RU')}
+          </span>
+          {task.duration_minutes && (
+            <span className="text-[10px] text-gray-300">
+              {Number(task.duration_minutes) < 60 ? `${Math.round(Number(task.duration_minutes))}м` : `${Math.floor(Number(task.duration_minutes)/60)}ч${Math.round(Number(task.duration_minutes)%60)}м`}
+            </span>
+          )}
+        </div>
         <div className={cn(
           'flex items-center gap-1 text-xs font-medium',
           muted ? 'text-gray-300' : 'text-primary-500'
