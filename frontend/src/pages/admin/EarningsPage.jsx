@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ChevronDown, ChevronRight, RefreshCw } from 'lucide-react';
-import { GRACoinIcon, WalletIcon, ScannerIcon, OrderPickIcon, TrendUpIcon, AdjustIcon, RateGearIcon } from '../../components/ui/WarehouseIcons';
+import { GRACoinIcon, WalletIcon, ScannerIcon, OrderPickIcon, TrendUpIcon, AdjustIcon, RateGearIcon, WorkerAvatar } from '../../components/ui/WarehouseIcons';
 import api from '../../api/client';
 import Button from '../../components/ui/Button';
 import Spinner from '../../components/ui/Spinner';
@@ -221,14 +221,14 @@ export default function EarningsPage() {
           </div>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex bg-gray-100 rounded-xl p-1 gap-0.5">
-            {[['summary', 'Сводка'], ['history', 'История']].map(([k, l]) => (
-              <button key={k} onClick={() => setTab(k)} className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${tab === k ? 'bg-white shadow-sm text-gray-900 font-semibold' : 'text-gray-500 hover:text-gray-700'}`}>{l}</button>
+          <div className="flex bg-gray-50 rounded-2xl p-1.5 gap-1 border border-gray-200">
+            {[['summary', 'Сводка', 'bg-amber-50 text-amber-700 border-amber-200'], ['history', 'История', 'bg-blue-50 text-blue-700 border-blue-200']].map(([k, l, activeClass]) => (
+              <button key={k} onClick={() => setTab(k)} className={`px-4 py-1.5 rounded-xl text-sm font-medium transition-all border ${tab === k ? `${activeClass} shadow-sm font-semibold` : 'text-gray-500 hover:text-gray-700 border-transparent'}`}>{l}</button>
             ))}
           </div>
-          <div className="flex gap-1 bg-gray-100 p-1 rounded-xl items-center">
+          <div className="flex gap-1 bg-gray-50 p-1.5 rounded-2xl items-center border border-gray-200">
             {[['all', 'Всё'], ['month', 'Месяц'], ['week', 'Неделя'], ['today', 'Сегодня']].map(([k, l]) => (
-              <button key={k} onClick={() => setPeriod(k)} className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${period === k ? 'bg-white shadow-sm text-gray-900 font-semibold' : 'text-gray-500'}`}>{l}</button>
+              <button key={k} onClick={() => setPeriod(k)} className={`px-2.5 py-1.5 rounded-xl text-xs font-medium transition-all border ${period === k ? 'bg-white shadow-sm text-gray-900 font-semibold border-gray-200' : 'text-gray-500 border-transparent'}`}>{l}</button>
             ))}
             <input type="date" value={/^\d{4}-\d{2}-\d{2}$/.test(period) ? period : ''} onChange={e => { if (e.target.value) setPeriod(e.target.value); }}
               className={`px-2 py-1 rounded-lg text-xs font-medium border-0 bg-transparent cursor-pointer transition-all ${/^\d{4}-\d{2}-\d{2}$/.test(period) ? 'bg-white shadow-sm text-gray-900 font-semibold' : 'text-gray-400'}`}
@@ -290,7 +290,12 @@ export default function EarningsPage() {
                         <td className="px-4 py-3 text-center">
                           <span className={`inline-flex w-6 h-6 rounded-full items-center justify-center text-xs font-black ${index === 0 ? 'bg-amber-100 text-amber-700' : index === 1 ? 'bg-gray-200 text-gray-600' : index === 2 ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-500'}`}>{index + 1}</span>
                         </td>
-                        <td className="px-3 py-3 font-semibold text-gray-900">{item.full_name}</td>
+                        <td className="px-3 py-3 font-semibold text-gray-900">
+                          <span className="flex items-center gap-2">
+                            <WorkerAvatar size={22} />
+                            {item.full_name}
+                          </span>
+                        </td>
                         <td className="px-3 py-3 text-right text-gray-600">{fmtGra(item.rewarded_scans || 0)}</td>
                         <td className="px-3 py-3 text-right text-gray-600">{item.rewarded_tasks_count || 0}</td>
                         <td className="px-3 py-3 text-right text-blue-600 font-semibold">{fmt(item.total_awarded)}</td>
