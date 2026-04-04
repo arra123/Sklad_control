@@ -439,14 +439,14 @@ export default function ErrorsPage() {
       </div>
 
       {/* Вкладки */}
-      <div className="flex gap-1 bg-gray-100 dark:bg-gray-800 rounded-xl p-1 mb-5 w-fit">
+      <div className="flex gap-1 bg-gray-50 dark:bg-gray-800 rounded-2xl p-1.5 mb-5 w-fit border border-gray-200 dark:border-gray-700">
         <button onClick={() => setTab('scan')}
-          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${tab === 'scan' ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>
+          className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all border ${tab === 'scan' ? 'bg-red-50 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-300 shadow-sm' : 'text-gray-400 hover:text-gray-600 border-transparent'}`}>
           Ошибки сканирования
           {unresolved.length > 0 && <span className="ml-2 bg-red-500 text-white text-xs rounded-full px-1.5 py-0.5">{unresolved.length}</span>}
         </button>
         <button onClick={() => setTab('system')}
-          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${tab === 'system' ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>
+          className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all border ${tab === 'system' ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 shadow-sm' : 'text-gray-400 hover:text-gray-600 border-transparent'}`}>
           Системные
           {sysTotal > 0 && <span className="ml-2 bg-amber-500 text-white text-xs rounded-full px-1.5 py-0.5">{sysTotal}</span>}
         </button>
@@ -543,10 +543,10 @@ export default function ErrorsPage() {
         <div>
           {/* Фильтр по типу + кнопка очистки */}
           <div className="flex items-center justify-between gap-3 mb-4">
-            <div className="flex gap-1 bg-gray-100 dark:bg-gray-800 rounded-xl p-1">
+            <div className="flex gap-1 bg-gray-50 dark:bg-gray-800 rounded-2xl p-1.5 border border-gray-200 dark:border-gray-700">
               {SYS_TYPES.map(t => (
                 <button key={t.value} onClick={() => setSysFilter(t.value)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${sysFilter === t.value ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border ${sysFilter === t.value ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white border-gray-200 shadow-sm' : 'text-gray-400 hover:text-gray-600 border-transparent'}`}>
                   {t.label}
                 </button>
               ))}

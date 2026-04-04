@@ -1211,16 +1211,16 @@ export default function StaffPage() {
 
       {/* Tabs */}
       {canManageRoles && (
-        <div className="flex gap-1 mb-5 bg-gray-100 p-1 rounded-xl w-fit">
+        <div className="flex gap-1 mb-5 bg-gray-50 p-1.5 rounded-2xl w-fit border border-gray-200">
           {[
-            { value: 'users', label: `Сотрудники (${employees.length})`, icon: Users },
-            { value: 'roles', label: 'Роли', icon: Shield },
-          ].map(({ value, label, icon: Icon }) => (
+            { value: 'users', label: `Сотрудники (${employees.length})`, icon: Users, active: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
+            { value: 'roles', label: 'Роли', icon: Shield, active: 'bg-amber-50 text-amber-700 border-amber-200' },
+          ].map(({ value, label, icon: Icon, active }) => (
             <button
               key={value}
               onClick={() => setTab(value)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                tab === value ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all border ${
+                tab === value ? `${active} shadow-sm` : 'text-gray-500 hover:text-gray-700 border-transparent'
               }`}
             >
               <Icon size={15} />

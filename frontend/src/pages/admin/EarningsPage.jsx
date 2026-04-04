@@ -407,14 +407,14 @@ export default function EarningsPage() {
 
                 {/* Sub tabs + period filter */}
                 <div className="flex items-center gap-3 flex-wrap">
-                  <div className="flex gap-1 bg-gray-100 p-1 rounded-xl">
-                    {[['sklad', 'Склад'], ['orders', 'Заказы']].map(([k, l]) => (
-                      <button key={k} onClick={() => setDetailTab(k)} className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${detailTab === k ? 'bg-white shadow-sm text-gray-900 font-semibold' : 'text-gray-500'}`}>{l}</button>
+                  <div className="flex gap-1 bg-gray-50 p-1.5 rounded-2xl border border-gray-200">
+                    {[['sklad', 'Склад', 'bg-blue-50 text-blue-700 border-blue-200'], ['orders', 'Заказы', 'bg-purple-50 text-purple-700 border-purple-200']].map(([k, l, ac]) => (
+                      <button key={k} onClick={() => setDetailTab(k)} className={`px-4 py-1.5 rounded-xl text-sm font-medium transition-all border ${detailTab === k ? `${ac} shadow-sm font-semibold` : 'text-gray-500 border-transparent'}`}>{l}</button>
                     ))}
                   </div>
-                  <div className="flex gap-1 bg-gray-100 p-1 rounded-xl items-center">
+                  <div className="flex gap-1 bg-gray-50 p-1.5 rounded-2xl items-center border border-gray-200">
                     {[['all', 'Всё время'], ['month', 'Месяц'], ['week', 'Неделя'], ['today', 'Сегодня']].map(([k, l]) => (
-                      <button key={k} onClick={() => setPeriod(k)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${period === k ? 'bg-white shadow-sm text-gray-900 font-semibold' : 'text-gray-500'}`}>{l}</button>
+                      <button key={k} onClick={() => setPeriod(k)} className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all border ${period === k ? 'bg-white shadow-sm text-gray-900 font-semibold border-gray-200' : 'text-gray-500 border-transparent'}`}>{l}</button>
                     ))}
                     <input type="date" value={/^\d{4}-\d{2}-\d{2}$/.test(period) ? period : ''} onChange={e => { if (e.target.value) setPeriod(e.target.value); }}
                       className={`px-2 py-1 rounded-lg text-xs font-medium border-0 bg-transparent cursor-pointer transition-all ${/^\d{4}-\d{2}-\d{2}$/.test(period) ? 'bg-white shadow-sm text-gray-900 font-semibold' : 'text-gray-400'}`}

@@ -34,11 +34,11 @@ export default function AnalyticsPage() {
 
 function VersionToggle({ version, setVersion }) {
   return (
-    <div className="flex items-center bg-gray-100 rounded-xl p-1 gap-0.5 flex-shrink-0">
+    <div className="flex items-center bg-gray-50 rounded-2xl p-1.5 gap-1 flex-shrink-0 border border-gray-200">
       <button
         onClick={() => setVersion('v1')}
-        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-          version === 'v1' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'
+        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border ${
+          version === 'v1' ? 'bg-blue-50 text-blue-700 border-blue-200 shadow-sm' : 'text-gray-400 hover:text-gray-600 border-transparent'
         }`}
       >
         <LayoutGrid size={13} />
@@ -46,8 +46,8 @@ function VersionToggle({ version, setVersion }) {
       </button>
       <button
         onClick={() => setVersion('v2')}
-        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-          version === 'v2' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'
+        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border ${
+          version === 'v2' ? 'bg-green-50 text-green-700 border-green-200 shadow-sm' : 'text-gray-400 hover:text-gray-600 border-transparent'
         }`}
       >
         <FolderTree size={13} />
