@@ -7,6 +7,7 @@ import Spinner from '../../components/ui/Spinner';
 import TaskDetailPanel from './tasks/TaskDetailPanel';
 import CreateTaskModal from './tasks/CreateTaskModal';
 import TaskCard from './tasks/TaskCard';
+import { useSocket } from '../../hooks/useSocket';
 
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 export default function TasksPage() {
@@ -98,6 +99,10 @@ export default function TasksPage() {
   }, [items.length, pageSize]);
 
   useEffect(() => { load(); }, [load]);
+
+  // WebSocket: auto-refresh on task events
+  useSocket('task:completed', () => load());
+  useSocket('task:scan', () => {}); // future: live scan counter
 
   // Auto-refresh when tasks are in progress
   const pollRef = useRef(null);

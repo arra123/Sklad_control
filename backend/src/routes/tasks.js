@@ -2,6 +2,7 @@ const router = require('express').Router();
 const pool = require('../db/pool');
 const rateLimit = require('express-rate-limit');
 const { requireAuth, requirePermission } = require('../middleware/auth');
+const { emitScanEvent, emitTaskCompleted } = require('../socket');
 
 // Rate limit for scan endpoints — max 10 scans per second per user
 const scanLimiter = rateLimit({
@@ -10,7 +11,8 @@ const scanLimiter = rateLimit({
   message: { error: 'Слишком быстрое сканирование' },
   standardHeaders: false,
   legacyHeaders: false,
-  keyGenerator: (req) => `scan_${req.user?.sub || req.ip}`,
+  keyGenerator: (req) => `scan_${req.user?.sub || 'anon'}`,
+  validate: false,
 });
 
 async function ensureInventoryPalletReady(client, palletId) {
@@ -2973,6 +2975,7 @@ router.post('/:id/log-scan', requireAuth, scanLimiter, async (req, res) => {
       `INSERT INTO inventory_task_scans_s (task_id, product_id, scanned_value, quantity_delta) VALUES ($1, $2, $3, 1)`,
       [req.params.id, prodId, scanned_value]);
     await pool.query('UPDATE inventory_tasks_s SET scans_count = scans_count + 1 WHERE id = $1', [req.params.id]);
+    emitScanEvent(req.params.id, { scanned_value, product_id: prodId });
 
     res.json({ ok: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -3320,6 +3323,7 @@ router.post('/:id/complete', requireAuth, async (req, res) => {
       `SELECT COALESCE(SUM(amount_delta), 0) as gra_earned FROM employee_earnings_s WHERE task_id = $1`, [taskId]);
 
     await client.query('COMMIT');
+    emitTaskCompleted(taskId, { title: t.title, task_type: t.task_type });
     res.json({
       success: true,
       task_completed: true,
