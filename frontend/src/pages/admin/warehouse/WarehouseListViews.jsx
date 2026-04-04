@@ -85,12 +85,12 @@ export function WarehouseListView({ warehouses, selectedId, onSelect, onReload, 
               </span>
               {selectedId === wh.id && (
                 <>
-                  <button onClick={e => { e.stopPropagation(); setEditWh(wh); }} className="ml-1 opacity-70 hover:opacity-100">
+                  <span role="button" onClick={e => { e.stopPropagation(); setEditWh(wh); }} className="ml-1 opacity-70 hover:opacity-100 cursor-pointer">
                     <Pencil size={12} />
-                  </button>
-                  <button onClick={e => { e.stopPropagation(); deleteWh(wh); }} className="opacity-70 hover:opacity-100">
+                  </span>
+                  <span role="button" onClick={e => { e.stopPropagation(); deleteWh(wh); }} className="opacity-70 hover:opacity-100 cursor-pointer">
                     <Trash2 size={12} />
-                  </button>
+                  </span>
                 </>
               )}
             </button>

@@ -170,7 +170,6 @@ export default function EarningsPage() {
   useEffect(() => { if (selectedTaskId) loadTaskDetails(selectedTaskId); }, [selectedTaskId, loadTaskDetails]);
   useEffect(() => {
     if (selectedEmployeeId) loadEmployeeDetails(selectedEmployeeId, period);
-    loadBase(true, period);
   }, [period]);
 
   const selectedEmployee = useMemo(() => {

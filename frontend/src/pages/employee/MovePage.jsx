@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { Check, ArrowLeft, ScanLine, Layers, ArrowRightLeft, Package, Settings2, ChevronDown, RotateCcw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../api/client';
-import { PalletIcon, BoxIcon, ShelfIcon, TransferIcon } from '../../components/ui/WarehouseIcons';
+import { PalletIcon, BoxIcon, ShelfIcon, TransferIcon, ReturnsIcon } from '../../components/ui/WarehouseIcons';
 import Spinner from '../../components/ui/Spinner';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../components/ui/Toast';
@@ -413,14 +413,14 @@ export default function MovePage() {
         <div className="mt-6 pt-5 border-t border-gray-100">
           <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold mb-3">Другое</p>
           <button onClick={() => navigate('/employee/returns')}
-            className="w-full bg-gradient-to-br from-teal-500 to-teal-600 text-white rounded-2xl p-5 text-left shadow-lg shadow-teal-200 hover:shadow-xl hover:scale-[1.02] transition-all active:scale-[0.98]">
+            className="w-full bg-teal-50/80 border border-teal-100 rounded-2xl p-5 text-left hover:shadow-md hover:bg-teal-50 transition-all active:scale-[0.98]">
             <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-xl bg-white/20 flex items-center justify-center">
-                <RotateCcw size={28} />
+              <div className="w-14 h-14 rounded-xl bg-teal-100 border border-teal-200 flex items-center justify-center">
+                <ReturnsIcon size={32} />
               </div>
               <div>
-                <p className="font-bold text-base">Разложить возвраты</p>
-                <p className="text-xs text-teal-100 mt-0.5">Отсканировать и разложить по полкам</p>
+                <p className="font-bold text-base text-gray-900">Разложить возвраты</p>
+                <p className="text-xs text-gray-500 mt-0.5">Отсканировать и разложить по полкам</p>
               </div>
             </div>
           </button>

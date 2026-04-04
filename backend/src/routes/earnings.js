@@ -63,6 +63,7 @@ router.get('/summary', requireAuth, requirePermission('analytics', 'staff.view')
 
   for (let attempt = 1; attempt <= 3; attempt++) {
   try {
+    await pool.query('SET LOCAL statement_timeout = 15000'); // 15s max
     const [rate, overviewResult, leadersResult, recentAdjustmentsResult] = await Promise.all([
       getRewardRate(pool),
       pool.query(`

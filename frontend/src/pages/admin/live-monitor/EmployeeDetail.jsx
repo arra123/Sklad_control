@@ -5,6 +5,8 @@ import Spinner from '../../../components/ui/Spinner';
 import { ArrowLeft, RefreshCw, Zap, TrendingUp, Clock, Package, ScanLine, Award, CheckCircle2, Play, Pause, Timer, ChevronDown } from 'lucide-react';
 import { WorkerAvatar } from '../../../components/ui/WarehouseIcons';
 import { timeAgo, fmtNum, fmtCompact, fmtDuration, fmtTime, taskTypeLabel, taskTypeBg, taskTypeBarColor, statusBadge } from './liveMonitorUtils';
+import ActivityTimeline from './ActivityTimeline';
+import { useToast } from '../../../components/ui/Toast';
 
 function EmployeeDetailView({ employeeId, employees, onBack, thresholds, date, isToday = true }) {
   const navigate = useNavigate();
