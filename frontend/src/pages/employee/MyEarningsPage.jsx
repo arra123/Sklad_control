@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Award, ChevronDown, Clock, Zap, ScanLine, TrendingUp } from 'lucide-react';
+import { ChevronDown, Clock, ScanLine, TrendingUp } from 'lucide-react';
 import api from '../../api/client';
 import Spinner from '../../components/ui/Spinner';
+import { GRACoinIcon } from '../../components/ui/WarehouseIcons';
 
 function fmtNum(n) {
   return Number(n || 0).toLocaleString('ru-RU');
@@ -60,17 +61,24 @@ export default function MyEarningsPage() {
 
   return (
     <div className="p-4 max-w-lg mx-auto">
-      <h1 className="text-lg font-bold text-gray-900 mb-1">Мой заработок</h1>
-      <p className="text-xs text-gray-400 mb-4">GRAcoin за выполненные задачи</p>
+      <div className="flex items-center gap-3 mb-4">
+        <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center">
+          <GRACoinIcon size={24} />
+        </div>
+        <div>
+          <h1 className="text-lg font-bold text-gray-900">Мой заработок</h1>
+          <p className="text-xs text-gray-400">GRAcoin за выполненные задачи</p>
+        </div>
+      </div>
 
       {/* Period tabs */}
-      <div className="flex gap-1 mb-4 bg-gray-100 p-1 rounded-xl">
+      <div className="flex gap-1 mb-4 bg-gray-50 p-1.5 rounded-2xl border border-gray-200">
         {PERIODS.map(p => (
           <button
             key={p.key}
             onClick={() => setPeriod(p.key)}
-            className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-all ${
-              period === p.key ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500'
+            className={`flex-1 py-1.5 rounded-xl text-xs font-medium transition-all border ${
+              period === p.key ? 'bg-white shadow-sm text-gray-900 border-gray-200' : 'text-gray-500 border-transparent'
             }`}
           >
             {p.label}
@@ -84,17 +92,17 @@ export default function MyEarningsPage() {
         <>
           {/* Summary cards */}
           <div className="grid grid-cols-3 gap-2 mb-5">
-            <div className="bg-green-50 rounded-2xl p-3 text-center">
-              <Award size={18} className="mx-auto mb-1 text-green-500 opacity-60" />
+            <div className="bg-green-50 rounded-2xl p-3 text-center border border-green-100">
+              <div className="flex justify-center mb-1"><GRACoinIcon size={18} /></div>
               <p className="text-xl font-black text-green-700">{fmtNum(Math.round(parseFloat(data.summary.total_earned)))}</p>
               <p className="text-[9px] uppercase font-semibold text-green-500 mt-0.5">GRA</p>
             </div>
-            <div className="bg-gray-50 rounded-2xl p-3 text-center">
+            <div className="bg-gray-50 rounded-2xl p-3 text-center border border-gray-100">
               <ScanLine size={18} className="mx-auto mb-1 text-gray-500 opacity-60" />
               <p className="text-xl font-black text-gray-800">{fmtNum(Math.round(parseFloat(data.summary.total_scans)))}</p>
               <p className="text-[9px] uppercase font-semibold text-gray-400 mt-0.5">Пиков</p>
             </div>
-            <div className="bg-purple-50 rounded-2xl p-3 text-center">
+            <div className="bg-purple-50 rounded-2xl p-3 text-center border border-purple-100">
               <TrendingUp size={18} className="mx-auto mb-1 text-purple-500 opacity-60" />
               <p className="text-xl font-black text-purple-700">{data.summary.tasks_count}</p>
               <p className="text-[9px] uppercase font-semibold text-purple-400 mt-0.5">Задач</p>
@@ -104,7 +112,7 @@ export default function MyEarningsPage() {
           {/* Tasks list */}
           {data.tasks.length === 0 ? (
             <div className="text-center py-10 text-gray-300">
-              <Award size={32} className="mx-auto mb-2 opacity-30" />
+              <div className="flex justify-center mb-2 opacity-30"><GRACoinIcon size={32} /></div>
               <p className="text-sm">Нет начислений за этот период</p>
             </div>
           ) : (

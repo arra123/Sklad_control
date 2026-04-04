@@ -123,11 +123,15 @@ export default function TasksPage() {
     return true;
   });
 
+  const hasActiveFilters = searchText || filterEmployee || filterStatus || filterLocation || filterType || filterPeriod !== 'all';
+  const resetFilters = () => { setSearchText(''); setFilterEmployee(''); setFilterStatus(''); setFilterLocation(''); setFilterType(''); setFilterPeriod('all'); };
+
   // Stats
   const statsInProgress = items.filter(t => t.status === 'in_progress').length;
   const statsNew = items.filter(t => t.status === 'new').length;
   const today = new Date().toDateString();
   const statsCompletedToday = items.filter(t => t.status === 'completed' && t.completed_at && new Date(t.completed_at).toDateString() === today).length;
+  const totalScansToday = items.filter(t => t.completed_at && new Date(t.completed_at).toDateString() === today).reduce((s, t) => s + Number(t.scans_count || 0), 0);
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
@@ -154,7 +158,7 @@ export default function TasksPage() {
 
       {/* Stats cards */}
       {!loading && items.length > 0 && (
-        <div className="grid grid-cols-3 gap-3 mb-4">
+        <div className="grid grid-cols-4 gap-3 mb-4">
           <div className="bg-amber-50 border border-amber-100 rounded-2xl px-4 py-3 text-center">
             <p className="text-2xl font-black text-amber-600">{statsInProgress}</p>
             <p className="text-[11px] text-amber-500 font-medium">В работе</p>
@@ -165,7 +169,11 @@ export default function TasksPage() {
           </div>
           <div className="bg-green-50 border border-green-100 rounded-2xl px-4 py-3 text-center">
             <p className="text-2xl font-black text-green-600">{statsCompletedToday}</p>
-            <p className="text-[11px] text-green-500 font-medium">Выполнено сегодня</p>
+            <p className="text-[11px] text-green-500 font-medium">Выполнено</p>
+          </div>
+          <div className="bg-blue-50 border border-blue-100 rounded-2xl px-4 py-3 text-center">
+            <p className="text-2xl font-black text-blue-600">{totalScansToday.toLocaleString('ru-RU')}</p>
+            <p className="text-[11px] text-blue-500 font-medium">Сканов</p>
           </div>
         </div>
       )}
@@ -240,7 +248,10 @@ export default function TasksPage() {
       ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-48 text-gray-400">
           <ClipboardList size={40} className="mb-2 opacity-30" />
-          <p className="text-sm">{items.length === 0 ? 'Нет задач' : 'Ничего не найдено'}</p>
+          <p className="text-sm">{items.length === 0 ? 'Нет задач' : 'Ничего не найдено по фильтрам'}</p>
+          {hasActiveFilters && (
+            <button onClick={resetFilters} className="mt-2 text-sm text-primary-500 hover:text-primary-700 font-medium">Сбросить фильтры</button>
+          )}
         </div>
       ) : (
         <div className="space-y-3">
