@@ -745,14 +745,14 @@ export default function ProductStockPage() {
       {/* Выбор склада */}
       <div className="mb-5">
         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Склад</p>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 bg-gray-50 p-1.5 rounded-2xl border border-gray-200 w-fit">
           <button
             onClick={() => handleSelectWarehouse(null)}
             className={cn(
-              'flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold border transition-all',
+              'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition-all',
               selectedWarehouse === null
-                ? 'bg-primary-600 text-white border-primary-600 shadow-sm'
-                : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
+                ? 'bg-primary-50 text-primary-700 border-primary-200 shadow-sm'
+                : 'text-gray-600 border-transparent hover:text-gray-800'
             )}
           >
             <WarehouseIcon size={18} />
@@ -763,10 +763,10 @@ export default function ProductStockPage() {
               key={w.id}
               onClick={() => handleSelectWarehouse(w.id)}
               className={cn(
-                'flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold border transition-all',
+                'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition-all',
                 selectedWarehouse === w.id
-                  ? 'bg-primary-600 text-white border-primary-600 shadow-sm'
-                  : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
+                  ? 'bg-primary-50 text-primary-700 border-primary-200 shadow-sm'
+                  : 'text-gray-600 border-transparent hover:text-gray-800'
               )}
             >
               <WarehouseIcon size={18} />
@@ -780,13 +780,13 @@ export default function ProductStockPage() {
           {/* Статистика */}
           {stats && (
             <div className="grid grid-cols-2 gap-3 mb-5">
-              <div className="card px-4 py-3">
-                <p className="text-xs text-gray-400 mb-1">Товаров на {selectedWarehouseInfo?.name || 'складе'}</p>
-                <p className="text-2xl font-bold text-gray-900">{total.toLocaleString('ru-RU')}</p>
+              <div className="bg-indigo-50 border border-indigo-100 rounded-2xl px-4 py-3 text-center">
+                <p className="text-2xl font-black text-indigo-600">{total.toLocaleString('ru-RU')}</p>
+                <p className="text-[11px] text-indigo-400 font-medium">Товаров</p>
               </div>
-              <div className="card px-4 py-3">
-                <p className="text-xs text-gray-400 mb-1">Общий остаток</p>
-                <p className="text-2xl font-bold text-primary-700">{Math.round(Number(stats.warehouse_total || 0)).toLocaleString('ru-RU')} шт</p>
+              <div className="bg-green-50 border border-green-100 rounded-2xl px-4 py-3 text-center">
+                <p className="text-2xl font-black text-green-600">{Math.round(Number(stats.warehouse_total || 0)).toLocaleString('ru-RU')}</p>
+                <p className="text-[11px] text-green-400 font-medium">Общий остаток (шт)</p>
               </div>
             </div>
           )}
