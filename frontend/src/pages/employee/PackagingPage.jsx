@@ -821,6 +821,7 @@ export default function PackagingPage() {
   const [transferring, setTransferring] = useState(false);
   // шаг 6: остаток на ФБС
   const [remainder, setRemainder] = useState(false); // 'info' | 'shelf' | false
+  const [elapsed, setElapsed] = useState('');
 
   const fetchData = useCallback(async () => {
     try {
@@ -834,6 +835,22 @@ export default function PackagingPage() {
   }, [taskId]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Elapsed timer
+  useEffect(() => {
+    const startedAt = data?.task?.started_at ? new Date(data.task.started_at).getTime() : null;
+    if (!startedAt) return;
+    const tick = () => {
+      const diff = Math.floor((Date.now() - startedAt) / 1000);
+      const h = Math.floor(diff / 3600);
+      const m = Math.floor((diff % 3600) / 60);
+      const s = diff % 60;
+      setElapsed(`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`);
+    };
+    tick();
+    const iv = setInterval(tick, 1000);
+    return () => clearInterval(iv);
+  }, [data?.task?.started_at]);
 
   const handleOpenBox = async () => {
     await api.post(`/packing/${taskId}/open-box`);
@@ -889,9 +906,12 @@ export default function PackagingPage() {
         <button onClick={fetchData} className="p-2 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all">
           <RefreshCw size={16} />
         </button>
-        {task?.status === 'completed' && <Badge variant="success" dot>Выполнено</Badge>}
-        {task?.status === 'in_progress' && <Badge variant="warning" dot>В работе</Badge>}
-        {task?.status === 'new' && <Badge variant="default" dot>Новая</Badge>}
+        <div className="flex flex-col items-end gap-0.5">
+          {task?.status === 'completed' && <Badge variant="success" dot>Выполнено</Badge>}
+          {task?.status === 'in_progress' && <Badge variant="warning" dot>В работе</Badge>}
+          {task?.status === 'new' && <Badge variant="default" dot>Новая</Badge>}
+          {elapsed && <span className="text-[10px] font-mono text-gray-400">{elapsed}</span>}
+        </div>
       </div>
 
       {/* Контент */}

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Package, ChevronRight, CheckCircle2, ScanLine, Printer, MapPin, ArrowLeft, Box, AlertCircle, X } from 'lucide-react';
+import { Package, ChevronRight, CheckCircle2, ScanLine, Printer, MapPin, ArrowLeft, Box, AlertCircle, X, Clock } from 'lucide-react';
 import api from '../../api/client';
 import Spinner from '../../components/ui/Spinner';
 import Button from '../../components/ui/Button';
@@ -112,6 +112,7 @@ export default function AssemblyPage() {
   const [actionLoading, setActionLoading] = useState(false);
   const [componentStatus, setComponentStatus] = useState([]);
   const [printBarcode, setPrintBarcode] = useState(null);
+  const [elapsed, setElapsed] = useState('');
   // ─── Restore picking state from sessionStorage ───────────────────────────
   const ssKey = `assembly_pick_${id}`;
   const saved = useRef(null);
@@ -177,6 +178,22 @@ export default function AssemblyPage() {
   }, [id]);
 
   useEffect(() => { loadTask(); loadScans(); }, [loadTask, loadScans]);
+
+  // Elapsed timer
+  useEffect(() => {
+    const startedAt = task?.started_at ? new Date(task.started_at).getTime() : null;
+    if (!startedAt) return;
+    const tick = () => {
+      const diff = Math.floor((Date.now() - startedAt) / 1000);
+      const h = Math.floor(diff / 3600);
+      const m = Math.floor((diff % 3600) / 60);
+      const s = diff % 60;
+      setElapsed(`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`);
+    };
+    tick();
+    const iv = setInterval(tick, 1000);
+    return () => clearInterval(iv);
+  }, [task?.started_at]);
   useEffect(() => {
     if (task?.assembly_phase === 'picking' || task?.status === 'new') loadSourceBoxes();
   }, [task?.assembly_phase, task?.status, loadSourceBoxes]);
@@ -459,9 +476,16 @@ export default function AssemblyPage() {
           <h1 className="text-lg font-bold text-gray-900">Сборка комплектов</h1>
           <p className="text-xs text-gray-400">{task.bundle_name} × {task.bundle_qty}</p>
         </div>
-        <Badge variant={phase === 'completed' ? 'success' : 'primary'}>
-          {phase === 'picking' ? 'Забор' : phase === 'assembling' ? 'Сборка' : phase === 'placing' ? 'Размещение' : 'Готово'}
-        </Badge>
+        <div className="flex flex-col items-end gap-1">
+          <Badge variant={phase === 'completed' ? 'success' : 'primary'}>
+            {phase === 'picking' ? 'Забор' : phase === 'assembling' ? 'Сборка' : phase === 'placing' ? 'Размещение' : 'Готово'}
+          </Badge>
+          {elapsed && (
+            <span className="flex items-center gap-1 text-[11px] font-mono text-gray-400">
+              <Clock size={10} />{elapsed}
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Phase indicators */}
