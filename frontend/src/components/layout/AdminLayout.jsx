@@ -111,6 +111,15 @@ function Breadcrumb() {
   if (path.includes('/tasks') && id) {
     extra.push({ label: `Задача #${id}` });
   }
+  // Склады: склад + стеллаж + полка
+  if (path.includes('/warehouse')) {
+    const wh = searchParams.get('wh');
+    const rack = searchParams.get('rack');
+    const shelf = searchParams.get('shelf');
+    if (wh) extra.push({ label: `Склад #${wh}` });
+    if (rack) extra.push({ label: `Стеллаж #${rack}` });
+    if (shelf) extra.push({ label: `Полка #${shelf}` });
+  }
   // Паллетный склад: ряд + паллет
   if (path.includes('/fbo')) {
     if (row) extra.push({ label: `Ряд #${row}` });
