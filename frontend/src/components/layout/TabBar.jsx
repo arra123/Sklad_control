@@ -22,13 +22,11 @@ export default function TabBar() {
   const { tabs, activeId, switchTab, createTab, closeTab, updateActiveUrl } = useTabs();
   const currentPath = location.pathname + location.search;
 
-  // Sync current URL to active tab
+  // Sync current URL to active tab (only when not transitioning to new-tab)
   useEffect(() => {
-    const activeTab = tabs.find(t => t.id === activeId);
-    // Don't overwrite new-tab with the old URL during transition
-    if (activeTab?.path === '/admin/new-tab' && !currentPath.includes('new-tab')) return;
+    if (currentPath.includes('new-tab')) return; // don't sync new-tab page
     updateActiveUrl(currentPath, getTitle(location.pathname));
-  }, [currentPath, location.pathname, updateActiveUrl, activeId, tabs]);
+  }, [currentPath, location.pathname, updateActiveUrl]);
 
   const handleSwitch = (id) => {
     if (id === activeId) return;
@@ -69,7 +67,7 @@ export default function TabBar() {
               ? 'bg-white text-gray-900 shadow-sm border-gray-200'
               : 'text-gray-400 hover:text-gray-600 bg-transparent border-transparent hover:bg-gray-50'
           }`}
-          style={{ width: 120, maxWidth: 120 }}
+          style={{ width: 140, maxWidth: 140 }}
         >
           <span className="truncate flex-1 text-left">{tab.title}</span>
           {tabs.length > 1 && (
