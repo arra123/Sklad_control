@@ -371,6 +371,85 @@ export function ReturnsIcon({ size = 20, className = '', style }) {
   );
 }
 
+// ─── Move Page Icons ─────────────────────────────────────────────────────────
+
+// PieceScanIcon — hand scanner scanning a jar
+export function PieceScanIcon({ size = 32, className = '' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className}>
+      {/* Scanner body */}
+      <rect x="6" y="18" width="14" height="22" rx="3" fill="#3b82f6" stroke="#2563eb" strokeWidth="1.2"/>
+      <rect x="8" y="20" width="10" height="6" rx="1.5" fill="#93c5fd"/>
+      {/* Scanner beam */}
+      <line x1="13" y1="28" x2="13" y2="38" stroke="#60a5fa" strokeWidth="1" strokeDasharray="2 1.5"/>
+      {/* Laser line */}
+      <line x1="20" y1="30" x2="38" y2="30" stroke="#ef4444" strokeWidth="1.5" opacity=".7"/>
+      {/* Jar */}
+      <rect x="28" y="14" width="14" height="24" rx="3.5" fill="#f8f8f6" stroke="#d4d0c8" strokeWidth="1"/>
+      <rect x="30" y="12" width="10" height="4" rx="2" fill="#c9a94e" stroke="#b08d30" strokeWidth=".7"/>
+      <rect x="30" y="35" width="10" height="3" rx="1.5" fill="#c9a94e"/>
+      <rect x="30" y="20" width="10" height="10" rx="1" fill="white" stroke="#e8e0c8" strokeWidth=".5"/>
+      <rect x="30" y="20" width="10" height="2.5" rx=".6" fill="#c9a94e" opacity=".7"/>
+    </svg>
+  );
+}
+
+// PourBoxIcon — box pouring into another box
+export function PourBoxIcon({ size = 32, className = '' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className}>
+      {/* Source box tilted */}
+      <g transform="rotate(-20 16 20)">
+        <path d="M4 18l12-5 12 5v12L16 35 4 30V18z" fill="#a855f7" stroke="#7e22ce" strokeWidth="1" strokeLinejoin="round"/>
+        <path d="M4 18l12 5 12-5" fill="#c084fc" stroke="#7e22ce" strokeWidth=".8"/>
+      </g>
+      {/* Pour arrow */}
+      <path d="M24 22c4 2 6 6 6 10" stroke="#a855f7" strokeWidth="2" strokeLinecap="round" fill="none" strokeDasharray="3 2"/>
+      <path d="M28 30l2 3-4 0" fill="#a855f7"/>
+      {/* Target box */}
+      <path d="M26 34l10-4 10 4v8L36 46 26 42V34z" fill="#d4a76a" stroke="#b8884a" strokeWidth="1" strokeLinejoin="round"/>
+      <path d="M26 34l10 4 10-4" fill="#e8c888" stroke="#b8884a" strokeWidth=".8"/>
+    </svg>
+  );
+}
+
+// MoveBoxIcon — box with directional arrows
+export function MoveBoxIcon({ size = 32, className = '' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className}>
+      {/* Box */}
+      <path d="M10 20l14-6 14 6v14L24 40 10 34V20z" fill="#d4a76a" stroke="#b8884a" strokeWidth="1.2" strokeLinejoin="round"/>
+      <path d="M10 20l14 6 14-6" fill="#e8c888" stroke="#b8884a" strokeWidth=".8"/>
+      <path d="M24 26v14" stroke="#b8884a" strokeWidth=".8"/>
+      {/* Arrow left */}
+      <path d="M6 28H2l3-3M2 28l3 3" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+      {/* Arrow right */}
+      <path d="M42 28h4l-3-3M46 28l-3 3" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+      {/* Pallet lines at bottom */}
+      <rect x="8" y="42" width="32" height="3" rx=".8" fill="#d4b05a" stroke="#a88520" strokeWidth=".6"/>
+    </svg>
+  );
+}
+
+// AdminClipboardIcon — clipboard with checkmark (admin transfer)
+export function AdminClipboardIcon({ size = 32, className = '' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className}>
+      {/* Clipboard */}
+      <rect x="8" y="6" width="32" height="38" rx="3" fill="#fecaca" stroke="#ef4444" strokeWidth="1.2"/>
+      <rect x="16" y="3" width="16" height="7" rx="2" fill="#dc2626" stroke="#b91c1c" strokeWidth=".8"/>
+      <rect x="20" y="4.5" width="8" height="3" rx="1" fill="#fca5a5"/>
+      {/* Lines */}
+      <rect x="14" y="18" width="20" height="2" rx="1" fill="#fca5a5"/>
+      <rect x="14" y="24" width="16" height="2" rx="1" fill="#fca5a5"/>
+      <rect x="14" y="30" width="12" height="2" rx="1" fill="#fca5a5"/>
+      {/* Checkmark circle */}
+      <circle cx="34" cy="36" r="7" fill="#22c55e" stroke="#16a34a" strokeWidth="1"/>
+      <path d="M30.5 36l2.5 2.5 4.5-5" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+}
+
 // ─── Role-based Staff Avatars ────────────────────────────────────────────────
 
 // Admin — person with shield badge

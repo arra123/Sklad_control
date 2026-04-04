@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { Check, ArrowLeft, ScanLine, Layers, ArrowRightLeft, Package, Settings2, ChevronDown, RotateCcw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../api/client';
-import { PalletIcon, BoxIcon, ShelfIcon, TransferIcon, ReturnsIcon } from '../../components/ui/WarehouseIcons';
+import { PalletIcon, BoxIcon, TransferIcon, ReturnsIcon, PieceScanIcon, PourBoxIcon, MoveBoxIcon, AdminClipboardIcon } from '../../components/ui/WarehouseIcons';
 import Spinner from '../../components/ui/Spinner';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../components/ui/Toast';
@@ -358,7 +358,7 @@ export default function MovePage() {
             className="w-full bg-blue-50/80 border border-blue-100 rounded-2xl p-5 text-left hover:shadow-md hover:bg-blue-50 transition-all active:scale-[0.98]">
             <div className="flex items-center gap-4">
               <div className="w-14 h-14 rounded-xl bg-blue-100 border border-blue-200 flex items-center justify-center">
-                <ShelfIcon size={32} />
+                <PieceScanIcon size={36} />
               </div>
               <div>
                 <p className="font-bold text-base text-gray-900">Поштучно</p>
@@ -371,7 +371,7 @@ export default function MovePage() {
             className="w-full bg-purple-50/80 border border-purple-100 rounded-2xl p-5 text-left hover:shadow-md hover:bg-purple-50 transition-all active:scale-[0.98]">
             <div className="flex items-center gap-4">
               <div className="w-14 h-14 rounded-xl bg-purple-100 border border-purple-200 flex items-center justify-center">
-                <BoxIcon size={32} />
+                <PourBoxIcon size={36} />
               </div>
               <div>
                 <p className="font-bold text-base text-gray-900">Весь товар из коробки</p>
@@ -384,7 +384,7 @@ export default function MovePage() {
             className="w-full bg-amber-50/80 border border-amber-100 rounded-2xl p-5 text-left hover:shadow-md hover:bg-amber-50 transition-all active:scale-[0.98]">
             <div className="flex items-center gap-4">
               <div className="w-14 h-14 rounded-xl bg-amber-100 border border-amber-200 flex items-center justify-center">
-                <PalletIcon size={32} />
+                <MoveBoxIcon size={36} />
               </div>
               <div>
                 <p className="font-bold text-base text-gray-900">Переставить коробку</p>
@@ -398,7 +398,7 @@ export default function MovePage() {
               className="w-full bg-red-50/80 border border-red-100 rounded-2xl p-5 text-left hover:shadow-md hover:bg-red-50 transition-all active:scale-[0.98]">
               <div className="flex items-center gap-4">
                 <div className="w-14 h-14 rounded-xl bg-red-100 border border-red-200 flex items-center justify-center">
-                  <Settings2 size={28} className="text-red-600" />
+                  <AdminClipboardIcon size={36} />
                 </div>
                 <div>
                   <p className="font-bold text-base text-gray-900">Админский перенос</p>

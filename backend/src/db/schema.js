@@ -61,6 +61,10 @@ async function createSchema(attempt = 1) {
     // Warehouse sort order
     await client.query(`ALTER TABLE warehouses_s ADD COLUMN IF NOT EXISTS sort_order INTEGER DEFAULT 0`);
 
+    // Earnings performance indexes
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_earnings_employee_created ON employee_earnings_s (employee_id, created_at DESC)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_earnings_created ON employee_earnings_s (created_at DESC)`);
+
     // Multi-shelf support for inventory tasks
     await client.query(`ALTER TABLE inventory_tasks_s ADD COLUMN IF NOT EXISTS shelf_ids JSONB`);
     await client.query(`ALTER TABLE inventory_tasks_s ADD COLUMN IF NOT EXISTS current_shelf_index INTEGER DEFAULT 0`);
