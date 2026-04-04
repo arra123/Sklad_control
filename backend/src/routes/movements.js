@@ -338,15 +338,36 @@ router.get('/employee-inventory/:employeeId', requireAuth, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// GET /api/movements/my-inventory — current employee's inventory
+// GET /api/movements/my-inventory — current employee's inventory with source info
 router.get('/my-inventory', requireAuth, async (req, res) => {
   if (!req.user.employee_id) return res.json([]);
   try {
+    const empId = req.user.employee_id;
     const result = await pool.query(
       `SELECT ei.*, p.name as product_name, p.code as product_code
        FROM employee_inventory_s ei JOIN products_s p ON p.id=ei.product_id
        WHERE ei.employee_id=$1 AND ei.quantity>0 ORDER BY p.name`,
-      [req.user.employee_id]);
+      [empId]);
+
+    // Enrich with last movement source for each product
+    for (const item of result.rows) {
+      const mov = await pool.query(`
+        SELECT m.movement_type, m.created_at, m.notes,
+          fs.code as from_shelf_code, fp.name as from_pallet_name,
+          fb.barcode_value as from_box_barcode,
+          it.title as task_title
+        FROM movements_s m
+        LEFT JOIN shelves_s fs ON fs.id = m.from_shelf_id
+        LEFT JOIN pallets_s fp ON fp.id = m.from_pallet_id
+        LEFT JOIN boxes_s fb ON fb.id = m.from_box_id
+        LEFT JOIN inventory_tasks_s it ON it.id = m.task_id
+        WHERE m.to_employee_id = $1 AND m.product_id = $2
+        ORDER BY m.created_at DESC LIMIT 1
+      `, [empId, item.product_id]);
+      if (mov.rows.length) {
+        item.last_source = mov.rows[0];
+      }
+    }
     res.json(result.rows);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
