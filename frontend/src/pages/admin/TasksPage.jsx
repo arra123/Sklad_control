@@ -289,7 +289,7 @@ export default function TasksPage() {
         <input
           ref={searchRef}
           type="text"
-          placeholder="Поиск ( / )"
+          placeholder="Поиск по названию, сотруднику, полке... ( / )"
           value={searchText}
           onChange={e => setSearchText(e.target.value)}
           className="px-3 py-2 text-sm rounded-xl border border-gray-200 bg-white focus:outline-none focus:border-primary-400 focus:ring-1 focus:ring-primary-200 transition-colors"
