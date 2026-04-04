@@ -317,7 +317,7 @@ export default function AdminLayout({ children }) {
               <LogOut className="w-3.5 h-3.5" />
               Выйти
             </button>
-            <p className="text-[10px] text-gray-300 dark:text-gray-600">v7.5.0</p>
+            <p className="text-[10px] text-gray-300 dark:text-gray-600">v7.6.0</p>
           </div>
         </div>
       </aside>
