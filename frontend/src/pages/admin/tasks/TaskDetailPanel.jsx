@@ -29,6 +29,9 @@ export default function TaskDetailPanel({ task, onClose, onReload }) {
   const [employees, setEmployees] = useState([]);
   const [showAssign, setShowAssign] = useState(false);
   const [assignSearch, setAssignSearch] = useState('');
+  const [editingNotes, setEditingNotes] = useState(false);
+  const [notesText, setNotesText] = useState(task.notes || '');
+  const [graEarned, setGraEarned] = useState(null);
 
   // Reset state when task changes to avoid showing stale data
   useEffect(() => {
@@ -45,6 +48,10 @@ export default function TaskDetailPanel({ task, onClose, onReload }) {
       .then(r => setAnalytics(r.data))
       .catch(console.error)
       .finally(() => setLoading(false));
+    // Load GRA earned
+    api.get(`/tasks/${task.id}`)
+      .then(r => setGraEarned(Number(r.data.gra_earned || 0)))
+      .catch(() => {});
   }, [task.id]);
 
   useEffect(() => {
@@ -87,6 +94,15 @@ export default function TaskDetailPanel({ task, onClose, onReload }) {
       onClose();
       onReload();
     } catch (err) { toast.error(err.response?.data?.error || 'Ошибка'); }
+  };
+
+  const handleSaveNotes = async () => {
+    try {
+      await api.patch(`/tasks/${task.id}`, { notes: notesText });
+      toast.success('Заметки сохранены');
+      setEditingNotes(false);
+      onReload();
+    } catch { toast.error('Ошибка сохранения'); }
   };
 
   const handleDuplicate = async () => {
@@ -196,6 +212,37 @@ export default function TaskDetailPanel({ task, onClose, onReload }) {
             <X size={18} />
           </button>
         </div>
+
+        {/* Notes */}
+        <div className="mx-4 mt-2">
+          {editingNotes ? (
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={notesText}
+                onChange={e => setNotesText(e.target.value)}
+                autoFocus
+                placeholder="Добавить заметку..."
+                className="flex-1 px-3 py-1.5 text-sm rounded-xl border border-primary-200 bg-primary-50 focus:outline-none focus:border-primary-400"
+                onKeyDown={e => { if (e.key === 'Enter') handleSaveNotes(); if (e.key === 'Escape') setEditingNotes(false); }}
+              />
+              <button onClick={handleSaveNotes} className="px-3 py-1.5 rounded-xl bg-primary-600 text-white text-xs font-semibold">OK</button>
+            </div>
+          ) : (
+            <button onClick={() => { setNotesText(task.notes || ''); setEditingNotes(true); }}
+              className="text-xs text-gray-400 hover:text-primary-500 transition-colors">
+              {task.notes ? `📝 ${task.notes}` : '+ Добавить заметку'}
+            </button>
+          )}
+        </div>
+
+        {/* GRA earned badge */}
+        {graEarned > 0 && (
+          <div className="mx-4 mt-2 flex items-center gap-1.5">
+            <GRACoinIcon size={14} />
+            <span className="text-xs font-bold text-amber-600">+{graEarned.toLocaleString('ru-RU')} GRA</span>
+          </div>
+        )}
 
         {/* Assign employee dropdown */}
         {showAssign && (

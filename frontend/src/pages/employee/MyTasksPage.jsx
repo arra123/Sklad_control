@@ -148,7 +148,12 @@ export default function MyTasksPage() {
                     key={task.id}
                     task={task}
                     index={i}
-                    onClick={() => navigate(task.task_type === 'packaging' ? `/employee/packaging/${task.id}` : task.task_type === 'bundle_assembly' ? `/employee/assembly/${task.id}` : `/employee/tasks/${task.id}`)}
+                    onClick={() => navigate(
+                      task.task_type === 'packaging' ? `/employee/packaging/${task.id}` :
+                      task.task_type === 'bundle_assembly' ? `/employee/assembly/${task.id}` :
+                      task.task_type === 'returns' ? `/employee/returns` :
+                      `/employee/tasks/${task.id}`
+                    )}
                   />
                 ))}
               </div>
@@ -170,7 +175,12 @@ export default function MyTasksPage() {
                     key={task.id}
                     task={task}
                     index={activeTasks.length + i}
-                    onClick={() => navigate(task.task_type === 'packaging' ? `/employee/packaging/${task.id}` : task.task_type === 'bundle_assembly' ? `/employee/assembly/${task.id}` : `/employee/tasks/${task.id}`)}
+                    onClick={() => navigate(
+                      task.task_type === 'packaging' ? `/employee/packaging/${task.id}` :
+                      task.task_type === 'bundle_assembly' ? `/employee/assembly/${task.id}` :
+                      task.task_type === 'returns' ? `/employee/returns` :
+                      `/employee/tasks/${task.id}`
+                    )}
                     muted
                   />
                 ))}
