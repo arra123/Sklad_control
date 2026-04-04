@@ -356,7 +356,7 @@ router.post('/:id/scan-pick', requireAuth, async (req, res) => {
       const upd = await client.query(
         'UPDATE box_items_s SET quantity = quantity - 1 WHERE box_id = $1 AND product_id = $2 AND quantity > 0 RETURNING quantity',
         [box_id, product.id]);
-      if (!upd.rows.length) { await client.query('ROLLBACK'); client.release(); return res.status(400).json({ error: 'В коробке нет этого товара' }); }
+      if (!upd.rows.length) { await client.query('ROLLBACK'); client.release(); return res.status(400).json({ error: 'В этой коробке закончился товар. Нажмите «Сменить коробку»', hint: 'source_empty' }); }
       const boxInfo = await client.query('SELECT pallet_id FROM boxes_s WHERE id = $1', [box_id]);
       await client.query(
         `INSERT INTO movements_s (movement_type, product_id, quantity, from_box_id, from_pallet_id, performed_by, source, notes)
@@ -366,7 +366,7 @@ router.post('/:id/scan-pick', requireAuth, async (req, res) => {
       const upd = await client.query(
         'UPDATE shelf_items_s SET quantity = quantity - 1 WHERE shelf_id = $1 AND product_id = $2 AND quantity > 0 RETURNING quantity',
         [shelf_id, product.id]);
-      if (!upd.rows.length) { await client.query('ROLLBACK'); client.release(); return res.status(400).json({ error: 'На полке нет этого товара' }); }
+      if (!upd.rows.length) { await client.query('ROLLBACK'); client.release(); return res.status(400).json({ error: 'На полке закончился товар. Нажмите «Сменить коробку / источник»', hint: 'source_empty' }); }
       await client.query(
         `INSERT INTO movements_s (movement_type, product_id, quantity, from_shelf_id, performed_by, source, notes)
          VALUES ('bundle_pick', $1, 1, $2, $3, 'task', $4)`,
@@ -375,7 +375,7 @@ router.post('/:id/scan-pick', requireAuth, async (req, res) => {
       const upd = await client.query(
         'UPDATE pallet_items_s SET quantity = quantity - 1 WHERE pallet_id = $1 AND product_id = $2 AND quantity > 0 RETURNING quantity',
         [pallet_id, product.id]);
-      if (!upd.rows.length) { await client.query('ROLLBACK'); client.release(); return res.status(400).json({ error: 'На паллете нет этого товара' }); }
+      if (!upd.rows.length) { await client.query('ROLLBACK'); client.release(); return res.status(400).json({ error: 'На паллете закончился товар. Нажмите «Сменить коробку / источник»', hint: 'source_empty' }); }
       await client.query(
         `INSERT INTO movements_s (movement_type, product_id, quantity, from_pallet_id, performed_by, source, notes)
          VALUES ('bundle_pick', $1, 1, $2, $3, 'task', $4)`,

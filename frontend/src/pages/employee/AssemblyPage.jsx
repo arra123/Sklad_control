@@ -304,7 +304,18 @@ export default function AssemblyPage() {
       loadTask(); // background reload (no await)
       loadSourceBoxes();
       loadScans();
-    } catch (err) { playBeep(false); toast.error(err.response?.data?.error || 'Ошибка'); }
+    } catch (err) {
+      playBeep(false);
+      const hint = err.response?.data?.hint;
+      if (hint === 'source_empty') {
+        // Auto-reset source so employee can pick another box/location
+        toast.error(err.response.data.error);
+        setScannedBox(null);
+        setPickStep('location');
+        return;
+      }
+      toast.error(err.response?.data?.error || 'Ошибка');
+    }
   };
 
   const resetPickScan = () => {
@@ -665,7 +676,13 @@ export default function AssemblyPage() {
               )}
 
               {(pickedMap[activeComponent.component_id] || 0) < Number(activeComponent.quantity) * (task?.bundle_qty || 1) && (
-                <button onClick={resetPickScan} className="text-xs text-gray-400 hover:text-gray-600">← Назад к выбору</button>
+                <div className="flex items-center gap-3">
+                  <button onClick={resetPickScan} className="text-xs text-gray-400 hover:text-gray-600">← Назад к выбору</button>
+                  <button onClick={() => { setScannedBox(null); setPickStep(scannedPallet?.type === 'shelf' ? 'location' : 'location'); }}
+                    className="text-xs text-primary-500 hover:text-primary-700 font-semibold ml-auto">
+                    Сменить коробку / источник →
+                  </button>
+                </div>
               )}
             </div>
           )}
