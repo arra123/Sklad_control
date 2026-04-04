@@ -371,6 +371,113 @@ export function ReturnsIcon({ size = 20, className = '', style }) {
   );
 }
 
+// ─── Role-based Staff Avatars ────────────────────────────────────────────────
+
+// Admin — person with shield badge
+export function AdminAvatar({ size = 32, className = '' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className}>
+      <circle cx="24" cy="14" r="8" fill="#e0e7ff" stroke="#6366f1" strokeWidth="1.5"/>
+      <circle cx="24" cy="14" r="4.5" fill="#818cf8"/>
+      <path d="M8 42c0-8.8 7.2-16 16-16s16 7.2 16 16" fill="#6366f1" stroke="#4f46e5" strokeWidth="1.5"/>
+      <path d="M8 42c0-8.8 7.2-16 16-16s16 7.2 16 16" fill="#818cf8"/>
+      <rect x="17" y="30" width="14" height="10" rx="2" fill="#4f46e5"/>
+      {/* Shield */}
+      <path d="M24 32l-4 2v4c0 2 4 3.5 4 3.5s4-1.5 4-3.5v-4l-4-2z" fill="#fbbf24" stroke="#d97706" strokeWidth=".8"/>
+      <path d="M22.5 37l1.5 1.5 3-3" stroke="#d97706" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+}
+
+// Manager — person with tie
+export function ManagerAvatar({ size = 32, className = '' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className}>
+      <circle cx="24" cy="14" r="8" fill="#dbeafe" stroke="#3b82f6" strokeWidth="1.5"/>
+      <circle cx="24" cy="14" r="4.5" fill="#60a5fa"/>
+      <path d="M8 42c0-8.8 7.2-16 16-16s16 7.2 16 16" fill="#3b82f6"/>
+      {/* Shirt collar */}
+      <path d="M18 28l6 4 6-4" fill="#1d4ed8" stroke="#1e40af" strokeWidth=".8"/>
+      {/* Tie */}
+      <path d="M24 32l-2 2 2 6 2-6-2-2z" fill="#ef4444" stroke="#dc2626" strokeWidth=".6"/>
+    </svg>
+  );
+}
+
+// Worker — person with hard hat (каска)
+export function WorkerAvatar({ size = 32, className = '' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className}>
+      <circle cx="24" cy="16" r="7" fill="#fef3c7" stroke="#f59e0b" strokeWidth="1.5"/>
+      <circle cx="24" cy="16" r="4" fill="#fbbf24"/>
+      {/* Hard hat */}
+      <path d="M15 13c0-5 4-8 9-8s9 3 9 8" fill="#f59e0b" stroke="#d97706" strokeWidth="1.2"/>
+      <rect x="14" y="12" width="20" height="3" rx="1" fill="#fbbf24" stroke="#d97706" strokeWidth=".8"/>
+      <path d="M8 42c0-8.8 7.2-16 16-16s16 7.2 16 16" fill="#f59e0b"/>
+      {/* Vest lines */}
+      <path d="M20 28v12M28 28v12" stroke="#d97706" strokeWidth="1" opacity=".4"/>
+      <rect x="18" y="30" width="12" height="3" rx="1" fill="#fbbf24" opacity=".5"/>
+    </svg>
+  );
+}
+
+// Packer — person with apron (фартук)
+export function PackerAvatar({ size = 32, className = '' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className}>
+      <circle cx="24" cy="14" r="8" fill="#d1fae5" stroke="#10b981" strokeWidth="1.5"/>
+      <circle cx="24" cy="14" r="4.5" fill="#34d399"/>
+      <path d="M8 42c0-8.8 7.2-16 16-16s16 7.2 16 16" fill="#10b981"/>
+      {/* Apron */}
+      <path d="M17 30h14v10c0 1-1 2-2 2H19c-1 0-2-1-2-2V30z" fill="#6ee7b7" stroke="#059669" strokeWidth=".8"/>
+      <path d="M20 28v-1.5c0-.5.5-1 1-1h6c.5 0 1 .5 1 1V28" stroke="#059669" strokeWidth=".8"/>
+      <rect x="22" y="32" width="4" height="4" rx=".8" fill="#059669" opacity=".3"/>
+    </svg>
+  );
+}
+
+// Controller/QC — person with magnifier
+export function ControllerAvatar({ size = 32, className = '' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className}>
+      <circle cx="24" cy="14" r="8" fill="#fef9c3" stroke="#eab308" strokeWidth="1.5"/>
+      <circle cx="24" cy="14" r="4.5" fill="#facc15"/>
+      <path d="M8 42c0-8.8 7.2-16 16-16s16 7.2 16 16" fill="#eab308"/>
+      {/* Lab coat */}
+      <rect x="16" y="28" width="16" height="12" rx="2" fill="white" stroke="#d4d4d8" strokeWidth=".8"/>
+      <line x1="24" y1="28" x2="24" y2="40" stroke="#d4d4d8" strokeWidth=".6"/>
+      {/* Magnifier */}
+      <circle cx="34" cy="35" r="4" fill="white" stroke="#eab308" strokeWidth="1.5"/>
+      <line x1="37" y1="38" x2="40" y2="41" stroke="#eab308" strokeWidth="2" strokeLinecap="round"/>
+    </svg>
+  );
+}
+
+// Warehouse worker — person with boxes
+export function WarehouseWorkerAvatar({ size = 32, className = '' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className}>
+      <circle cx="24" cy="14" r="8" fill="#ffedd5" stroke="#f97316" strokeWidth="1.5"/>
+      <circle cx="24" cy="14" r="4.5" fill="#fb923c"/>
+      <path d="M8 42c0-8.8 7.2-16 16-16s16 7.2 16 16" fill="#f97316"/>
+      {/* Vest */}
+      <path d="M18 28l6 3 6-3v12H18V28z" fill="#ea580c" opacity=".4"/>
+      <rect x="20" y="33" width="8" height="5" rx="1" fill="#fdba74" stroke="#ea580c" strokeWidth=".6"/>
+    </svg>
+  );
+}
+
+// Default — generic person
+export function DefaultAvatar({ size = 32, className = '' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className}>
+      <circle cx="24" cy="14" r="8" fill="#f3f4f6" stroke="#9ca3af" strokeWidth="1.5"/>
+      <circle cx="24" cy="14" r="4.5" fill="#d1d5db"/>
+      <path d="M8 42c0-8.8 7.2-16 16-16s16 7.2 16 16" fill="#9ca3af"/>
+    </svg>
+  );
+}
+
 // ─── Raw Materials & Tech Card icons ─────────────────────────────────────────
 
 export function IngredientIcon({ size = 20, className = '', style }) {

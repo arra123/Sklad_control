@@ -745,43 +745,44 @@ function EmployeesTable({ employees, onEdit, onDelete, onDrill }) {
 }
 
 // ─── Position Avatar ─────────────────────────────────────────────────────────
-const POSITION_AVATARS = [
-  { match: /уборщ|клинер/i, emoji: '🧹', bg: 'bg-sky-100' },
-  { match: /упаков|фасов|комплект/i, emoji: '📦', bg: 'bg-amber-100' },
-  { match: /кладовщ|склад/i, emoji: '🏗️', bg: 'bg-orange-100' },
-  { match: /грузч|погруз/i, emoji: '💪', bg: 'bg-red-100' },
-  { match: /оператор|станок|произв/i, emoji: '⚙️', bg: 'bg-gray-200' },
-  { match: /бухгалт|финанс/i, emoji: '📊', bg: 'bg-green-100' },
-  { match: /менедж|руковод|директ|начальн/i, emoji: '👔', bg: 'bg-blue-100' },
-  { match: /дизайн/i, emoji: '🎨', bg: 'bg-purple-100' },
-  { match: /маркет|smm|реклам/i, emoji: '📢', bg: 'bg-pink-100' },
-  { match: /програм|разраб|систем|IT|айти/i, emoji: '💻', bg: 'bg-indigo-100' },
-  { match: /рекрут|hr|кадр/i, emoji: '🤝', bg: 'bg-teal-100' },
-  { match: /водител|логист|доставк/i, emoji: '🚚', bg: 'bg-cyan-100' },
-  { match: /контрол|качеств|ОТК/i, emoji: '🔍', bg: 'bg-yellow-100' },
-  { match: /стажер|практик/i, emoji: '🎓', bg: 'bg-lime-100' },
-  { match: /технолог/i, emoji: '🧪', bg: 'bg-violet-100' },
-  { match: /admin|админ/i, emoji: '🛡️', bg: 'bg-blue-100' },
+// ─── SVG Avatar by position/role ─────────────────────────────────────────────
+import {
+  AdminAvatar, ManagerAvatar, WorkerAvatar, PackerAvatar,
+  ControllerAvatar, WarehouseWorkerAvatar, DefaultAvatar
+} from '../../components/ui/WarehouseIcons';
+
+const POSITION_AVATAR_MAP = [
+  { match: /admin|админ/i, Component: AdminAvatar, bg: 'bg-indigo-50' },
+  { match: /менедж|руковод|директ|начальн/i, Component: ManagerAvatar, bg: 'bg-blue-50' },
+  { match: /контрол|качеств|ОТК/i, Component: ControllerAvatar, bg: 'bg-yellow-50' },
+  { match: /упаков|фасов|комплект/i, Component: PackerAvatar, bg: 'bg-green-50' },
+  { match: /кладовщ|склад/i, Component: WarehouseWorkerAvatar, bg: 'bg-orange-50' },
+  { match: /грузч|погруз/i, Component: WorkerAvatar, bg: 'bg-red-50' },
+  { match: /оператор|станок|произв/i, Component: WorkerAvatar, bg: 'bg-gray-50' },
+  { match: /технолог/i, Component: ControllerAvatar, bg: 'bg-violet-50' },
+  { match: /бухгалт|финанс/i, Component: ManagerAvatar, bg: 'bg-green-50' },
+  { match: /програм|разраб|систем|IT|айти/i, Component: ManagerAvatar, bg: 'bg-indigo-50' },
+  { match: /водител|логист|доставк/i, Component: WorkerAvatar, bg: 'bg-cyan-50' },
+  { match: /стажер|практик/i, Component: PackerAvatar, bg: 'bg-lime-50' },
 ];
 
 function positionAvatar(position, roleName) {
   const text = (position || '') + ' ' + (roleName || '');
-  for (const { match, emoji, bg } of POSITION_AVATARS) {
-    if (match.test(text)) return { emoji, bg };
+  for (const { match, Component, bg } of POSITION_AVATAR_MAP) {
+    if (match.test(text)) return { Component, bg };
   }
-  // Fallback based on position first letter or generic
-  if (position) return { emoji: '🏭', bg: 'bg-gray-100' };
-  return { emoji: '👤', bg: 'bg-gray-100' };
+  if (position) return { Component: WorkerAvatar, bg: 'bg-gray-50' };
+  return { Component: DefaultAvatar, bg: 'bg-gray-50' };
 }
 
 const ROLE_ICONS = {
-  'Администратор': { emoji: '🛡️', color: 'text-blue-500' },
-  'Менеджер': { emoji: '👔', color: 'text-indigo-500' },
-  'Сотрудник': { emoji: '👷', color: 'text-amber-500' },
-  'Старший кладовщик': { emoji: '🏗️', color: 'text-orange-500' },
+  'Администратор': { Component: AdminAvatar, color: 'text-blue-500' },
+  'Менеджер': { Component: ManagerAvatar, color: 'text-indigo-500' },
+  'Сотрудник': { Component: WorkerAvatar, color: 'text-amber-500' },
+  'Старший кладовщик': { Component: WarehouseWorkerAvatar, color: 'text-orange-500' },
 };
 function roleIcon(roleName) {
-  return ROLE_ICONS[roleName] || { emoji: '👥', color: 'text-gray-400' };
+  return ROLE_ICONS[roleName] || { Component: DefaultAvatar, color: 'text-gray-400' };
 }
 
 // ─── Copy Button ─────────────────────────────────────────────────────────────
@@ -862,8 +863,8 @@ function UsersTable({ users, employees, onEdit, onDelete, onDrill }) {
     return (
     <div key={user.id} onClick={() => onDrill?.(user)} className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0 cursor-pointer">
       {/* Avatar */}
-      <div className={`w-8 h-8 rounded-lg ${av.bg} flex items-center justify-center text-base flex-shrink-0`}>
-        {av.emoji}
+      <div className={`w-9 h-9 rounded-xl ${av.bg} flex items-center justify-center flex-shrink-0 border border-gray-100`}>
+        <av.Component size={28} />
       </div>
       {/* Employee name + position */}
       <div className="flex-1 min-w-0">
@@ -897,7 +898,7 @@ function UsersTable({ users, employees, onEdit, onDelete, onDrill }) {
         <div key={roleName} className="card overflow-hidden">
           <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="text-base">{roleIcon(roleName).emoji}</span>
+              {(() => { const ri = roleIcon(roleName); return <ri.Component size={20} />; })()}
               <span className="text-xs font-bold text-gray-700">{roleName}</span>
             </div>
             <span className="text-[10px] text-gray-400 font-medium">{list.length} чел.</span>
@@ -1265,8 +1266,8 @@ export default function StaffPage() {
                 return (
                   <div key={emp.id} onClick={() => setDrillEmployee(emp)}
                     className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0 cursor-pointer">
-                    <div className={`w-8 h-8 rounded-lg ${av.bg} flex items-center justify-center text-base flex-shrink-0`}>
-                      {av.emoji}
+                    <div className={`w-9 h-9 rounded-xl ${av.bg} flex items-center justify-center flex-shrink-0 border border-gray-100`}>
+                      <av.Component size={28} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-900 truncate">{emp.full_name}</p>
