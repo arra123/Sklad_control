@@ -270,40 +270,37 @@ export default function TasksPage() {
         </div>
       )}
 
-      {/* Period + Sort — one row */}
-      <div className="flex flex-wrap gap-2 mb-3">
-        <div className="flex gap-1 bg-gray-50 dark:bg-gray-800 rounded-2xl p-1.5 border border-gray-200 dark:border-gray-700">
-          {[['all', 'Все'], ['today', 'Сегодня'], ['yesterday', 'Вчера']].map(([k, l]) => (
-            <button key={k} onClick={() => setFilterPeriod(k)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all border ${
-                filterPeriod === k ? 'bg-white shadow-sm text-gray-900 border-gray-200' : 'text-gray-500 border-transparent hover:text-gray-700'
-              }`}>{l}</button>
-          ))}
-        </div>
-        <div className="flex gap-1 bg-gray-50 dark:bg-gray-800 rounded-2xl p-1.5 border border-gray-200 dark:border-gray-700">
-          {[['date', 'По дате'], ['status', 'По статусу'], ['scans', 'По сканам']].map(([k, l]) => (
-            <button key={k} onClick={() => setSortBy(k)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all border ${
-                sortBy === k ? 'bg-white shadow-sm text-gray-900 border-gray-200' : 'text-gray-500 border-transparent hover:text-gray-700'
-              }`}>{l}</button>
-          ))}
-        </div>
-      </div>
-
-      {/* Inline filters */}
-      <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mb-4">
+      {/* All filters — single row */}
+      <div className="flex flex-wrap items-center gap-2 mb-3">
+        {/* Period pills */}
+        {[['all', 'Все'], ['today', 'Сегодня'], ['yesterday', 'Вчера']].map(([k, l]) => (
+          <button key={k} onClick={() => setFilterPeriod(k)}
+            className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
+              filterPeriod === k ? 'bg-primary-600 text-white shadow-sm' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+            }`}>{l}</button>
+        ))}
+        <span className="w-px h-5 bg-gray-200" />
+        {/* Sort pills */}
+        {[['date', '↓ Дата'], ['status', '↓ Статус'], ['scans', '↓ Сканы']].map(([k, l]) => (
+          <button key={k} onClick={() => setSortBy(k)}
+            className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
+              sortBy === k ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+            }`}>{l}</button>
+        ))}
+        <span className="w-px h-5 bg-gray-200" />
+        {/* Search */}
         <input
           ref={searchRef}
           type="text"
-          placeholder="Поиск по названию, сотруднику, полке... ( / )"
+          placeholder="Поиск... ( / )"
           value={searchText}
           onChange={e => setSearchText(e.target.value)}
-          className="px-3 py-2 text-sm rounded-xl border border-gray-200 bg-white focus:outline-none focus:border-primary-400 focus:ring-1 focus:ring-primary-200 transition-colors"
+          className="px-3 py-1 text-xs rounded-lg border border-gray-200 bg-white focus:outline-none focus:border-primary-400 w-36 sm:w-48"
         />
         <select
           value={filterEmployee}
           onChange={e => setFilterEmployee(e.target.value)}
-          className="px-3 py-2 text-sm rounded-xl border border-gray-200 bg-white focus:outline-none focus:border-primary-400 focus:ring-1 focus:ring-primary-200 transition-colors text-gray-600"
+          className="px-2 py-1 text-xs rounded-lg border border-gray-200 bg-white focus:outline-none focus:border-primary-400 text-gray-600"
         >
           <option value="">Все сотрудники</option>
           {uniqueEmployees.map(name => (
@@ -313,7 +310,7 @@ export default function TasksPage() {
         <select
           value={filterStatus}
           onChange={e => setFilterStatus(e.target.value)}
-          className="px-3 py-2 text-sm rounded-xl border border-gray-200 bg-white focus:outline-none focus:border-primary-400 focus:ring-1 focus:ring-primary-200 transition-colors text-gray-600"
+          className="px-2 py-1 text-xs rounded-lg border border-gray-200 bg-white focus:outline-none focus:border-primary-400 text-gray-600"
         >
           <option value="">Все статусы</option>
           <option value="new">Новые</option>
@@ -325,7 +322,7 @@ export default function TasksPage() {
         <select
           value={filterLocation}
           onChange={e => setFilterLocation(e.target.value)}
-          className="px-3 py-2 text-sm rounded-xl border border-gray-200 bg-white focus:outline-none focus:border-primary-400 focus:ring-1 focus:ring-primary-200 transition-colors text-gray-600"
+          className="px-2 py-1 text-xs rounded-lg border border-gray-200 bg-white focus:outline-none focus:border-primary-400 text-gray-600"
         >
           <option value="">Все локации</option>
           {uniqueLocations.map(loc => (
@@ -335,7 +332,7 @@ export default function TasksPage() {
         <select
           value={filterType}
           onChange={e => setFilterType(e.target.value)}
-          className="px-3 py-2 text-sm rounded-xl border border-gray-200 bg-white focus:outline-none focus:border-primary-400 focus:ring-1 focus:ring-primary-200 transition-colors text-gray-600"
+          className="px-2 py-1 text-xs rounded-lg border border-gray-200 bg-white focus:outline-none focus:border-primary-400 text-gray-600"
         >
           <option value="">Все типы</option>
           <option value="inventory">Инвентаризация</option>

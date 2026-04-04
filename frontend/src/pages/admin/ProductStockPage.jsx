@@ -741,14 +741,14 @@ export default function ProductStockPage() {
       {/* Выбор склада */}
       <div className="mb-5">
         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Склад</p>
-        <div className="flex flex-wrap gap-2 bg-gray-50 p-1.5 rounded-2xl border border-gray-200 w-fit">
+        <div className="flex flex-wrap gap-2">
           <button
             onClick={() => handleSelectWarehouse(null)}
             className={cn(
-              'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition-all',
+              'flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold border transition-all',
               selectedWarehouse === null
-                ? 'bg-primary-50 text-primary-700 border-primary-200 shadow-sm'
-                : 'text-gray-600 border-transparent hover:text-gray-800'
+                ? 'bg-primary-600 text-white border-primary-600 shadow-md'
+                : 'bg-white text-gray-700 border-gray-200 hover:border-primary-300 hover:shadow-sm'
             )}
           >
             <WarehouseIcon size={18} />
@@ -759,10 +759,10 @@ export default function ProductStockPage() {
               key={w.id}
               onClick={() => handleSelectWarehouse(w.id)}
               className={cn(
-                'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition-all',
+                'flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold border transition-all',
                 selectedWarehouse === w.id
-                  ? 'bg-primary-50 text-primary-700 border-primary-200 shadow-sm'
-                  : 'text-gray-600 border-transparent hover:text-gray-800'
+                  ? 'bg-primary-600 text-white border-primary-600 shadow-md'
+                  : 'bg-white text-gray-700 border-gray-200 hover:border-primary-300 hover:shadow-sm'
               )}
             >
               <WarehouseIcon size={18} />

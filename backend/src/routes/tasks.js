@@ -1640,15 +1640,21 @@ router.put('/errors/:id/resolve', requireAuth, requirePermission('errors', 'task
 
 // GET /api/tasks/analytics/inventory-overview — tree of storage locations with inventory stats
 router.get('/analytics/inventory-overview', requireAuth, requirePermission('analytics', 'warehouse.view'), async (req, res) => {
-  try {
-    const warehouseId = req.query.warehouse_id ? Number(req.query.warehouse_id) : null;
-    const overview = await getInventoryOverviewData(pool, warehouseId);
-    res.json({
-      summary: overview.summary,
-      warehouses: overview.warehouses,
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const warehouseId = req.query.warehouse_id ? Number(req.query.warehouse_id) : null;
+      const overview = await getInventoryOverviewData(pool, warehouseId);
+      return res.json({
+        summary: overview.summary,
+        warehouses: overview.warehouses,
+      });
+    } catch (err) {
+      if (err.message.includes('deadlock') && attempt < 3) {
+        await new Promise(r => setTimeout(r, 500 * attempt));
+        continue;
+      }
+      return res.status(500).json({ error: err.message });
+    }
   }
 });
 
