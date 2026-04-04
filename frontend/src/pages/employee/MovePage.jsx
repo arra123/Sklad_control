@@ -355,54 +355,54 @@ export default function MovePage() {
         </div>
         <div className="space-y-3">
           <button onClick={() => { setMode('piece'); setStep(1); }}
-            className="w-full bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-2xl p-5 text-left shadow-lg shadow-blue-200 hover:shadow-xl hover:scale-[1.02] transition-all active:scale-[0.98]">
+            className="w-full bg-blue-50/80 border border-blue-100 rounded-2xl p-5 text-left hover:shadow-md hover:bg-blue-50 transition-all active:scale-[0.98]">
             <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-xl bg-white/20 flex items-center justify-center">
+              <div className="w-14 h-14 rounded-xl bg-blue-100 border border-blue-200 flex items-center justify-center">
                 <ShelfIcon size={32} />
               </div>
               <div>
-                <p className="font-bold text-base">Поштучно</p>
-                <p className="text-xs text-blue-100 mt-0.5">Сканировать каждую банку отдельно</p>
+                <p className="font-bold text-base text-gray-900">Поштучно</p>
+                <p className="text-xs text-gray-500 mt-0.5">Сканировать каждую банку отдельно</p>
               </div>
             </div>
           </button>
 
           <button onClick={() => { setMode('whole'); setStep(1); }}
-            className="w-full bg-gradient-to-br from-purple-500 to-purple-600 text-white rounded-2xl p-5 text-left shadow-lg shadow-purple-200 hover:shadow-xl hover:scale-[1.02] transition-all active:scale-[0.98]">
+            className="w-full bg-purple-50/80 border border-purple-100 rounded-2xl p-5 text-left hover:shadow-md hover:bg-purple-50 transition-all active:scale-[0.98]">
             <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-xl bg-white/20 flex items-center justify-center">
+              <div className="w-14 h-14 rounded-xl bg-purple-100 border border-purple-200 flex items-center justify-center">
                 <BoxIcon size={32} />
               </div>
               <div>
-                <p className="font-bold text-base">Весь товар из коробки</p>
-                <p className="text-xs text-purple-100 mt-0.5">Пересыпать всё содержимое в другую коробку</p>
+                <p className="font-bold text-base text-gray-900">Весь товар из коробки</p>
+                <p className="text-xs text-gray-500 mt-0.5">Пересыпать всё содержимое в другую коробку</p>
               </div>
             </div>
           </button>
 
           <button onClick={() => { setMode('box_transfer'); setStep(1); }}
-            className="w-full bg-gradient-to-br from-indigo-500 to-indigo-600 text-white rounded-2xl p-5 text-left shadow-lg shadow-indigo-200 hover:shadow-xl hover:scale-[1.02] transition-all active:scale-[0.98]">
+            className="w-full bg-amber-50/80 border border-amber-100 rounded-2xl p-5 text-left hover:shadow-md hover:bg-amber-50 transition-all active:scale-[0.98]">
             <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-xl bg-white/20 flex items-center justify-center">
+              <div className="w-14 h-14 rounded-xl bg-amber-100 border border-amber-200 flex items-center justify-center">
                 <PalletIcon size={32} />
               </div>
               <div>
-                <p className="font-bold text-base">Переставить коробку</p>
-                <p className="text-xs text-indigo-100 mt-0.5">Перенести коробку целиком на другой паллет</p>
+                <p className="font-bold text-base text-gray-900">Переставить коробку</p>
+                <p className="text-xs text-gray-500 mt-0.5">Перенести коробку целиком на другой паллет</p>
               </div>
             </div>
           </button>
 
           {isAdmin && (
             <button onClick={() => { setMode('admin'); }}
-              className="w-full bg-gradient-to-br from-rose-500 to-rose-600 text-white rounded-2xl p-5 text-left shadow-lg shadow-rose-200 hover:shadow-xl hover:scale-[1.02] transition-all active:scale-[0.98]">
+              className="w-full bg-red-50/80 border border-red-100 rounded-2xl p-5 text-left hover:shadow-md hover:bg-red-50 transition-all active:scale-[0.98]">
               <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-xl bg-white/20 flex items-center justify-center">
-                  <Settings2 size={28} />
+                <div className="w-14 h-14 rounded-xl bg-red-100 border border-red-200 flex items-center justify-center">
+                  <Settings2 size={28} className="text-red-600" />
                 </div>
                 <div>
-                  <p className="font-bold text-base">Админский перенос</p>
-                  <p className="text-xs text-rose-100 mt-0.5">Без сканера — выбрать откуда и куда</p>
+                  <p className="font-bold text-base text-gray-900">Админский перенос</p>
+                  <p className="text-xs text-gray-500 mt-0.5">Без сканера — выбрать откуда и куда</p>
                 </div>
               </div>
             </button>

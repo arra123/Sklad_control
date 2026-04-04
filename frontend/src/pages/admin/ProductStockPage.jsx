@@ -739,21 +739,21 @@ export default function ProductStockPage() {
       </div>
 
       {/* Выбор склада */}
-      <div className="mb-5">
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Склад</p>
-        <div className="flex flex-wrap gap-2 bg-gray-50/80 rounded-2xl p-2 border border-gray-100">
+      <div className="mb-4">
+        <div className="flex items-center gap-3 mb-2">
           <button
             onClick={() => handleSelectWarehouse(null)}
             className={cn(
-              'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all',
-              selectedWarehouse === null
-                ? 'bg-white text-primary-700 shadow-sm border border-primary-200'
-                : 'text-gray-600 hover:bg-white/80 border border-transparent'
+              'text-xs font-semibold uppercase tracking-wider transition-all',
+              selectedWarehouse === null ? 'text-primary-600' : 'text-gray-400 hover:text-gray-600'
             )}
           >
-            <WarehouseIcon size={18} />
             Все склады
           </button>
+          {selectedWarehouse && <span className="text-xs text-gray-300">›</span>}
+          {selectedWarehouse && <span className="text-xs font-semibold text-gray-700">{warehouses.find(w => w.id === selectedWarehouse)?.name}</span>}
+        </div>
+        <div className="flex flex-wrap gap-2 bg-gray-50/80 rounded-2xl p-2 border border-gray-100">
           {warehouses.map(w => (
             <button
               key={w.id}
