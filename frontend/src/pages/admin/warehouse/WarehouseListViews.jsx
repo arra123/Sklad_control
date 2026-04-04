@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { printBarcode } from '../../../utils/printBarcode';
 import { qty } from '../../../utils/fmt';
 import { Plus, Pencil, Trash2, ChevronRight, Printer, Box } from 'lucide-react';
@@ -42,10 +42,28 @@ export function WarehouseListView({ warehouses, selectedId, onSelect, onReload, 
   return (
     <>
       <div className="flex items-center gap-2 mb-1">
-        <div className="flex-1 flex gap-2 overflow-x-auto pb-1 bg-gray-50/80 rounded-2xl p-2 border border-gray-100">
+        <div className="flex-1 flex gap-2 overflow-x-auto pb-1 bg-gray-50/80 rounded-2xl p-2 border border-gray-100"
+          onDragOver={e => e.preventDefault()}
+          onDrop={e => {
+            const fromId = Number(e.dataTransfer.getData('wh_id'));
+            const toEl = e.target.closest('[data-whid]');
+            if (!toEl) return;
+            const toId = Number(toEl.dataset.whid);
+            if (fromId === toId) return;
+            const ids = warehouses.map(w => w.id);
+            const fromIdx = ids.indexOf(fromId);
+            const toIdx = ids.indexOf(toId);
+            if (fromIdx < 0 || toIdx < 0) return;
+            ids.splice(fromIdx, 1);
+            ids.splice(toIdx, 0, fromId);
+            api.put('/warehouse/warehouses/reorder', { order: ids }).then(() => onReload()).catch(() => {});
+          }}>
           {warehouses.map(wh => (
             <button
               key={wh.id}
+              data-whid={wh.id}
+              draggable
+              onDragStart={e => e.dataTransfer.setData('wh_id', String(wh.id))}
               onClick={() => onSelect(wh)}
               className={cn(
                 'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all whitespace-nowrap',

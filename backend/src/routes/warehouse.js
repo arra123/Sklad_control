@@ -61,7 +61,7 @@ router.get('/warehouses', requireAuth, async (req, res) => {
         (SELECT COUNT(*) FROM racks_s WHERE warehouse_id = w.id) as racks_count,
         (SELECT COUNT(*) FROM pallet_rows_s WHERE warehouse_id = w.id) as rows_count,
         (SELECT COUNT(*) FROM boxes_s WHERE warehouse_id = w.id) as boxes_count
-       FROM warehouses_s w ORDER BY w.name`
+       FROM warehouses_s w ORDER BY w.sort_order, w.name`
     );
     res.json(result.rows);
   } catch (err) {
@@ -70,6 +70,18 @@ router.get('/warehouses', requireAuth, async (req, res) => {
 });
 
 // GET /api/warehouse/warehouses/:id — full structure
+// PUT /api/warehouse/warehouses/reorder — update warehouse display order
+router.put('/warehouses/reorder', requireAuth, requirePermission('warehouse.edit'), async (req, res) => {
+  const { order } = req.body; // [{id: 1}, {id: 3}, {id: 2}]
+  if (!Array.isArray(order)) return res.status(400).json({ error: 'order array required' });
+  try {
+    for (let i = 0; i < order.length; i++) {
+      await pool.query('UPDATE warehouses_s SET sort_order = $1 WHERE id = $2', [i, order[i].id || order[i]]);
+    }
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 router.get('/warehouses/:id', requireAuth, async (req, res) => {
   try {
     const wh = await pool.query('SELECT * FROM warehouses_s WHERE id = $1', [req.params.id]);

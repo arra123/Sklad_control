@@ -58,6 +58,9 @@ async function createSchema(attempt = 1) {
     // User activity tracking
     await client.query(`ALTER TABLE users_s ADD COLUMN IF NOT EXISTS last_active_at TIMESTAMPTZ`);
 
+    // Warehouse sort order
+    await client.query(`ALTER TABLE warehouses_s ADD COLUMN IF NOT EXISTS sort_order INTEGER DEFAULT 0`);
+
     // Multi-shelf support for inventory tasks
     await client.query(`ALTER TABLE inventory_tasks_s ADD COLUMN IF NOT EXISTS shelf_ids JSONB`);
     await client.query(`ALTER TABLE inventory_tasks_s ADD COLUMN IF NOT EXISTS current_shelf_index INTEGER DEFAULT 0`);
