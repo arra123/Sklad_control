@@ -463,6 +463,7 @@ export default function CreateTaskModal({ open, onClose, onSuccess }) {
           { value: 'inventory', label: '📋 Инвентаризация' },
           { value: 'packaging', label: '📦 Оприходование' },
           { value: 'bundle_assembly', label: '🔧 Сборка комплектов' },
+          { value: 'production_transfer', label: '🚚 Перенос' },
         ].map(({ value, label }) => (
           <button key={value} type="button"
             onClick={() => setTaskType(value)}
@@ -909,6 +910,33 @@ export default function CreateTaskModal({ open, onClose, onSuccess }) {
           {/* 6. Примечание */}
           <Input label="Примечание" placeholder="Инструкции для сотрудника..."
             value={bundleNotes} onChange={e => setBundleNotes(e.target.value)} />
+        </form>
+      ) : taskType === 'production_transfer' ? (
+        <form id="task-form" onSubmit={handleSubmitTransfer} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Товар (необязательно)</label>
+            <Input placeholder="Поиск товара..." value={transferProductSearch} onChange={e => setTransferProductSearch(e.target.value)} />
+            {transferProductResults.length > 0 && (
+              <div className="mt-1 max-h-32 overflow-y-auto border border-gray-100 rounded-xl p-1">
+                {transferProductResults.map(p => (
+                  <button key={p.id} type="button" onClick={() => { setSelectedTransferProduct(p); setTransferProductSearch(''); setTransferProductResults([]); }}
+                    className="w-full text-left px-3 py-1.5 rounded-lg text-sm hover:bg-primary-50 truncate">{p.name}</button>
+                ))}
+              </div>
+            )}
+            {selectedTransferProduct && (
+              <div className="mt-2 flex items-center gap-2 px-3 py-2 bg-primary-50 rounded-xl border border-primary-100">
+                <span className="text-sm font-medium truncate flex-1">{selectedTransferProduct.name}</span>
+                <button type="button" onClick={() => setSelectedTransferProduct(null)} className="text-gray-400 hover:text-red-500"><X size={14} /></button>
+              </div>
+            )}
+          </div>
+          <Select label="Сотрудник" value={transferForm.employee_id} onChange={e => setTransferForm(f => ({ ...f, employee_id: e.target.value }))}>
+            <option value="">Не назначен</option>
+            {employees.map(e => <option key={e.id} value={e.id}>{e.full_name}</option>)}
+          </Select>
+          <Input label="Примечание" placeholder="Что перенести, откуда, куда..."
+            value={transferForm.notes} onChange={e => setTransferForm(f => ({ ...f, notes: e.target.value }))} />
         </form>
       ) : null}
     </Modal>

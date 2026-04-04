@@ -265,24 +265,24 @@ export default function TasksPage() {
         </div>
       )}
 
-      {/* Period quick filter */}
-      <div className="flex gap-1 mb-3 bg-gray-50 dark:bg-gray-800 rounded-2xl p-1.5 w-fit border border-gray-200 dark:border-gray-700">
-        {[['all', 'Все'], ['today', 'Сегодня'], ['yesterday', 'Вчера']].map(([k, l]) => (
-          <button key={k} onClick={() => setFilterPeriod(k)}
-            className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all border ${
-              filterPeriod === k ? 'bg-white shadow-sm text-gray-900 border-gray-200' : 'text-gray-500 border-transparent hover:text-gray-700'
-            }`}>{l}</button>
-        ))}
-      </div>
-
-      {/* Sort */}
-      <div className="flex gap-1 mb-3 bg-gray-50 dark:bg-gray-800 rounded-2xl p-1.5 w-fit border border-gray-200 dark:border-gray-700">
-        {[['date', 'По дате'], ['status', 'По статусу'], ['scans', 'По сканам']].map(([k, l]) => (
-          <button key={k} onClick={() => setSortBy(k)}
-            className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all border ${
-              sortBy === k ? 'bg-white shadow-sm text-gray-900 border-gray-200' : 'text-gray-500 border-transparent hover:text-gray-700'
-            }`}>{l}</button>
-        ))}
+      {/* Period + Sort — one row */}
+      <div className="flex flex-wrap gap-2 mb-3">
+        <div className="flex gap-1 bg-gray-50 dark:bg-gray-800 rounded-2xl p-1.5 border border-gray-200 dark:border-gray-700">
+          {[['all', 'Все'], ['today', 'Сегодня'], ['yesterday', 'Вчера']].map(([k, l]) => (
+            <button key={k} onClick={() => setFilterPeriod(k)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all border ${
+                filterPeriod === k ? 'bg-white shadow-sm text-gray-900 border-gray-200' : 'text-gray-500 border-transparent hover:text-gray-700'
+              }`}>{l}</button>
+          ))}
+        </div>
+        <div className="flex gap-1 bg-gray-50 dark:bg-gray-800 rounded-2xl p-1.5 border border-gray-200 dark:border-gray-700">
+          {[['date', 'По дате'], ['status', 'По статусу'], ['scans', 'По сканам']].map(([k, l]) => (
+            <button key={k} onClick={() => setSortBy(k)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all border ${
+                sortBy === k ? 'bg-white shadow-sm text-gray-900 border-gray-200' : 'text-gray-500 border-transparent hover:text-gray-700'
+              }`}>{l}</button>
+          ))}
+        </div>
       </div>
 
       {/* Inline filters */}
