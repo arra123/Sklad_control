@@ -52,9 +52,6 @@ const errorReportLimiter = rateLimit({
 });
 
 // API routes
-siteRouter.get('/api/health', (_req, res) => {
-  res.json({ ok: true });
-});
 
 siteRouter.use('/api/auth/login', loginLimiter);
 siteRouter.use('/api/errors/system', errorReportLimiter);
