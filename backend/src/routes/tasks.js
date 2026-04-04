@@ -1,6 +1,17 @@
 const router = require('express').Router();
 const pool = require('../db/pool');
+const rateLimit = require('express-rate-limit');
 const { requireAuth, requirePermission } = require('../middleware/auth');
+
+// Rate limit for scan endpoints — max 10 scans per second per user
+const scanLimiter = rateLimit({
+  windowMs: 1000,
+  max: 10,
+  message: { error: 'Слишком быстрое сканирование' },
+  standardHeaders: false,
+  legacyHeaders: false,
+  keyGenerator: (req) => `scan_${req.user?.sub || req.ip}`,
+});
 
 async function ensureInventoryPalletReady(client, palletId) {
   const palletResult = await client.query(
@@ -2941,7 +2952,7 @@ router.post('/:id/start', requireAuth, async (req, res) => {
 });
 
 // POST /api/tasks/:id/log-scan — lightweight scan log for returns (no inventory changes)
-router.post('/:id/log-scan', requireAuth, async (req, res) => {
+router.post('/:id/log-scan', requireAuth, scanLimiter, async (req, res) => {
   const { scanned_value, product_id } = req.body;
   if (!scanned_value) return res.status(400).json({ error: 'scanned_value обязателен' });
   try {
@@ -2967,7 +2978,7 @@ router.post('/:id/log-scan', requireAuth, async (req, res) => {
 });
 
 // POST /api/tasks/:id/scan — scan a product barcode
-router.post('/:id/scan', requireAuth, async (req, res) => {
+router.post('/:id/scan', requireAuth, scanLimiter, async (req, res) => {
   const { scanned_value, quantity_delta = 1 } = req.body;
   if (!scanned_value || typeof scanned_value !== 'string') return res.status(400).json({ error: 'scanned_value обязателен' });
   if (scanned_value.length > 200) return res.status(400).json({ error: 'scanned_value слишком длинный' });

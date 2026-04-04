@@ -7,6 +7,7 @@ import Spinner from '../../components/ui/Spinner';
 import TaskDetailPanel from './tasks/TaskDetailPanel';
 import CreateTaskModal from './tasks/CreateTaskModal';
 import TaskCard from './tasks/TaskCard';
+import { useToast } from '../../components/ui/Toast';
 
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 export default function TasksPage() {
@@ -21,6 +22,8 @@ export default function TasksPage() {
   const [lastUpdate, setLastUpdate] = useState(null);
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [bulkMode, setBulkMode] = useState(false);
+  const [showQuickCreate, setShowQuickCreate] = useState(false);
+  const toast = useToast();
 
   // URL-backed state
   const selectedTaskId = searchParams.get('id');
@@ -176,6 +179,25 @@ export default function TasksPage() {
     URL.revokeObjectURL(url);
   };
 
+  // Recent unique templates for quick create
+  const recentTemplates = useMemo(() => {
+    const seen = new Set();
+    return items
+      .filter(t => t.status === 'completed' && t.shelf_id)
+      .filter(t => { const key = `${t.task_type}_${t.shelf_id || t.target_pallet_id}`; if (seen.has(key)) return false; seen.add(key); return true; })
+      .slice(0, 5)
+      .map(t => ({ title: t.title, task_type: t.task_type, shelf_id: t.shelf_id, target_pallet_id: t.target_pallet_id, location: t.rack_name ? `${t.rack_name} · ${t.shelf_name}` : t.pallet_name ? `${t.pallet_row_name} · ${t.pallet_name}` : '' }));
+  }, [items]);
+
+  const quickCreate = async (tpl) => {
+    try {
+      await api.post('/tasks', { title: tpl.title, task_type: tpl.task_type || 'inventory', shelf_id: tpl.shelf_id, target_pallet_id: tpl.target_pallet_id });
+      toast.success('Задача создана');
+      setShowQuickCreate(false);
+      load();
+    } catch (err) { toast.error(err.response?.data?.error || 'Ошибка создания'); }
+  };
+
   const hasActiveFilters = searchText || filterEmployee || filterStatus || filterLocation || filterType || filterPeriod !== 'all';
 
   // Keyboard shortcut: "/" to focus search
@@ -236,36 +258,59 @@ export default function TasksPage() {
           >
             <Video size={18} />
           </button>
-          <Button icon={<Plus size={15} />} size="sm" onClick={() => setShowCreate(true)}>
-            Создать задачу
-          </Button>
+          <div className="relative">
+            <div className="flex">
+              <Button icon={<Plus size={15} />} size="sm" onClick={() => setShowCreate(true)}>
+                Создать задачу
+              </Button>
+              {recentTemplates.length > 0 && (
+                <button
+                  onClick={() => setShowQuickCreate(!showQuickCreate)}
+                  className="ml-1 px-2 py-1 rounded-xl bg-primary-100 text-primary-600 hover:bg-primary-200 transition-colors text-xs font-bold"
+                  title="Быстрое создание"
+                >▼</button>
+              )}
+            </div>
+            {showQuickCreate && recentTemplates.length > 0 && (
+              <div className="absolute right-0 top-full mt-1 w-72 bg-white rounded-2xl shadow-xl border border-gray-200 z-50 p-2">
+                <p className="text-[10px] text-gray-400 font-semibold uppercase px-2 py-1">Повторить задачу</p>
+                {recentTemplates.map((tpl, i) => (
+                  <button key={i} onClick={() => quickCreate(tpl)}
+                    className="w-full text-left px-3 py-2 rounded-xl text-sm hover:bg-primary-50 transition-colors">
+                    <p className="font-medium text-gray-900 truncate">{tpl.title}</p>
+                    {tpl.location && <p className="text-xs text-gray-400">{tpl.location}</p>}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
       {/* Stats cards */}
       {!loading && items.length > 0 && (
         <div className="grid grid-cols-4 gap-3 mb-4">
-          <button onClick={() => { setFilterStatus('in_progress'); setFilterPeriod('all'); }} className="bg-amber-50 border border-amber-100 rounded-2xl px-4 py-3 text-center hover:shadow-md hover:border-amber-200 transition-all">
-            <p className="text-2xl font-black text-amber-600">{statsInProgress}</p>
+          <button onClick={() => { setFilterStatus('in_progress'); setFilterPeriod('all'); }} className="bg-amber-50 dark:bg-amber-950/30 border border-amber-100 dark:border-amber-800 rounded-2xl px-4 py-3 text-center hover:shadow-md transition-all">
+            <p className="text-2xl font-black text-amber-600 dark:text-amber-400">{statsInProgress}</p>
             <p className="text-[11px] text-amber-500 font-medium">В работе</p>
           </button>
-          <button onClick={() => { setFilterStatus('new'); setFilterPeriod('all'); }} className="bg-gray-50 border border-gray-100 rounded-2xl px-4 py-3 text-center hover:shadow-md hover:border-gray-200 transition-all">
-            <p className="text-2xl font-black text-gray-500">{statsNew}</p>
+          <button onClick={() => { setFilterStatus('new'); setFilterPeriod('all'); }} className="bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl px-4 py-3 text-center hover:shadow-md transition-all">
+            <p className="text-2xl font-black text-gray-500 dark:text-gray-300">{statsNew}</p>
             <p className="text-[11px] text-gray-400 font-medium">Новых</p>
           </button>
-          <button onClick={() => { setFilterStatus('completed'); setFilterPeriod('today'); }} className="bg-green-50 border border-green-100 rounded-2xl px-4 py-3 text-center hover:shadow-md hover:border-green-200 transition-all">
-            <p className="text-2xl font-black text-green-600">{statsCompletedToday}</p>
+          <button onClick={() => { setFilterStatus('completed'); setFilterPeriod('today'); }} className="bg-green-50 dark:bg-green-950/30 border border-green-100 dark:border-green-800 rounded-2xl px-4 py-3 text-center hover:shadow-md transition-all">
+            <p className="text-2xl font-black text-green-600 dark:text-green-400">{statsCompletedToday}</p>
             <p className="text-[11px] text-green-500 font-medium">Выполнено</p>
           </button>
-          <button onClick={() => { setFilterStatus(''); setFilterPeriod('today'); }} className="bg-blue-50 border border-blue-100 rounded-2xl px-4 py-3 text-center hover:shadow-md hover:border-blue-200 transition-all">
-            <p className="text-2xl font-black text-blue-600">{totalScansToday.toLocaleString('ru-RU')}</p>
+          <button onClick={() => { setFilterStatus(''); setFilterPeriod('today'); }} className="bg-blue-50 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-800 rounded-2xl px-4 py-3 text-center hover:shadow-md transition-all">
+            <p className="text-2xl font-black text-blue-600 dark:text-blue-400">{totalScansToday.toLocaleString('ru-RU')}</p>
             <p className="text-[11px] text-blue-500 font-medium">Сканов</p>
           </button>
         </div>
       )}
 
       {/* Period quick filter */}
-      <div className="flex gap-1 mb-3 bg-gray-50 rounded-2xl p-1.5 w-fit border border-gray-200">
+      <div className="flex gap-1 mb-3 bg-gray-50 dark:bg-gray-800 rounded-2xl p-1.5 w-fit border border-gray-200 dark:border-gray-700">
         {[['all', 'Все'], ['today', 'Сегодня'], ['yesterday', 'Вчера']].map(([k, l]) => (
           <button key={k} onClick={() => setFilterPeriod(k)}
             className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all border ${
@@ -275,7 +320,7 @@ export default function TasksPage() {
       </div>
 
       {/* Sort */}
-      <div className="flex gap-1 mb-3 bg-gray-50 rounded-2xl p-1.5 w-fit border border-gray-200">
+      <div className="flex gap-1 mb-3 bg-gray-50 dark:bg-gray-800 rounded-2xl p-1.5 w-fit border border-gray-200 dark:border-gray-700">
         {[['date', 'По дате'], ['status', 'По статусу'], ['scans', 'По сканам']].map(([k, l]) => (
           <button key={k} onClick={() => setSortBy(k)}
             className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all border ${
