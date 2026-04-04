@@ -412,22 +412,25 @@ export default function MovementsPage() {
       </div>
 
       {/* View tabs */}
-      <div className="flex gap-1 mb-4 bg-gray-100 rounded-xl p-1 w-fit">
+      <div className="flex gap-1 mb-4 bg-gray-50 dark:bg-gray-800 rounded-2xl p-1.5 w-fit border border-gray-200 dark:border-gray-700">
         {[
-          { key: 'all', label: 'Все логи', icon: Clock },
-          { key: 'by_employee', label: 'По сотрудникам', icon: Users },
-          { key: 'by_type', label: 'По типу', icon: Filter },
+          { key: 'all', label: 'Все логи', color: '#6366f1', activeClass: 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-300',
+            icon: (c) => <svg width={15} height={15} viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="3" fill={c} opacity=".15" stroke={c} strokeWidth="1.3"/><line x1="3" y1="10" x2="21" y2="10" stroke={c} strokeWidth="1"/><line x1="8" y1="3" x2="8" y2="10" stroke={c} strokeWidth=".8"/><line x1="16" y1="3" x2="16" y2="10" stroke={c} strokeWidth=".8"/><circle cx="8" cy="15" r="1.2" fill={c}/><circle cx="12" cy="15" r="1.2" fill={c}/><circle cx="16" cy="15" r="1.2" fill={c}/><circle cx="8" cy="19" r="1.2" fill={c} opacity=".5"/></svg> },
+          { key: 'by_employee', label: 'По сотрудникам', color: '#14b8a6', activeClass: 'bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-900/30 dark:text-teal-300',
+            icon: (c) => <svg width={15} height={15} viewBox="0 0 24 24" fill="none"><circle cx="9" cy="7" r="3.5" fill={c} opacity=".2" stroke={c} strokeWidth="1.2"/><path d="M2 19c0-3.3 2.7-6 6-6h2c3.3 0 6 2.7 6 6" stroke={c} strokeWidth="1.3" strokeLinecap="round" fill={c} opacity=".1"/><circle cx="17" cy="8" r="2.5" fill={c} opacity=".15" stroke={c} strokeWidth="1"/><path d="M18 13c2.2.5 4 2.5 4 5" stroke={c} strokeWidth="1.2" strokeLinecap="round"/></svg> },
+          { key: 'by_type', label: 'По типу', color: '#f59e0b', activeClass: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300',
+            icon: (c) => <svg width={15} height={15} viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="4" rx="1.5" fill={c} opacity=".25" stroke={c} strokeWidth="1"/><rect x="5" y="10" width="14" height="4" rx="1.5" fill={c} opacity=".2" stroke={c} strokeWidth="1"/><rect x="7" y="16" width="10" height="4" rx="1.5" fill={c} opacity=".15" stroke={c} strokeWidth="1"/></svg> },
         ].map(tab => (
           <button
             key={tab.key}
             onClick={() => setView(tab.key)}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition-all border ${
               view === tab.key
-                ? 'bg-white text-gray-900 dark:text-white shadow-sm'
-                : 'text-gray-500 hover:text-gray-700'
+                ? `${tab.activeClass} shadow-sm`
+                : 'text-gray-500 hover:text-gray-600 border-transparent hover:bg-gray-100 dark:hover:bg-gray-700'
             }`}
           >
-            <tab.icon size={14} />
+            {tab.icon(view === tab.key ? 'currentColor' : '#9ca3af')}
             {tab.label}
           </button>
         ))}

@@ -1,5 +1,5 @@
-import { Clock, Pause, CheckCircle2, XCircle, RotateCcw } from 'lucide-react';
-import { InventoryIcon, PackagingIcon, TransferIcon, BundleIcon } from '../../../components/ui/WarehouseIcons';
+import { Clock, Pause, CheckCircle2, XCircle } from 'lucide-react';
+import { InventoryIcon, PackagingIcon, TransferIcon, BundleIcon, ReturnsIcon } from '../../../components/ui/WarehouseIcons';
 
 export const STATUS_MAP = {
   new: { label: 'Новая', variant: 'default', icon: Clock },
@@ -8,11 +8,6 @@ export const STATUS_MAP = {
   completed: { label: 'Выполнена', variant: 'success', icon: CheckCircle2 },
   cancelled: { label: 'Отменена', variant: 'danger', icon: XCircle },
 };
-
-// Иконка возвратов — обёрнутая lucide RotateCcw в svg-обёртку для единообразия
-function ReturnsIcon({ size = 20 }) {
-  return <RotateCcw size={size} className="text-teal-500" />;
-}
 
 export const TASK_TYPE_ICON = {
   inventory: { Icon: InventoryIcon, bg: 'bg-blue-50', border: 'border-blue-100' },

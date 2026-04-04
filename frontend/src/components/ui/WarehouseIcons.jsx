@@ -356,6 +356,21 @@ export function TransferIcon({ size = 20, className = '', style }) {
   );
 }
 
+export function ReturnsIcon({ size = 20, className = '', style }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className} style={style}>
+      {/* Closed box */}
+      <path d="M6 22l18-8 18 8v16L24 46 6 38V22z" fill="#d4a76a" stroke="#b8884a" strokeWidth="1.3" strokeLinejoin="round"/>
+      <path d="M6 22l18 8 18-8" fill="#e8c888" stroke="#b8884a" strokeWidth="1" strokeLinejoin="round"/>
+      <path d="M24 30l18-8v16L24 46z" fill="#c49558"/>
+      <path d="M24 30v16" stroke="#b8884a" strokeWidth="1"/>
+      {/* Curved return arrow */}
+      <path d="M34 6a12 12 0 01-20 0" stroke="#14b8a6" strokeWidth="2.8" strokeLinecap="round" fill="none"/>
+      <path d="M18 2l-4 4 4 4" stroke="#14b8a6" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+}
+
 // ─── Raw Materials & Tech Card icons ─────────────────────────────────────────
 
 export function IngredientIcon({ size = 20, className = '', style }) {
