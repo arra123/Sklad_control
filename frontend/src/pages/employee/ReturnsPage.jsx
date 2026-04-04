@@ -15,16 +15,20 @@ function ScanInput({ onScan, placeholder, disabled, autoFocus = true }) {
 
   useEffect(() => { if (autoFocus && inputRef.current) inputRef.current.focus(); }, [autoFocus, disabled]);
 
+  const submittingRef = useRef(false);
+
   const submit = () => {
+    if (submittingRef.current) return;
+    clearTimeout(timerRef.current);
     const v = value.trim();
-    if (v) { onScan(v); setValue(''); }
+    if (v) { submittingRef.current = true; onScan(v); setValue(''); setTimeout(() => { submittingRef.current = false; }, 300); }
   };
 
   const handleChange = (e) => {
     const v = e.target.value;
     setValue(v);
     clearTimeout(timerRef.current);
-    if (v.length >= 4) timerRef.current = setTimeout(() => { const s = v.trim(); if (s) { onScan(s); setValue(''); } }, SCAN_AUTO_SUBMIT_MS);
+    if (v.length >= 4) timerRef.current = setTimeout(() => { if (!submittingRef.current) { const s = v.trim(); if (s) { submittingRef.current = true; onScan(s); setValue(''); setTimeout(() => { submittingRef.current = false; }, 300); } } }, SCAN_AUTO_SUBMIT_MS);
   };
 
   return (
