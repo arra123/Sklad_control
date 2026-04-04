@@ -107,6 +107,17 @@ async function syncEmployeesFromOsite() {
 
     // NOTE: Never touch local-only users (no external_employee_id)
 
+    // Hard sync: deactivate ALL user accounts whose employee is inactive
+    const { rowCount: fixedUsers } = await pool.query(`
+      UPDATE users_s u SET active = false
+      FROM employees_s e
+      WHERE u.employee_id = e.id
+        AND e.active = false
+        AND u.active = true
+        AND u.role NOT IN ('admin', 'manager')
+    `);
+    if (fixedUsers > 0) console.log(`[Sync] Fixed ${fixedUsers} stale user accounts`);
+
     console.log(`[Sync] Created ${created}, updated ${updated}, deactivated ${deactivated}`);
   } catch (err) {
     console.error('[Sync] Error:', err.message);
