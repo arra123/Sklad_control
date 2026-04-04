@@ -53,6 +53,9 @@ async function createSchema() {
     await client.query(`CREATE INDEX IF NOT EXISTS idx_tasks_status_deleted ON inventory_tasks_s (status, deleted_at) WHERE deleted_at IS NULL`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_tasks_created_at ON inventory_tasks_s (created_at DESC) WHERE deleted_at IS NULL`);
 
+    // User activity tracking
+    await client.query(`ALTER TABLE users_s ADD COLUMN IF NOT EXISTS last_active_at TIMESTAMPTZ`);
+
     // Multi-shelf support for inventory tasks
     await client.query(`ALTER TABLE inventory_tasks_s ADD COLUMN IF NOT EXISTS shelf_ids JSONB`);
     await client.query(`ALTER TABLE inventory_tasks_s ADD COLUMN IF NOT EXISTS current_shelf_index INTEGER DEFAULT 0`);

@@ -198,8 +198,8 @@ router.delete('/roles/:id', requireAuth, requirePermission('roles.manage'), asyn
 router.get('/users', requireAuth, requirePermission('staff.view', 'staff.edit'), async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT u.id, u.username, u.password_plain, u.role, u.role_id, u.active, u.employee_id, u.created_at,
-              e.full_name as employee_name, r.name as role_name, r.permissions as role_permissions
+      `SELECT u.id, u.username, u.password_plain, u.role, u.role_id, u.active, u.employee_id, u.created_at, u.last_active_at,
+              e.full_name as employee_name, e.position, r.name as role_name, r.permissions as role_permissions
        FROM users_s u
        LEFT JOIN employees_s e ON e.id = u.employee_id
        LEFT JOIN roles_s r ON r.id = u.role_id

@@ -60,6 +60,14 @@ async function requireAuth(req, res, next) {
     }
 
     req.user = { ...user };
+
+    // Update last_active_at (throttled — once per 5 min per user)
+    const lastActiveKey = `la_${payload.sub}`;
+    if (!userCache.has(lastActiveKey) || Date.now() - (userCache.get(lastActiveKey)?.ts || 0) > 300_000) {
+      userCache.set(lastActiveKey, { ts: Date.now() });
+      pool.query('UPDATE users_s SET last_active_at = NOW() WHERE id = $1', [payload.sub]).catch(() => {});
+    }
+
     next();
   } catch (err) {
     return res.status(401).json({ error: 'Недействительный токен' });

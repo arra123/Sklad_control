@@ -862,9 +862,14 @@ function UsersTable({ users, employees, onEdit, onDelete, onDrill }) {
     const av = positionAvatar(user.position, user.role_name);
     return (
     <div key={user.id} onClick={() => onDrill?.(user)} className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0 cursor-pointer">
-      {/* Avatar */}
-      <div className={`w-9 h-9 rounded-xl ${av.bg} flex items-center justify-center flex-shrink-0 border border-gray-100`}>
-        <av.Component size={28} />
+      {/* Avatar + online indicator */}
+      <div className="relative flex-shrink-0">
+        <div className={`w-9 h-9 rounded-xl ${av.bg} flex items-center justify-center border border-gray-100`}>
+          <av.Component size={28} />
+        </div>
+        {user.last_active_at && (Date.now() - new Date(user.last_active_at).getTime()) < 600000 && (
+          <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-white rounded-full" />
+        )}
       </div>
       {/* Employee name + position */}
       <div className="flex-1 min-w-0">
