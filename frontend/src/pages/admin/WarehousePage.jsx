@@ -1,7 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { useTabState } from '../../hooks/useTabState';
-import { useTabs } from '../../context/TabsContext';
 import { qty } from '../../utils/fmt';
 import {
   Plus, Pencil, Trash2, Search,
@@ -369,7 +367,6 @@ function WarehouseContent({ warehouse, initialRackId, initialShelfId, initialRow
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function WarehousePage() {
-  const { activeId } = useTabs();
   const [searchParams, setSearchParams] = useSearchParams();
   const initialRackId = searchParams.get('rack');
   const initialShelfId = searchParams.get('shelf');
@@ -379,15 +376,8 @@ export default function WarehousePage() {
   const initialBoxType = searchParams.get('boxtype');
 
   const [warehouses, setWarehouses] = useState([]);
-  const [tabWhId, setTabWhId] = useTabState('wh_selectedId', null);
-  const [selectedWh, setSelectedWhLocal] = useState(null);
+  const [selectedWh, setSelectedWh] = useState(null);
   const [loading, setLoading] = useState(true);
-
-  // Sync: when tabWhId changes (tab switch), update selectedWh
-  const setSelectedWh = useCallback((wh) => {
-    setSelectedWhLocal(wh);
-    if (wh) setTabWhId(wh.id);
-  }, [setTabWhId]);
 
   const handleSelectWh = useCallback((wh) => {
     setSelectedWh(wh);
@@ -405,9 +395,7 @@ export default function WarehousePage() {
       if (res.data.length > 0) {
         const urlWhId = searchParams.get('wh');
         const fromUrl = urlWhId ? res.data.find(w => w.id === +urlWhId) : null;
-        const fromTab = tabWhId ? res.data.find(w => w.id === tabWhId) : null;
-        const resolved = fromUrl || fromTab || res.data[0];
-        setSelectedWh(resolved);
+        setSelectedWh(prev => fromUrl || (prev ? (res.data.find(w => w.id === prev.id) || res.data[0]) : res.data[0]));
       }
     } finally {
       setLoading(false);
@@ -456,7 +444,7 @@ export default function WarehousePage() {
           </div>
           {selectedWh && (
             <WarehouseContent
-              key={`${activeId}_${selectedWh.id}`}
+              key={selectedWh.id}
               warehouse={selectedWh}
               initialRackId={initialRackId}
               initialShelfId={initialShelfId}

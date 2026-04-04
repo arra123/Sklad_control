@@ -9,7 +9,6 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { cn } from '../../utils/cn';
 import { AdminAvatar, ManagerAvatar, WorkerAvatar } from '../ui/WarehouseIcons';
-import TabBar from './TabBar';
 import api from '../../api/client';
 
 // ─── Конфигурация хлебных крошек ─────────────────────────────────────────────
@@ -129,7 +128,7 @@ function Breadcrumb() {
   ];
 
   return (
-    <div className="flex items-center gap-1.5 px-4 py-2 text-sm min-w-0">
+    <div className="flex items-center gap-1.5 px-6 py-2.5 border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 text-sm">
       {allCrumbs.map((crumb, i) => (
         <span key={i} className="flex items-center gap-1.5">
           {i > 0 && <ChevronRight size={13} className="text-gray-300 flex-shrink-0" />}
@@ -332,10 +331,8 @@ export default function AdminLayout({ children }) {
           </div>
         </header>
 
-        {/* Tabs bar — fixed height, always visible */}
-        <div className="flex items-center h-10 px-2 border-b border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900 flex-shrink-0">
-          <TabBar />
-        </div>
+        {/* Breadcrumb */}
+        <Breadcrumb />
 
         {/* Page content */}
         <main className="flex-1 overflow-y-auto">
