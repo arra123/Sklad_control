@@ -964,12 +964,14 @@ export default function LiveMonitorPage() {
     }).catch(() => {});
   }, []);
 
-  const loadGrid = useCallback(async () => {
+  const loadGrid = useCallback(async (attempt = 1) => {
     try {
       const res = await api.get(`/tasks/analytics/live${!isToday ? `?date=${selectedDate}` : ''}`);
       setEmployees(res.data.employees || []);
       setLastUpdate(new Date());
-    } catch {} finally { setLoading(false); }
+    } catch {
+      if (attempt < 3) { setTimeout(() => loadGrid(attempt + 1), 1000 * attempt); return; }
+    } finally { setLoading(false); }
   }, [selectedDate, isToday]);
 
   useEffect(() => {
