@@ -7,10 +7,16 @@ export default function TaskCard({ task, onClick }) {
   const typeInfo = TASK_TYPE_ICON[task.task_type] || TASK_TYPE_ICON.inventory;
   const TypeIcon = typeInfo.Icon;
 
+  // SLA: task running > 1h = warning, > 2h = danger
+  const isActive = task.status === 'in_progress';
+  const startedMs = task.started_at ? Date.now() - new Date(task.started_at).getTime() : 0;
+  const hoursRunning = startedMs / 3600000;
+  const slaLevel = isActive && hoursRunning > 2 ? 'danger' : isActive && hoursRunning > 1 ? 'warning' : null;
+
   return (
     <button
       onClick={() => onClick(task)}
-      className="w-full text-left card p-4 hover:shadow-md hover:border-primary-200 transition-all group"
+      className={`w-full text-left card p-4 hover:shadow-md transition-all group ${slaLevel === 'danger' ? 'border-red-300 bg-red-50/30 hover:border-red-400' : slaLevel === 'warning' ? 'border-amber-200 bg-amber-50/20 hover:border-amber-300' : 'hover:border-primary-200'}`}
     >
       <div className="flex items-start gap-3">
         <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 border ${typeInfo.bg} ${typeInfo.border}`}>
@@ -52,8 +58,15 @@ export default function TaskCard({ task, onClick }) {
           )}
         </div>
 
-        {task.status === 'in_progress' && (
-          <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse flex-shrink-0 mt-1" />
+        {isActive && (
+          <div className="flex flex-col items-end gap-1 flex-shrink-0 mt-1">
+            <span className={`w-2 h-2 rounded-full animate-pulse ${slaLevel === 'danger' ? 'bg-red-500' : slaLevel === 'warning' ? 'bg-amber-500' : 'bg-amber-400'}`} />
+            {hoursRunning >= 0.5 && (
+              <span className={`text-[10px] font-mono ${slaLevel === 'danger' ? 'text-red-500 font-bold' : slaLevel === 'warning' ? 'text-amber-500' : 'text-gray-400'}`}>
+                {Math.floor(hoursRunning)}ч{Math.floor((hoursRunning % 1) * 60)}м
+              </span>
+            )}
+          </div>
         )}
       </div>
     </button>
