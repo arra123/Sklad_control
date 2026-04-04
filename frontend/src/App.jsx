@@ -30,6 +30,7 @@ const AssemblyPage = lazy(() => import('./pages/employee/AssemblyPage'));
 const MovePage = lazy(() => import('./pages/employee/MovePage'));
 const MyInventoryPage = lazy(() => import('./pages/employee/MyInventoryPage'));
 const MyEarningsPage = lazy(() => import('./pages/employee/MyEarningsPage'));
+const ReturnsPage = lazy(() => import('./pages/employee/ReturnsPage'));
 const FBOPage = lazy(() => import('./pages/admin/FBOPage'));
 // MovementsPage removed — history view no longer in nav
 const MaterialsPage = lazy(() => import('./pages/admin/MaterialsPage'));
@@ -129,6 +130,7 @@ function AppRoutes() {
       <Route path="/employee/move" element={<EmployeeRoute><MovePage /></EmployeeRoute>} />
       <Route path="/employee/earnings" element={<EmployeeRoute><MyEarningsPage /></EmployeeRoute>} />
       <Route path="/employee/inventory" element={<EmployeeRoute><MyInventoryPage /></EmployeeRoute>} />
+      <Route path="/employee/returns" element={<EmployeeRoute><ReturnsPage /></EmployeeRoute>} />
 
       <Route path="*" element={
         <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">

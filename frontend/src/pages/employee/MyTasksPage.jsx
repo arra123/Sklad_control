@@ -24,6 +24,7 @@ const TASK_TYPE_STYLE = {
   packaging: { SvgIcon: PackagingIcon, label: 'Оприходование', bg: 'bg-purple-50', text: 'text-purple-600', border: 'border-purple-200' },
   production_transfer: { SvgIcon: TransferIcon, label: 'Перенос', bg: 'bg-amber-50', text: 'text-amber-600', border: 'border-amber-200' },
   bundle_assembly: { SvgIcon: PackagingIcon, label: 'Сборка комплектов', bg: 'bg-green-50', text: 'text-green-600', border: 'border-green-200' },
+  returns: { SvgIcon: InventoryIcon, label: 'Возвраты', bg: 'bg-teal-50', text: 'text-teal-600', border: 'border-teal-200' },
   default: { SvgIcon: InventoryIcon, label: 'Задача', bg: 'bg-primary-50', text: 'text-primary-600', border: 'border-primary-200' },
 };
 

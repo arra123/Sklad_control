@@ -1030,4 +1030,28 @@ router.get('/visual-fbs/:warehouseId', requireAuth, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// GET /api/warehouse/find-product?product_id=X — find shelf boxes containing this product
+router.get('/find-product', requireAuth, async (req, res) => {
+  const { product_id } = req.query;
+  if (!product_id) return res.status(400).json({ error: 'product_id обязателен' });
+  try {
+    const result = await pool.query(`
+      SELECT sbi.shelf_box_id, sbi.quantity,
+        sb.barcode_value as box_barcode, sb.name as box_name, sb.position as box_position,
+        s.id as shelf_id, s.code as shelf_code, s.name as shelf_name,
+        r.name as rack_name, r.code as rack_code,
+        w.name as warehouse_name, w.id as warehouse_id
+      FROM shelf_box_items_s sbi
+      JOIN shelf_boxes_s sb ON sb.id = sbi.shelf_box_id
+      JOIN shelves_s s ON s.id = sb.shelf_id
+      JOIN racks_s r ON r.id = s.rack_id
+      JOIN warehouses_s w ON w.id = r.warehouse_id
+      WHERE sbi.product_id = $1 AND sbi.quantity > 0
+      ORDER BY sbi.quantity DESC
+      LIMIT 10
+    `, [parseInt(product_id)]);
+    res.json(result.rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 module.exports = router;

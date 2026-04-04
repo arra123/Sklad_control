@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import {
-  ClipboardList, LogOut, BarChart3, ArrowRightLeft, Package,
+  ClipboardList, LogOut, BarChart3, ArrowRightLeft, Package, RotateCcw,
   Sparkles, ChevronRight, UtensilsCrossed, Award, Coffee, Wrench, PauseCircle, X
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -76,6 +76,15 @@ const navItems = [
     activeBg: 'bg-amber-50',
     activeText: 'text-amber-600',
     activeRing: 'ring-amber-200',
+  },
+  {
+    to: '/employee/returns',
+    icon: RotateCcw,
+    label: 'Возвраты',
+    color: 'text-teal-500',
+    activeBg: 'bg-teal-50',
+    activeText: 'text-teal-600',
+    activeRing: 'ring-teal-200',
   },
   {
     to: '/employee/inventory',
