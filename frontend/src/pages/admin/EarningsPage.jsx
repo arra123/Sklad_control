@@ -117,7 +117,7 @@ export default function EarningsPage() {
     if (background) setRefreshing(true); else setLoading(true);
     const params = { period: p || period };
     try {
-      const [summaryRes, employeesRes] = await Promise.all([api.get('/earnings/summary', { params }), api.get('/earnings/employees')]);
+      const [summaryRes, employeesRes] = await Promise.all([api.get('/earnings/summary', { params }), api.get('/earnings/employees', { params })]);
       setSummary(summaryRes.data);
       setEmployees(employeesRes.data || []);
       setSelectedEmployeeId(prev => {
@@ -248,11 +248,11 @@ export default function EarningsPage() {
           <div className="grid grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
             {[
               { Icon: GRACoinIcon, label: 'Сотрудников', value: overview.employees_with_activity || 0, bg: 'bg-purple-50' },
-              { Icon: WalletIcon, label: `Баланс ${unit}`, value: fmt(overview.total_current_balance), color: 'text-green-600', bg: 'bg-green-50' },
+              { Icon: TrendUpIcon, label: period === 'all' ? 'Начислено всего' : `Начислено`, value: `${fmt(overview.total_awarded)} ${unit}`, color: 'text-green-600', bg: 'bg-green-50' },
               { Icon: ScannerIcon, label: 'Сканов', value: fmtGra(overview.rewarded_scans || 0), bg: 'bg-blue-50' },
-              { Icon: TrendUpIcon, label: 'Начислено', value: `${fmt(overview.total_awarded)} ${unit}`, bg: 'bg-emerald-50' },
               { Icon: OrderPickIcon, label: 'Сборки', value: `${fmt(overview.total_sborka_amount)} ${unit}`, hint: `${fmtGra(overview.total_sborka_units || 0)} пиков`, bg: 'bg-pink-50' },
-              { Icon: RateGearIcon, label: 'Ставка', value: `${fmtRate(summary?.settings?.gra_inventory_scan_rate || 0)} ${unit}`, color: 'text-amber-600', bg: 'bg-amber-50' },
+              { Icon: WalletIcon, label: 'Общий баланс', value: fmt(overview.total_current_balance), color: 'text-amber-600', bg: 'bg-amber-50' },
+              { Icon: RateGearIcon, label: 'Ставка', value: `${fmtRate(summary?.settings?.gra_inventory_scan_rate || 0)} ${unit}`, bg: 'bg-gray-50' },
             ].map((s, i) => (
               <div key={i} className="bg-white rounded-xl p-3 border border-gray-100">
                 <div className="flex items-center gap-2 mb-1"><div className={`w-6 h-6 rounded-md ${s.bg} flex items-center justify-center`}><s.Icon size={14} /></div><span className="text-[9px] text-gray-400 uppercase tracking-wider">{s.label}</span></div>
