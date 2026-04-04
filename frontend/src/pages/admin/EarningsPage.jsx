@@ -288,12 +288,7 @@ export default function EarningsPage() {
                         <td className="px-4 py-3 text-center">
                           <span className={`inline-flex w-6 h-6 rounded-full items-center justify-center text-xs font-black ${index === 0 ? 'bg-amber-100 text-amber-700' : index === 1 ? 'bg-gray-200 text-gray-600' : index === 2 ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-500'}`}>{index + 1}</span>
                         </td>
-                        <td className="px-3 py-3 font-semibold text-gray-900">
-                          <span className="flex items-center gap-2">
-                            <WorkerAvatar size={22} />
-                            {item.full_name}
-                          </span>
-                        </td>
+                        <td className="px-3 py-3 font-semibold text-gray-900">{item.full_name}</td>
                         <td className="px-3 py-3 text-right text-gray-600">{fmtGra(item.rewarded_scans || 0)}</td>
                         <td className="px-3 py-3 text-right text-gray-600">{item.rewarded_tasks_count || 0}</td>
                         <td className="px-3 py-3 text-right text-blue-600 font-semibold">{fmt(item.total_awarded)}</td>
@@ -352,7 +347,6 @@ export default function EarningsPage() {
                   <button key={item.employee_id} onClick={() => setSelectedEmployeeId(item.employee_id)}
                     className={`w-full px-4 py-3 text-left transition-colors border-l-[3px] ${Number(selectedEmployeeId) === Number(item.employee_id) ? 'bg-primary-50 border-primary-500' : 'border-transparent hover:bg-gray-50'}`}>
                     <div className="flex items-center gap-2">
-                      <WorkerAvatar size={20} />
                       <p className={`text-sm flex-1 ${Number(selectedEmployeeId) === Number(item.employee_id) ? 'font-bold text-gray-900' : 'font-medium text-gray-700'}`}>{item.full_name}</p>
                       <p className="text-sm font-black text-green-600 flex-shrink-0">{fmt(item.current_balance)}</p>
                     </div>

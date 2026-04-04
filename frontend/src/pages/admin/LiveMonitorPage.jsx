@@ -71,7 +71,8 @@ export default function LiveMonitorPage() {
   // Detail view
   if (selectedEmployee) {
     return <EmployeeDetailView
-      employee={selectedEmployee}
+      employeeId={selectedId}
+      employees={employees}
       date={selectedDate}
       isToday={isToday}
       thresholds={thresholds}

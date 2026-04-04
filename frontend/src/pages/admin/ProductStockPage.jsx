@@ -731,29 +731,23 @@ export default function ProductStockPage() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
-      {/* Шапка */}
-      <div className="flex items-center justify-end gap-4 mb-4">
-        <Button variant="outline" size="sm" icon={<Users size={15} />} onClick={() => setShowEmployeeInventory(true)}>
-          Сотрудники с остатками
-        </Button>
-      </div>
-
-      {/* Выбор склада */}
-      <div className="mb-4">
-        <div className="flex items-center gap-3 mb-2">
-          <button
-            onClick={() => handleSelectWarehouse(null)}
-            className={cn(
-              'text-xs font-semibold uppercase tracking-wider transition-all',
-              selectedWarehouse === null ? 'text-primary-600' : 'text-gray-400 hover:text-gray-600'
-            )}
-          >
+      {/* Склады + кнопка */}
+      <div className="flex items-center gap-3 mb-4">
+        <div className="flex items-center gap-3">
+          <button onClick={() => handleSelectWarehouse(null)}
+            className={cn('text-xs font-semibold uppercase tracking-wider transition-all', selectedWarehouse === null ? 'text-primary-600' : 'text-gray-400 hover:text-gray-600')}>
             Все склады
           </button>
           {selectedWarehouse && <span className="text-xs text-gray-300">›</span>}
           {selectedWarehouse && <span className="text-xs font-semibold text-gray-700">{warehouses.find(w => w.id === selectedWarehouse)?.name}</span>}
         </div>
-        <div className="flex flex-wrap gap-2 bg-gray-50/80 rounded-2xl p-2 border border-gray-100">
+        <div className="flex-1" />
+        <Button variant="outline" size="sm" icon={<Users size={15} />} onClick={() => setShowEmployeeInventory(true)}>
+          С остатками
+        </Button>
+      </div>
+      <div className="mb-4">
+        <div className="flex flex-wrap gap-2 bg-gray-50/80 rounded-2xl p-2 border border-gray-100 w-fit">
           {warehouses.map(w => (
             <button
               key={w.id}
