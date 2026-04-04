@@ -353,9 +353,10 @@ export default function EarningsPage() {
                 {employees.map(item => (
                   <button key={item.employee_id} onClick={() => setSelectedEmployeeId(item.employee_id)}
                     className={`w-full px-4 py-3 text-left transition-colors border-l-[3px] ${Number(selectedEmployeeId) === Number(item.employee_id) ? 'bg-primary-50 border-primary-500' : 'border-transparent hover:bg-gray-50'}`}>
-                    <div className="flex justify-between items-baseline">
-                      <p className={`text-sm ${Number(selectedEmployeeId) === Number(item.employee_id) ? 'font-bold text-gray-900' : 'font-medium text-gray-700'}`}>{item.full_name}</p>
-                      <p className="text-sm font-black text-green-600">{fmt(item.current_balance)}</p>
+                    <div className="flex items-center gap-2">
+                      <WorkerAvatar size={20} />
+                      <p className={`text-sm flex-1 ${Number(selectedEmployeeId) === Number(item.employee_id) ? 'font-bold text-gray-900' : 'font-medium text-gray-700'}`}>{item.full_name}</p>
+                      <p className="text-sm font-black text-green-600 flex-shrink-0">{fmt(item.current_balance)}</p>
                     </div>
                     <p className="text-[10px] text-gray-400 mt-0.5">
                       {fmtGra(item.rewarded_scans || 0)} скан · {item.rewarded_tasks_count || 0} задач
