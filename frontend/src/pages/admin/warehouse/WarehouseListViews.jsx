@@ -234,13 +234,16 @@ export function BoxWarehouseView({ warehouse }) {
   const [products, setProducts] = useState([]);
   const [drillBoxId, setDrillBoxId] = useState(null);
 
-  const loadBoxes = useCallback(async () => {
+  const loadBoxes = useCallback(async (attempt = 1) => {
     if (!warehouse) return;
     setLoading(true);
     try {
       const res = await api.get(`/fbo/box-warehouse/${warehouse.id}/boxes`);
       setBoxes(res.data);
-    } catch { toast.error('Ошибка загрузки коробок'); }
+    } catch (err) {
+      if (attempt < 3) { setTimeout(() => loadBoxes(attempt + 1), 500 * attempt); return; }
+      toast.error('Ошибка загрузки коробок');
+    }
     finally { setLoading(false); }
   }, [warehouse?.id]);
 
