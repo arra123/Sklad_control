@@ -243,6 +243,23 @@ function ScanStep({ task, onComplete }) {
   const [completing, setCompleting] = useState(false);
   const [tab, setTab] = useState('scans');
   const [errorForm, setErrorForm] = useState(null);
+  const [elapsed, setElapsed] = useState('');
+
+  // Elapsed timer since task started
+  useEffect(() => {
+    const startedAt = task.started_at ? new Date(task.started_at).getTime() : null;
+    if (!startedAt) return;
+    const tick = () => {
+      const diff = Math.floor((Date.now() - startedAt) / 1000);
+      const h = Math.floor(diff / 3600);
+      const m = Math.floor((diff % 3600) / 60);
+      const s = diff % 60;
+      setElapsed(`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`);
+    };
+    tick();
+    const iv = setInterval(tick, 1000);
+    return () => clearInterval(iv);
+  }, [task.started_at]);
   const hasTaskBoxQueue = Number(taskState.task_boxes_total || task.task_boxes_total || taskBoxes.length || 0) > 0;
   const completedBoxes = Number(taskState.task_boxes_completed || taskBoxes.filter(box => box.status === 'completed').length || 0);
   const totalBoxes = Number(taskState.task_boxes_total || taskBoxes.length || 0);
@@ -450,17 +467,25 @@ function ScanStep({ task, onComplete }) {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Breadcrumb path */}
-      {locationParts.length > 1 && (
-        <div className="mx-4 mt-3 flex items-center gap-1 text-xs text-gray-400 overflow-x-auto">
-          {locationParts.map((part, i) => (
-            <span key={i} className="flex items-center gap-1 whitespace-nowrap">
-              {i > 0 && <span className="text-gray-300">→</span>}
-              <span className={i === locationParts.length - 1 ? 'text-primary-600 font-semibold' : ''}>{part}</span>
-            </span>
-          ))}
-        </div>
-      )}
+      {/* Breadcrumb path + timer */}
+      <div className="mx-4 mt-3 flex items-center justify-between gap-2">
+        {locationParts.length > 1 && (
+          <div className="flex items-center gap-1 text-xs text-gray-400 overflow-x-auto min-w-0">
+            {locationParts.map((part, i) => (
+              <span key={i} className="flex items-center gap-1 whitespace-nowrap">
+                {i > 0 && <span className="text-gray-300">→</span>}
+                <span className={i === locationParts.length - 1 ? 'text-primary-600 font-semibold' : ''}>{part}</span>
+              </span>
+            ))}
+          </div>
+        )}
+        {elapsed && (
+          <span className="flex items-center gap-1 text-xs font-mono text-gray-400 flex-shrink-0 bg-gray-50 px-2 py-1 rounded-lg">
+            <Clock size={11} />
+            {elapsed}
+          </span>
+        )}
+      </div>
 
       {/* Верхняя полоса */}
       <div className="mx-4 mt-2 px-4 py-3 bg-gradient-to-r from-primary-50 to-white rounded-2xl border border-primary-100 flex items-center gap-3">

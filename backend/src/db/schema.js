@@ -857,6 +857,24 @@ async function createSchema() {
       console.log('[DB] Test GRACoin data cleared');
     }
 
+    // ─── Additional performance indexes ──────────────────────────────
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_movements_to_emp_product ON movements_s(to_employee_id, product_id, created_at DESC)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_earnings_emp_created ON employee_earnings_s(employee_id, created_at DESC)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_inv_tasks_employee_created ON inventory_tasks_s(employee_id, created_at DESC)`);
+
+    // ─── FK constraint for shelf_movements_s.task_id (safe — first clean orphans) ──
+    try {
+      await client.query(`DELETE FROM shelf_movements_s WHERE task_id IS NOT NULL AND task_id NOT IN (SELECT id FROM inventory_tasks_s)`);
+      await client.query(`
+        DO $$ BEGIN
+          IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_shelf_movements_task') THEN
+            ALTER TABLE shelf_movements_s ADD CONSTRAINT fk_shelf_movements_task
+              FOREIGN KEY (task_id) REFERENCES inventory_tasks_s(id) ON DELETE SET NULL;
+          END IF;
+        END $$
+      `);
+    } catch (e) { console.log('[DB] FK shelf_movements_s.task_id skip:', e.message); }
+
     // ─── Employee Breaks (lunch etc.) ────────────────────────────────
     await client.query(`
       CREATE TABLE IF NOT EXISTS employee_breaks_s (

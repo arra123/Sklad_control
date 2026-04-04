@@ -394,6 +394,17 @@ function ActivityTimeline({ buckets, tasks, breaks = [], thresholds }) {
             </span>
           ))}
         </div>
+
+        {/* Color legend */}
+        <div className="flex flex-wrap gap-x-3 gap-y-1 mt-3 pt-2 border-t border-gray-100">
+          <span className="flex items-center gap-1 text-[10px] text-gray-400"><span className="w-3 h-3 rounded-sm bg-green-400" />Работа</span>
+          <span className="flex items-center gap-1 text-[10px] text-gray-400"><span className="w-3 h-3 rounded-sm bg-gray-200" />Простой</span>
+          <span className="flex items-center gap-1 text-[10px] text-gray-400"><span className="w-3 h-3 rounded-sm bg-pink-300" />Обед</span>
+          <span className="flex items-center gap-1 text-[10px] text-gray-400"><span className="w-3 h-3 rounded-sm bg-blue-300" />Отдых</span>
+          <span className="flex items-center gap-1 text-[10px] text-gray-400"><span className="w-3 h-3 rounded-sm bg-amber-300" />Тех. пауза</span>
+          <span className="flex items-center gap-1 text-[10px] text-gray-400"><span className="w-3 h-3 rounded-sm bg-red-200" />Пауза задачи</span>
+          <span className="flex items-center gap-1 text-[10px] text-gray-400"><span className="w-1 h-3 rounded-sm bg-red-500" />Сейчас</span>
+        </div>
       </div>
 
       {/* Task spans — lane layout to avoid overlaps */}

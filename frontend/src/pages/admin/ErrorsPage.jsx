@@ -465,10 +465,61 @@ export default function ErrorsPage() {
           <div className="space-y-4">
             {unresolved.length > 0 && (
               <div>
-                <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2 px-1">Требуют внимания ({unresolved.length})</h2>
+                <div className="flex items-center justify-between mb-2 px-1">
+                  <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Требуют внимания ({unresolved.length})</h2>
+                  {unresolved.length > 1 && (
+                    <Button variant="outline" size="sm" icon={<CheckCheck size={14} />}
+                      onClick={async () => {
+                        if (!confirm(`Отметить все ${unresolved.length} ошибок как исправленные?`)) return;
+                        try {
+                          await Promise.all(unresolved.map(e => api.put(`/tasks/errors/${e.id}/resolve`)));
+                          toast.success(`${unresolved.length} ошибок исправлено`);
+                          loadScan();
+                        } catch { toast.error('Ошибка'); }
+                      }}>
+                      Исправить все
+                    </Button>
+                  )}
+                </div>
                 <div className="card overflow-hidden">
                   <div className="divide-y divide-gray-50">
-                    {unresolved.map(err => <ScanErrorRow key={err.id} err={err} onClick={() => setSelectedScan(err)} />)}
+                    {(() => {
+                      // Group by scanned_value
+                      const groups = new Map();
+                      unresolved.forEach(err => {
+                        const key = err.scanned_value || '—';
+                        if (!groups.has(key)) groups.set(key, []);
+                        groups.get(key).push(err);
+                      });
+                      const result = [];
+                      for (const [val, errs] of groups) {
+                        if (errs.length > 1) {
+                          result.push(
+                            <div key={`group-${val}`} className="px-5 py-3.5 hover:bg-red-50/30 transition-colors">
+                              <div className="flex items-center gap-3">
+                                <div className="w-9 h-9 rounded-xl bg-red-50 flex items-center justify-center flex-shrink-0">
+                                  <AlertTriangle size={16} className="text-red-500" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 mb-0.5">
+                                    <p className="text-sm font-mono font-semibold text-red-700">{val}</p>
+                                    <span className="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full font-bold">×{errs.length}</span>
+                                  </div>
+                                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-gray-400">
+                                    {[...new Set(errs.map(e => e.employee_name).filter(Boolean))].map(n => <span key={n}>{n}</span>)}
+                                    <span>{fmtDate(errs[0].created_at)}</span>
+                                  </div>
+                                </div>
+                                <button onClick={() => setSelectedScan(errs[0])} className="text-gray-300 hover:text-gray-500"><ChevronRight size={14} /></button>
+                              </div>
+                            </div>
+                          );
+                        } else {
+                          result.push(<ScanErrorRow key={errs[0].id} err={errs[0]} onClick={() => setSelectedScan(errs[0])} />);
+                        }
+                      }
+                      return result;
+                    })()}
                   </div>
                 </div>
               </div>
