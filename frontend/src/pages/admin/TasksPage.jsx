@@ -183,19 +183,17 @@ export default function TasksPage() {
   const recentTemplates = useMemo(() => {
     const seen = new Set();
     return items
-      .filter(t => t.status === 'completed' && t.shelf_id)
-      .filter(t => { const key = `${t.task_type}_${t.shelf_id || t.target_pallet_id}`; if (seen.has(key)) return false; seen.add(key); return true; })
-      .slice(0, 5)
-      .map(t => ({ title: t.title, task_type: t.task_type, shelf_id: t.shelf_id, target_pallet_id: t.target_pallet_id, location: t.rack_name ? `${t.rack_name} · ${t.shelf_name}` : t.pallet_name ? `${t.pallet_row_name} · ${t.pallet_name}` : '' }));
+      .filter(t => t.status === 'completed' && t.task_type !== 'returns')
+      .filter(t => { const key = `${t.task_type}_${t.title}`; if (seen.has(key)) return false; seen.add(key); return true; })
+      .slice(0, 6)
+      .map(t => ({ title: t.title, task_type: t.task_type, location: t.rack_name ? `${t.rack_name} · ${t.shelf_name}` : t.pallet_name ? `${t.pallet_row_name} · ${t.pallet_name}` : '', employee_name: t.employee_name }));
   }, [items]);
 
   const quickCreate = async (tpl) => {
-    try {
-      await api.post('/tasks', { title: tpl.title, task_type: tpl.task_type || 'inventory', shelf_id: tpl.shelf_id, target_pallet_id: tpl.target_pallet_id });
-      toast.success('Задача создана');
-      setShowQuickCreate(false);
-      load();
-    } catch (err) { toast.error(err.response?.data?.error || 'Ошибка создания'); }
+    setShowQuickCreate(false);
+    // Open create modal pre-filled — for now just show toast with template info
+    toast.success(`Шаблон: ${tpl.title}`);
+    setShowCreate(true);
   };
 
   const hasActiveFilters = searchText || filterEmployee || filterStatus || filterLocation || filterType || filterPeriod !== 'all';
