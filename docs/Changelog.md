@@ -1,6 +1,15 @@
 # Changelog
 
-## v2.89.0 (текущая)
+## v2.92.0 (текущая)
+- Рефакторинг: WarehousePage.jsx (4283 строк) разделён на 9 модулей в `warehouse/`
+  - warehouseUtils.jsx — утилиты, константы, компоненты истории
+  - WarehouseModals.jsx — все модальные окна
+  - BoxDetailView.jsx, ShelfDetailView.jsx, RackDetailView.jsx — детальные виды
+  - PalletDetailView.jsx, RowDetailView.jsx — FBO детальные виды
+  - VisualView.jsx — 3D визуализация стеллажей
+  - WarehouseListViews.jsx — списки и карточки складов
+
+## v2.89.0
 - Страница «Возвраты» — сканируй баночку, система находит ячейку (коробку на полке)
 - Режим переноса коробок между паллетами на странице перемещений
 - Админский режим «Переместить» с переименованными кнопками
