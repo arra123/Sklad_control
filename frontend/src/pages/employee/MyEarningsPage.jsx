@@ -26,6 +26,7 @@ function taskTypeLabel(type) {
   if (type === 'bundle_assembly') return 'Сборка';
   if (type === 'packaging') return 'Оприход.';
   if (type === 'production_transfer') return 'Перенос';
+  if (type === 'returns') return 'Возвраты';
   return 'Инвент.';
 }
 
@@ -33,6 +34,7 @@ function taskTypeBg(type) {
   if (type === 'bundle_assembly') return 'bg-purple-100 text-purple-700';
   if (type === 'packaging') return 'bg-amber-100 text-amber-700';
   if (type === 'production_transfer') return 'bg-sky-100 text-sky-700';
+  if (type === 'returns') return 'bg-teal-100 text-teal-700';
   return 'bg-indigo-100 text-indigo-700';
 }
 

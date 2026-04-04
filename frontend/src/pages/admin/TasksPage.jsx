@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { Plus, ClipboardList, Video } from 'lucide-react';
+import { Plus, ClipboardList, Video, RefreshCw } from 'lucide-react';
 import api from '../../api/client';
 import Button from '../../components/ui/Button';
 import Spinner from '../../components/ui/Spinner';
@@ -17,6 +17,7 @@ export default function TasksPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [totalCount, setTotalCount] = useState(0);
   const [pageSize] = useState(50);
+  const [refreshing, setRefreshing] = useState(false);
 
   // URL-backed state
   const selectedTaskId = searchParams.get('id');
@@ -144,6 +145,13 @@ export default function TasksPage() {
         </div>
         <div className="flex items-center gap-2">
           <button
+            onClick={() => { setRefreshing(true); load().finally(() => setTimeout(() => setRefreshing(false), 500)); }}
+            title="Обновить"
+            className="p-2 rounded-xl text-gray-400 hover:text-primary-600 hover:bg-primary-50 transition-colors"
+          >
+            <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />
+          </button>
+          <button
             onClick={() => navigate('/admin/live-monitor')}
             title="Live-мониторинг"
             className="p-2 rounded-xl text-gray-400 hover:text-primary-600 hover:bg-primary-50 transition-colors"
@@ -159,22 +167,22 @@ export default function TasksPage() {
       {/* Stats cards */}
       {!loading && items.length > 0 && (
         <div className="grid grid-cols-4 gap-3 mb-4">
-          <div className="bg-amber-50 border border-amber-100 rounded-2xl px-4 py-3 text-center">
+          <button onClick={() => { setFilterStatus('in_progress'); setFilterPeriod('all'); }} className="bg-amber-50 border border-amber-100 rounded-2xl px-4 py-3 text-center hover:shadow-md hover:border-amber-200 transition-all">
             <p className="text-2xl font-black text-amber-600">{statsInProgress}</p>
             <p className="text-[11px] text-amber-500 font-medium">В работе</p>
-          </div>
-          <div className="bg-gray-50 border border-gray-100 rounded-2xl px-4 py-3 text-center">
+          </button>
+          <button onClick={() => { setFilterStatus('new'); setFilterPeriod('all'); }} className="bg-gray-50 border border-gray-100 rounded-2xl px-4 py-3 text-center hover:shadow-md hover:border-gray-200 transition-all">
             <p className="text-2xl font-black text-gray-500">{statsNew}</p>
             <p className="text-[11px] text-gray-400 font-medium">Новых</p>
-          </div>
-          <div className="bg-green-50 border border-green-100 rounded-2xl px-4 py-3 text-center">
+          </button>
+          <button onClick={() => { setFilterStatus('completed'); setFilterPeriod('today'); }} className="bg-green-50 border border-green-100 rounded-2xl px-4 py-3 text-center hover:shadow-md hover:border-green-200 transition-all">
             <p className="text-2xl font-black text-green-600">{statsCompletedToday}</p>
             <p className="text-[11px] text-green-500 font-medium">Выполнено</p>
-          </div>
-          <div className="bg-blue-50 border border-blue-100 rounded-2xl px-4 py-3 text-center">
+          </button>
+          <button onClick={() => { setFilterStatus(''); setFilterPeriod('today'); }} className="bg-blue-50 border border-blue-100 rounded-2xl px-4 py-3 text-center hover:shadow-md hover:border-blue-200 transition-all">
             <p className="text-2xl font-black text-blue-600">{totalScansToday.toLocaleString('ru-RU')}</p>
             <p className="text-[11px] text-blue-500 font-medium">Сканов</p>
-          </div>
+          </button>
         </div>
       )}
 
