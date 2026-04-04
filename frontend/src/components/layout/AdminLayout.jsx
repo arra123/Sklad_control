@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import FeedbackButton from '../ui/FeedbackButton';
 import { NavLink, useNavigate, useLocation, useSearchParams, Link } from 'react-router-dom';
 import {
@@ -167,17 +167,6 @@ export default function AdminLayout({ children }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [activeTaskCount, setActiveTaskCount] = useState(0);
-
-  // Load active task count for sidebar badge
-  const loadTaskCount = useCallback(() => {
-    if (user?.role === 'admin' || (user?.permissions || []).includes('tasks.view')) {
-      api.get('/tasks', { params: { limit: 1, status: 'in_progress' } })
-        .then(r => setActiveTaskCount(Number(r.data.total || 0)))
-        .catch(() => {});
-    }
-  }, [user]);
-  useEffect(() => { loadTaskCount(); const iv = setInterval(loadTaskCount, 60000); return () => clearInterval(iv); }, [loadTaskCount]);
   const [productsOpen, setProductsOpen] = useState(location.pathname.startsWith('/admin/products'));
   const userPerms = user?.permissions || [];
   const navItems = ALL_NAV.filter(item => user?.role === 'admin' || userPerms.includes(item.perm));
@@ -277,9 +266,6 @@ export default function AdminLayout({ children }) {
             >
               <Icon className="w-4.5 h-4.5 flex-shrink-0" size={18} />
               <span className="flex-1">{label}</span>
-              {to === '/admin/tasks' && activeTaskCount > 0 && (
-                <span className="bg-amber-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">{activeTaskCount}</span>
-              )}
             </NavLink>
           ))}
         </nav>
