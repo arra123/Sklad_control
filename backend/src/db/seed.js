@@ -32,9 +32,28 @@ async function seedDefaultSettings() {
   console.log('[Seed] Default settings initialized');
 }
 
+async function seedMissingEmployees() {
+  const employees = [
+    { full_name: 'Степанова Дарья Игоревна' },
+  ];
+  for (const emp of employees) {
+    const existing = await pool.query('SELECT id FROM employees_s WHERE full_name = $1', [emp.full_name]);
+    if (existing.rows.length > 0) {
+      console.log(`[Seed] Employee already exists: ${emp.full_name}`);
+      continue;
+    }
+    await pool.query(
+      'INSERT INTO employees_s (full_name) VALUES ($1)',
+      [emp.full_name]
+    );
+    console.log(`[Seed] Employee created: ${emp.full_name}`);
+  }
+}
+
 async function runSeed() {
   await seedAdmin();
   await seedDefaultSettings();
+  await seedMissingEmployees();
 }
 
 module.exports = { runSeed };
