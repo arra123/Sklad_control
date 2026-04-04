@@ -57,21 +57,27 @@ export default function TasksPage() {
   const [filterLocation, setFilterLocation] = useState('');
   const [filterType, setFilterType] = useState('');
 
-  const load = useCallback(async (append = false) => {
-    if (!append) setLoading(true);
+  const loadRef = useRef(0);
+  const load = useCallback(async () => {
+    setLoading(true);
     try {
-      const offset = append ? items.length : 0;
-      const res = await api.get('/tasks', { params: { limit: pageSize, page: Math.floor(offset / pageSize) + 1 } });
-      if (append) {
-        setItems(prev => [...prev, ...res.data.items]);
-      } else {
-        setItems(res.data.items);
-      }
+      const res = await api.get('/tasks', { params: { limit: pageSize } });
+      setItems(res.data.items);
       setTotalCount(Number(res.data.total || res.data.items.length));
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  }, [pageSize]);
+
+  const loadMore = useCallback(async () => {
+    const page = Math.floor(items.length / pageSize) + 1;
+    try {
+      const res = await api.get('/tasks', { params: { limit: pageSize, page } });
+      setItems(prev => [...prev, ...res.data.items]);
+    } catch (err) {
+      console.error(err);
     }
   }, [items.length, pageSize]);
 
@@ -221,7 +227,7 @@ export default function TasksPage() {
           ))}
           {items.length < totalCount && (
             <button
-              onClick={() => load(true)}
+              onClick={loadMore}
               className="w-full py-3 rounded-2xl border-2 border-dashed border-gray-200 text-gray-500 text-sm font-medium hover:bg-gray-50 hover:border-gray-300 transition-all mt-2"
             >
               Загрузить ещё ({items.length} из {totalCount})
