@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Check, ArrowLeft, RotateCcw, MapPin, Package, ScanLine, Trash2 } from 'lucide-react';
 import api from '../../api/client';
-import { BoxIcon } from '../../components/ui/WarehouseIcons';
+import { BoxIcon, ReturnsIcon } from '../../components/ui/WarehouseIcons';
 import Spinner from '../../components/ui/Spinner';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../components/ui/Toast';
@@ -235,7 +235,7 @@ export default function ReturnsPage() {
 
         <div className="bg-teal-50 rounded-2xl p-6 mb-5 text-center">
           <div className="w-20 h-20 rounded-2xl bg-teal-100 text-teal-600 ring-4 ring-teal-200 flex items-center justify-center mx-auto mb-4">
-            <RotateCcw size={36} />
+            <ReturnsIcon size={48} />
           </div>
           <h2 className="text-lg font-bold text-gray-900 mb-2">Как это работает</h2>
           <div className="text-left space-y-2 text-sm text-gray-600">
