@@ -104,15 +104,15 @@ export default function TabBar() {
   };
 
   return (
-    <div className="flex items-center gap-0.5 px-2 py-1 bg-gray-100 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 overflow-x-auto">
+    <div className="flex items-center gap-0.5 px-1 overflow-x-auto flex-1 min-w-0">
       {tabs.map((tab, idx) => (
         <button
           key={idx}
           onClick={() => switchTab(idx)}
-          className={`flex items-center gap-1.5 px-3 py-1 rounded-t-lg text-xs font-medium transition-all max-w-[160px] min-w-[80px] group ${
+          className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all max-w-[140px] min-w-[60px] group border ${
             tab.active
-              ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-white shadow-sm border-t-2 border-primary-500'
-              : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50 dark:hover:bg-gray-700'
+              ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm border-gray-200 dark:border-gray-600'
+              : 'text-gray-400 hover:text-gray-600 bg-gray-50 dark:bg-gray-800 border-transparent hover:border-gray-200'
           }`}
         >
           <span className="truncate flex-1">{tab.title}</span>
