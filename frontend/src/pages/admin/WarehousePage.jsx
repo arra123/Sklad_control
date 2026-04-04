@@ -486,6 +486,7 @@ function AddProductToShelfModal({ open, onClose, shelfId, onSuccess }) {
 }
 
 // ─── Movement History helper ────────────────────────────────────────────────────
+import { getTypeMeta, fmtSource as fmtMovSource } from '../../utils/movementTypes';
 const OP_LABELS = {
   // shelf_movements_s operation types
   inventory:              { label: 'Инвентаризация',       color: 'text-blue-600',    bg: 'bg-blue-50',    icon: '📋' },
@@ -531,7 +532,11 @@ const OP_LABELS = {
   write_off:              { label: 'Списание',             color: 'text-red-600',     bg: 'bg-red-50',     icon: '🗑️' },
 };
 
-function opMeta(type) { return OP_LABELS[type] || { label: type?.replace(/_/g, ' ') || '?', color: 'text-gray-600', bg: 'bg-gray-100', icon: '📋' }; }
+function opMeta(type) {
+  if (OP_LABELS[type]) return OP_LABELS[type];
+  const meta = getTypeMeta(type);
+  return { label: meta.label, color: meta.cls.split(' ')[1] || 'text-gray-600', bg: meta.cls.split(' ')[0] || 'bg-gray-100', icon: '📋' };
+}
 
 function normalizeMovement(r) {
   if (r._normalized) return r;

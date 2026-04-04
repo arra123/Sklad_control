@@ -8,76 +8,18 @@ import Select from '../../components/ui/Select';
 
 const DASH = '—';
 
-// ─── Movement types → Russian labels + colors ────────────────────────────────
-const TYPE_META = {
-  shelf_to_shelf:           { label: 'Полка \u2192 Полка',           cls: 'bg-blue-100 text-blue-700' },
-  shelf_to_pallet:          { label: 'Полка \u2192 Паллет',          cls: 'bg-purple-100 text-purple-700' },
-  pallet_to_shelf:          { label: 'Паллет \u2192 Полка',          cls: 'bg-green-100 text-green-700' },
-  pallet_to_pallet:         { label: 'Паллет \u2192 Паллет',         cls: 'bg-indigo-100 text-indigo-700' },
-  shelf_to_employee:        { label: 'Полка \u2192 Сотрудник',       cls: 'bg-orange-100 text-orange-700' },
-  employee_to_shelf:        { label: 'Сотрудник \u2192 Полка',       cls: 'bg-teal-100 text-teal-700' },
-  employee_to_pallet:       { label: 'Сотрудник \u2192 Паллет',      cls: 'bg-cyan-100 text-cyan-700' },
-  pallet_to_employee:       { label: 'Паллет \u2192 Сотрудник',      cls: 'bg-amber-100 text-amber-700' },
-  external_to_shelf:        { label: 'Приход на полку',              cls: 'bg-emerald-100 text-emerald-700' },
-  external_to_pallet:       { label: 'Приход на паллет',             cls: 'bg-emerald-100 text-emerald-700' },
-  external_to_employee:     { label: 'Выдача сотруднику',            cls: 'bg-amber-100 text-amber-700' },
-  edit_add_to_shelf:        { label: 'Добавление на полку',          cls: 'bg-sky-100 text-sky-700' },
-  edit_remove_from_shelf:   { label: 'Списание с полки',             cls: 'bg-red-100 text-red-700' },
-  edit_add_to_pallet:       { label: 'Добавление на паллет',         cls: 'bg-indigo-100 text-indigo-700' },
-  edit_remove_from_pallet:  { label: 'Списание с паллета',           cls: 'bg-rose-100 text-rose-700' },
-  pallet_correction_in:     { label: 'Коррекция паллета +',          cls: 'bg-lime-100 text-lime-700' },
-  pallet_correction_out:    { label: 'Коррекция паллета \u2212',     cls: 'bg-rose-100 text-rose-700' },
-  employee_correction_in:   { label: 'Добавление сотруднику',        cls: 'bg-sky-100 text-sky-700' },
-  employee_correction_out:  { label: 'Корректировка сотрудника −',    cls: 'bg-red-100 text-red-700' },
-  employee_write_off:       { label: 'Списание у сотрудника',        cls: 'bg-red-100 text-red-700' },
-  employee_writeoff:        { label: 'Списание (writeoff)',           cls: 'bg-red-100 text-red-700' },
-  box_to_shelf:             { label: 'Коробка \u2192 Полка',         cls: 'bg-teal-100 text-teal-700' },
-  box_to_pallet:            { label: 'Коробка \u2192 Паллет',        cls: 'bg-violet-100 text-violet-700' },
-  shelf_to_box:             { label: 'Полка \u2192 Коробка',         cls: 'bg-fuchsia-100 text-fuchsia-700' },
-  pallet_to_box:            { label: 'Паллет \u2192 Коробка',        cls: 'bg-fuchsia-100 text-fuchsia-700' },
-  box_to_employee:          { label: 'Коробка \u2192 Сотрудник',     cls: 'bg-orange-100 text-orange-700' },
-  employee_to_box:          { label: 'Сотрудник \u2192 Коробка',     cls: 'bg-cyan-100 text-cyan-700' },
-  write_off:                { label: 'Списание',                     cls: 'bg-red-100 text-red-700' },
-  manual_correction:        { label: 'Ручная коррекция',             cls: 'bg-amber-100 text-amber-700' },
-};
+import { TYPE_META, getTypeMeta, translateType, fmtSource } from '../../utils/movementTypes';
 const ALL_TYPES = Object.keys(TYPE_META);
 
-// Fallback: translate English type to Russian
-const WORD_MAP = {
-  shelf: 'Полка', pallet: 'Паллет', employee: 'Сотрудник', box: 'Коробка',
-  external: 'Внешний', edit: 'Ред.', add: 'Добавл.', remove: 'Списание',
-  correction: 'Коррекция', write: 'Списание', off: '', to: '\u2192', from: 'из',
-  in: '+', out: '\u2212', manual: 'Ручн.', transfer: 'Перенос', production: 'Производство',
-  writeoff: 'Списание', stock: 'Склад',
-};
-
-function translateType(t) {
-  return t.split('_').map(w => WORD_MAP[w] || w).filter(Boolean).join(' ');
-}
-
 function typeBadge(t) {
-  const m = TYPE_META[t];
-  if (m) return <span className={`text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap ${m.cls}`}>{m.label}</span>;
-  return <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 whitespace-nowrap">{translateType(t)}</span>;
+  const m = getTypeMeta(t);
+  return <span className={`text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap ${m.cls}`}>{m.label}</span>;
 }
 
 function fmtQty(v) {
   const n = parseFloat(v);
   if (isNaN(n)) return v;
   return n % 1 === 0 ? String(Math.round(n)) : n.toFixed(1);
-}
-
-function fmtSource(m, dir) {
-  const code = m[`${dir}_shelf_code`] || m[`${dir}_shelf_name`];
-  const pal  = m[`${dir}_pallet_name`];
-  const emp  = m[`${dir}_employee_name`];
-  if (code) return `Полка ${code}`;
-  if (pal)  return `Паллет ${pal}`;
-  if (emp)  return emp;
-  // Fallback: for corrections, show performer
-  if (dir === 'from' && m.movement_type?.includes('correction') && m.performer_name) return m.performer_name;
-  if (dir === 'to' && m.movement_type?.includes('correction') && m.performer_name) return m.performer_name;
-  return null;
 }
 
 function fmtTime(iso) {

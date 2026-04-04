@@ -426,8 +426,6 @@ export default function MovePage() {
           )}
         </div>
 
-        </div>
-
         {/* Возвраты — визуально отделён */}
         <div className="mt-6 pt-5 border-t border-gray-100">
           <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold mb-3">Другое</p>

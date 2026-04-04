@@ -3,7 +3,8 @@ import { useSearchParams } from 'react-router-dom';
 import { Plus, Users, UserCog, Pencil, Trash2, Eye, EyeOff, Package, ChevronDown, ChevronRight, Search, Copy, Check, X, Shield } from 'lucide-react';
 import api from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
-import { qty } from '../../utils/fmt';
+import { qty, fmtDate } from '../../utils/fmt';
+import { getTypeMeta, fmtSource as movFmtSource } from '../../utils/movementTypes';
 import Button from '../../components/ui/Button';
 import Modal from '../../components/ui/Modal';
 import Input from '../../components/ui/Input';
@@ -613,26 +614,31 @@ function EmployeeDetailView({ employee, onBack }) {
               <p className="text-sm text-gray-300 text-center py-4">Нет перемещений</p>
             ) : (
               <div className="card overflow-hidden divide-y divide-gray-50">
-                {history.map(m => (
-                  <div key={m.id} className="flex items-center gap-3 px-4 py-3">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-800 truncate">{m.product_name || '—'}</p>
-                      <div className="flex items-center gap-1 mt-0.5 text-xs text-gray-400 flex-wrap">
-                        {m.from_shelf_code && <span>{m.from_shelf_code}</span>}
-                        {m.from_pallet_name && <span>{m.from_pallet_name}</span>}
-                        {m.from_employee_name && <span>{m.from_employee_name}</span>}
-                        <span className="text-gray-300">→</span>
-                        {m.to_shelf_code && <span>{m.to_shelf_code}</span>}
-                        {m.to_pallet_name && <span>{m.to_pallet_name}</span>}
-                        {m.to_employee_name && <span>{m.to_employee_name}</span>}
+                {history.map(m => {
+                  const meta = getTypeMeta(m.movement_type);
+                  const from = movFmtSource(m, 'from');
+                  const to = movFmtSource(m, 'to');
+                  return (
+                    <div key={m.id} className="flex items-start gap-3 px-4 py-3">
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0 mt-0.5 whitespace-nowrap ${meta.cls}`}>
+                        {meta.label}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-800 truncate">{m.product_name || m.notes || '—'}</p>
+                        <div className="flex items-center gap-1 mt-0.5 text-[10px] text-gray-400 flex-wrap">
+                          {from && <span className="text-red-400">{from}</span>}
+                          {(from || to) && <span className="text-gray-300">→</span>}
+                          {to && <span className="text-green-600">{to}</span>}
+                        </div>
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <p className="text-sm font-bold text-primary-600">{qty(m.quantity)} шт.</p>
+                        <p className="text-[10px] text-gray-400">{fmtDate(m.created_at)}</p>
+                        {m.performer_name && <p className="text-[10px] text-gray-300">{m.performer_name.split(' ')[0]}</p>}
                       </div>
                     </div>
-                    <div className="text-right flex-shrink-0">
-                      <p className="text-sm font-bold text-primary-600">{qty(m.quantity)} шт.</p>
-                      <p className="text-xs text-gray-400">{fmtDate(m.created_at)}</p>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
