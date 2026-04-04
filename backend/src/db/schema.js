@@ -47,6 +47,9 @@ async function createSchema() {
     await client.query(`ALTER TABLE inventory_tasks_s ADD COLUMN IF NOT EXISTS paused_by INTEGER REFERENCES users_s(id) ON DELETE SET NULL`);
     await client.query(`ALTER TABLE inventory_tasks_s ADD COLUMN IF NOT EXISTS pause_log JSONB DEFAULT '[]'`);
 
+    // Soft delete for tasks
+    await client.query(`ALTER TABLE inventory_tasks_s ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ`);
+
     // Multi-shelf support for inventory tasks
     await client.query(`ALTER TABLE inventory_tasks_s ADD COLUMN IF NOT EXISTS shelf_ids JSONB`);
     await client.query(`ALTER TABLE inventory_tasks_s ADD COLUMN IF NOT EXISTS current_shelf_index INTEGER DEFAULT 0`);

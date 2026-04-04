@@ -1278,7 +1278,7 @@ router.get('/', requireAuth, async (req, res) => {
   try {
     const { status, employee_id, page = 1, limit = 50 } = req.query;
     const offset = (parseInt(page) - 1) * parseInt(limit);
-    const conditions = [];
+    const conditions = ['t.deleted_at IS NULL'];
     const params = [];
 
     const userPerms = req.user.permissions || [];
@@ -1685,27 +1685,27 @@ router.get('/busy-targets', requireAuth, requirePermission('tasks.view', 'tasks.
       pool.query(
         `SELECT t.shelf_id as id, t.id as task_id, t.title, t.status
          FROM inventory_tasks_s t
-         WHERE t.shelf_id IS NOT NULL AND t.status = ANY($1)`,
+         WHERE t.shelf_id IS NOT NULL AND t.status = ANY($1) AND t.deleted_at IS NULL`,
         [activeStatuses]
       ),
       pool.query(
         `SELECT t.target_pallet_id as id, t.id as task_id, t.title, t.status
          FROM inventory_tasks_s t
-         WHERE t.target_pallet_id IS NOT NULL AND t.status = ANY($1)`,
+         WHERE t.target_pallet_id IS NOT NULL AND t.status = ANY($1) AND t.deleted_at IS NULL`,
         [activeStatuses]
       ),
       pool.query(
         `SELECT itb.box_id as id, t.id as task_id, t.title, t.status
          FROM inventory_task_boxes_s itb
          JOIN inventory_tasks_s t ON t.id = itb.task_id
-         WHERE itb.box_id IS NOT NULL AND t.status = ANY($1)`,
+         WHERE itb.box_id IS NOT NULL AND t.status = ANY($1) AND t.deleted_at IS NULL`,
         [activeStatuses]
       ),
       pool.query(
         `SELECT itb.shelf_box_id as id, t.id as task_id, t.title, t.status
          FROM inventory_task_boxes_s itb
          JOIN inventory_tasks_s t ON t.id = itb.task_id
-         WHERE itb.shelf_box_id IS NOT NULL AND t.status = ANY($1)`,
+         WHERE itb.shelf_box_id IS NOT NULL AND t.status = ANY($1) AND t.deleted_at IS NULL`,
         [activeStatuses]
       ),
     ]);
@@ -2317,7 +2317,7 @@ router.post('/', requireAuth, (req, res, next) => {
          LEFT JOIN shelves_s s ON s.id = t.shelf_id
          LEFT JOIN racks_s r ON r.id = s.rack_id
          WHERE t.shelf_id = ANY($1)
-           AND t.status = ANY($2)
+           AND t.status = ANY($2) AND t.deleted_at IS NULL
          LIMIT 1`,
         [allShelfIds, activeStatuses]
       );
@@ -2337,7 +2337,7 @@ router.post('/', requireAuth, (req, res, next) => {
          JOIN inventory_tasks_s t ON t.id = itb.task_id
          LEFT JOIN boxes_s b ON b.id = itb.box_id
          WHERE itb.box_id = ANY($1)
-           AND t.status = ANY($2)
+           AND t.status = ANY($2) AND t.deleted_at IS NULL
          LIMIT 1`,
         [palletBoxIds, activeStatuses]
       );
@@ -2357,7 +2357,7 @@ router.post('/', requireAuth, (req, res, next) => {
          JOIN inventory_tasks_s t ON t.id = itb.task_id
          LEFT JOIN shelf_boxes_s sb ON sb.id = itb.shelf_box_id
          WHERE itb.shelf_box_id = ANY($1)
-           AND t.status = ANY($2)
+           AND t.status = ANY($2) AND t.deleted_at IS NULL
          LIMIT 1`,
         [shelfBoxIds, activeStatuses]
       );
@@ -2375,7 +2375,7 @@ router.post('/', requireAuth, (req, res, next) => {
         `SELECT t.id, t.title, t.status
          FROM inventory_tasks_s t
          WHERE t.target_box_id = $1
-           AND t.status = ANY($2)
+           AND t.status = ANY($2) AND t.deleted_at IS NULL
          LIMIT 1`,
         [target_box_id, activeStatuses]
       );
@@ -2393,7 +2393,7 @@ router.post('/', requireAuth, (req, res, next) => {
         `SELECT t.id, t.title, t.status
          FROM inventory_tasks_s t
          WHERE t.target_shelf_box_id = $1
-           AND t.status = ANY($2)
+           AND t.status = ANY($2) AND t.deleted_at IS NULL
          LIMIT 1`,
         [target_shelf_box_id, activeStatuses]
       );
@@ -2666,7 +2666,7 @@ router.delete('/:id', requireAuth, requirePermission('tasks.create'), async (req
       await client.query(`DELETE FROM employee_earnings_s WHERE task_id = $1`, [req.params.id]);
     }
 
-    await client.query('DELETE FROM inventory_tasks_s WHERE id = $1', [req.params.id]);
+    await client.query('UPDATE inventory_tasks_s SET deleted_at = NOW(), status = $2 WHERE id = $1', [req.params.id, 'cancelled']);
     await client.query('COMMIT');
     res.json({ success: true, refunded: refund });
   } catch (err) {
