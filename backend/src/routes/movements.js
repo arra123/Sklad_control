@@ -497,11 +497,13 @@ router.post('/take-box-contents', requireAuth, async (req, res) => {
        FROM boxes_s b LEFT JOIN pallets_s p ON p.id=b.pallet_id LEFT JOIN pallet_rows_s pr ON pr.id=p.row_id
        WHERE b.id=$1`, [box_id]);
 
-    // Log movement
-    await client.query(
-      `INSERT INTO movements_s (movement_type, quantity, from_box_id, to_employee_id, performed_by, source, notes)
-       VALUES ('box_to_employee', $1, $2, $3, $4, 'scan', 'Пересыпка из коробки')`,
-      [totalQty, box_id, employeeId, req.user.id]);
+    // Log per-product movements for clear history
+    for (const item of items.rows) {
+      await client.query(
+        `INSERT INTO movements_s (movement_type, product_id, quantity, from_box_id, to_employee_id, performed_by, source, notes)
+         VALUES ('box_to_employee', $1, $2, $3, $4, $5, 'scan', 'Пересыпка из коробки')`,
+        [item.product_id, parseFloat(item.quantity), box_id, employeeId, req.user.id]);
+    }
 
     await client.query('COMMIT');
     res.json({ success: true, items_count: items.rows.length, total_qty: totalQty, box: boxInfo.rows[0] || null });
@@ -554,18 +556,22 @@ router.post('/put-to-box', requireAuth, async (req, res) => {
       await client.query('UPDATE boxes_s SET quantity = quantity + $1 WHERE id=$2', [totalQty, box_id]);
     }
 
-    // Log movement (shelf boxes go to to_shelf_id, pallet boxes go to to_box_id)
+    // Log per-product movements for clear history
     if (isShelfBox.rows.length) {
       const shelfId = await client.query('SELECT shelf_id FROM shelf_boxes_s WHERE id=$1', [box_id]);
-      await client.query(
-        `INSERT INTO movements_s (movement_type, quantity, from_employee_id, to_shelf_id, performed_by, source, notes)
-         VALUES ('employee_to_box', $1, $2, $3, $4, 'scan', 'Пересыпка в коробку на полке')`,
-        [totalQty, employeeId, shelfId.rows[0]?.shelf_id || null, req.user.id]);
+      for (const item of items.rows) {
+        await client.query(
+          `INSERT INTO movements_s (movement_type, product_id, quantity, from_employee_id, to_shelf_id, performed_by, source, notes)
+           VALUES ('employee_to_box', $1, $2, $3, $4, $5, 'scan', 'Пересыпка в коробку на полке')`,
+          [item.product_id, parseFloat(item.quantity), employeeId, shelfId.rows[0]?.shelf_id || null, req.user.id]);
+      }
     } else {
-      await client.query(
-        `INSERT INTO movements_s (movement_type, quantity, from_employee_id, to_box_id, performed_by, source, notes)
-         VALUES ('employee_to_box', $1, $2, $3, $4, 'scan', 'Пересыпка в коробку')`,
-        [totalQty, employeeId, box_id, req.user.id]);
+      for (const item of items.rows) {
+        await client.query(
+          `INSERT INTO movements_s (movement_type, product_id, quantity, from_employee_id, to_box_id, performed_by, source, notes)
+           VALUES ('employee_to_box', $1, $2, $3, $4, $5, 'scan', 'Пересыпка в коробку')`,
+          [item.product_id, parseFloat(item.quantity), employeeId, box_id, req.user.id]);
+      }
     }
 
     await client.query('COMMIT');

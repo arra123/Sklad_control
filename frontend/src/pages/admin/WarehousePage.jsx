@@ -485,33 +485,60 @@ function AddProductToShelfModal({ open, onClose, shelfId, onSuccess }) {
   );
 }
 
-// ─── Shelf Movements helper ────────────────────────────────────────────────────
+// ─── Movement History helper ────────────────────────────────────────────────────
 const OP_LABELS = {
-  inventory:            { label: 'Инвентаризация',  color: 'text-blue-600',    bg: 'bg-blue-50' },
-  stock_in:             { label: 'Приход',           color: 'text-green-600',   bg: 'bg-green-50' },
-  stock_out:            { label: 'Списание',         color: 'text-red-600',     bg: 'bg-red-50' },
-  correction:           { label: 'Корректировка',    color: 'text-amber-600',   bg: 'bg-amber-50' },
-  transfer:             { label: 'Перемещение',      color: 'text-primary-600', bg: 'bg-primary-50' },
-  // movements_s types (universal log)
-  box_create:           { label: 'Создание',         color: 'text-green-600',   bg: 'bg-green-50' },
-  box_delete:           { label: 'Удаление',         color: 'text-red-600',     bg: 'bg-red-50' },
-  edit_add_to_box:      { label: 'Добавление',       color: 'text-green-600',   bg: 'bg-green-50' },
-  edit_remove_from_box: { label: 'Списание',         color: 'text-red-600',     bg: 'bg-red-50' },
-  box_product_change:   { label: 'Замена товара',    color: 'text-amber-600',   bg: 'bg-amber-50' },
-  external_to_pallet:   { label: 'Приход',           color: 'text-green-600',   bg: 'bg-green-50' },
-  pallet_correction_in: { label: 'Корректировка +',  color: 'text-green-600',   bg: 'bg-green-50' },
-  pallet_correction_out:{ label: 'Корректировка −',  color: 'text-red-600',     bg: 'bg-red-50' },
-  edit_add_to_shelf:    { label: 'Добавление',       color: 'text-green-600',   bg: 'bg-green-50' },
-  edit_remove_from_shelf:{ label: 'Списание',        color: 'text-red-600',     bg: 'bg-red-50' },
+  // shelf_movements_s operation types
+  inventory:              { label: 'Инвентаризация',       color: 'text-blue-600',    bg: 'bg-blue-50',    icon: '📋' },
+  stock_in:               { label: 'Приход',               color: 'text-green-600',   bg: 'bg-green-50',   icon: '📥' },
+  stock_out:              { label: 'Списание',             color: 'text-red-600',     bg: 'bg-red-50',     icon: '📤' },
+  correction:             { label: 'Корректировка',        color: 'text-amber-600',   bg: 'bg-amber-50',   icon: '✏️' },
+  transfer:               { label: 'Перемещение',          color: 'text-primary-600', bg: 'bg-primary-50', icon: '🔄' },
+  // movements_s types — box operations
+  box_create:             { label: 'Создание коробки',     color: 'text-green-600',   bg: 'bg-green-50',   icon: '📦' },
+  box_delete:             { label: 'Удаление коробки',     color: 'text-red-600',     bg: 'bg-red-50',     icon: '🗑️' },
+  edit_add_to_box:        { label: 'Добавлено в коробку',  color: 'text-green-600',   bg: 'bg-green-50',   icon: '📥' },
+  edit_remove_from_box:   { label: 'Списание из коробки',  color: 'text-red-600',     bg: 'bg-red-50',     icon: '📤' },
+  box_product_change:     { label: 'Замена товара',        color: 'text-amber-600',   bg: 'bg-amber-50',   icon: '🔄' },
+  // movements_s types — location transfers
+  shelf_to_shelf:         { label: 'Полка → Полка',        color: 'text-blue-600',    bg: 'bg-blue-50',    icon: '🔄' },
+  shelf_to_pallet:        { label: 'Полка → Паллет',       color: 'text-purple-600',  bg: 'bg-purple-50',  icon: '📤' },
+  pallet_to_shelf:        { label: 'Паллет → Полка',       color: 'text-green-600',   bg: 'bg-green-50',   icon: '📥' },
+  pallet_to_pallet:       { label: 'Паллет → Паллет',      color: 'text-indigo-600',  bg: 'bg-indigo-50',  icon: '🔄' },
+  shelf_to_employee:      { label: 'Забрал с полки',       color: 'text-orange-600',  bg: 'bg-orange-50',  icon: '👤' },
+  employee_to_shelf:      { label: 'Положил на полку',     color: 'text-teal-600',    bg: 'bg-teal-50',    icon: '📥' },
+  employee_to_pallet:     { label: 'Положил на паллет',    color: 'text-cyan-600',    bg: 'bg-cyan-50',    icon: '📥' },
+  pallet_to_employee:     { label: 'Забрал с паллета',     color: 'text-amber-600',   bg: 'bg-amber-50',   icon: '👤' },
+  box_to_employee:        { label: 'Забрал из коробки',    color: 'text-orange-600',  bg: 'bg-orange-50',  icon: '📦→👤' },
+  employee_to_box:        { label: 'Положил в коробку',    color: 'text-cyan-600',    bg: 'bg-cyan-50',    icon: '👤→📦' },
+  box_to_shelf:           { label: 'Коробка → Полка',      color: 'text-teal-600',    bg: 'bg-teal-50',    icon: '📥' },
+  box_to_pallet:          { label: 'Коробка → Паллет',     color: 'text-violet-600',  bg: 'bg-violet-50',  icon: '📤' },
+  shelf_to_box:           { label: 'Полка → Коробка',      color: 'text-fuchsia-600', bg: 'bg-fuchsia-50', icon: '📦' },
+  pallet_to_box:          { label: 'Паллет → Коробка',     color: 'text-fuchsia-600', bg: 'bg-fuchsia-50', icon: '📦' },
+  box_transfer:           { label: 'Перенос коробки',      color: 'text-indigo-600',  bg: 'bg-indigo-50',  icon: '📦🔄' },
+  // external / admin
+  external_to_shelf:      { label: 'Приход на полку',      color: 'text-emerald-600', bg: 'bg-emerald-50', icon: '📥' },
+  external_to_pallet:     { label: 'Приход на паллет',     color: 'text-emerald-600', bg: 'bg-emerald-50', icon: '📥' },
+  external_to_employee:   { label: 'Выдача сотруднику',    color: 'text-amber-600',   bg: 'bg-amber-50',   icon: '👤' },
+  edit_add_to_shelf:      { label: 'Добавлено на полку',   color: 'text-green-600',   bg: 'bg-green-50',   icon: '📥' },
+  edit_remove_from_shelf: { label: 'Списание с полки',     color: 'text-red-600',     bg: 'bg-red-50',     icon: '📤' },
+  edit_add_to_pallet:     { label: 'Добавлено на паллет',  color: 'text-green-600',   bg: 'bg-green-50',   icon: '📥' },
+  edit_remove_from_pallet:{ label: 'Списание с паллета',   color: 'text-red-600',     bg: 'bg-red-50',     icon: '📤' },
+  pallet_correction_in:   { label: 'Корректировка +',      color: 'text-green-600',   bg: 'bg-green-50',   icon: '✏️' },
+  pallet_correction_out:  { label: 'Корректировка −',      color: 'text-red-600',     bg: 'bg-red-50',     icon: '✏️' },
+  employee_correction_in: { label: 'Добавлено сотруднику', color: 'text-green-600',   bg: 'bg-green-50',   icon: '👤+' },
+  employee_correction_out:{ label: 'Списание у сотрудника',color: 'text-red-600',     bg: 'bg-red-50',     icon: '👤−' },
+  employee_writeoff:      { label: 'Списание',             color: 'text-red-600',     bg: 'bg-red-50',     icon: '🗑️' },
+  write_off:              { label: 'Списание',             color: 'text-red-600',     bg: 'bg-red-50',     icon: '🗑️' },
 };
-function opMeta(type) { return OP_LABELS[type] || { label: type, color: 'text-gray-600', bg: 'bg-gray-100' }; }
+
+function opMeta(type) { return OP_LABELS[type] || { label: type?.replace(/_/g, ' ') || '?', color: 'text-gray-600', bg: 'bg-gray-100', icon: '📋' }; }
 
 function normalizeMovement(r) {
-  // Normalize movements_s records to same shape as shelf_movements_s
   if (r._normalized) return r;
   const opType = r.operation_type || r.movement_type || 'unknown';
-  const qDelta = r.quantity_delta !== undefined ? Number(r.quantity_delta)
-    : (r.quantity_before !== undefined && r.quantity_after !== undefined)
+  // Fix: use != null to correctly handle null DB values (null !== undefined is true!)
+  const qDelta = r.quantity_delta != null ? Number(r.quantity_delta)
+    : (r.quantity_before != null && r.quantity_after != null)
       ? Number(r.quantity_after) - Number(r.quantity_before)
       : Number(r.quantity || 0);
   return { ...r, operation_type: opType, quantity_delta: qDelta, _normalized: true };
@@ -537,6 +564,19 @@ function fmtMovDate(iso) {
   return new Date(iso).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 }
 
+function movRoute(r) {
+  const parts = [];
+  // From
+  if (r.from_shelf_code || r.from_shelf_name) parts.push({ label: r.from_shelf_code || r.from_shelf_name, type: 'shelf' });
+  else if (r.from_pallet_name) parts.push({ label: r.from_pallet_name, type: 'pallet' });
+  else if (r.from_employee_name) parts.push({ label: r.from_employee_name?.split(' ')[0], type: 'employee' });
+  // To
+  if (r.to_shelf_code || r.to_shelf_name) parts.push({ label: r.to_shelf_code || r.to_shelf_name, type: 'shelf' });
+  else if (r.to_pallet_name) parts.push({ label: r.to_pallet_name, type: 'pallet' });
+  else if (r.to_employee_name) parts.push({ label: r.to_employee_name?.split(' ')[0], type: 'employee' });
+  return parts;
+}
+
 function LocationHistory({ movements, mode, onModeChange, title }) {
   const normalized = useMemo(() => movements.map(normalizeMovement), [movements]);
   const grouped = useMemo(() => groupMovements(movements), [movements]);
@@ -560,31 +600,56 @@ function LocationHistory({ movements, mode, onModeChange, title }) {
       {movements.length === 0 ? (
         <p className="text-center text-sm text-gray-300 py-4">Нет записей</p>
       ) : (
-        <div className="space-y-1.5 max-h-96 overflow-y-auto">
+        <div className="space-y-0.5 max-h-96 overflow-y-auto">
           {(mode === 'grouped' ? grouped : normalized).map((r, i) => {
             const meta = opMeta(r.operation_type);
             const delta = Number(r.quantity_delta);
             const sign = delta >= 0 ? '+' : '';
             const boxInfo = r.box_name || r.box_barcode || '';
+            const route = movRoute(r);
+            const hasQtyChange = r.quantity_before != null && r.quantity_after != null;
             return (
-              <div key={r.id ?? i} className="flex items-center gap-2.5 py-1.5 px-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
-                <span className={`text-xs px-1.5 py-0.5 rounded font-medium flex-shrink-0 ${meta.bg} ${meta.color}`}>
+              <div key={r.id ?? i} className="flex items-start gap-2 py-2 px-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 border-b border-gray-50 last:border-0">
+                {/* Type badge */}
+                <span className={`text-[11px] px-2 py-0.5 rounded-md font-medium flex-shrink-0 mt-0.5 ${meta.bg} ${meta.color}`}>
                   {meta.label}
                 </span>
+                {/* Product + route */}
                 <div className="flex-1 min-w-0">
-                  <span className="text-sm text-gray-700 dark:text-gray-300 truncate block">{r.product_name || '—'}</span>
-                  {boxInfo && <span className="text-[10px] text-gray-400 truncate block">коробка {boxInfo}</span>}
+                  <span className="text-sm text-gray-800 dark:text-gray-200 truncate block font-medium">
+                    {r.product_name || r.notes || '—'}
+                  </span>
+                  <div className="flex items-center gap-1 mt-0.5 flex-wrap">
+                    {boxInfo && <span className="text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">📦 {boxInfo}</span>}
+                    {route.length >= 2 && (
+                      <span className="text-[10px] text-gray-400">
+                        <span className="text-red-400">{route[0].label}</span>
+                        <span className="mx-0.5">→</span>
+                        <span className="text-green-600">{route[1].label}</span>
+                      </span>
+                    )}
+                    {route.length === 1 && (
+                      <span className="text-[10px] text-gray-400">{route[0].label}</span>
+                    )}
+                  </div>
                 </div>
-                {mode === 'detailed' && (
-                  <span className="text-xs font-mono text-gray-400 flex-shrink-0">{qty(r.quantity_before)}→{qty(r.quantity_after)}</span>
-                )}
-                <span className={`text-sm font-bold flex-shrink-0 ${delta >= 0 ? 'text-green-600' : 'text-red-500'}`}>
-                  {sign}{qty(delta)} шт.
-                </span>
-                {r.employee_name && (
-                  <span className="text-xs text-gray-400 flex-shrink-0 max-w-[80px] truncate" title={r.employee_name}>{r.employee_name.split(' ')[0]}</span>
-                )}
-                <span className="text-xs text-gray-300 flex-shrink-0">{fmtMovDate(r.created_at)}</span>
+                {/* Quantity info */}
+                <div className="flex flex-col items-end flex-shrink-0 gap-0.5">
+                  <div className="flex items-center gap-1.5">
+                    {mode === 'detailed' && hasQtyChange && (
+                      <span className="text-[10px] font-mono text-gray-400">{qty(r.quantity_before)}→{qty(r.quantity_after)}</span>
+                    )}
+                    <span className={`text-sm font-bold ${delta > 0 ? 'text-green-600' : delta < 0 ? 'text-red-500' : 'text-gray-400'}`}>
+                      {delta !== 0 ? `${sign}${qty(delta)} шт.` : `${qty(Math.abs(Number(r.quantity || 0)))} шт.`}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    {r.employee_name && (
+                      <span className="text-[10px] text-gray-400 truncate max-w-[80px]" title={r.employee_name}>{r.employee_name.split(' ')[0]}</span>
+                    )}
+                    <span className="text-[10px] text-gray-300">{fmtMovDate(r.created_at)}</span>
+                  </div>
+                </div>
               </div>
             );
           })}

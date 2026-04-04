@@ -729,12 +729,22 @@ router.get('/movements', requireAuth, async (req, res) => {
         SELECT m.*,
           p.name as product_name, p.code as product_code,
           e.full_name as employee_name,
-          b.barcode_value as box_barcode
+          b.barcode_value as box_barcode,
+          fp.name as from_pallet_name, tp.name as to_pallet_name,
+          fs.code as from_shelf_code, fs.name as from_shelf_name,
+          ts.code as to_shelf_code, ts.name as to_shelf_name,
+          fe.full_name as from_employee_name, te.full_name as to_employee_name
         FROM movements_s m
         LEFT JOIN products_s p ON p.id = m.product_id
         LEFT JOIN users_s u ON u.id = m.performed_by
         LEFT JOIN employees_s e ON e.id = u.employee_id
         LEFT JOIN boxes_s b ON b.id = COALESCE(m.to_box_id, m.from_box_id)
+        LEFT JOIN pallets_s fp ON fp.id = m.from_pallet_id
+        LEFT JOIN pallets_s tp ON tp.id = m.to_pallet_id
+        LEFT JOIN shelves_s fs ON fs.id = m.from_shelf_id
+        LEFT JOIN shelves_s ts ON ts.id = m.to_shelf_id
+        LEFT JOIN employees_s fe ON fe.id = m.from_employee_id
+        LEFT JOIN employees_s te ON te.id = m.to_employee_id
         WHERE m.from_pallet_id = $1 OR m.to_pallet_id = $1
         ORDER BY m.created_at DESC
         LIMIT $2
@@ -797,16 +807,27 @@ router.get('/movements', requireAuth, async (req, res) => {
         const boxResult = await pool.query(`
           SELECT m.id, m.movement_type, m.product_id, m.quantity,
             m.from_shelf_id, m.to_shelf_id, m.from_shelf_box_id, m.to_shelf_box_id,
+            m.from_employee_id, m.to_employee_id,
             m.performed_by, m.source, m.notes, m.created_at,
             m.quantity_before, m.quantity_after,
             p.name as product_name, p.code as product_code,
             e.full_name as employee_name,
-            sb.name as box_name
+            sb.name as box_name,
+            fe.full_name as from_employee_name, te.full_name as to_employee_name,
+            fp.name as from_pallet_name, tp.name as to_pallet_name,
+            fsh.code as from_shelf_code, fsh.name as from_shelf_name,
+            tsh.code as to_shelf_code, tsh.name as to_shelf_name
           FROM movements_s m
           LEFT JOIN products_s p ON p.id = m.product_id
           LEFT JOIN users_s u ON u.id = m.performed_by
           LEFT JOIN employees_s e ON e.id = u.employee_id
           LEFT JOIN shelf_boxes_s sb ON sb.id = COALESCE(m.to_shelf_box_id, m.from_shelf_box_id)
+          LEFT JOIN employees_s fe ON fe.id = m.from_employee_id
+          LEFT JOIN employees_s te ON te.id = m.to_employee_id
+          LEFT JOIN pallets_s fp ON fp.id = m.from_pallet_id
+          LEFT JOIN pallets_s tp ON tp.id = m.to_pallet_id
+          LEFT JOIN shelves_s fsh ON fsh.id = m.from_shelf_id
+          LEFT JOIN shelves_s tsh ON tsh.id = m.to_shelf_id
           WHERE ${conditions2.join(' AND ')}
           ORDER BY m.created_at DESC
           LIMIT $${params2.length}
@@ -862,34 +883,31 @@ router.get('/box-movements', requireAuth, async (req, res) => {
   try {
     const boxIdInt = parseInt(box_id);
     const lim = parseInt(limit);
-    let result;
-    if (box_type === 'shelf') {
-      result = await pool.query(`
-        SELECT m.*,
-          p.name as product_name, p.code as product_code,
-          e.full_name as employee_name
-        FROM movements_s m
-        LEFT JOIN products_s p ON p.id = m.product_id
-        LEFT JOIN users_s u ON u.id = m.performed_by
-        LEFT JOIN employees_s e ON e.id = u.employee_id
-        WHERE m.from_shelf_box_id = $1 OR m.to_shelf_box_id = $1
-        ORDER BY m.created_at DESC
-        LIMIT $2
-      `, [boxIdInt, lim]);
-    } else {
-      result = await pool.query(`
-        SELECT m.*,
-          p.name as product_name, p.code as product_code,
-          e.full_name as employee_name
-        FROM movements_s m
-        LEFT JOIN products_s p ON p.id = m.product_id
-        LEFT JOIN users_s u ON u.id = m.performed_by
-        LEFT JOIN employees_s e ON e.id = u.employee_id
-        WHERE m.from_box_id = $1 OR m.to_box_id = $1
-        ORDER BY m.created_at DESC
-        LIMIT $2
-      `, [boxIdInt, lim]);
-    }
+    const boxFilter = box_type === 'shelf'
+      ? 'm.from_shelf_box_id = $1 OR m.to_shelf_box_id = $1'
+      : 'm.from_box_id = $1 OR m.to_box_id = $1';
+    const result = await pool.query(`
+      SELECT m.*,
+        p.name as product_name, p.code as product_code,
+        e.full_name as employee_name,
+        fp.name as from_pallet_name, tp.name as to_pallet_name,
+        fs.code as from_shelf_code, fs.name as from_shelf_name,
+        ts.code as to_shelf_code, ts.name as to_shelf_name,
+        fe.full_name as from_employee_name, te.full_name as to_employee_name
+      FROM movements_s m
+      LEFT JOIN products_s p ON p.id = m.product_id
+      LEFT JOIN users_s u ON u.id = m.performed_by
+      LEFT JOIN employees_s e ON e.id = u.employee_id
+      LEFT JOIN pallets_s fp ON fp.id = m.from_pallet_id
+      LEFT JOIN pallets_s tp ON tp.id = m.to_pallet_id
+      LEFT JOIN shelves_s fs ON fs.id = m.from_shelf_id
+      LEFT JOIN shelves_s ts ON ts.id = m.to_shelf_id
+      LEFT JOIN employees_s fe ON fe.id = m.from_employee_id
+      LEFT JOIN employees_s te ON te.id = m.to_employee_id
+      WHERE ${boxFilter}
+      ORDER BY m.created_at DESC
+      LIMIT $2
+    `, [boxIdInt, lim]);
     res.json(result.rows);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
