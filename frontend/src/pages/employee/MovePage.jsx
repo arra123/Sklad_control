@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect } from 'react';
-import { Check, ArrowLeft, ScanLine, Layers, Box as BoxIcon2, ArrowRightLeft, Package } from 'lucide-react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { Check, ArrowLeft, ScanLine, Layers, ArrowRightLeft, Package, Settings2, ChevronDown } from 'lucide-react';
 import api from '../../api/client';
 import { PalletIcon, BoxIcon } from '../../components/ui/WarehouseIcons';
 import Spinner from '../../components/ui/Spinner';
@@ -126,6 +126,7 @@ function InfoTag({ label, value, color = 'blue' }) {
     purple: 'bg-purple-50 text-purple-700 border-purple-200',
     green: 'bg-green-50 text-green-700 border-green-200',
     indigo: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+    rose: 'bg-rose-50 text-rose-700 border-rose-200',
   };
   return (
     <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-medium ${colors[color] || colors.blue}`}>
@@ -147,6 +148,30 @@ function SuccessScreen({ message, onReset }) {
       <button onClick={onReset} className="px-8 py-3 rounded-2xl bg-primary-500 text-white font-bold text-sm hover:bg-primary-600 shadow-lg shadow-primary-200 transition-all active:scale-95">
         Новое перемещение
       </button>
+    </div>
+  );
+}
+
+// ─── Styled Select ──────────────────────────────────────────────────────────
+
+function StyledSelect({ label, value, onChange, options, placeholder, disabled }) {
+  return (
+    <div className="mb-3">
+      {label && <label className="text-xs font-medium text-gray-500 mb-1 block">{label}</label>}
+      <div className="relative">
+        <select
+          value={value || ''}
+          onChange={e => onChange(e.target.value || null)}
+          disabled={disabled}
+          className="w-full appearance-none px-4 py-3 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-800 focus:border-primary-400 focus:ring-2 focus:ring-primary-100 outline-none transition-all disabled:opacity-40 pr-10"
+        >
+          <option value="">{placeholder || 'Выберите...'}</option>
+          {options.map(o => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
+        <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+      </div>
     </div>
   );
 }
@@ -173,13 +198,140 @@ if (typeof document !== 'undefined' && !document.getElementById(styleId)) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// ADMIN TRANSFER — component for admin mode
+// ═══════════════════════════════════════════════════════════════════════════
+
+function AdminTransfer({ onBack, onDone }) {
+  const toast = useToast();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  // Data
+  const [pallets, setPallets] = useState([]);
+  const [srcPalletId, setSrcPalletId] = useState(null);
+  const [srcBoxes, setSrcBoxes] = useState([]);
+  const [srcBoxId, setSrcBoxId] = useState(null);
+  const [destPalletId, setDestPalletId] = useState(null);
+
+  // Load pallets
+  useEffect(() => {
+    api.get('/fbo/pallets-list').then(r => setPallets(r.data || [])).catch(() => {});
+  }, []);
+
+  // Load boxes when source pallet selected
+  useEffect(() => {
+    if (!srcPalletId) { setSrcBoxes([]); setSrcBoxId(null); return; }
+    api.get(`/fbo/pallets/${srcPalletId}`).then(r => {
+      setSrcBoxes(r.data?.boxes || []);
+      setSrcBoxId(null);
+    }).catch(() => setSrcBoxes([]));
+  }, [srcPalletId]);
+
+  const palletOptions = pallets.map(p => ({
+    value: p.id,
+    label: `${p.row_name} · ${p.name}`,
+  }));
+
+  const boxOptions = srcBoxes.map(b => ({
+    value: b.id,
+    label: `${b.barcode_value || b.name || 'Коробка'} — ${b.quantity || 0} шт.${b.product_name ? ` (${b.product_name})` : ''}`,
+  }));
+
+  const destOptions = palletOptions.filter(p => String(p.value) !== String(srcPalletId));
+
+  const selectedBox = srcBoxes.find(b => String(b.id) === String(srcBoxId));
+
+  const handleTransfer = async () => {
+    if (!srcBoxId || !destPalletId) return;
+    setLoading(true);
+    setError('');
+    try {
+      await api.post('/movements/move-box', { box_id: parseInt(srcBoxId), dest_pallet_id: parseInt(destPalletId) });
+      const destName = pallets.find(p => String(p.id) === String(destPalletId))?.name || 'паллет';
+      toast.success(`Коробка перенесена на ${destName}`);
+      onDone(`Коробка перенесена на ${destName}`);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Ошибка переноса');
+    } finally { setLoading(false); }
+  };
+
+  return (
+    <div className="p-4 max-w-md mx-auto animate-fade-in">
+      <button onClick={onBack} className="flex items-center gap-1 text-sm text-gray-400 mb-3"><ArrowLeft size={16} /> Назад</button>
+
+      <div className="bg-rose-50 rounded-2xl p-5 mb-5 text-center">
+        <div className="w-16 h-16 rounded-2xl bg-rose-100 text-rose-600 ring-4 ring-rose-200 flex items-center justify-center mx-auto mb-3">
+          <Settings2 size={32} />
+        </div>
+        <h2 className="text-lg font-bold text-gray-900">Админский перенос</h2>
+        <p className="text-xs text-gray-500 mt-1">Без сканера — выберите откуда, что и куда</p>
+      </div>
+
+      <ErrorBanner message={error} />
+
+      {/* Source pallet */}
+      <StyledSelect
+        label="Откуда (паллет)"
+        value={srcPalletId}
+        onChange={setSrcPalletId}
+        options={palletOptions}
+        placeholder="Выберите паллет-источник..."
+      />
+
+      {/* Source box */}
+      {srcPalletId && (
+        <StyledSelect
+          label="Какую коробку переносим"
+          value={srcBoxId}
+          onChange={setSrcBoxId}
+          options={boxOptions}
+          placeholder={srcBoxes.length ? 'Выберите коробку...' : 'Нет коробок на паллете'}
+          disabled={!srcBoxes.length}
+        />
+      )}
+
+      {/* Selected box info */}
+      {selectedBox && (
+        <div className="bg-indigo-50 border border-indigo-200 rounded-xl px-4 py-3 mb-3">
+          <p className="text-xs text-indigo-500 font-medium mb-1">Выбранная коробка</p>
+          <p className="text-sm font-bold text-indigo-800">{selectedBox.barcode_value || selectedBox.name}</p>
+          <p className="text-xs text-indigo-600">{selectedBox.quantity || 0} шт.{selectedBox.product_name ? ` · ${selectedBox.product_name}` : ''}</p>
+        </div>
+      )}
+
+      {/* Destination pallet */}
+      {srcBoxId && (
+        <StyledSelect
+          label="Куда переносим (паллет)"
+          value={destPalletId}
+          onChange={setDestPalletId}
+          options={destOptions}
+          placeholder="Выберите паллет назначения..."
+        />
+      )}
+
+      {/* Transfer button */}
+      {srcBoxId && destPalletId && (
+        <button
+          onClick={handleTransfer}
+          disabled={loading}
+          className="w-full mt-4 py-3.5 rounded-2xl bg-rose-500 text-white font-bold text-sm hover:bg-rose-600 disabled:opacity-50 transition-all shadow-lg shadow-rose-200 active:scale-[0.98]"
+        >
+          {loading ? <Spinner size="sm" className="mx-auto" /> : 'Перенести коробку'}
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // MAIN PAGE
 // ═══════════════════════════════════════════════════════════════════════════
 
 export default function MovePage() {
   const { user } = useAuth();
   const toast = useToast();
-  const [mode, setMode] = useState(null); // 'piece' | 'whole' | 'box_transfer'
+  const [mode, setMode] = useState(null); // 'piece' | 'whole' | 'box_transfer' | 'admin'
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -211,6 +363,7 @@ export default function MovePage() {
   // MODE SELECTION
   // ═══════════════════════════════════════════════════════════════════════
   if (!mode) {
+    const isAdmin = user?.role === 'admin';
     return (
       <div className="p-4 max-w-md mx-auto animate-fade-in">
         <h1 className="text-xl font-bold text-gray-900 mb-1">Перемещение</h1>
@@ -236,8 +389,8 @@ export default function MovePage() {
                 <Layers size={28} />
               </div>
               <div>
-                <p className="font-bold text-base">Целая коробка</p>
-                <p className="text-xs text-purple-100 mt-0.5">Пересыпать весь товар из коробки в другую</p>
+                <p className="font-bold text-base">Весь товар из коробки</p>
+                <p className="text-xs text-purple-100 mt-0.5">Пересыпать всё содержимое в другую коробку</p>
               </div>
             </div>
           </button>
@@ -249,14 +402,39 @@ export default function MovePage() {
                 <ArrowRightLeft size={28} />
               </div>
               <div>
-                <p className="font-bold text-base">Перенести коробку</p>
-                <p className="text-xs text-indigo-100 mt-0.5">Переместить коробку целиком на другой паллет</p>
+                <p className="font-bold text-base">Переставить коробку</p>
+                <p className="text-xs text-indigo-100 mt-0.5">Перенести коробку целиком на другой паллет</p>
               </div>
             </div>
           </button>
+
+          {isAdmin && (
+            <button onClick={() => { setMode('admin'); }}
+              className="w-full bg-gradient-to-br from-rose-500 to-rose-600 text-white rounded-2xl p-5 text-left shadow-lg shadow-rose-200 hover:shadow-xl hover:scale-[1.02] transition-all active:scale-[0.98]">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-xl bg-white/20 flex items-center justify-center">
+                  <Settings2 size={28} />
+                </div>
+                <div>
+                  <p className="font-bold text-base">Админский перенос</p>
+                  <p className="text-xs text-rose-100 mt-0.5">Без сканера — выбрать откуда и куда</p>
+                </div>
+              </div>
+            </button>
+          )}
         </div>
       </div>
     );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // ADMIN MODE
+  // ═══════════════════════════════════════════════════════════════════════
+  if (mode === 'admin') {
+    return <AdminTransfer onBack={reset} onDone={(msg) => { setSuccess(msg); setMode('admin_done'); }} />;
+  }
+  if (mode === 'admin_done') {
+    return <SuccessScreen message={success} onReset={reset} />;
   }
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -265,7 +443,6 @@ export default function MovePage() {
   if (mode === 'piece') {
     const totalSteps = 4;
 
-    // Step 1: Scan source box
     if (step === 1) {
       return (
         <div className="p-4 max-w-md mx-auto animate-fade-in" key="piece-1">
@@ -286,7 +463,6 @@ export default function MovePage() {
       );
     }
 
-    // Step 2: Scan products
     if (step === 2) {
       const handleProductScan = async (bc) => {
         const data = await scanBarcode(bc);
@@ -304,18 +480,14 @@ export default function MovePage() {
         playBeep(true);
         setError('');
       };
-
       const totalItems = cart.reduce((s, c) => s + c.quantity, 0);
-
       return (
         <div className="p-4 max-w-md mx-auto animate-fade-in" key="piece-2">
           <button onClick={() => { setStep(1); setCart([]); setSourceBox(null); setError(''); }}
             className="flex items-center gap-1 text-sm text-gray-400 mb-3"><ArrowLeft size={16} /> Назад</button>
           <StepProgress current={1} total={totalSteps} color="bg-blue-500" />
           <ScanHint icon={Package} title="Сканируйте банки" subtitle="Каждую банку, которую забираете из коробки" color="blue" />
-          <div className="mb-4">
-            <InfoTag label="Из коробки" value={sourceBox?.name} color="blue" />
-          </div>
+          <div className="mb-4"><InfoTag label="Из коробки" value={sourceBox?.name} color="blue" /></div>
           <ErrorBanner message={error} />
           <ScanInput placeholder="Наведите сканер на банку..." onScan={handleProductScan} />
           {cart.length > 0 && (
@@ -336,11 +508,9 @@ export default function MovePage() {
                       dest_type: 'employee', dest_id: user.employee_id,
                     });
                   }
-                  playBeep(true);
-                  toast.success(`Забрали ${totalItems} шт.`);
-                  setStep(3);
+                  playBeep(true); toast.success(`Забрали ${totalItems} шт.`); setStep(3);
                 } catch (err) {
-                  playBeep(false); setError(err.response?.data?.error || 'Ошибка при перемещении');
+                  playBeep(false); setError(err.response?.data?.error || 'Ошибка');
                 } finally { setLoading(false); }
               }} disabled={loading}
                 className="w-full py-3.5 rounded-2xl bg-blue-500 text-white font-bold text-sm hover:bg-blue-600 disabled:opacity-50 transition-all shadow-lg shadow-blue-200 active:scale-[0.98]">
@@ -352,7 +522,6 @@ export default function MovePage() {
       );
     }
 
-    // Step 3: Scan destination box
     if (step === 3) {
       return (
         <div className="p-4 max-w-md mx-auto animate-fade-in" key="piece-3">
@@ -362,7 +531,7 @@ export default function MovePage() {
           <ScanInput placeholder="Наведите сканер на коробку..." onScan={async (bc) => {
             const data = await scanBarcode(bc);
             if (!data) return;
-            if (data.type !== 'box') { playBeep(false); setError(`Это ${data.type === 'pallet' ? 'паллет' : 'не коробка'} — сканируйте коробку`); return; }
+            if (data.type !== 'box') { playBeep(false); setError('Сканируйте коробку'); return; }
             setLoading(true);
             try {
               for (const item of cart) {
@@ -376,7 +545,7 @@ export default function MovePage() {
               setSuccess(`Перемещено ${cart.reduce((s, c) => s + c.quantity, 0)} шт. в ${data.name}`);
               setStep(4);
             } catch (err) {
-              playBeep(false); setError(err.response?.data?.error || 'Ошибка при перемещении');
+              playBeep(false); setError(err.response?.data?.error || 'Ошибка');
             } finally { setLoading(false); }
           }} />
           {loading && <div className="flex justify-center py-6"><Spinner size="lg" /></div>}
@@ -384,7 +553,6 @@ export default function MovePage() {
       );
     }
 
-    // Step 4: Done
     if (step === 4) return <SuccessScreen message={success} onReset={reset} />;
   }
 
@@ -394,7 +562,6 @@ export default function MovePage() {
   if (mode === 'whole') {
     const totalSteps = 4;
 
-    // Step 1: Scan source pallet
     if (step === 1) {
       return (
         <div className="p-4 max-w-md mx-auto animate-fade-in" key="whole-1">
@@ -405,16 +572,13 @@ export default function MovePage() {
           <ScanInput placeholder="Наведите сканер на паллет..." onScan={async (bc) => {
             const data = await scanBarcode(bc);
             if (!data) return;
-            if (data.type !== 'pallet') { playBeep(false); setError(`Это ${data.type === 'box' ? 'коробка' : 'не паллет'} — нужен паллет`); return; }
-            setSourcePallet(data);
-            playBeep(true);
-            setStep(2);
+            if (data.type !== 'pallet') { playBeep(false); setError('Нужен паллет, а не коробка'); return; }
+            setSourcePallet(data); playBeep(true); setStep(2);
           }} />
         </div>
       );
     }
 
-    // Step 2: Scan box → take all contents
     if (step === 2) {
       return (
         <div className="p-4 max-w-md mx-auto animate-fade-in" key="whole-2">
@@ -422,22 +586,18 @@ export default function MovePage() {
             className="flex items-center gap-1 text-sm text-gray-400 mb-3"><ArrowLeft size={16} /> Назад</button>
           <StepProgress current={1} total={totalSteps} color="bg-purple-500" />
           <ScanHint icon={BoxIcon} title="Сканируйте коробку" subtitle="Весь товар из неё перейдёт к вам" color="purple" />
-          <div className="mb-4">
-            <InfoTag label="Паллет" value={sourcePallet?.name} color="purple" />
-          </div>
+          <div className="mb-4"><InfoTag label="Паллет" value={sourcePallet?.name} color="purple" /></div>
           <ErrorBanner message={error} />
           {loading && <div className="flex justify-center py-6"><Spinner size="lg" /></div>}
           <ScanInput placeholder="Наведите сканер на коробку..." disabled={loading} onScan={async (bc) => {
             const data = await scanBarcode(bc);
             if (!data) return;
-            if (data.type !== 'box') { playBeep(false); setError(`Это не коробка — сканируйте коробку на паллете`); return; }
+            if (data.type !== 'box') { playBeep(false); setError('Сканируйте коробку на паллете'); return; }
             setLoading(true);
             try {
               const res = await api.post('/movements/take-box-contents', { box_id: data.id });
               setSourceBox({ ...data, palletName: sourcePallet?.name, palletId: sourcePallet?.id, takenQty: res.data.total_qty });
-              playBeep(true);
-              toast.success(`Забрали ${res.data.total_qty} шт. из коробки`);
-              setStep(3);
+              playBeep(true); toast.success(`Забрали ${res.data.total_qty} шт. из коробки`); setStep(3);
             } catch (err) {
               playBeep(false); setError(err.response?.data?.error || 'Ошибка');
             } finally { setLoading(false); }
@@ -446,7 +606,6 @@ export default function MovePage() {
       );
     }
 
-    // Step 3: Scan destination box → put all contents
     if (step === 3) {
       return (
         <div className="p-4 max-w-md mx-auto animate-fade-in" key="whole-3">
@@ -465,10 +624,7 @@ export default function MovePage() {
             setLoading(true);
             try {
               await api.post('/movements/put-to-box', { box_id: data.id });
-              playBeep(true);
-              toast.success('Товар пересыпан');
-              // Ask to return empty box
-              setStep(4);
+              playBeep(true); toast.success('Товар пересыпан'); setStep(4);
             } catch (err) {
               playBeep(false); setError(err.response?.data?.error || 'Ошибка');
             } finally { setLoading(false); }
@@ -477,7 +633,6 @@ export default function MovePage() {
       );
     }
 
-    // Step 4: Return empty box
     if (step === 4) {
       return (
         <div className="p-4 max-w-md mx-auto animate-fade-in" key="whole-4">
@@ -493,21 +648,14 @@ export default function MovePage() {
           <ScanInput placeholder="Сканируйте паллет куда вернули..." disabled={loading} onScan={async (bc) => {
             const data = await scanBarcode(bc);
             if (!data) return;
-            if (data.type !== 'pallet') { playBeep(false); setError('Сканируйте паллет, а не коробку'); return; }
+            if (data.type !== 'pallet') { playBeep(false); setError('Сканируйте паллет'); return; }
             setLoading(true);
             try {
               await api.post('/movements/move-box', { box_id: sourceBox.id, dest_pallet_id: data.id });
-              playBeep(true);
-              setSuccess('Коробка возвращена на паллет');
-              setStep(5);
+              playBeep(true); setSuccess('Коробка возвращена'); setStep(5);
             } catch (err) {
-              if (err.response?.data?.error?.includes('уже на этом')) {
-                playBeep(true);
-                setSuccess('Коробка на месте');
-                setStep(5);
-              } else {
-                playBeep(false); setError(err.response?.data?.error || 'Ошибка');
-              }
+              if (err.response?.data?.error?.includes('уже на этом')) { playBeep(true); setSuccess('Коробка на месте'); setStep(5); }
+              else { playBeep(false); setError(err.response?.data?.error || 'Ошибка'); }
             } finally { setLoading(false); }
           }} />
           <button onClick={() => { setSuccess('Перемещение завершено'); setStep(5); }}
@@ -518,17 +666,15 @@ export default function MovePage() {
       );
     }
 
-    // Step 5: Done
     if (step === 5) return <SuccessScreen message={success} onReset={reset} />;
   }
 
   // ═══════════════════════════════════════════════════════════════════════
-  // BOX TRANSFER MODE — перенос коробки целиком на другой паллет
+  // BOX TRANSFER MODE — переставить коробку на другой паллет
   // ═══════════════════════════════════════════════════════════════════════
   if (mode === 'box_transfer') {
     const totalSteps = 3;
 
-    // Step 1: Scan source pallet
     if (step === 1) {
       return (
         <div className="p-4 max-w-md mx-auto animate-fade-in" key="bt-1">
@@ -539,45 +685,37 @@ export default function MovePage() {
           <ScanInput placeholder="Наведите сканер на паллет..." onScan={async (bc) => {
             const data = await scanBarcode(bc);
             if (!data) return;
-            if (data.type !== 'pallet') { playBeep(false); setError(`Это не паллет — сканируйте паллет`); return; }
-            setSourcePallet(data);
-            playBeep(true);
-            setStep(2);
+            if (data.type !== 'pallet') { playBeep(false); setError('Сканируйте паллет'); return; }
+            setSourcePallet(data); playBeep(true); setStep(2);
           }} />
         </div>
       );
     }
 
-    // Step 2: Scan box on that pallet
     if (step === 2) {
       return (
         <div className="p-4 max-w-md mx-auto animate-fade-in" key="bt-2">
           <button onClick={() => { setStep(1); setSourcePallet(null); setError(''); }}
             className="flex items-center gap-1 text-sm text-gray-400 mb-3"><ArrowLeft size={16} /> Назад</button>
           <StepProgress current={1} total={totalSteps} color="bg-indigo-500" />
-          <ScanHint icon={BoxIcon} title="Какую коробку переносим?" subtitle="Сканируйте коробку, которую хотите переставить" color="indigo" />
-          <div className="mb-4">
-            <InfoTag label="Паллет" value={sourcePallet?.name} color="indigo" />
-          </div>
+          <ScanHint icon={BoxIcon} title="Какую коробку переставляем?" subtitle="Сканируйте коробку" color="indigo" />
+          <div className="mb-4"><InfoTag label="Паллет" value={sourcePallet?.name} color="indigo" /></div>
           <ErrorBanner message={error} />
           <ScanInput placeholder="Наведите сканер на коробку..." onScan={async (bc) => {
             const data = await scanBarcode(bc);
             if (!data) return;
-            if (data.type !== 'box') { playBeep(false); setError('Это не коробка — сканируйте коробку'); return; }
-            setSourceBox(data);
-            playBeep(true);
-            setStep(3);
+            if (data.type !== 'box') { playBeep(false); setError('Сканируйте коробку'); return; }
+            setSourceBox(data); playBeep(true); setStep(3);
           }} />
         </div>
       );
     }
 
-    // Step 3: Scan destination pallet
     if (step === 3) {
       return (
         <div className="p-4 max-w-md mx-auto animate-fade-in" key="bt-3">
           <StepProgress current={2} total={totalSteps} color="bg-indigo-500" />
-          <ScanHint icon={PalletIcon} title="Куда ставим коробку?" subtitle="Сканируйте паллет назначения" color="green" />
+          <ScanHint icon={PalletIcon} title="Куда ставим?" subtitle="Сканируйте паллет назначения" color="green" />
           <div className="flex gap-2 mb-4 flex-wrap">
             <InfoTag label="Коробка" value={sourceBox?.name} color="indigo" />
             <InfoTag label="С паллета" value={sourcePallet?.name} color="indigo" />
@@ -587,13 +725,11 @@ export default function MovePage() {
           <ScanInput placeholder="Наведите сканер на паллет..." disabled={loading} onScan={async (bc) => {
             const data = await scanBarcode(bc);
             if (!data) return;
-            if (data.type !== 'pallet') { playBeep(false); setError('Сканируйте паллет, а не коробку'); return; }
+            if (data.type !== 'pallet') { playBeep(false); setError('Сканируйте паллет'); return; }
             setLoading(true);
             try {
               await api.post('/movements/move-box', { box_id: sourceBox.id, dest_pallet_id: data.id });
-              playBeep(true);
-              setSuccess(`Коробка ${sourceBox?.name} перенесена на ${data.name}`);
-              setStep(4);
+              playBeep(true); setSuccess(`Коробка ${sourceBox?.name} перенесена на ${data.name}`); setStep(4);
             } catch (err) {
               playBeep(false); setError(err.response?.data?.error || 'Ошибка');
             } finally { setLoading(false); }
@@ -602,7 +738,6 @@ export default function MovePage() {
       );
     }
 
-    // Step 4: Done
     if (step === 4) return <SuccessScreen message={success} onReset={reset} />;
   }
 
