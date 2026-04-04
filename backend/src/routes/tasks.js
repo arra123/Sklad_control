@@ -1367,10 +1367,13 @@ router.get('/stats/summary', requireAuth, requirePermission('tasks.view', 'tasks
   try {
     const result = await pool.query(`
       SELECT
-        COUNT(*) FILTER (WHERE status = 'new') as new_count,
-        COUNT(*) FILTER (WHERE status = 'in_progress') as in_progress_count,
-        COUNT(*) FILTER (WHERE status = 'completed') as completed_count,
-        COUNT(*) FILTER (WHERE status = 'cancelled') as cancelled_count
+        COUNT(*) FILTER (WHERE status = 'new' AND deleted_at IS NULL) as new_count,
+        COUNT(*) FILTER (WHERE status = 'in_progress' AND deleted_at IS NULL) as in_progress_count,
+        COUNT(*) FILTER (WHERE status = 'completed' AND deleted_at IS NULL) as completed_count,
+        COUNT(*) FILTER (WHERE status = 'cancelled' AND deleted_at IS NULL) as cancelled_count,
+        COUNT(*) FILTER (WHERE status = 'completed' AND completed_at >= CURRENT_DATE AND deleted_at IS NULL) as completed_today,
+        COALESCE((SELECT SUM(amount_delta) FROM employee_earnings_s WHERE created_at >= CURRENT_DATE), 0) as gra_today,
+        COALESCE((SELECT SUM(sc.quantity_delta) FROM inventory_task_scans_s sc JOIN inventory_tasks_s t ON t.id = sc.task_id WHERE t.completed_at >= CURRENT_DATE AND t.deleted_at IS NULL AND sc.product_id IS NOT NULL), 0) as scans_today
       FROM inventory_tasks_s
     `);
     res.json(result.rows[0]);

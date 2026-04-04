@@ -56,11 +56,18 @@ export default function TasksPage() {
     }, { replace: true });
   }, [setSearchParams]);
 
-  // Inline filters (client-side)
+  // Inline filters (client-side, some URL-backed)
   const [searchText, setSearchText] = useState('');
   const [filterLocation, setFilterLocation] = useState('');
-  const [filterType, setFilterType] = useState('');
-  const [filterPeriod, setFilterPeriod] = useState('all');
+  const filterType = searchParams.get('type') || '';
+  const filterPeriod = searchParams.get('period') || 'all';
+
+  const setFilterType = useCallback((val) => {
+    setSearchParams(prev => { const next = new URLSearchParams(prev); if (val) next.set('type', val); else next.delete('type'); return next; }, { replace: true });
+  }, [setSearchParams]);
+  const setFilterPeriod = useCallback((val) => {
+    setSearchParams(prev => { const next = new URLSearchParams(prev); if (val && val !== 'all') next.set('period', val); else next.delete('period'); return next; }, { replace: true });
+  }, [setSearchParams]);
 
   const loadRef = useRef(0);
   const load = useCallback(async () => {
