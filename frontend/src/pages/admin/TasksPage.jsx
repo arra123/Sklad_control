@@ -203,7 +203,7 @@ export default function TasksPage() {
     <div className="p-6 max-w-4xl mx-auto">
       <div className="flex items-start justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Задачи</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Задачи</h1>
           <p className="text-gray-500 text-sm mt-1">
             {filtered.length !== items.length ? `${filtered.length} из ${items.length} задач` : `${items.length} задач`} · нажмите для деталей
           </p>
@@ -212,14 +212,14 @@ export default function TasksPage() {
           <button
             onClick={() => { setBulkMode(!bulkMode); setSelectedIds(new Set()); }}
             title="Массовые действия"
-            className={`p-2 rounded-xl transition-colors ${bulkMode ? 'text-red-500 bg-red-50' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`}
+            className={`hidden sm:flex p-2 rounded-xl transition-colors ${bulkMode ? 'text-red-500 bg-red-50' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`}
           >
             <ClipboardList size={16} />
           </button>
           <button
             onClick={exportCSV}
             title="Экспорт в CSV"
-            className="p-2 rounded-xl text-gray-400 hover:text-green-600 hover:bg-green-50 transition-colors"
+            className="hidden sm:flex p-2 rounded-xl text-gray-400 hover:text-green-600 hover:bg-green-50 transition-colors"
           >
             <Download size={16} />
           </button>
@@ -245,7 +245,7 @@ export default function TasksPage() {
 
       {/* Stats cards */}
       {!loading && items.length > 0 && (
-        <div className="grid grid-cols-4 gap-3 mb-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-4">
           <button onClick={() => { setFilterStatus('in_progress'); setFilterPeriod('all'); }} className="bg-amber-50 dark:bg-amber-950/30 border border-amber-100 dark:border-amber-800 rounded-2xl px-4 py-3 text-center hover:shadow-md transition-all">
             <p className="text-2xl font-black text-amber-600 dark:text-amber-400">{statsInProgress}</p>
             <p className="text-[11px] text-amber-500 font-medium">В работе</p>
@@ -286,7 +286,7 @@ export default function TasksPage() {
       </div>
 
       {/* Inline filters */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-4">
+      <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mb-4">
         <input
           ref={searchRef}
           type="text"
