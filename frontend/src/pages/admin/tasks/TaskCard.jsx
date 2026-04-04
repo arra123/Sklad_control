@@ -55,6 +55,19 @@ export default function TaskCard({ task, onClick }) {
             <span className="text-gray-300 text-right">{new Date(task.created_at).toLocaleString('ru-RU', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit'})}</span>
           </div>
 
+          {/* Progress bar for assembly and box-based tasks */}
+          {(() => {
+            const done = task.task_type === 'bundle_assembly' ? Number(task.assembled_count || 0) : Number(task.task_boxes_completed || 0);
+            const total = task.task_type === 'bundle_assembly' ? Number(task.bundle_qty || 0) : Number(task.task_boxes_total || 0);
+            if (total <= 0 || done >= total && task.status !== 'in_progress') return null;
+            const pct = Math.min(100, Math.round((done / total) * 100));
+            return (
+              <div className="mt-1.5 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                <div className={`h-full rounded-full transition-all duration-500 ${pct >= 100 ? 'bg-green-500' : pct >= 50 ? 'bg-primary-500' : 'bg-amber-400'}`} style={{ width: `${pct}%` }} />
+              </div>
+            );
+          })()}
+
           {task.notes && (
             <p className="text-xs text-gray-400 mt-1.5 line-clamp-1">{task.notes}</p>
           )}

@@ -65,6 +65,8 @@ export default function TasksPage() {
   const setFilterType = useCallback((val) => {
     setSearchParams(prev => { const next = new URLSearchParams(prev); if (val) next.set('type', val); else next.delete('type'); return next; }, { replace: true });
   }, [setSearchParams]);
+  const [sortBy, setSortBy] = useState('date'); // 'date' | 'scans' | 'status'
+
   const setFilterPeriod = useCallback((val) => {
     setSearchParams(prev => { const next = new URLSearchParams(prev); if (val && val !== 'all') next.set('period', val); else next.delete('period'); return next; }, { replace: true });
   }, [setSearchParams]);
@@ -133,6 +135,13 @@ export default function TasksPage() {
       }
     }
     return true;
+  }).sort((a, b) => {
+    if (sortBy === 'scans') return (Number(b.scans_count) || 0) - (Number(a.scans_count) || 0);
+    if (sortBy === 'status') {
+      const order = { in_progress: 0, new: 1, paused: 2, completed: 3, cancelled: 4 };
+      return (order[a.status] ?? 5) - (order[b.status] ?? 5);
+    }
+    return new Date(b.created_at) - new Date(a.created_at); // default: newest first
   });
 
   const searchRef = useRef(null);
@@ -260,6 +269,16 @@ export default function TasksPage() {
           <button key={k} onClick={() => setFilterPeriod(k)}
             className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all border ${
               filterPeriod === k ? 'bg-white shadow-sm text-gray-900 border-gray-200' : 'text-gray-500 border-transparent hover:text-gray-700'
+            }`}>{l}</button>
+        ))}
+      </div>
+
+      {/* Sort */}
+      <div className="flex gap-1 mb-3 bg-gray-50 rounded-2xl p-1.5 w-fit border border-gray-200">
+        {[['date', 'По дате'], ['status', 'По статусу'], ['scans', 'По сканам']].map(([k, l]) => (
+          <button key={k} onClick={() => setSortBy(k)}
+            className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all border ${
+              sortBy === k ? 'bg-white shadow-sm text-gray-900 border-gray-200' : 'text-gray-500 border-transparent hover:text-gray-700'
             }`}>{l}</button>
         ))}
       </div>
