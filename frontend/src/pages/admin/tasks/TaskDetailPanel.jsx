@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
-  X, Pause, Play, AlertTriangle, ScanLine, Package, Box, MapPin, ChevronRight, Copy
+  X, Pause, Play, AlertTriangle, ScanLine, Package, Box, MapPin, ChevronRight, Copy, ExternalLink
 } from 'lucide-react';
 import api from '../../../api/client';
 import { qty } from '../../../utils/fmt';
@@ -14,6 +15,7 @@ import { STATUS_MAP, TASK_TYPE_ICON, fmtTime, fmtDate } from './taskConstants';
 
 export default function TaskDetailPanel({ task, onClose, onReload }) {
   const toast = useToast();
+  const navigate = useNavigate();
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('scans');
@@ -787,6 +789,13 @@ export default function TaskDetailPanel({ task, onClose, onReload }) {
         {/* Footer actions */}
         {(task.status === 'new' || task.status === 'in_progress' || task.status === 'paused') && (
           <div className="flex gap-2 px-4 py-4 border-t border-gray-100 dark:border-gray-800">
+            <Button variant="primary" size="sm" icon={<ExternalLink size={14} />} onClick={() => {
+              const path = task.task_type === 'packaging' ? `/employee/packaging/${task.id}`
+                : task.task_type === 'bundle_assembly' ? `/employee/assembly/${task.id}`
+                : task.task_type === 'returns' ? '/employee/returns'
+                : `/employee/tasks/${task.id}`;
+              navigate(path);
+            }}>Перейти</Button>
             {(task.status === 'in_progress' || task.status === 'new') && (
               <Button variant="outline" size="sm" icon={<Pause size={14} />} onClick={handlePause}>Пауза</Button>
             )}
