@@ -7,6 +7,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { cn } from '../../utils/cn';
 import api from '../../api/client';
+import { WorkerAvatar } from '../ui/WarehouseIcons';
 
 function formatGra(value) {
   const amount = Number(value || 0);
@@ -158,8 +159,8 @@ export default function EmployeeLayout({ children }) {
           {/* Right: User info + logout */}
           <div className="flex items-center justify-end gap-1.5 sm:gap-2 min-w-0">
             {/* Avatar */}
-            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 text-white flex items-center justify-center text-[10px] font-bold flex-shrink-0 shadow-sm">
-              {(user?.employee_name || user?.username || 'С').slice(0, 1).toUpperCase()}
+            <div className="w-8 h-8 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center flex-shrink-0">
+              <WorkerAvatar size={24} />
             </div>
             <button onClick={() => { if (window.confirm('Выйти из аккаунта?')) { logout(); navigate('/login'); } }}
               className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950 transition-all flex-shrink-0">

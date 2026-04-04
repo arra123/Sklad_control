@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../../api/client';
 import Spinner from '../../components/ui/Spinner';
 import { ArrowLeft, RefreshCw, Zap, TrendingUp, Clock, Package, ScanLine, Award, CheckCircle2, Play, Pause, Timer, ChevronDown } from 'lucide-react';
+import { WorkerAvatar } from '../../components/ui/WarehouseIcons';
 
 const POLL_MS = 5000;
 
@@ -873,8 +874,11 @@ function EmployeeCard({ emp, onClick }) {
   return (
     <button onClick={onClick} className="w-full text-left bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-primary-200 transition-all p-3.5 flex flex-col">
       {/* Name + status */}
-      <div className="flex items-start justify-between gap-1.5 mb-2">
-        <h3 className="text-xs font-bold text-gray-900 leading-snug line-clamp-2">{emp.full_name}</h3>
+      <div className="flex items-start gap-2 mb-2">
+        <div className="w-7 h-7 rounded-lg bg-amber-50 border border-amber-100 flex items-center justify-center flex-shrink-0">
+          <WorkerAvatar size={20} />
+        </div>
+        <h3 className="text-xs font-bold text-gray-900 leading-snug line-clamp-2 flex-1">{emp.full_name}</h3>
         <div className="flex-shrink-0 mt-0.5">{statusDot}</div>
       </div>
 

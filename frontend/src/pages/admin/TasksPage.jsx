@@ -15,6 +15,8 @@ export default function TasksPage() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
+  const [totalCount, setTotalCount] = useState(0);
+  const [pageSize] = useState(50);
 
   // URL-backed state
   const selectedTaskId = searchParams.get('id');
@@ -55,17 +57,23 @@ export default function TasksPage() {
   const [filterLocation, setFilterLocation] = useState('');
   const [filterType, setFilterType] = useState('');
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (append = false) => {
+    if (!append) setLoading(true);
     try {
-      const res = await api.get('/tasks', { params: { limit: 100 } });
-      setItems(res.data.items);
+      const offset = append ? items.length : 0;
+      const res = await api.get('/tasks', { params: { limit: pageSize, page: Math.floor(offset / pageSize) + 1 } });
+      if (append) {
+        setItems(prev => [...prev, ...res.data.items]);
+      } else {
+        setItems(res.data.items);
+      }
+      setTotalCount(Number(res.data.total || res.data.items.length));
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [items.length, pageSize]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -211,6 +219,14 @@ export default function TasksPage() {
           {filtered.map(task => (
             <TaskCard key={task.id} task={task} onClick={setSelectedTask} />
           ))}
+          {items.length < totalCount && (
+            <button
+              onClick={() => load(true)}
+              className="w-full py-3 rounded-2xl border-2 border-dashed border-gray-200 text-gray-500 text-sm font-medium hover:bg-gray-50 hover:border-gray-300 transition-all mt-2"
+            >
+              Загрузить ещё ({items.length} из {totalCount})
+            </button>
+          )}
         </div>
       )}
 
