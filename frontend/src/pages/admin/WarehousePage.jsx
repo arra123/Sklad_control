@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useTabState } from '../../hooks/useTabState';
 import { qty } from '../../utils/fmt';
 import {
   Plus, Pencil, Trash2, Search,
@@ -21,6 +22,7 @@ import { WarehouseListView, ShelfCardsView, BoxWarehouseView } from './warehouse
 // ─── Warehouse Content (FBS / FBO / Both) ────────────────────────────────────
 function WarehouseContent({ warehouse, initialRackId, initialShelfId, initialRowId, initialPalletId, initialBoxId, initialBoxType }) {
   const [searchParams, setSearchParams] = useSearchParams();
+  // Tab-scoped state for drill-down persistence
   const viewMode = searchParams.get('view') || 'cards';
   const setViewMode = (mode) => {
     setSearchParams(prev => {
@@ -375,8 +377,15 @@ export default function WarehousePage() {
   const initialBoxType = searchParams.get('boxtype');
 
   const [warehouses, setWarehouses] = useState([]);
-  const [selectedWh, setSelectedWh] = useState(null);
+  const [tabWhId, setTabWhId] = useTabState('wh_selectedId', null);
+  const [selectedWh, setSelectedWhLocal] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  // Sync: when tabWhId changes (tab switch), update selectedWh
+  const setSelectedWh = useCallback((wh) => {
+    setSelectedWhLocal(wh);
+    if (wh) setTabWhId(wh.id);
+  }, [setTabWhId]);
 
   const handleSelectWh = useCallback((wh) => {
     setSelectedWh(wh);
@@ -394,7 +403,9 @@ export default function WarehousePage() {
       if (res.data.length > 0) {
         const urlWhId = searchParams.get('wh');
         const fromUrl = urlWhId ? res.data.find(w => w.id === +urlWhId) : null;
-        setSelectedWh(prev => fromUrl || (prev ? (res.data.find(w => w.id === prev.id) || res.data[0]) : res.data[0]));
+        const fromTab = tabWhId ? res.data.find(w => w.id === tabWhId) : null;
+        const resolved = fromUrl || fromTab || res.data[0];
+        setSelectedWh(resolved);
       }
     } finally {
       setLoading(false);
