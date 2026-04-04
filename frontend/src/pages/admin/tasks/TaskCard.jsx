@@ -1,0 +1,61 @@
+import { ShelfIcon, PalletIcon, BoxIcon } from '../../../components/ui/WarehouseIcons';
+import Badge from '../../../components/ui/Badge';
+import { STATUS_MAP, TASK_TYPE_ICON } from './taskConstants';
+
+export default function TaskCard({ task, onClick }) {
+  const status = STATUS_MAP[task.status] || STATUS_MAP.new;
+  const typeInfo = TASK_TYPE_ICON[task.task_type] || TASK_TYPE_ICON.inventory;
+  const TypeIcon = typeInfo.Icon;
+
+  return (
+    <button
+      onClick={() => onClick(task)}
+      className="w-full text-left card p-4 hover:shadow-md hover:border-primary-200 transition-all group"
+    >
+      <div className="flex items-start gap-3">
+        <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 border ${typeInfo.bg} ${typeInfo.border}`}>
+          <TypeIcon size={26} />
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start justify-between gap-2">
+            <h3 className="font-medium text-gray-900 text-sm leading-tight group-hover:text-primary-700 transition-colors">{task.title}</h3>
+            <Badge variant={status.variant} className="flex-shrink-0">{status.label}</Badge>
+          </div>
+
+          {/* Row 1: type badge + employee */}
+          <div className="flex items-center gap-2 mt-1.5 text-xs">
+            {task.task_type === 'packaging' && <span className="font-semibold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded-lg">Оприходование</span>}
+            {task.task_type === 'production_transfer' && <span className="font-semibold text-sky-700 bg-sky-100 px-1.5 py-0.5 rounded-lg">Перенос</span>}
+            {task.task_type === 'inventory' && <span className="font-semibold text-indigo-700 bg-indigo-100 px-1.5 py-0.5 rounded-lg">Инвентаризация</span>}
+            {task.task_type === 'bundle_assembly' && <span className="font-semibold text-purple-700 bg-purple-100 px-1.5 py-0.5 rounded-lg">Сборка</span>}
+            {task.employee_name && <span className="text-gray-500">{task.employee_name}</span>}
+            {task.shelf_code && <span className="inline-flex items-center gap-1 text-gray-500"><ShelfIcon size={12} />{task.rack_name} · {task.shelf_name}</span>}
+            {!task.shelf_code && task.pallet_name && <span className="inline-flex items-center gap-1 text-gray-500"><PalletIcon size={12} />{task.pallet_row_name || 'Ряд'} · {task.pallet_name}</span>}
+            {task.box_barcode && <span className="inline-flex items-center gap-1 text-gray-500"><BoxIcon size={12} />Коробка {task.box_barcode}</span>}
+          </div>
+          {/* Row 2: stats grid — fixed positions */}
+          <div className="grid grid-cols-[auto_auto_auto_auto_1fr] gap-x-3 mt-1 text-xs text-gray-500">
+            {Number(task.task_boxes_total || 0) > 0 && (
+              <span>Коробки {Number(task.task_boxes_completed || 0)} / {Number(task.task_boxes_total || 0)}</span>
+            )}
+            {Number(task.scans_count) > 0 && <span>{task.scans_count} сканов</span>}
+            {task.avg_scan_time && <span className="text-primary-500">{Number(task.avg_scan_time).toFixed(1)}с</span>}
+            {task.task_type === 'bundle_assembly' && task.assembled_count != null && (
+              <span className="text-green-600 font-semibold">{task.assembled_count}/{task.bundle_qty} собрано</span>
+            )}
+            <span className="text-gray-300 text-right">{new Date(task.created_at).toLocaleString('ru-RU', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit'})}</span>
+          </div>
+
+          {task.notes && (
+            <p className="text-xs text-gray-400 mt-1.5 line-clamp-1">{task.notes}</p>
+          )}
+        </div>
+
+        {task.status === 'in_progress' && (
+          <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse flex-shrink-0 mt-1" />
+        )}
+      </div>
+    </button>
+  );
+}
