@@ -197,12 +197,6 @@ export default function TasksPage() {
   }, []);
   const resetFilters = () => { setSearchText(''); setFilterEmployee(''); setFilterStatus(''); setFilterLocation(''); setFilterType(''); setFilterPeriod('all'); };
 
-  // Stats
-  const statsInProgress = items.filter(t => t.status === 'in_progress').length;
-  const statsNew = items.filter(t => t.status === 'new').length;
-  const today = new Date().toDateString();
-  const statsCompletedToday = items.filter(t => t.status === 'completed' && t.completed_at && new Date(t.completed_at).toDateString() === today).length;
-  const totalScansToday = items.filter(t => t.completed_at && new Date(t.completed_at).toDateString() === today).reduce((s, t) => s + Number(t.scans_count || 0), 0);
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
@@ -248,30 +242,8 @@ export default function TasksPage() {
         </div>
       </div>
 
-      {/* Stats cards */}
-      {!loading && items.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-4">
-          <button onClick={() => { setFilterStatus('in_progress'); setFilterPeriod('all'); }} className="bg-white border border-gray-100 rounded-lg px-3 py-1 text-center hover:border-amber-200 transition-all">
-            <p className="text-base font-bold text-gray-800">{statsInProgress}</p>
-            <p className="text-[10px] text-gray-400 flex items-center justify-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block"></span>В работе</p>
-          </button>
-          <button onClick={() => { setFilterStatus('new'); setFilterPeriod('all'); }} className="bg-white border border-gray-100 rounded-lg px-3 py-1 text-center hover:border-gray-300 transition-all">
-            <p className="text-base font-bold text-gray-800">{statsNew}</p>
-            <p className="text-[10px] text-gray-400">Новых</p>
-          </button>
-          <button onClick={() => { setFilterStatus('completed'); setFilterPeriod('today'); }} className="bg-white border border-gray-100 rounded-lg px-3 py-1 text-center hover:border-green-200 transition-all">
-            <p className="text-base font-bold text-gray-800">{statsCompletedToday}</p>
-            <p className="text-[10px] text-gray-400 flex items-center justify-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-green-400 inline-block"></span>Выполнено</p>
-          </button>
-          <button onClick={() => { setFilterStatus(''); setFilterPeriod('today'); }} className="bg-white border border-gray-100 rounded-lg px-3 py-1 text-center hover:border-blue-200 transition-all">
-            <p className="text-base font-bold text-gray-800">{totalScansToday.toLocaleString('ru-RU')}</p>
-            <p className="text-[10px] text-gray-400 flex items-center justify-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-blue-400 inline-block"></span>Сканов</p>
-          </button>
-        </div>
-      )}
-
-      {/* All filters — single row */}
-      <div className="flex flex-wrap items-center gap-2 mb-3">
+      {/* Filters — full width single row */}
+      <div className="flex flex-wrap items-center gap-2 mb-3 w-full">
         {/* Period pills */}
         {[['all', 'Все'], ['today', 'Сегодня'], ['yesterday', 'Вчера']].map(([k, l]) => (
           <button key={k} onClick={() => setFilterPeriod(k)}
