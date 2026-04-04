@@ -3,6 +3,7 @@ import { useEffect, lazy, Suspense, Component } from 'react';
 import { initGlobalErrorHandlers } from './utils/errorReporter';
 import { appBasePath } from './utils/appBasePath';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { TabsProvider } from './context/TabsContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { AppSettingsProvider } from './context/AppSettingsContext';
 import { ToastProvider } from './components/ui/Toast';
@@ -35,6 +36,7 @@ const FBOPage = lazy(() => import('./pages/admin/FBOPage'));
 // MovementsPage removed — history view no longer in nav
 const MaterialsPage = lazy(() => import('./pages/admin/MaterialsPage'));
 const LiveMonitorPage = lazy(() => import('./pages/admin/LiveMonitorPage'));
+const NewTabPage = lazy(() => import('./pages/admin/NewTabPage'));
 
 class ChunkErrorBoundary extends Component {
   constructor(props) { super(props); this.state = { hasError: false }; }
@@ -121,6 +123,7 @@ function AppRoutes() {
       <Route path="/admin/fbo" element={<AdminRoute><FBOPage /></AdminRoute>} />
       <Route path="/admin/move" element={<AdminRoute><MovePage /></AdminRoute>} />
       <Route path="/admin/live-monitor" element={<AdminRoute><LiveMonitorPage /></AdminRoute>} />
+      <Route path="/admin/new-tab" element={<AdminRoute><NewTabPage /></AdminRoute>} />
 
       {/* Employee routes */}
       <Route path="/employee/tasks" element={<EmployeeRoute><MyTasksPage /></EmployeeRoute>} />
@@ -153,7 +156,9 @@ export default function App() {
       <AppSettingsProvider>
         <ToastProvider>
           <AuthProvider>
-            <AppRoutes />
+            <TabsProvider>
+              <AppRoutes />
+            </TabsProvider>
           </AuthProvider>
         </ToastProvider>
       </AppSettingsProvider>
