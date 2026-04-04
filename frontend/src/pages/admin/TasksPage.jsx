@@ -53,6 +53,7 @@ export default function TasksPage() {
   // Inline filters (client-side)
   const [searchText, setSearchText] = useState('');
   const [filterLocation, setFilterLocation] = useState('');
+  const [filterType, setFilterType] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -84,6 +85,7 @@ export default function TasksPage() {
       const loc = task.rack_name || task.pallet_row_name || '';
       if (loc !== filterLocation) return false;
     }
+    if (filterType && task.task_type !== filterType) return false;
     return true;
   });
 
@@ -109,7 +111,7 @@ export default function TasksPage() {
       </div>
 
       {/* Inline filters */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-4">
         <input
           type="text"
           placeholder="Поиск по названию..."
@@ -148,6 +150,18 @@ export default function TasksPage() {
           {uniqueLocations.map(loc => (
             <option key={loc} value={loc}>{loc}</option>
           ))}
+        </select>
+        <select
+          value={filterType}
+          onChange={e => setFilterType(e.target.value)}
+          className="px-3 py-2 text-sm rounded-xl border border-gray-200 bg-white focus:outline-none focus:border-primary-400 focus:ring-1 focus:ring-primary-200 transition-colors text-gray-600"
+        >
+          <option value="">Все типы</option>
+          <option value="inventory">Инвентаризация</option>
+          <option value="packaging">Оприходование</option>
+          <option value="production_transfer">Перенос</option>
+          <option value="bundle_assembly">Сборка</option>
+          <option value="returns">Возвраты</option>
         </select>
       </div>
 
