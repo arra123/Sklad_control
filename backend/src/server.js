@@ -7,6 +7,14 @@ const { runSeed } = require('./db/seed');
 const { syncEmployeesFromOsite } = require('./utils/syncFromOsite');
 const { initSocket } = require('./socket');
 
+// Prevent crashes from killing the process
+process.on('uncaughtException', (err) => {
+  console.error('[CRASH] Uncaught exception:', err.message);
+});
+process.on('unhandledRejection', (err) => {
+  console.error('[CRASH] Unhandled rejection:', err?.message || err);
+});
+
 async function start() {
   try {
     await createSchema();
