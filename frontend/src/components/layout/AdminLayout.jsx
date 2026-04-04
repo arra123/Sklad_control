@@ -9,6 +9,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { cn } from '../../utils/cn';
 import { AdminAvatar, ManagerAvatar, WorkerAvatar } from '../ui/WarehouseIcons';
+import TabBar from './TabBar';
 import api from '../../api/client';
 
 // ─── Конфигурация хлебных крошек ─────────────────────────────────────────────
@@ -330,6 +331,9 @@ export default function AdminLayout({ children }) {
             <span className="font-bold text-gray-900">GRAсклад</span>
           </div>
         </header>
+
+        {/* Tabs */}
+        <TabBar />
 
         {/* Breadcrumb */}
         <Breadcrumb />

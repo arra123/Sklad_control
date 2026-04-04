@@ -53,6 +53,15 @@ async function getAllGraRates(client = pool) {
   };
 }
 
+// In-memory cache for heavy queries
+const cache = new Map();
+function cached(key, ttlMs, fn) {
+  const entry = cache.get(key);
+  if (entry && Date.now() - entry.ts < ttlMs) return entry.data;
+  return null;
+}
+function setCache(key, data) { cache.set(key, { data, ts: Date.now() }); }
+
 router.get('/summary', requireAuth, requirePermission('analytics', 'staff.view'), async (req, res) => {
   const period = req.query.period || 'all';
   let pf = '';
@@ -61,9 +70,12 @@ router.get('/summary', requireAuth, requirePermission('analytics', 'staff.view')
   else if (period === 'month') pf = `AND ee.created_at >= CURRENT_DATE - INTERVAL '30 days'`;
   else if (/^\d{4}-\d{2}-\d{2}$/.test(period)) pf = `AND ee.created_at >= '${period}'::date AND ee.created_at < '${period}'::date + INTERVAL '1 day'`;
 
+  const cacheKey = `summary_${period}`;
+  const hit = cached(cacheKey, 5000);
+  if (hit) return res.json(hit);
+
   for (let attempt = 1; attempt <= 3; attempt++) {
   try {
-    await pool.query('SET LOCAL statement_timeout = 15000'); // 15s max
     const [rate, overviewResult, leadersResult, recentAdjustmentsResult] = await Promise.all([
       getRewardRate(pool),
       pool.query(`
@@ -133,7 +145,7 @@ router.get('/summary', requireAuth, requirePermission('analytics', 'staff.view')
     ]);
 
     const allRates = await getAllGraRates(pool);
-    res.json({
+    const result = {
       settings: {
         gra_inventory_scan_rate: rate,
         rates: allRates,
@@ -141,7 +153,9 @@ router.get('/summary', requireAuth, requirePermission('analytics', 'staff.view')
       overview: overviewResult.rows[0] || {},
       leaders: leadersResult.rows,
       recent_adjustments: recentAdjustmentsResult.rows,
-    });
+    };
+    setCache(cacheKey, result);
+    res.json(result);
     return;
   } catch (err) {
     if (err.code === '40P01' && attempt < 3) { await new Promise(r => setTimeout(r, 50 * attempt)); continue; }
