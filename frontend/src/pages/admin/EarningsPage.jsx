@@ -113,9 +113,9 @@ export default function EarningsPage() {
   const fmtRate = (v) => showRub ? fmtRubRate(v) : fmtGra(v);
   const unit = showRub ? '₽' : 'GRA';
 
-  const loadBase = useCallback(async (background = false, p) => {
+  const loadBase = useCallback(async (background = false, periodParam = 'all') => {
     if (background) setRefreshing(true); else setLoading(true);
-    const params = { period: p || period };
+    const params = { period: periodParam };
     try {
       const [summaryRes, employeesRes] = await Promise.all([api.get('/earnings/summary', { params }), api.get('/earnings/employees', { params })]);
       setSummary(summaryRes.data);
@@ -138,11 +138,11 @@ export default function EarningsPage() {
     employeeAbort.current = ctrl;
     setEmployeeLoading(true);
     try {
-      const res = await api.get(`/earnings/employees/${employeeId}`, { signal: ctrl.signal, params: { period: p || period } });
+      const res = await api.get(`/earnings/employees/${employeeId}`, { signal: ctrl.signal, params: { period: p || 'all' } });
       setEmployeeDetails(res.data);
     } catch (err) {
       if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
-      toast.error(err.response?.data?.error || 'Ошибка');
+      console.error('[Earnings]', err.message);
     } finally { if (!ctrl.signal.aborted) setEmployeeLoading(false); }
   }, [toast]);
 
@@ -157,12 +157,12 @@ export default function EarningsPage() {
       setTaskDetails(res.data);
     } catch (err) {
       if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
-      toast.error(err.response?.data?.error || 'Ошибка');
+      console.error('[Earnings]', err.message);
     } finally { if (!ctrl.signal.aborted) setTaskLoading(false); }
   }, [toast]);
 
   // Initial load (once)
-  useEffect(() => { loadBase(); }, []);
+  useEffect(() => { loadBase(false, period); }, []);
   useEffect(() => {
     setEmployeeDetails(null); setTaskDetails(null); setExpandedTask(null);
     if (selectedEmployeeId) loadEmployeeDetails(selectedEmployeeId);
@@ -189,7 +189,7 @@ export default function EarningsPage() {
     try {
       await api.post(`/earnings/employees/${selectedEmployee.employee_id}/set-balance`, { new_balance: numeric, notes });
       toast.success('Баланс обновлён'); setAdjustModalOpen(false);
-      await Promise.all([loadBase(true), loadEmployeeDetails(selectedEmployee.employee_id)]);
+      await Promise.all([loadBase(true, period), loadEmployeeDetails(selectedEmployee.employee_id)]);
     } catch (err) { toast.error(err.response?.data?.error || 'Ошибка'); }
     finally { setSavingBalance(false); }
   };
