@@ -19,39 +19,39 @@ function getTitle(path) {
 export default function TabBar() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { tabs, activeId, switchTab, createTab, closeTab, updateActiveUrl } = useTabs();
+  const { tabs, activeId, switchTab, createTab, closeTab, updateActiveUrl, isSwitching } = useTabs();
   const currentPath = location.pathname + location.search;
 
-  // Sync current URL to active tab (only when not transitioning to new-tab)
+  // Sync URL → active tab (only for user navigation, NOT tab switching)
   useEffect(() => {
-    if (currentPath.includes('new-tab')) return; // don't sync new-tab page
+    if (isSwitching()) return;
+    if (currentPath.includes('new-tab')) return;
     updateActiveUrl(currentPath, getTitle(location.pathname));
-  }, [currentPath, location.pathname, updateActiveUrl]);
+  }, [currentPath]);
 
   const handleSwitch = (id) => {
     if (id === activeId) return;
-    switchTab(id);
     const tab = tabs.find(t => t.id === id);
+    switchTab(id);
     if (tab) navigate(tab.path);
   };
 
   const handleCreate = () => {
-    const id = createTab();
-    // Small delay to let state update before navigate
-    setTimeout(() => navigate('/admin/new-tab'), 0);
+    createTab();
+    setTimeout(() => navigate('/admin/new-tab'), 50);
   };
 
   const handleClose = (id, e) => {
     e.stopPropagation();
     if (tabs.length <= 1) return;
-    const closing = tabs.find(t => t.id === id);
+    const wasActive = id === activeId;
+    const idx = tabs.findIndex(t => t.id === id);
     closeTab(id);
-    // If closing active, navigate to new active
-    if (id === activeId) {
+    if (wasActive) {
       const remaining = tabs.filter(t => t.id !== id);
-      const idx = Math.min(tabs.findIndex(t => t.id === id), remaining.length - 1);
-      if (remaining[idx]) {
-        setTimeout(() => navigate(remaining[idx].path), 0);
+      const newIdx = Math.min(idx, remaining.length - 1);
+      if (remaining[newIdx]) {
+        setTimeout(() => navigate(remaining[newIdx].path), 50);
       }
     }
   };
@@ -59,24 +59,24 @@ export default function TabBar() {
   return (
     <div className="flex items-center gap-0.5 px-1 flex-shrink-0" style={{ minWidth: 0 }}>
       {tabs.map(tab => (
-        <button
+        <div
           key={tab.id}
           onClick={() => handleSwitch(tab.id)}
-          className={`flex items-center gap-1 px-3 py-1 rounded-lg text-[11px] font-medium transition-colors whitespace-nowrap group border flex-shrink-0 ${
+          className={`flex items-center gap-1 px-3 py-1 rounded-lg text-[11px] font-medium transition-colors whitespace-nowrap group border cursor-pointer select-none ${
             tab.id === activeId
               ? 'bg-white text-gray-900 shadow-sm border-gray-200'
               : 'text-gray-400 hover:text-gray-600 bg-transparent border-transparent hover:bg-gray-50'
           }`}
-          style={{ width: 140, maxWidth: 140 }}
+          style={{ width: 150, minWidth: 150, maxWidth: 150 }}
         >
           <span className="truncate flex-1 text-left">{tab.title}</span>
           {tabs.length > 1 && (
             <span onClick={(e) => handleClose(tab.id, e)}
-              className="opacity-0 group-hover:opacity-100 hover:text-red-500 transition-opacity flex-shrink-0">
+              className="opacity-0 group-hover:opacity-100 hover:text-red-500 transition-opacity flex-shrink-0 ml-1">
               <X size={10} />
             </span>
           )}
-        </button>
+        </div>
       ))}
       <button onClick={handleCreate}
         className="p-1.5 rounded-lg text-gray-300 hover:text-primary-600 hover:bg-gray-100 transition-colors flex-shrink-0"

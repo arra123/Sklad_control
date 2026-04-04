@@ -1,58 +1,56 @@
-import { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 
 const TabsContext = createContext(null);
-const STORAGE_KEY = 'browser_tabs';
+const STORAGE_KEY = 'browser_tabs_v2';
 
-function loadTabs() {
+function load() {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY)); } catch { return null; }
 }
-function saveTabs(tabs, activeId) {
+function save(tabs, activeId) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify({ tabs, activeId }));
 }
 
 export function TabsProvider({ children }) {
   const [tabs, setTabs] = useState(() => {
-    const saved = loadTabs();
-    if (saved?.tabs?.length > 0) return saved.tabs;
-    return [{ id: 1, path: '/admin/warehouse', title: 'Склады' }];
+    const s = load();
+    return s?.tabs?.length > 0 ? s.tabs : [{ id: 1, path: '/admin/warehouse', title: 'Склады' }];
   });
-  const [activeId, setActiveId] = useState(() => {
-    const saved = loadTabs();
-    return saved?.activeId || 1;
-  });
-  const [nextId, setNextId] = useState(() => {
-    const saved = loadTabs();
-    return saved?.tabs ? Math.max(...saved.tabs.map(t => t.id)) + 1 : 2;
-  });
+  const [activeId, setActiveId] = useState(() => load()?.activeId || 1);
+  const nextIdRef = useRef(Math.max(...(load()?.tabs?.map(t => t.id) || [1])) + 1);
+  const switchingRef = useRef(false); // true during tab switch to prevent URL overwrite
 
-  // Save on change
-  useEffect(() => { saveTabs(tabs, activeId); }, [tabs, activeId]);
+  useEffect(() => { save(tabs, activeId); }, [tabs, activeId]);
 
   const activeTab = tabs.find(t => t.id === activeId) || tabs[0];
 
-  // Update current tab's URL (called on every navigation)
+  // Update active tab's URL — called on route change, but NOT during tab switch
   const updateActiveUrl = useCallback((path, title) => {
+    if (switchingRef.current) return; // ignore during switch
     setTabs(prev => prev.map(t => t.id === activeId ? { ...t, path, title: title || t.title } : t));
   }, [activeId]);
 
-  // Switch to a tab
+  // Switch tab — sets flag to prevent URL sync
   const switchTab = useCallback((id) => {
+    switchingRef.current = true;
     setActiveId(id);
+    // Clear flag after navigation completes
+    setTimeout(() => { switchingRef.current = false; }, 100);
   }, []);
 
-  // Create new tab (opens "new tab page")
+  // Create new tab
   const createTab = useCallback(() => {
-    const id = nextId;
-    setNextId(id + 1);
+    const id = nextIdRef.current++;
+    switchingRef.current = true;
     setTabs(prev => [...prev, { id, path: '/admin/new-tab', title: 'Новая вкладка' }]);
     setActiveId(id);
+    setTimeout(() => { switchingRef.current = false; }, 100);
     return id;
-  }, [nextId]);
+  }, []);
 
   // Close tab
   const closeTab = useCallback((id) => {
     setTabs(prev => {
-      if (prev.length <= 1) return prev; // keep at least 1
+      if (prev.length <= 1) return prev;
       const idx = prev.findIndex(t => t.id === id);
       const next = prev.filter(t => t.id !== id);
       if (id === activeId) {
@@ -64,12 +62,10 @@ export function TabsProvider({ children }) {
   }, [activeId]);
 
   return (
-    <TabsContext.Provider value={{ tabs, activeTab, activeId, switchTab, createTab, closeTab, updateActiveUrl }}>
+    <TabsContext.Provider value={{ tabs, activeTab, activeId, switchTab, createTab, closeTab, updateActiveUrl, isSwitching: () => switchingRef.current }}>
       {children}
     </TabsContext.Provider>
   );
 }
 
-export function useTabs() {
-  return useContext(TabsContext);
-}
+export function useTabs() { return useContext(TabsContext); }
