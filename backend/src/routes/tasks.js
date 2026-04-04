@@ -3297,8 +3297,23 @@ router.post('/:id/complete', requireAuth, async (req, res) => {
       ['completed', taskId]
     );
 
+    // Gather completion stats
+    const scanStats = await client.query(
+      `SELECT COUNT(*) as total_scans, COUNT(DISTINCT product_id) as unique_products
+       FROM inventory_task_scans_s WHERE task_id = $1 AND product_id IS NOT NULL`, [taskId]);
+    const graRes = await client.query(
+      `SELECT COALESCE(SUM(amount_delta), 0) as gra_earned FROM employee_earnings_s WHERE task_id = $1`, [taskId]);
+
     await client.query('COMMIT');
-    res.json({ success: true });
+    res.json({
+      success: true,
+      task_completed: true,
+      stats: {
+        total_scans: Number(scanStats.rows[0]?.total_scans || 0),
+        unique_products: Number(scanStats.rows[0]?.unique_products || 0),
+        gra_earned: Number(graRes.rows[0]?.gra_earned || 0),
+      },
+    });
   } catch (err) {
     await client.query('ROLLBACK');
     res.status(500).json({ error: err.message });

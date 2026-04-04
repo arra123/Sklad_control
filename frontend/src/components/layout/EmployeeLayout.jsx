@@ -93,6 +93,7 @@ export default function EmployeeLayout({ children }) {
   const { user, logout, rewardFx } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [activeTasks, setActiveTasks] = useState(0);
   const [activeBreak, setActiveBreak] = useState(null); // { id, break_type, started_at }
   const [breakLoading, setBreakLoading] = useState(false);
   const [showBreakMenu, setShowBreakMenu] = useState(false);
@@ -104,6 +105,13 @@ export default function EmployeeLayout({ children }) {
   }, []);
 
   useEffect(() => { loadBreak(); }, [loadBreak]);
+
+  // Load active tasks count for badge
+  useEffect(() => {
+    api.get('/tasks', { params: { limit: 100 } })
+      .then(r => setActiveTasks((r.data.items || []).filter(t => t.status === 'in_progress' || t.status === 'new').length))
+      .catch(() => {});
+  }, [location.pathname]);
 
   const startBreak = async (type) => {
     setBreakLoading(true);
@@ -193,6 +201,9 @@ export default function EmployeeLayout({ children }) {
                     isActive && 'scale-110'
                   )}>
                     <item.icon size={22} strokeWidth={isActive ? 2.5 : 2} />
+                    {item.to === '/employee/tasks' && activeTasks > 0 && !isActive && (
+                      <span className="absolute -top-1.5 -right-2.5 min-w-[16px] h-4 flex items-center justify-center rounded-full bg-red-500 text-white text-[9px] font-bold px-1">{activeTasks}</span>
+                    )}
                     {isActive && (
                       <div className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-current opacity-60 animate-pulse" />
                     )}

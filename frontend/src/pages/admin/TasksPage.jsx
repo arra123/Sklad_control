@@ -18,6 +18,7 @@ export default function TasksPage() {
   const [totalCount, setTotalCount] = useState(0);
   const [pageSize] = useState(50);
   const [refreshing, setRefreshing] = useState(false);
+  const [lastUpdate, setLastUpdate] = useState(null);
 
   // URL-backed state
   const selectedTaskId = searchParams.get('id');
@@ -66,6 +67,7 @@ export default function TasksPage() {
       const res = await api.get('/tasks', { params: { limit: pageSize } });
       setItems(res.data.items);
       setTotalCount(Number(res.data.total || res.data.items.length));
+      setLastUpdate(new Date());
     } catch (err) {
       console.error(err);
     } finally {
@@ -146,7 +148,7 @@ export default function TasksPage() {
         <div className="flex items-center gap-2">
           <button
             onClick={() => { setRefreshing(true); load().finally(() => setTimeout(() => setRefreshing(false), 500)); }}
-            title="Обновить"
+            title={lastUpdate ? `Обновлено ${lastUpdate.toLocaleTimeString('ru-RU')}` : 'Обновить'}
             className="p-2 rounded-xl text-gray-400 hover:text-primary-600 hover:bg-primary-50 transition-colors"
           >
             <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />
