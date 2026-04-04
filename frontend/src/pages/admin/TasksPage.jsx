@@ -89,6 +89,12 @@ export default function TasksPage() {
     return true;
   });
 
+  // Stats
+  const statsInProgress = items.filter(t => t.status === 'in_progress').length;
+  const statsNew = items.filter(t => t.status === 'new').length;
+  const today = new Date().toDateString();
+  const statsCompletedToday = items.filter(t => t.status === 'completed' && t.completed_at && new Date(t.completed_at).toDateString() === today).length;
+
   return (
     <div className="p-6 max-w-4xl mx-auto">
       <div className="flex items-start justify-between gap-4 mb-6">
@@ -109,6 +115,24 @@ export default function TasksPage() {
           </Button>
         </div>
       </div>
+
+      {/* Stats cards */}
+      {!loading && items.length > 0 && (
+        <div className="grid grid-cols-3 gap-3 mb-4">
+          <div className="bg-amber-50 border border-amber-100 rounded-2xl px-4 py-3 text-center">
+            <p className="text-2xl font-black text-amber-600">{statsInProgress}</p>
+            <p className="text-[11px] text-amber-500 font-medium">В работе</p>
+          </div>
+          <div className="bg-gray-50 border border-gray-100 rounded-2xl px-4 py-3 text-center">
+            <p className="text-2xl font-black text-gray-500">{statsNew}</p>
+            <p className="text-[11px] text-gray-400 font-medium">Новых</p>
+          </div>
+          <div className="bg-green-50 border border-green-100 rounded-2xl px-4 py-3 text-center">
+            <p className="text-2xl font-black text-green-600">{statsCompletedToday}</p>
+            <p className="text-[11px] text-green-500 font-medium">Выполнено сегодня</p>
+          </div>
+        </div>
+      )}
 
       {/* Inline filters */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-4">

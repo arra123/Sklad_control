@@ -2643,6 +2643,26 @@ router.put('/:id', requireAuth, requirePermission('tasks.create', 'tasks.view'),
   }
 });
 
+// PATCH /api/tasks/:id — update task fields (assign employee, notes, title)
+router.patch('/:id', requireAuth, requirePermission('tasks.create'), async (req, res) => {
+  const { employee_id, title, notes } = req.body;
+  const updates = [];
+  const params = [];
+  if (employee_id !== undefined) { params.push(employee_id); updates.push(`employee_id = $${params.length}`); }
+  if (title !== undefined) { params.push(title); updates.push(`title = $${params.length}`); }
+  if (notes !== undefined) { params.push(notes); updates.push(`notes = $${params.length}`); }
+  if (!updates.length) return res.status(400).json({ error: 'Нет полей для обновления' });
+  params.push(req.params.id);
+  try {
+    const result = await pool.query(
+      `UPDATE inventory_tasks_s SET ${updates.join(', ')} WHERE id = $${params.length} AND deleted_at IS NULL RETURNING id, title, employee_id, notes`,
+      params
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'Задача не найдена' });
+    res.json(result.rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // DELETE /api/tasks/:id?refund=1 — delete task, optionally refund GRA
 router.delete('/:id', requireAuth, requirePermission('tasks.create'), async (req, res) => {
   const client = await pool.connect();
