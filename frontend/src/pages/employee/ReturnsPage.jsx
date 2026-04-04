@@ -128,6 +128,11 @@ export default function ReturnsPage() {
         dest_type: 'employee', dest_id: user.employee_id,
       });
 
+      // Log scan in task for chronology (lightweight — no inventory changes)
+      if (taskId) {
+        try { await api.post(`/tasks/${taskId}/log-scan`, { scanned_value: barcode, product_id: data.id }); } catch {}
+      }
+
       // Add to items list
       setItems(prev => {
         const existing = prev.find(i => i.product_id === data.id);

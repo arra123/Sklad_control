@@ -2908,6 +2908,32 @@ router.post('/:id/start', requireAuth, async (req, res) => {
   }
 });
 
+// POST /api/tasks/:id/log-scan — lightweight scan log for returns (no inventory changes)
+router.post('/:id/log-scan', requireAuth, async (req, res) => {
+  const { scanned_value, product_id } = req.body;
+  if (!scanned_value) return res.status(400).json({ error: 'scanned_value обязателен' });
+  try {
+    const task = await pool.query('SELECT id, task_type FROM inventory_tasks_s WHERE id = $1', [req.params.id]);
+    if (!task.rows.length) return res.status(404).json({ error: 'Задача не найдена' });
+
+    // Resolve product from barcode if product_id not provided
+    let prodId = product_id || null;
+    if (!prodId && scanned_value) {
+      const pr = await pool.query(
+        `SELECT id FROM products_s WHERE $1 = ANY(string_to_array(barcode_list, ';')) OR production_barcode = $1 LIMIT 1`,
+        [scanned_value]);
+      if (pr.rows.length) prodId = pr.rows[0].id;
+    }
+
+    await pool.query(
+      `INSERT INTO inventory_task_scans_s (task_id, product_id, scanned_value, quantity_delta) VALUES ($1, $2, $3, 1)`,
+      [req.params.id, prodId, scanned_value]);
+    await pool.query('UPDATE inventory_tasks_s SET scans_count = scans_count + 1 WHERE id = $1', [req.params.id]);
+
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // POST /api/tasks/:id/scan — scan a product barcode
 router.post('/:id/scan', requireAuth, async (req, res) => {
   const { scanned_value, quantity_delta = 1 } = req.body;
