@@ -7,7 +7,6 @@ import Spinner from '../../components/ui/Spinner';
 import TaskDetailPanel from './tasks/TaskDetailPanel';
 import CreateTaskModal from './tasks/CreateTaskModal';
 import TaskCard from './tasks/TaskCard';
-import { useToast } from '../../components/ui/Toast';
 
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 export default function TasksPage() {
@@ -22,8 +21,7 @@ export default function TasksPage() {
   const [lastUpdate, setLastUpdate] = useState(null);
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [bulkMode, setBulkMode] = useState(false);
-  const [showQuickCreate, setShowQuickCreate] = useState(false);
-  const toast = useToast();
+
 
   // URL-backed state
   const selectedTaskId = searchParams.get('id');
@@ -179,23 +177,6 @@ export default function TasksPage() {
     URL.revokeObjectURL(url);
   };
 
-  // Recent unique templates for quick create
-  const recentTemplates = useMemo(() => {
-    const seen = new Set();
-    return items
-      .filter(t => t.status === 'completed' && t.task_type !== 'returns')
-      .filter(t => { const key = `${t.task_type}_${t.title}`; if (seen.has(key)) return false; seen.add(key); return true; })
-      .slice(0, 6)
-      .map(t => ({ title: t.title, task_type: t.task_type, location: t.rack_name ? `${t.rack_name} · ${t.shelf_name}` : t.pallet_name ? `${t.pallet_row_name} · ${t.pallet_name}` : '', employee_name: t.employee_name }));
-  }, [items]);
-
-  const quickCreate = async (tpl) => {
-    setShowQuickCreate(false);
-    // Open create modal pre-filled — for now just show toast with template info
-    toast.success(`Шаблон: ${tpl.title}`);
-    setShowCreate(true);
-  };
-
   const hasActiveFilters = searchText || filterEmployee || filterStatus || filterLocation || filterType || filterPeriod !== 'all';
 
   // Keyboard shortcut: "/" to focus search
@@ -256,32 +237,9 @@ export default function TasksPage() {
           >
             <Video size={18} />
           </button>
-          <div className="relative">
-            <div className="flex">
-              <Button icon={<Plus size={15} />} size="sm" onClick={() => setShowCreate(true)}>
-                Создать задачу
-              </Button>
-              {recentTemplates.length > 0 && (
-                <button
-                  onClick={() => setShowQuickCreate(!showQuickCreate)}
-                  className="ml-1 px-2 py-1 rounded-xl bg-primary-100 text-primary-600 hover:bg-primary-200 transition-colors text-xs font-bold"
-                  title="Быстрое создание"
-                >▼</button>
-              )}
-            </div>
-            {showQuickCreate && recentTemplates.length > 0 && (
-              <div className="absolute right-0 top-full mt-1 w-72 bg-white rounded-2xl shadow-xl border border-gray-200 z-50 p-2">
-                <p className="text-[10px] text-gray-400 font-semibold uppercase px-2 py-1">Повторить задачу</p>
-                {recentTemplates.map((tpl, i) => (
-                  <button key={i} onClick={() => quickCreate(tpl)}
-                    className="w-full text-left px-3 py-2 rounded-xl text-sm hover:bg-primary-50 transition-colors">
-                    <p className="font-medium text-gray-900 truncate">{tpl.title}</p>
-                    {tpl.location && <p className="text-xs text-gray-400">{tpl.location}</p>}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          <Button icon={<Plus size={15} />} size="sm" onClick={() => setShowCreate(true)}>
+            Создать задачу
+          </Button>
         </div>
       </div>
 
