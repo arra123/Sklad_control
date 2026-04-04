@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { cn } from '../../utils/cn';
+import { AdminAvatar, ManagerAvatar, WorkerAvatar } from '../ui/WarehouseIcons';
 import api from '../../api/client';
 
 // ─── Конфигурация хлебных крошек ─────────────────────────────────────────────
@@ -291,10 +292,8 @@ export default function AdminLayout({ children }) {
             )}
           </div>
           <div className="flex items-center gap-3 mb-2">
-            <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center">
-              <span className="text-primary-700 text-sm font-semibold">
-                {user?.username?.[0]?.toUpperCase()}
-              </span>
+            <div className="w-9 h-9 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center">
+              {user?.role === 'admin' ? <AdminAvatar size={26} /> : user?.role === 'manager' ? <ManagerAvatar size={26} /> : <WorkerAvatar size={26} />}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{user?.username}</p>
