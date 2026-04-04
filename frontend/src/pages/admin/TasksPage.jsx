@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { Plus, ClipboardList, Video, RefreshCw } from 'lucide-react';
+import { Plus, ClipboardList, Video, RefreshCw, Download } from 'lucide-react';
 import api from '../../api/client';
 import Button from '../../components/ui/Button';
 import Spinner from '../../components/ui/Spinner';
@@ -127,6 +127,22 @@ export default function TasksPage() {
   });
 
   const searchRef = useRef(null);
+  const exportCSV = () => {
+    const headers = ['ID', 'Название', 'Тип', 'Статус', 'Сотрудник', 'Сканов', 'Длительность (мин)', 'Создана', 'Завершена'];
+    const rows = filtered.map(t => [
+      t.id, `"${(t.title || '').replace(/"/g, '""')}"`,
+      t.task_type, t.status, t.employee_name || '',
+      t.scans_count || 0, t.duration_minutes || '',
+      t.created_at ? new Date(t.created_at).toLocaleString('ru-RU') : '',
+      t.completed_at ? new Date(t.completed_at).toLocaleString('ru-RU') : '',
+    ]);
+    const csv = '\uFEFF' + [headers.join(';'), ...rows.map(r => r.join(';'))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = `tasks_${new Date().toISOString().slice(0,10)}.csv`; a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const hasActiveFilters = searchText || filterEmployee || filterStatus || filterLocation || filterType || filterPeriod !== 'all';
 
   // Keyboard shortcut: "/" to focus search
@@ -159,6 +175,13 @@ export default function TasksPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={exportCSV}
+            title="Экспорт в CSV"
+            className="p-2 rounded-xl text-gray-400 hover:text-green-600 hover:bg-green-50 transition-colors"
+          >
+            <Download size={16} />
+          </button>
           <button
             onClick={() => { setRefreshing(true); load().finally(() => setTimeout(() => setRefreshing(false), 500)); }}
             title={lastUpdate ? `Обновлено ${lastUpdate.toLocaleTimeString('ru-RU')}` : 'Обновить'}
