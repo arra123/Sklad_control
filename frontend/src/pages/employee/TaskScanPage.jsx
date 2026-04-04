@@ -843,20 +843,42 @@ function CompletedView({ task, scans }) {
       </div>
 
       <h2 className="text-2xl font-extrabold text-gray-900 mb-1 animate-fade-up" style={{ animationDelay: '0.3s' }}>Готово!</h2>
-      <p className="text-gray-500 text-sm mb-5 animate-fade-up" style={{ animationDelay: '0.4s' }}>{task.title}</p>
-
-      {scans.length > 0 && (
-        <div className="w-full max-w-sm grid grid-cols-2 gap-2.5 mb-5">
-          <div className="bg-green-50 rounded-2xl p-4 text-center border border-green-100 animate-fade-up" style={{ animationDelay: '0.5s' }}>
-            <p className="text-[10px] text-green-500 font-bold uppercase tracking-wider">Товаров</p>
-            <p className="text-2xl font-black text-green-600 mt-1">{scans.length}</p>
-          </div>
-          <div className="bg-blue-50 rounded-2xl p-4 text-center border border-blue-100 animate-fade-up" style={{ animationDelay: '0.6s' }}>
-            <p className="text-[10px] text-blue-500 font-bold uppercase tracking-wider">Всего штук</p>
-            <p className="text-2xl font-black text-blue-600 mt-1">{scans.reduce((s, sc) => s + Number(sc.total_quantity || 0), 0)}</p>
-          </div>
+      <p className="text-gray-500 text-sm mb-2 animate-fade-up" style={{ animationDelay: '0.4s' }}>{task.title}</p>
+      {task.gra_earned > 0 && (
+        <div className="animate-fade-up flex items-center gap-1.5 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2 mb-4" style={{ animationDelay: '0.45s' }}>
+          <span className="text-lg font-black text-amber-600">+{task.gra_earned}</span>
+          <span className="text-xs text-amber-500 font-semibold">GRA заработано</span>
         </div>
       )}
+
+      {(() => {
+        const duration = task.started_at && task.completed_at
+          ? Math.round((new Date(task.completed_at) - new Date(task.started_at)) / 60000)
+          : null;
+        const totalQty = scans.reduce((s, sc) => s + Number(sc.total_quantity || 0), 0);
+        return (scans.length > 0 || duration) && (
+          <div className={`w-full max-w-sm grid ${duration ? 'grid-cols-3' : 'grid-cols-2'} gap-2.5 mb-5`}>
+            {scans.length > 0 && (
+              <div className="bg-green-50 rounded-2xl p-4 text-center border border-green-100 animate-fade-up" style={{ animationDelay: '0.5s' }}>
+                <p className="text-[10px] text-green-500 font-bold uppercase tracking-wider">Товаров</p>
+                <p className="text-2xl font-black text-green-600 mt-1">{scans.length}</p>
+              </div>
+            )}
+            {totalQty > 0 && (
+              <div className="bg-blue-50 rounded-2xl p-4 text-center border border-blue-100 animate-fade-up" style={{ animationDelay: '0.6s' }}>
+                <p className="text-[10px] text-blue-500 font-bold uppercase tracking-wider">Всего штук</p>
+                <p className="text-2xl font-black text-blue-600 mt-1">{totalQty}</p>
+              </div>
+            )}
+            {duration != null && (
+              <div className="bg-amber-50 rounded-2xl p-4 text-center border border-amber-100 animate-fade-up" style={{ animationDelay: '0.65s' }}>
+                <p className="text-[10px] text-amber-500 font-bold uppercase tracking-wider">Время</p>
+                <p className="text-2xl font-black text-amber-600 mt-1">{duration < 60 ? `${duration}м` : `${Math.floor(duration/60)}ч ${duration%60}м`}</p>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {scans.length > 0 && (
         <div className="w-full max-w-sm bg-white rounded-2xl p-4 mb-5 text-left border border-gray-100 shadow-sm animate-fade-up" style={{ animationDelay: '0.7s' }}>

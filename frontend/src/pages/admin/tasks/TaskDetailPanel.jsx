@@ -28,6 +28,7 @@ export default function TaskDetailPanel({ task, onClose, onReload }) {
   const [deleteConfirm, setDeleteConfirm] = useState(null); // null | 'ask' | 'refund'
   const [employees, setEmployees] = useState([]);
   const [showAssign, setShowAssign] = useState(false);
+  const [assignSearch, setAssignSearch] = useState('');
 
   // Reset state when task changes to avoid showing stale data
   useEffect(() => {
@@ -182,18 +183,30 @@ export default function TaskDetailPanel({ task, onClose, onReload }) {
 
         {/* Assign employee dropdown */}
         {showAssign && (
-          <div className="mx-4 mt-2 p-2 rounded-xl border border-primary-200 bg-primary-50 max-h-48 overflow-y-auto">
-            <button onClick={() => handleAssign(null)} className="w-full text-left px-3 py-1.5 text-sm text-gray-400 hover:bg-white rounded-lg transition-colors">
-              — Снять назначение —
-            </button>
-            {employees.map(e => (
-              <button key={e.id} onClick={() => handleAssign(e.id)}
-                className={`w-full text-left px-3 py-1.5 text-sm rounded-lg transition-colors ${
-                  e.id === task.employee_id ? 'bg-primary-100 text-primary-700 font-semibold' : 'text-gray-700 hover:bg-white'
-                }`}>
-                {e.full_name}
+          <div className="mx-4 mt-2 rounded-xl border border-primary-200 bg-primary-50 overflow-hidden">
+            <input
+              type="text"
+              placeholder="Поиск сотрудника..."
+              value={assignSearch}
+              onChange={e => setAssignSearch(e.target.value)}
+              autoFocus
+              className="w-full px-3 py-2 text-sm bg-white border-b border-primary-100 focus:outline-none focus:bg-primary-50 transition-colors"
+            />
+            <div className="max-h-40 overflow-y-auto p-1">
+              <button onClick={() => handleAssign(null)} className="w-full text-left px-3 py-1.5 text-sm text-gray-400 hover:bg-white rounded-lg transition-colors">
+                — Снять назначение —
               </button>
-            ))}
+              {employees
+                .filter(e => !assignSearch || e.full_name.toLowerCase().includes(assignSearch.toLowerCase()))
+                .map(e => (
+                <button key={e.id} onClick={() => handleAssign(e.id)}
+                  className={`w-full text-left px-3 py-1.5 text-sm rounded-lg transition-colors ${
+                    e.id === task.employee_id ? 'bg-primary-100 text-primary-700 font-semibold' : 'text-gray-700 hover:bg-white'
+                  }`}>
+                  {e.full_name}
+                </button>
+              ))}
+            </div>
           </div>
         )}
 

@@ -2096,6 +2096,12 @@ router.get('/:id', requireAuth, async (req, res) => {
       [req.params.id]
     );
 
+    // GRA earned for this task
+    const earningsRes = await pool.query(
+      `SELECT COALESCE(SUM(amount_delta), 0) as gra_earned FROM employee_earnings_s WHERE task_id = $1`,
+      [req.params.id]
+    );
+
     res.json({
       ...t,
       scans: scans.rows,
@@ -2103,6 +2109,7 @@ router.get('/:id', requireAuth, async (req, res) => {
       task_boxes_total: taskBoxes.length,
       task_boxes_completed: completedTaskBoxes,
       active_task_box: activeTaskBox,
+      gra_earned: Number(earningsRes.rows[0]?.gra_earned || 0),
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -2287,7 +2294,9 @@ router.post('/', requireAuth, (req, res, next) => {
     target_box_ids,
     target_shelf_box_ids,
   } = req.body;
-  if (!title) return res.status(400).json({ error: 'Название задачи обязательно' });
+  if (!title || typeof title !== 'string' || title.trim().length === 0) return res.status(400).json({ error: 'Название задачи обязательно' });
+  const validTypes = ['inventory', 'packaging', 'production_transfer', 'bundle_assembly', 'returns'];
+  if (task_type && !validTypes.includes(task_type)) return res.status(400).json({ error: `Неизвестный тип задачи: ${task_type}` });
   const client = await pool.connect();
   try {
     const palletBoxIds = Array.isArray(target_box_ids) ? target_box_ids.map(Number).filter(Boolean) : [];
@@ -2957,7 +2966,8 @@ router.post('/:id/log-scan', requireAuth, async (req, res) => {
 // POST /api/tasks/:id/scan — scan a product barcode
 router.post('/:id/scan', requireAuth, async (req, res) => {
   const { scanned_value, quantity_delta = 1 } = req.body;
-  if (!scanned_value) return res.status(400).json({ error: 'scanned_value обязателен' });
+  if (!scanned_value || typeof scanned_value !== 'string') return res.status(400).json({ error: 'scanned_value обязателен' });
+  if (scanned_value.length > 200) return res.status(400).json({ error: 'scanned_value слишком длинный' });
 
   const client = await pool.connect();
   try {
