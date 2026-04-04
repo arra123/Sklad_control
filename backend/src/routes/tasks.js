@@ -2267,7 +2267,11 @@ router.get('/:id/analytics', requireAuth, async (req, res) => {
 
 
 // POST /api/tasks
-router.post('/', requireAuth, requirePermission('tasks.create'), async (req, res) => {
+router.post('/', requireAuth, (req, res, next) => {
+  // Returns tasks can be created by any employee (auto-created from ReturnsPage)
+  if (req.body.task_type === 'returns') return next();
+  return requirePermission('tasks.create')(req, res, next);
+}, async (req, res) => {
   const {
     title,
     employee_id,
