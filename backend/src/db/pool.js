@@ -11,6 +11,7 @@ const pool = new Pool({
   max: 25,
   idleTimeoutMillis: 15000,
   connectionTimeoutMillis: 10000,
+  statement_timeout: 30000, // 30s — kill queries that hang too long
 });
 
 pool.on('error', (err) => {

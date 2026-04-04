@@ -17,10 +17,13 @@ function getCachedUser(userId) {
 
 function setCachedUser(userId, user) {
   userCache.set(userId, { user, ts: Date.now() });
-  // Prevent unbounded growth
+  // Prevent unbounded growth — evict oldest by timestamp (LRU)
   if (userCache.size > 200) {
-    const oldest = userCache.keys().next().value;
-    userCache.delete(oldest);
+    let oldestKey = null, oldestTs = Infinity;
+    for (const [key, entry] of userCache) {
+      if (entry.ts < oldestTs) { oldestTs = entry.ts; oldestKey = key; }
+    }
+    if (oldestKey !== null) userCache.delete(oldestKey);
   }
 }
 

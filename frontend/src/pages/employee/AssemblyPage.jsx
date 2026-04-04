@@ -49,33 +49,7 @@ function BarcodePrint({ barcode, productName, onPrinted }) {
   );
 }
 
-// ─── Beep sound (same as TaskScanPage) ───────────────────────────────────────
-function playBeep(success = true) {
-  try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain); gain.connect(ctx.destination);
-    osc.frequency.value = success ? 880 : 440;
-    osc.type = 'sine';
-    gain.gain.setValueAtTime(0.3, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + (success ? 0.15 : 0.4));
-    osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + (success ? 0.15 : 0.4));
-    if (!success) {
-      const osc2 = ctx.createOscillator();
-      const gain2 = ctx.createGain();
-      osc2.connect(gain2); gain2.connect(ctx.destination);
-      osc2.frequency.value = 330;
-      osc2.type = 'sine';
-      gain2.gain.setValueAtTime(0, ctx.currentTime + 0.25);
-      gain2.gain.linearRampToValueAtTime(0.3, ctx.currentTime + 0.27);
-      gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.65);
-      osc2.start(ctx.currentTime + 0.25);
-      osc2.stop(ctx.currentTime + 0.65);
-    }
-  } catch {}
-}
+import { playBeep, SCAN_AUTO_SUBMIT_MS } from '../../utils/audio';
 
 // ─── Scan Input (exact copy of TaskScanPage pattern) ─────────────────────────
 function ScanInput({ onScan, placeholder = 'Сканируйте штрих-код...', disabled }) {
@@ -112,7 +86,7 @@ function ScanInput({ onScan, placeholder = 'Сканируйте штрих-ко
     const val = e.target.value;
     setValue(val);
     if (timerRef.current) clearTimeout(timerRef.current);
-    if (val.trim().length >= 4) timerRef.current = setTimeout(() => doScan(val.trim()), 300);
+    if (val.trim().length >= 4) timerRef.current = setTimeout(() => doScan(val.trim()), SCAN_AUTO_SUBMIT_MS);
   };
 
   const handleKeyDown = (e) => {

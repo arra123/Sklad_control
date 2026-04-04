@@ -343,15 +343,15 @@ router.get('/my-inventory', requireAuth, async (req, res) => {
   if (!req.user.employee_id) return res.json([]);
   try {
     const empId = req.user.employee_id;
-    const result = await pool.query(
-      `SELECT ei.*, p.name as product_name, p.code as product_code
-       FROM employee_inventory_s ei JOIN products_s p ON p.id=ei.product_id
-       WHERE ei.employee_id=$1 AND ei.quantity>0 ORDER BY p.name`,
-      [empId]);
-
-    // Enrich with last movement source for each product
-    for (const item of result.rows) {
-      const mov = await pool.query(`
+    // Single query with LATERAL join instead of N+1 loop
+    const result = await pool.query(`
+      SELECT ei.*, p.name as product_name, p.code as product_code,
+        ls.movement_type as src_movement_type, ls.created_at as src_created_at, ls.notes as src_notes,
+        ls.from_shelf_code as src_from_shelf_code, ls.from_pallet_name as src_from_pallet_name,
+        ls.from_box_barcode as src_from_box_barcode, ls.task_title as src_task_title
+      FROM employee_inventory_s ei
+      JOIN products_s p ON p.id = ei.product_id
+      LEFT JOIN LATERAL (
         SELECT m.movement_type, m.created_at, m.notes,
           fs.code as from_shelf_code, fp.name as from_pallet_name,
           fb.barcode_value as from_box_barcode,
@@ -361,14 +361,33 @@ router.get('/my-inventory', requireAuth, async (req, res) => {
         LEFT JOIN pallets_s fp ON fp.id = m.from_pallet_id
         LEFT JOIN boxes_s fb ON fb.id = m.from_box_id
         LEFT JOIN inventory_tasks_s it ON it.id = m.task_id
-        WHERE m.to_employee_id = $1 AND m.product_id = $2
+        WHERE m.to_employee_id = ei.employee_id AND m.product_id = ei.product_id
         ORDER BY m.created_at DESC LIMIT 1
-      `, [empId, item.product_id]);
-      if (mov.rows.length) {
-        item.last_source = mov.rows[0];
+      ) ls ON true
+      WHERE ei.employee_id = $1 AND ei.quantity > 0
+      ORDER BY p.name
+    `, [empId]);
+
+    // Map to same shape frontend expects
+    const rows = result.rows.map(r => {
+      const item = { ...r };
+      if (r.src_movement_type) {
+        item.last_source = {
+          movement_type: r.src_movement_type,
+          created_at: r.src_created_at,
+          notes: r.src_notes,
+          from_shelf_code: r.src_from_shelf_code,
+          from_pallet_name: r.src_from_pallet_name,
+          from_box_barcode: r.src_from_box_barcode,
+          task_title: r.src_task_title,
+        };
       }
-    }
-    res.json(result.rows);
+      delete item.src_movement_type; delete item.src_created_at; delete item.src_notes;
+      delete item.src_from_shelf_code; delete item.src_from_pallet_name;
+      delete item.src_from_box_barcode; delete item.src_task_title;
+      return item;
+    });
+    res.json(rows);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

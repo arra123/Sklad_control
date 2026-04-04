@@ -161,9 +161,9 @@ export default function EmployeeLayout({ children }) {
             <div className="w-7 h-7 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 text-white flex items-center justify-center text-[10px] font-bold flex-shrink-0 shadow-sm">
               {(user?.employee_name || user?.username || 'С').slice(0, 1).toUpperCase()}
             </div>
-            <button onClick={() => { logout(); navigate('/login'); }}
-              className="p-1.5 rounded-xl text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950 transition-all flex-shrink-0">
-              <LogOut size={16} />
+            <button onClick={() => { if (window.confirm('Выйти из аккаунта?')) { logout(); navigate('/login'); } }}
+              className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950 transition-all flex-shrink-0">
+              <LogOut size={18} />
             </button>
           </div>
         </div>
@@ -176,11 +176,11 @@ export default function EmployeeLayout({ children }) {
 
       {/* ─── Bottom Navigation ─── */}
       <nav className="fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-gray-900/95 backdrop-blur-lg border-t border-gray-100 dark:border-gray-800 safe-area-inset-bottom z-20">
-        <div className="flex items-center justify-around h-[68px] px-2 max-w-lg mx-auto tsd-nav">
+        <div className="flex items-center justify-around h-[68px] px-1 sm:px-2 max-w-lg mx-auto tsd-nav gap-0.5">
           {navItems.map(item => (
             <NavLink key={item.to} to={item.to}
               className={({ isActive }) => cn(
-                'employee-nav-item group relative flex flex-col items-center gap-0.5 px-4 py-2 rounded-2xl transition-all duration-200',
+                'employee-nav-item group relative flex flex-col items-center gap-0.5 px-2.5 sm:px-4 py-2 rounded-2xl transition-all duration-200 min-w-[52px]',
                 isActive
                   ? `${item.activeBg} ${item.activeText} ring-1 ${item.activeRing} shadow-sm`
                   : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
@@ -211,7 +211,7 @@ export default function EmployeeLayout({ children }) {
             onClick={() => activeBreak ? (activeBreak.break_type === 'tech' ? null : endBreak()) : setShowBreakMenu(true)}
             disabled={breakLoading || (activeBreak?.break_type === 'tech')}
             className={cn(
-              'employee-nav-item group relative flex flex-col items-center gap-0.5 px-3 py-2 rounded-2xl transition-all duration-200',
+              'employee-nav-item group relative flex flex-col items-center gap-0.5 px-2.5 sm:px-3 py-2 rounded-2xl transition-all duration-200 min-w-[52px]',
               activeBreak
                 ? activeBreak.break_type === 'tech'
                   ? 'bg-red-50 text-red-600 ring-1 ring-red-200 shadow-sm'

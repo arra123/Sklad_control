@@ -28,10 +28,19 @@ const TASK_TYPE_STYLE = {
   default: { SvgIcon: InventoryIcon, label: 'Задача', bg: 'bg-primary-50', text: 'text-primary-600', border: 'border-primary-200' },
 };
 
+const TASK_FILTERS = [
+  { key: 'all', label: 'Все' },
+  { key: 'inventory', label: 'Инвентаризация' },
+  { key: 'packaging', label: 'Оприходование' },
+  { key: 'bundle_assembly', label: 'Сборка' },
+  { key: 'production_transfer', label: 'Перенос' },
+];
+
 export default function MyTasksPage() {
   const navigate = useNavigate();
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [typeFilter, setTypeFilter] = useState('all');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -45,8 +54,9 @@ export default function MyTasksPage() {
 
   useEffect(() => { load(); }, []);
 
-  const activeTasks = tasks.filter(t => t.status === 'new' || t.status === 'in_progress' || t.status === 'paused');
-  const doneTasks = tasks.filter(t => t.status === 'completed' || t.status === 'cancelled');
+  const filtered = typeFilter === 'all' ? tasks : tasks.filter(t => t.task_type === typeFilter);
+  const activeTasks = filtered.filter(t => t.status === 'new' || t.status === 'in_progress' || t.status === 'paused');
+  const doneTasks = filtered.filter(t => t.status === 'completed' || t.status === 'cancelled');
 
   if (loading) {
     return (
@@ -74,13 +84,35 @@ export default function MyTasksPage() {
         </div>
         <button
           onClick={load}
-          className="p-2.5 rounded-xl text-gray-400 hover:text-blue-500 hover:bg-blue-50 transition-all active:scale-95"
+          className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl text-gray-400 hover:text-blue-500 hover:bg-blue-50 transition-all active:scale-95"
         >
           <RefreshCw size={18} />
         </button>
       </div>
 
-      {tasks.length === 0 ? (
+      {/* Filter chips */}
+      {tasks.length > 0 && (
+        <div className="flex gap-1.5 mb-4 overflow-x-auto pb-1 -mx-1 px-1 no-scrollbar">
+          {TASK_FILTERS.map(f => (
+            <button key={f.key} onClick={() => setTypeFilter(f.key)}
+              className={cn(
+                'px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex-shrink-0 min-h-[36px]',
+                typeFilter === f.key
+                  ? 'bg-blue-500 text-white shadow-sm'
+                  : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+              )}>
+              {f.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {filtered.length === 0 && tasks.length > 0 ? (
+        <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+          <p className="font-semibold text-gray-500">Нет задач этого типа</p>
+          <button onClick={() => setTypeFilter('all')} className="text-sm mt-2 text-blue-500 hover:underline">Показать все</button>
+        </div>
+      ) : tasks.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-gray-400">
           <div className="w-16 h-16 rounded-3xl bg-gray-100 flex items-center justify-center mb-4">
             <ClipboardList size={32} className="opacity-40" />

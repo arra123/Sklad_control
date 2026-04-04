@@ -15,38 +15,7 @@ import Barcode from '../../components/ui/Barcode';
 import CopyBadge from '../../components/ui/CopyBadge';
 import { useToast } from '../../components/ui/Toast';
 import { useAppSettings } from '../../context/AppSettingsContext';
-
-// playBeep создаётся с параметрами из настроек
-function makePlayBeep(s) {
-  return function playBeep(ok = true) {
-    if (!s.scan_sound_enabled) return;
-    try {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain); gain.connect(ctx.destination);
-      osc.frequency.value = ok ? s.scan_sound_freq_ok : s.scan_sound_freq_err;
-      osc.type = 'sine';
-      const dur = (ok ? s.scan_sound_dur_ok : s.scan_sound_dur_err) / 1000;
-      gain.gain.setValueAtTime(0.3, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
-      osc.start(ctx.currentTime); osc.stop(ctx.currentTime + dur);
-      // Double beep for errors
-      if (!ok) {
-        const osc2 = ctx.createOscillator();
-        const gain2 = ctx.createGain();
-        osc2.connect(gain2); gain2.connect(ctx.destination);
-        osc2.frequency.value = Math.max(200, s.scan_sound_freq_err - 110);
-        osc2.type = 'sine';
-        gain2.gain.setValueAtTime(0, ctx.currentTime + dur + 0.05);
-        gain2.gain.linearRampToValueAtTime(0.3, ctx.currentTime + dur + 0.07);
-        gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur + 0.05 + dur);
-        osc2.start(ctx.currentTime + dur + 0.05);
-        osc2.stop(ctx.currentTime + dur + 0.05 + dur);
-      }
-    } catch (e) {}
-  };
-}
+import { makePlayBeep, SCAN_AUTO_SUBMIT_MS } from '../../utils/audio';
 
 function makeSpeedColor(fast, slow) {
   return (s) => s < fast ? 'text-green-500' : s < slow ? 'text-amber-500' : 'text-red-400';
@@ -87,7 +56,7 @@ function StepScanPallet({ task, onSuccess }) {
   const handleChange = (e) => {
     const v = e.target.value; setValue(v);
     if (timerRef.current) clearTimeout(timerRef.current);
-    if (v.trim().length >= 4) timerRef.current = setTimeout(() => doScan(v), 350);
+    if (v.trim().length >= 4) timerRef.current = setTimeout(() => doScan(v), SCAN_AUTO_SUBMIT_MS);
   };
 
   return (
@@ -240,7 +209,7 @@ function StepConfirmBox({ task, box, onConfirmed }) {
   const handleChange = (e) => {
     const v = e.target.value; setValue(v);
     if (timerRef.current) clearTimeout(timerRef.current);
-    if (v.trim().length >= 4) timerRef.current = setTimeout(() => doScan(v), 350);
+    if (v.trim().length >= 4) timerRef.current = setTimeout(() => doScan(v), SCAN_AUTO_SUBMIT_MS);
   };
 
   return (
@@ -352,7 +321,7 @@ function StepFillBox({ task, box, onRefresh, onDone, onRemainder }) {
     const v = e.target.value; setValue(v);
     if (timerRef.current) clearTimeout(timerRef.current);
     if (v.trim().length >= settings.scan_min_length) {
-      timerRef.current = setTimeout(() => doScan(v), settings.scan_auto_delay);
+      timerRef.current = setTimeout(() => doScan(v), SCAN_AUTO_SUBMIT_MS);
     }
   };
 
@@ -528,7 +497,7 @@ function StepTransferBox({ task, box, onSuccess }) {
   const handleChange = (e) => {
     const v = e.target.value; setValue(v);
     if (timerRef.current) clearTimeout(timerRef.current);
-    if (v.trim().length >= 4) timerRef.current = setTimeout(() => doScan(v), 350);
+    if (v.trim().length >= 4) timerRef.current = setTimeout(() => doScan(v), SCAN_AUTO_SUBMIT_MS);
   };
 
   return (
@@ -610,7 +579,7 @@ function StepRemainderInfo({ task, box, onConfirmShelf, onBack }) {
   const handleChange = (e) => {
     const v = e.target.value; setScanValue(v);
     if (timerRef.current) clearTimeout(timerRef.current);
-    if (v.trim().length >= 4) timerRef.current = setTimeout(() => doScan(v), 350);
+    if (v.trim().length >= 4) timerRef.current = setTimeout(() => doScan(v), SCAN_AUTO_SUBMIT_MS);
   };
 
   const confirmRecommended = async () => {
@@ -730,7 +699,7 @@ function StepRemainderShelf({ task, box, onSuccess }) {
   const handleChange = (e) => {
     const v = e.target.value; setValue(v);
     if (timerRef.current) clearTimeout(timerRef.current);
-    if (v.trim().length >= 4) timerRef.current = setTimeout(() => doScan(v), 350);
+    if (v.trim().length >= 4) timerRef.current = setTimeout(() => doScan(v), SCAN_AUTO_SUBMIT_MS);
   };
 
   return (
