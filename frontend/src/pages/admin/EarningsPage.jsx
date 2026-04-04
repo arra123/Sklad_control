@@ -320,9 +320,9 @@ export default function EarningsPage() {
                 <div className="divide-y divide-gray-50 max-h-[400px] overflow-y-auto">
                   {recentAdjustments.map(item => (
                     <div key={item.id} className="px-4 py-3 hover:bg-gray-50/50 transition-colors">
-                      <div className="flex items-center justify-between">
-                        <p className="text-sm font-semibold text-gray-800">{item.employee_name}</p>
-                        <span className={`text-sm font-black ${Number(item.amount_delta) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-sm font-semibold text-gray-800 min-w-0">{item.employee_name}</p>
+                        <span className={`text-sm font-black flex-shrink-0 whitespace-nowrap ${Number(item.amount_delta) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                           {Number(item.amount_delta) >= 0 ? '+' : ''}{fmt(item.amount_delta)} {unit}
                         </span>
                       </div>

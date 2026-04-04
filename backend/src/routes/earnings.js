@@ -245,7 +245,7 @@ router.get('/employees', requireAuth, requirePermission('analytics', 'staff.view
 });
 
 router.get('/employees/:employeeId', requireAuth, requirePermission('analytics', 'staff.view'), async (req, res) => {
-  try {
+  for (let attempt = 1; attempt <= 3; attempt++) { try {
     const employeeId = Number(req.params.employeeId);
     if (!Number.isFinite(employeeId)) return res.status(400).json({ error: 'Некорректный employeeId' });
 
@@ -515,8 +515,9 @@ router.get('/tasks/:taskId', requireAuth, requirePermission('analytics', 'staff.
       scans,
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+    if (err.message.includes('deadlock') && attempt < 3) { await new Promise(r => setTimeout(r, 500 * attempt)); continue; }
+    return res.status(500).json({ error: err.message });
+  } }
 });
 
 router.post('/employees/:employeeId/set-balance', requireAuth, requirePermission('staff.edit'), async (req, res) => {
