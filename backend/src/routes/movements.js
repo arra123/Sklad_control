@@ -198,7 +198,19 @@ router.post('/move', requireAuth, async (req, res) => {
         [dest_id, product_id, afterQty - qty, afterQty, qty, req.user.id]);
     }
 
-    // Log movement
+    // Log movement (check shelf boxes to avoid FK violation on boxes_s)
+    let fromBoxId = null, fromShelfIdForBox = null;
+    if (source_type === 'box') {
+      const sbxCheck = await client.query('SELECT shelf_id FROM shelf_boxes_s WHERE id=$1', [source_id]);
+      if (sbxCheck.rows.length) fromShelfIdForBox = sbxCheck.rows[0].shelf_id;
+      else fromBoxId = source_id;
+    }
+    let toBoxId = null, toShelfIdForBox = null;
+    if (dest_type === 'box') {
+      const sbxCheck = await client.query('SELECT shelf_id FROM shelf_boxes_s WHERE id=$1', [dest_id]);
+      if (sbxCheck.rows.length) toShelfIdForBox = sbxCheck.rows[0].shelf_id;
+      else toBoxId = dest_id;
+    }
     await client.query(
       `INSERT INTO movements_s (movement_type, product_id, quantity,
         from_pallet_id, from_shelf_id, from_box_id, from_employee_id,
@@ -208,12 +220,12 @@ router.post('/move', requireAuth, async (req, res) => {
         `${source_type || 'external'}_to_${dest_type}`,
         product_id, qty,
         source_type === 'pallet' ? source_id : null,
-        source_type === 'shelf' ? source_id : null,
-        source_type === 'box' ? source_id : null,
+        source_type === 'shelf' ? source_id : fromShelfIdForBox,
+        fromBoxId,
         source_type === 'employee' ? source_id : null,
         dest_type === 'pallet' ? dest_id : null,
-        dest_type === 'shelf' ? dest_id : null,
-        dest_type === 'box' ? dest_id : null,
+        dest_type === 'shelf' ? dest_id : toShelfIdForBox,
+        toBoxId,
         dest_type === 'employee' ? dest_id : null,
         req.user.id,
       ]);
@@ -542,11 +554,19 @@ router.post('/put-to-box', requireAuth, async (req, res) => {
       await client.query('UPDATE boxes_s SET quantity = quantity + $1 WHERE id=$2', [totalQty, box_id]);
     }
 
-    // Log movement
-    await client.query(
-      `INSERT INTO movements_s (movement_type, quantity, from_employee_id, to_box_id, performed_by, source, notes)
-       VALUES ('employee_to_box', $1, $2, $3, $4, 'scan', 'Пересыпка в коробку')`,
-      [totalQty, employeeId, box_id, req.user.id]);
+    // Log movement (shelf boxes go to to_shelf_id, pallet boxes go to to_box_id)
+    if (isShelfBox.rows.length) {
+      const shelfId = await client.query('SELECT shelf_id FROM shelf_boxes_s WHERE id=$1', [box_id]);
+      await client.query(
+        `INSERT INTO movements_s (movement_type, quantity, from_employee_id, to_shelf_id, performed_by, source, notes)
+         VALUES ('employee_to_box', $1, $2, $3, $4, 'scan', 'Пересыпка в коробку на полке')`,
+        [totalQty, employeeId, shelfId.rows[0]?.shelf_id || null, req.user.id]);
+    } else {
+      await client.query(
+        `INSERT INTO movements_s (movement_type, quantity, from_employee_id, to_box_id, performed_by, source, notes)
+         VALUES ('employee_to_box', $1, $2, $3, $4, 'scan', 'Пересыпка в коробку')`,
+        [totalQty, employeeId, box_id, req.user.id]);
+    }
 
     await client.query('COMMIT');
     res.json({ success: true, items_count: items.rows.length, total_qty: totalQty });
