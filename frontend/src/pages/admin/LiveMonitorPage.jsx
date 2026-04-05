@@ -79,6 +79,20 @@ function statusBadge(status) {
 
 // ─── Activity Timeline ──────────────────────────────────────────────────────
 
+// Merge inventory scan buckets with sborka event buckets into one array of {bucket, scan_count}
+function mergeBuckets(activity = [], sborka = []) {
+  const map = new Map();
+  (activity || []).forEach(b => {
+    map.set(b.bucket, { bucket: b.bucket, scan_count: Number(b.scan_count || 0), bucket_start: b.bucket_start, bucket_end: b.bucket_end });
+  });
+  (sborka || []).forEach(b => {
+    const cur = map.get(b.bucket) || { bucket: b.bucket, scan_count: 0 };
+    cur.scan_count += Number(b.event_count || 0);
+    map.set(b.bucket, cur);
+  });
+  return [...map.values()].sort((a, b) => a.bucket - b.bucket);
+}
+
 function ActivityTimeline({ buckets, tasks, breaks = [], thresholds }) {
   const T1 = thresholds?.t1 || 3;
   const T2 = thresholds?.t2 || 6;
@@ -738,7 +752,7 @@ function EmployeeDetailView({ employeeId, employees, onBack, thresholds, date, i
         <div className="flex justify-center py-10"><Spinner size="lg" /></div>
       ) : timeline ? (
         <>
-          <ActivityTimeline buckets={timeline.activity_buckets} tasks={timeline.tasks} breaks={timeline.breaks} thresholds={thresholds} />
+          <ActivityTimeline buckets={mergeBuckets(timeline.activity_buckets, timeline.sborka_buckets)} tasks={timeline.tasks} breaks={timeline.breaks} thresholds={thresholds} />
 
           {/* Tasks list */}
           <div className="mt-5">
