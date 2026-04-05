@@ -8,9 +8,12 @@ import { useToast } from '../../components/ui/Toast';
 /* ─── Formatters ────────────────────────────────────────────────────────── */
 function fmt(v) {
   const n = Number(v || 0);
+  const abs = Math.abs(n);
+  // adaptive precision: keep more decimals for small values (rates in ₽)
+  const maxDigits = abs >= 100 ? 2 : abs >= 1 ? 2 : 4;
   const s = String(n);
   const d = s.includes('.') ? s.split('.')[1].length : 0;
-  return new Intl.NumberFormat('ru-RU', { maximumFractionDigits: Math.min(d, 2) }).format(n);
+  return new Intl.NumberFormat('ru-RU', { maximumFractionDigits: Math.min(d, maxDigits) }).format(n);
 }
 
 /* ─── Periods ───────────────────────────────────────────────────────────── */
