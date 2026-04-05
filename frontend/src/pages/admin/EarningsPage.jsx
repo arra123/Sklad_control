@@ -121,7 +121,7 @@ export default function EarningsPage() {
     } finally {
       setLoading(false);
     }
-  }, [period]);
+  }, [period, toast]);
 
   /* ─── Fetch employee detail ─────────────────────────────────────────── */
   const fetchDetail = useCallback(async (eid) => {
@@ -134,13 +134,13 @@ export default function EarningsPage() {
     } finally {
       setDetailLoading(false);
     }
-  }, [period]);
+  }, [period, toast]);
 
-  useEffect(() => { fetchSummary(); }, [period]);
+  useEffect(() => { fetchSummary(); }, [fetchSummary]);
   useEffect(() => {
     if (employeeId) fetchDetail(employeeId);
     else setDetail(null);
-  }, [employeeId, period]);
+  }, [employeeId, fetchDetail]);
 
   /* ─── URL helpers ───────────────────────────────────────────────────── */
   const update = (patch) => {
