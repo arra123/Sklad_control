@@ -717,12 +717,13 @@ function EmployeeDetailView({ employeeId, employees, onBack, thresholds, date, i
       )}
 
       {/* Stats row */}
-      <div className="grid grid-cols-4 gap-3 mb-5">
+      <div className="grid grid-cols-5 gap-3 mb-5">
         {[
           { icon: ScanLine, label: 'Сканов', value: fmtNum(emp.scans_today), bg: 'bg-gray-50', color: 'text-gray-800' },
+          { icon: Package, label: 'Заказов сборки', value: fmtNum(emp.sborka_orders_today || 0), bg: 'bg-purple-50', color: 'text-purple-700' },
           { icon: Award, label: 'Заработок', value: fmtNum(Math.round(emp.earned_today)), bg: 'bg-green-50', color: 'text-green-700' },
           { icon: Zap, label: 'Скорость', value: emp.avg_speed_today ? `${emp.avg_speed_today}с` : '—', bg: 'bg-blue-50', color: 'text-blue-700' },
-          { icon: TrendingUp, label: 'Задач', value: emp.tasks_today, bg: 'bg-purple-50', color: 'text-purple-700' },
+          { icon: TrendingUp, label: 'Задач', value: emp.tasks_today, bg: 'bg-amber-50', color: 'text-amber-700' },
         ].map((s, i) => (
           <div key={i} className={`${s.bg} rounded-2xl p-3 text-center`}>
             <s.icon size={16} className={`mx-auto mb-1 ${s.color} opacity-50`} />
@@ -905,10 +906,14 @@ function EmployeeCard({ emp, onClick }) {
       </div>
 
       {/* Stats — compact */}
-      <div className="grid grid-cols-3 gap-1 mt-auto">
+      <div className="grid grid-cols-4 gap-1 mt-auto">
         <div className="bg-gray-50 rounded-lg py-1.5 text-center overflow-hidden">
           <p className="text-[7px] text-gray-400 uppercase font-bold">Сканов</p>
           <p className="text-xs font-black text-gray-800 leading-tight mt-px truncate px-0.5">{fmtCompact(emp.scans_today)}</p>
+        </div>
+        <div className="bg-purple-50 rounded-lg py-1.5 text-center overflow-hidden">
+          <p className="text-[7px] text-purple-500 uppercase font-bold">Заказов</p>
+          <p className="text-xs font-black text-purple-700 leading-tight mt-px truncate px-0.5">{fmtCompact(emp.sborka_orders_today || 0)}</p>
         </div>
         <div className="bg-green-50 rounded-lg py-1.5 text-center overflow-hidden">
           <p className="text-[7px] text-green-500 uppercase font-bold">GRA</p>
@@ -923,7 +928,14 @@ function EmployeeCard({ emp, onClick }) {
       {/* Footer */}
       <div className="flex items-center justify-between mt-1.5 pt-1.5 border-t border-gray-50 text-[9px] text-gray-400">
         <span>{emp.tasks_today} задач</span>
-        <span>{emp.last_scan_at ? timeAgo(emp.last_scan_at) : '—'}</span>
+        <span>
+          {(() => {
+            const lastScan = emp.last_scan_at ? new Date(emp.last_scan_at).getTime() : 0;
+            const lastSborka = emp.last_sborka_at ? new Date(emp.last_sborka_at).getTime() : 0;
+            const latest = Math.max(lastScan, lastSborka);
+            return latest ? timeAgo(new Date(latest).toISOString()) : '—';
+          })()}
+        </span>
       </div>
     </button>
   );

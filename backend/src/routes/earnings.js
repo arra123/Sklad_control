@@ -272,7 +272,14 @@ router.get('/employees/:employeeId', requireAuth, requirePermission('analytics',
     else if (period === 'month') periodFilter = `AND ee.created_at >= CURRENT_DATE - INTERVAL '30 days'`;
     else if (/^\d{4}-\d{2}-\d{2}$/.test(period)) periodFilter = `AND ee.created_at >= '${period}'::date AND ee.created_at < '${period}'::date + INTERVAL '1 day'`;
 
-    const [employeeResult, tasksResult, adjustmentsResult, sborkaResult] = await Promise.all([
+    // Same filter for sborka_live_events_s (alias sle)
+    let liveFilter = '';
+    if (period === 'today') liveFilter = `AND sle.created_at >= CURRENT_DATE`;
+    else if (period === 'week') liveFilter = `AND sle.created_at >= CURRENT_DATE - INTERVAL '7 days'`;
+    else if (period === 'month') liveFilter = `AND sle.created_at >= CURRENT_DATE - INTERVAL '30 days'`;
+    else if (/^\d{4}-\d{2}-\d{2}$/.test(period)) liveFilter = `AND sle.created_at >= '${period}'::date AND sle.created_at < '${period}'::date + INTERVAL '1 day'`;
+
+    const [employeeResult, tasksResult, adjustmentsResult, sborkaResult, sborkaLiveResult] = await Promise.all([
       pool.query(`
         SELECT
           e.id as employee_id,
@@ -360,6 +367,15 @@ router.get('/employees/:employeeId', requireAuth, requirePermission('analytics',
         ORDER BY ee.created_at DESC
         LIMIT 200
       `, [employeeId]),
+      pool.query(`
+        SELECT
+          id, event_type, order_id, product_name, barcode, quantity, marketplace, created_at
+        FROM sborka_live_events_s sle
+        WHERE sle.employee_id = $1
+          ${liveFilter}
+        ORDER BY sle.created_at DESC
+        LIMIT 2000
+      `, [employeeId]),
     ]);
 
     if (!employeeResult.rows.length) return res.status(404).json({ error: 'Сотрудник не найден' });
@@ -369,6 +385,7 @@ router.get('/employees/:employeeId', requireAuth, requirePermission('analytics',
       tasks: tasksResult.rows,
       adjustments: adjustmentsResult.rows,
       sborka_picks: sborkaResult.rows,
+      sborka_live_events: sborkaLiveResult.rows,
     });
   } catch (err) {
     if (err.message.includes('deadlock') && attempt < 3) { await new Promise(r => setTimeout(r, 500 * attempt)); continue; }

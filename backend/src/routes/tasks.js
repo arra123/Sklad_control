@@ -1512,14 +1512,26 @@ router.get('/analytics/live', requireAuth, requirePermission('analytics', 'dashb
           FROM inventory_task_scans_s sc
           JOIN inventory_tasks_s t ON t.id = sc.task_id AND t.employee_id = e.id
           WHERE sc.created_at >= ${dateFilterSql} AND sc.created_at < ${dateFilterSql} + INTERVAL '1 day'
-        ) g WHERE gap > 0 AND gap < 300) as avg_speed_today
+        ) g WHERE gap > 0 AND gap < 300) as avg_speed_today,
+        -- Sborka live stats (from sborka_live_events_s)
+        COALESCE((SELECT COUNT(*) FROM sborka_live_events_s sle
+          WHERE sle.employee_id = e.id AND sle.event_type = 'pick'
+            AND sle.created_at >= ${dateFilterSql} AND sle.created_at < ${dateFilterSql} + INTERVAL '1 day'), 0) as sborka_picks_today,
+        COALESCE((SELECT COUNT(*) FROM sborka_live_events_s sle
+          WHERE sle.employee_id = e.id AND sle.event_type = 'order_complete'
+            AND sle.created_at >= ${dateFilterSql} AND sle.created_at < ${dateFilterSql} + INTERVAL '1 day'), 0) as sborka_orders_today,
+        (SELECT sle.created_at FROM sborka_live_events_s sle
+          WHERE sle.employee_id = e.id
+            AND sle.created_at >= ${dateFilterSql} AND sle.created_at < ${dateFilterSql} + INTERVAL '1 day'
+          ORDER BY sle.created_at DESC LIMIT 1) as last_sborka_at
       FROM employees_s e
       WHERE e.active = true
         AND (
           ${isToday ? `EXISTS (SELECT 1 FROM inventory_tasks_s t WHERE t.employee_id = e.id AND t.status = 'in_progress') OR` : ''}
           EXISTS (SELECT 1 FROM inventory_task_scans_s sc JOIN inventory_tasks_s t ON t.id = sc.task_id AND t.employee_id = e.id WHERE sc.created_at >= ${dateFilterSql} AND sc.created_at < ${dateFilterSql} + INTERVAL '1 day')
+          OR EXISTS (SELECT 1 FROM sborka_live_events_s sle WHERE sle.employee_id = e.id AND sle.created_at >= ${dateFilterSql} AND sle.created_at < ${dateFilterSql} + INTERVAL '1 day')
         )
-      ORDER BY scans_today DESC
+      ORDER BY scans_today DESC, sborka_picks_today DESC, sborka_orders_today DESC
     `, params);
     const result = { employees, timestamp: new Date().toISOString(), date: dateParam || new Date().toISOString().slice(0,10) };
     if (isToday) liveCache = { data: result, ts: Date.now() };
@@ -1586,10 +1598,32 @@ router.get('/analytics/live/:employeeId/timeline', requireAuth, requirePermissio
       ORDER BY started_at ASC
     `, [employeeId, dateVal]);
 
+    // Sborka live events for the day (picks + order_complete)
+    const sborkaEventsResult = await pool.query(`
+      SELECT id, event_type, order_id, product_name, barcode, quantity, marketplace, created_at
+      FROM sborka_live_events_s
+      WHERE employee_id = $1 AND created_at >= $2::date AND created_at < $2::date + INTERVAL '1 day'
+      ORDER BY created_at ASC
+    `, [employeeId, dateVal]);
+
+    // 5-minute sborka activity buckets (pick events count as activity)
+    const sborkaBucketsResult = await pool.query(`
+      SELECT
+        FLOOR(EXTRACT(EPOCH FROM (sle.created_at - $2::date)) / 300)::int as bucket,
+        COUNT(*) as event_count
+      FROM sborka_live_events_s sle
+      WHERE sle.employee_id = $1 AND sle.created_at >= $2::date AND sle.created_at < $2::date + INTERVAL '1 day'
+        AND sle.event_type IN ('pick','order_start','order_complete')
+      GROUP BY bucket
+      ORDER BY bucket
+    `, [employeeId, dateVal]);
+
     res.json({
       tasks: tasksResult.rows,
       activity_buckets: bucketsResult.rows,
       breaks: breaksResult.rows,
+      sborka_events: sborkaEventsResult.rows,
+      sborka_buckets: sborkaBucketsResult.rows,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

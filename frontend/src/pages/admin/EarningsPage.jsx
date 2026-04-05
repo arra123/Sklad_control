@@ -394,25 +394,47 @@ function EmployeeDetail({ detail, unit = 'gra' }) {
   const tasks = detail.tasks || [];
   const adjustments = detail.adjustments || [];
   const sborka = detail.sborka_picks || [];
+  const liveEvents = detail.sborka_live_events || [];
   const [expandedDay, setExpandedDay] = useState(null);
 
   const dailyData = useMemo(() => {
     const byDate = {};
+    const ensure = (date) => {
+      if (!byDate[date]) byDate[date] = {
+        date, scans: 0, tasks: 0, warehouse: 0, sborka: 0,
+        pickCount: 0, orderCount: 0,
+        taskItems: [], sborkaItems: [], liveOrders: [], livePicks: [],
+      };
+      return byDate[date];
+    };
 
     tasks.forEach(t => {
       const date = t.last_earned_at ? new Date(t.last_earned_at).toLocaleDateString('ru-RU') : 'Без даты';
-      if (!byDate[date]) byDate[date] = { date, scans: 0, tasks: 0, warehouse: 0, sborka: 0, taskItems: [], sborkaItems: [] };
-      byDate[date].scans += Number(t.rewarded_scans || 0);
-      byDate[date].tasks += 1;
-      byDate[date].warehouse += Number(t.amount_earned || 0);
-      byDate[date].taskItems.push(t);
+      const d = ensure(date);
+      d.scans += Number(t.rewarded_scans || 0);
+      d.tasks += 1;
+      d.warehouse += Number(t.amount_earned || 0);
+      d.taskItems.push(t);
     });
 
     sborka.forEach(s => {
       const date = s.created_at ? new Date(s.created_at).toLocaleDateString('ru-RU') : 'Без даты';
-      if (!byDate[date]) byDate[date] = { date, scans: 0, tasks: 0, warehouse: 0, sborka: 0, taskItems: [], sborkaItems: [] };
-      byDate[date].sborka += Number(s.amount_delta || 0);
-      byDate[date].sborkaItems.push(s);
+      const d = ensure(date);
+      d.sborka += Number(s.amount_delta || 0);
+      d.sborkaItems.push(s);
+    });
+
+    // Live sborka events (picks + completed orders) — operational side
+    liveEvents.forEach(e => {
+      const date = e.created_at ? new Date(e.created_at).toLocaleDateString('ru-RU') : 'Без даты';
+      const d = ensure(date);
+      if (e.event_type === 'pick') {
+        d.pickCount += 1;
+        d.livePicks.push(e);
+      } else if (e.event_type === 'order_complete') {
+        d.orderCount += 1;
+        d.liveOrders.push(e);
+      }
     });
 
     return Object.values(byDate).sort((a, b) => {
@@ -420,9 +442,10 @@ function EmployeeDetail({ detail, unit = 'gra' }) {
       const db = b.date.split('.').reverse().join('-');
       return db.localeCompare(da);
     });
-  }, [tasks, sborka]);
+  }, [tasks, sborka, liveEvents]);
 
   const totalSborka = Number(emp?.sborka_amount || 0);
+  const totalOrders = liveEvents.filter(e => e.event_type === 'order_complete').length;
 
   return (
     <>
@@ -431,11 +454,12 @@ function EmployeeDetail({ detail, unit = 'gra' }) {
         <p className="text-xs text-gray-400">Статистика за выбранный период</p>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-5">
         <Stat icon={<IconCoin />} label={`Текущий баланс ${unitLabel(unit)}`} value={fmt(convert(emp?.current_balance, unit))} color="bg-green-50 text-green-600" />
         <Stat icon={<IconScan />} label="Сканов" value={fmt(emp?.rewarded_scans)} color="bg-blue-50 text-blue-600" />
         <Stat icon={<IconTrend />} label={`Склад ${unitLabel(unit)}`} value={fmt(convert(emp?.total_awarded, unit))} color="bg-primary-50 text-primary-600" />
         <Stat icon={<IconCoin />} label={`Сборка ${unitLabel(unit)}`} value={fmt(convert(totalSborka, unit))} color="bg-purple-50 text-purple-600" />
+        <Stat icon={<IconScan />} label="Заказов собрано" value={fmt(totalOrders)} color="bg-fuchsia-50 text-fuchsia-600" />
       </div>
 
       {dailyData.length > 0 && (
@@ -448,11 +472,12 @@ function EmployeeDetail({ detail, unit = 'gra' }) {
               <tr className="bg-gray-50 border-b border-gray-100">
                 <th className="w-8"></th>
                 <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Дата</th>
-                <th className="px-4 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Сканы</th>
-                <th className="px-4 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Задачи</th>
-                <th className="px-4 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Склад</th>
-                <th className="px-4 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Сборка</th>
-                <th className="px-4 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Итого</th>
+                <th className="px-3 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Сканы</th>
+                <th className="px-3 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Задачи</th>
+                <th className="px-3 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Заказов</th>
+                <th className="px-3 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Склад</th>
+                <th className="px-3 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Сборка</th>
+                <th className="px-3 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Итого</th>
               </tr>
             </thead>
             <tbody>
@@ -468,17 +493,18 @@ function EmployeeDetail({ detail, unit = 'gra' }) {
                         {isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                       </td>
                       <td className="px-4 py-3 font-medium text-gray-900">{day.date}</td>
-                      <td className="px-4 py-3 text-right font-mono text-gray-600">{fmt(day.scans)}</td>
-                      <td className="px-4 py-3 text-right text-gray-600">{day.tasks}</td>
-                      <td className="px-4 py-3 text-right text-primary-600 font-semibold">{fmt(convert(day.warehouse, unit))}</td>
-                      <td className="px-4 py-3 text-right text-purple-600 font-semibold">{fmt(convert(day.sborka, unit))}</td>
-                      <td className="px-4 py-3 text-right font-bold text-gray-900">{fmt(convert(day.warehouse + day.sborka, unit))}</td>
+                      <td className="px-3 py-3 text-right font-mono text-gray-600">{fmt(day.scans)}</td>
+                      <td className="px-3 py-3 text-right text-gray-600">{day.tasks}</td>
+                      <td className="px-3 py-3 text-right text-purple-600 font-semibold">{day.orderCount || 0}</td>
+                      <td className="px-3 py-3 text-right text-primary-600 font-semibold">{fmt(convert(day.warehouse, unit))}</td>
+                      <td className="px-3 py-3 text-right text-purple-600 font-semibold">{fmt(convert(day.sborka, unit))}</td>
+                      <td className="px-3 py-3 text-right font-bold text-gray-900">{fmt(convert(day.warehouse + day.sborka, unit))}</td>
                     </tr>
                     {isOpen && (
                       <tr className="bg-gray-50/40 border-b border-gray-100">
                         <td></td>
-                        <td colSpan={6} className="px-4 py-3">
-                          {day.taskItems.length === 0 && day.sborkaItems.length === 0 && (
+                        <td colSpan={7} className="px-4 py-3">
+                          {day.taskItems.length === 0 && day.sborkaItems.length === 0 && day.liveOrders.length === 0 && (
                             <p className="text-xs text-gray-400">Нет детализации</p>
                           )}
                           {day.taskItems.length > 0 && (
@@ -503,8 +529,8 @@ function EmployeeDetail({ detail, unit = 'gra' }) {
                             </div>
                           )}
                           {day.sborkaItems.length > 0 && (
-                            <div>
-                              <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Сборка заказов</p>
+                            <div className="mb-2">
+                              <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Начисления за сборку</p>
                               <div className="space-y-1">
                                 {day.sborkaItems.map(s => (
                                   <div key={s.id} className="flex items-center justify-between gap-3 bg-white rounded-lg border border-gray-100 px-3 py-2">
@@ -519,6 +545,29 @@ function EmployeeDetail({ detail, unit = 'gra' }) {
                                     <div className="text-right flex-shrink-0">
                                       <p className="text-sm font-bold text-purple-600">+{fmt(convert(s.amount_delta, unit))} {unitLabel(unit)}</p>
                                       <p className="text-[11px] text-gray-400">{new Date(s.created_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</p>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {day.liveOrders.length > 0 && (
+                            <div>
+                              <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">
+                                Заказы собраны ({day.liveOrders.length})
+                              </p>
+                              <div className="space-y-1 max-h-[260px] overflow-y-auto">
+                                {day.liveOrders.map(o => (
+                                  <div key={o.id} className="flex items-center justify-between gap-3 bg-white rounded-lg border border-gray-100 px-3 py-2">
+                                    <div className="min-w-0 flex-1">
+                                      <p className="text-sm font-medium text-gray-900 truncate">{o.order_id || '—'}</p>
+                                      <p className="text-[11px] text-gray-400 truncate">
+                                        {(o.marketplace || '—').toUpperCase()}{o.product_name ? ' · ' + o.product_name : ''}
+                                      </p>
+                                    </div>
+                                    <div className="text-right flex-shrink-0">
+                                      <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-green-50 text-green-600">готов</span>
+                                      <p className="text-[11px] text-gray-400 mt-0.5">{new Date(o.created_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</p>
                                     </div>
                                   </div>
                                 ))}
