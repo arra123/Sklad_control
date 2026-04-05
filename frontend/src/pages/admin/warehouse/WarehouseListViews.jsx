@@ -59,15 +59,20 @@ export function WarehouseListView({ warehouses, selectedId, onSelect, onReload, 
             api.put('/warehouse/warehouses/reorder', { order: ids }).then(() => onReload()).catch(() => {});
           }}>
           {warehouses.map((wh, idx) => {
-            const colors = [
-              'border-blue-200 bg-blue-50/50',
-              'border-green-200 bg-green-50/50',
-              'border-amber-200 bg-amber-50/50',
-              'border-purple-200 bg-purple-50/50',
-              'border-teal-200 bg-teal-50/50',
-              'border-rose-200 bg-rose-50/50',
-            ];
-            const color = colors[idx % colors.length];
+            const getColor = (name) => {
+              const n = (name || '').toLowerCase();
+              if (n.includes('нов')) return { border: 'border-amber-300 bg-amber-50/60', dot: 'bg-amber-400' };
+              if (n.includes('fbs') || n.includes('фбс')) return { border: 'border-blue-300 bg-blue-50/60', dot: 'bg-blue-400' };
+              if (n.includes('fbo') || n.includes('фбо')) return { border: 'border-purple-300 bg-purple-50/60', dot: 'bg-purple-400' };
+              if (n.includes('продукц')) return { border: 'border-green-300 bg-green-50/60', dot: 'bg-green-400' };
+              const fallback = [
+                { border: 'border-teal-300 bg-teal-50/60', dot: 'bg-teal-400' },
+                { border: 'border-rose-300 bg-rose-50/60', dot: 'bg-rose-400' },
+                { border: 'border-indigo-300 bg-indigo-50/60', dot: 'bg-indigo-400' },
+              ];
+              return fallback[idx % fallback.length];
+            };
+            const { border: color, dot: dotColor } = getColor(wh.name);
             const isSelected = selectedId === wh.id;
             return (
               <div
@@ -82,12 +87,12 @@ export function WarehouseListView({ warehouses, selectedId, onSelect, onReload, 
                 onClick={() => onSelect(wh)}
                 className={cn(
                   'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all whitespace-nowrap cursor-pointer select-none group border',
-                  isSelected ? `${color} shadow-sm` : 'border-transparent hover:bg-gray-50',
+                  isSelected ? `${color} shadow-sm` : `border-transparent hover:bg-gray-50`,
                   wh.active === false && 'opacity-50'
                 )}
                 style={{ minWidth: 'fit-content' }}
               >
-                <span className={cn('w-2 h-2 rounded-full flex-shrink-0', isSelected ? color.split(' ')[0].replace('border-', 'bg-').replace('-200', '-400') : 'bg-gray-300')} />
+                <span className={cn('w-2 h-2 rounded-full flex-shrink-0', isSelected ? dotColor : 'bg-gray-300')} />
                 <span className={wh.active === false ? 'line-through' : ''}>{wh.name}</span>
                 {isSelected && (
                   <>

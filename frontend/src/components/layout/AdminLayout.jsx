@@ -345,7 +345,7 @@ export default function AdminLayout({ children }) {
         <Breadcrumb />
 
         {/* Page content */}
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 overflow-y-auto scroll-smooth">
           {children}
         </main>
       </div>
