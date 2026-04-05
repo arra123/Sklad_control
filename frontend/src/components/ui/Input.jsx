@@ -35,7 +35,7 @@ const Input = forwardRef(function Input({
             'dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500',
             icon && 'pl-10',
             iconRight && 'pr-10',
-            error && 'border-red-300 focus:border-red-400 focus:ring-red-100',
+            error && 'border-rose-300 focus:border-rose-400 focus:ring-rose-100',
             className
           )}
           {...props}
@@ -46,7 +46,7 @@ const Input = forwardRef(function Input({
           </div>
         )}
       </div>
-      {error && <p className="text-xs text-red-500">{error}</p>}
+      {error && <p className="text-xs text-rose-500">{error}</p>}
       {hint && !error && <p className="text-xs text-gray-400">{hint}</p>}
     </div>
   );

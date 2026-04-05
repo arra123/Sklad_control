@@ -159,8 +159,8 @@ export default function MyInventoryPage() {
         </div>
 
         {deliverError && (
-          <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-3">
-            <p className="text-sm text-red-700">{deliverError}</p>
+          <div className="bg-rose-50 border border-rose-200 rounded-xl px-4 py-3 mb-3">
+            <p className="text-sm text-rose-700">{deliverError}</p>
           </div>
         )}
 

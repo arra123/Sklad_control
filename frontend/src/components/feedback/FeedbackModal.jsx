@@ -8,7 +8,7 @@ import { useAuth } from '../../context/AuthContext';
 import api from '../../api/client';
 
 const CATEGORIES = [
-  { key: 'bug', label: 'Баг', icon: Bug, color: 'bg-red-50 text-red-600 border-red-200', activeColor: 'bg-red-600 text-white border-red-600' },
+  { key: 'bug', label: 'Баг', icon: Bug, color: 'bg-rose-50 text-rose-600 border-rose-200', activeColor: 'bg-rose-600 text-white border-rose-600' },
   { key: 'suggestion', label: 'Предложение', icon: Lightbulb, color: 'bg-amber-50 text-amber-600 border-amber-200', activeColor: 'bg-amber-500 text-white border-amber-500' },
   { key: 'question', label: 'Вопрос', icon: HelpCircle, color: 'bg-blue-50 text-blue-600 border-blue-200', activeColor: 'bg-blue-600 text-white border-blue-600' },
 ];
@@ -291,7 +291,7 @@ export default function FeedbackModal({ open, onClose }) {
               <div className="relative rounded-xl overflow-hidden border border-gray-200">
                 <img src={screenshotPreview} alt="Скриншот" className="w-full h-24 object-cover" />
                 <button onClick={removeScreenshot}
-                  className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600">
+                  className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-rose-500 text-white flex items-center justify-center hover:bg-rose-600">
                   <X size={12} />
                 </button>
               </div>
@@ -325,10 +325,10 @@ export default function FeedbackModal({ open, onClose }) {
               )
             )}
             {isRecording && (
-              <div className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-red-50 border border-red-200">
-                <div className="w-3 h-3 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
-                <span className="text-sm font-bold text-red-600 flex-1">{fmtTime(recordDuration)}</span>
-                <button onClick={stopRecording} className="w-8 h-8 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600">
+              <div className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-rose-50 border border-rose-200">
+                <div className="w-3 h-3 rounded-full bg-rose-500 animate-pulse flex-shrink-0" />
+                <span className="text-sm font-bold text-rose-600 flex-1">{fmtTime(recordDuration)}</span>
+                <button onClick={stopRecording} className="w-8 h-8 rounded-full bg-rose-500 text-white flex items-center justify-center hover:bg-rose-600">
                   <Square size={12} fill="white" />
                 </button>
               </div>
@@ -336,7 +336,7 @@ export default function FeedbackModal({ open, onClose }) {
             {audioBlob && !isRecording && (
               <div className="w-full flex items-center gap-2 px-3 py-2 rounded-xl bg-green-50 border border-green-200">
                 <audio src={audioUrl} controls className="flex-1 h-8" style={{ minWidth: 0 }} />
-                <button onClick={removeAudio} className="w-6 h-6 rounded-full bg-red-100 text-red-500 flex items-center justify-center hover:bg-red-200 flex-shrink-0">
+                <button onClick={removeAudio} className="w-6 h-6 rounded-full bg-rose-100 text-rose-500 flex items-center justify-center hover:bg-rose-200 flex-shrink-0">
                   <Trash2 size={11} />
                 </button>
               </div>

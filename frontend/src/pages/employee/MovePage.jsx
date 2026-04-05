@@ -86,11 +86,11 @@ function ScanHint({ icon: Icon, title, subtitle, color = 'blue', animateIcon = t
 function ErrorBanner({ message }) {
   if (!message) return null;
   return (
-    <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-4 flex items-center gap-3 animate-shake">
-      <div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center flex-shrink-0">
-        <span className="text-red-500 text-lg font-bold">!</span>
+    <div className="bg-rose-50 border border-rose-200 rounded-xl px-4 py-3 mb-4 flex items-center gap-3 animate-shake">
+      <div className="w-8 h-8 rounded-lg bg-rose-100 flex items-center justify-center flex-shrink-0">
+        <span className="text-rose-500 text-lg font-bold">!</span>
       </div>
-      <p className="text-sm text-red-700 font-medium">{message}</p>
+      <p className="text-sm text-rose-700 font-medium">{message}</p>
     </div>
   );
 }
@@ -395,9 +395,9 @@ export default function MovePage() {
 
           {isAdmin && (
             <button onClick={() => { setMode('admin'); }}
-              className="w-full bg-red-50/80 border border-red-100 rounded-2xl p-5 text-left hover:shadow-md hover:bg-red-50 transition-all active:scale-[0.98]">
+              className="w-full bg-rose-50/80 border border-rose-100 rounded-2xl p-5 text-left hover:shadow-md hover:bg-rose-50 transition-all active:scale-[0.98]">
               <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-xl bg-red-100 border border-red-200 flex items-center justify-center">
+                <div className="w-14 h-14 rounded-xl bg-rose-100 border border-rose-200 flex items-center justify-center">
                   <AdminClipboardIcon size={36} />
                 </div>
                 <div>
@@ -413,9 +413,9 @@ export default function MovePage() {
         <div className="mt-6 pt-5 border-t border-gray-100">
           <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold mb-3">Другое</p>
           <button onClick={() => navigate('/employee/returns')}
-            className="w-full bg-teal-50/80 border border-teal-100 rounded-2xl p-5 text-left hover:shadow-md hover:bg-teal-50 transition-all active:scale-[0.98]">
+            className="w-full bg-cyan-50/80 border border-cyan-100 rounded-2xl p-5 text-left hover:shadow-md hover:bg-cyan-50 transition-all active:scale-[0.98]">
             <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-xl bg-teal-100 border border-teal-200 flex items-center justify-center">
+              <div className="w-14 h-14 rounded-xl bg-cyan-100 border border-cyan-200 flex items-center justify-center">
                 <ReturnsIcon size={32} />
               </div>
               <div>

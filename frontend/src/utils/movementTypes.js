@@ -8,14 +8,14 @@ export const TYPE_META = {
   pallet_to_pallet:         { label: 'Паллет → Паллет',         cls: 'bg-indigo-100 text-indigo-700' },
   // Сотрудник ↔ Полка/Паллет
   shelf_to_employee:        { label: 'Полка → Сотрудник',       cls: 'bg-orange-100 text-orange-700' },
-  employee_to_shelf:        { label: 'Сотрудник → Полка',       cls: 'bg-teal-100 text-teal-700' },
+  employee_to_shelf:        { label: 'Сотрудник → Полка',       cls: 'bg-cyan-100 text-cyan-700' },
   employee_to_pallet:       { label: 'Сотрудник → Паллет',      cls: 'bg-cyan-100 text-cyan-700' },
   pallet_to_employee:       { label: 'Паллет → Сотрудник',      cls: 'bg-amber-100 text-amber-700' },
   // Коробка ↔ Сотрудник
   box_to_employee:          { label: 'Коробка → Сотрудник',     cls: 'bg-orange-100 text-orange-700' },
   employee_to_box:          { label: 'Сотрудник → Коробка',     cls: 'bg-cyan-100 text-cyan-700' },
   // Коробка ↔ Полка/Паллет
-  box_to_shelf:             { label: 'Коробка → Полка',         cls: 'bg-teal-100 text-teal-700' },
+  box_to_shelf:             { label: 'Коробка → Полка',         cls: 'bg-cyan-100 text-cyan-700' },
   box_to_pallet:            { label: 'Коробка → Паллет',        cls: 'bg-violet-100 text-violet-700' },
   shelf_to_box:             { label: 'Полка → Коробка',         cls: 'bg-fuchsia-100 text-fuchsia-700' },
   pallet_to_box:            { label: 'Паллет → Коробка',        cls: 'bg-fuchsia-100 text-fuchsia-700' },
@@ -27,30 +27,30 @@ export const TYPE_META = {
   external_to_employee:     { label: 'Приход сотруднику',       cls: 'bg-emerald-100 text-emerald-700' },
   // Ручные правки
   edit_add_to_shelf:        { label: 'Добавление на полку',     cls: 'bg-sky-100 text-sky-700' },
-  edit_remove_from_shelf:   { label: 'Списание с полки',        cls: 'bg-red-100 text-red-700' },
+  edit_remove_from_shelf:   { label: 'Списание с полки',        cls: 'bg-rose-100 text-rose-700' },
   edit_add_to_pallet:       { label: 'Добавление на паллет',    cls: 'bg-sky-100 text-sky-700' },
   edit_remove_from_pallet:  { label: 'Списание с паллета',      cls: 'bg-rose-100 text-rose-700' },
   edit_add_to_box:          { label: 'Добавление в коробку',    cls: 'bg-sky-100 text-sky-700' },
-  edit_remove_from_box:     { label: 'Списание из коробки',     cls: 'bg-red-100 text-red-700' },
+  edit_remove_from_box:     { label: 'Списание из коробки',     cls: 'bg-rose-100 text-rose-700' },
   // Корректировки
   pallet_correction_in:     { label: 'Коррекция +',             cls: 'bg-lime-100 text-lime-700' },
   pallet_correction_out:    { label: 'Коррекция −',             cls: 'bg-rose-100 text-rose-700' },
   employee_correction_in:   { label: 'Добавление сотруднику',   cls: 'bg-sky-100 text-sky-700' },
-  employee_correction_out:  { label: 'Списание у сотрудника',   cls: 'bg-red-100 text-red-700' },
+  employee_correction_out:  { label: 'Списание у сотрудника',   cls: 'bg-rose-100 text-rose-700' },
   // Списания
-  employee_write_off:       { label: 'Списание',                cls: 'bg-red-100 text-red-700' },
-  employee_writeoff:        { label: 'Списание',                cls: 'bg-red-100 text-red-700' },
-  write_off:                { label: 'Списание',                cls: 'bg-red-100 text-red-700' },
+  employee_write_off:       { label: 'Списание',                cls: 'bg-rose-100 text-rose-700' },
+  employee_writeoff:        { label: 'Списание',                cls: 'bg-rose-100 text-rose-700' },
+  write_off:                { label: 'Списание',                cls: 'bg-rose-100 text-rose-700' },
   // Коробки
   box_create:               { label: 'Создание коробки',        cls: 'bg-green-100 text-green-700' },
-  box_delete:               { label: 'Удаление коробки',        cls: 'bg-red-100 text-red-700' },
+  box_delete:               { label: 'Удаление коробки',        cls: 'bg-rose-100 text-rose-700' },
   box_product_change:       { label: 'Замена товара',           cls: 'bg-amber-100 text-amber-700' },
   // Прочее
   manual_correction:        { label: 'Ручная коррекция',        cls: 'bg-amber-100 text-amber-700' },
   // shelf_movements_s operation types
   inventory:                { label: 'Инвентаризация',          cls: 'bg-blue-100 text-blue-700' },
   stock_in:                 { label: 'Приход',                  cls: 'bg-green-100 text-green-700' },
-  stock_out:                { label: 'Списание',                cls: 'bg-red-100 text-red-700' },
+  stock_out:                { label: 'Списание',                cls: 'bg-rose-100 text-rose-700' },
   correction:               { label: 'Корректировка',           cls: 'bg-amber-100 text-amber-700' },
   transfer:                 { label: 'Перемещение',             cls: 'bg-blue-100 text-blue-700' },
 };

@@ -77,7 +77,7 @@ export default function SearchSelect({ label, value, onChange, options, placehol
             </span>
           )}
           {selected && !open ? (
-            <button type="button" onPointerDown={handleClear} className="text-gray-300 hover:text-red-400 flex-shrink-0 p-0.5">
+            <button type="button" onPointerDown={handleClear} className="text-gray-300 hover:text-rose-400 flex-shrink-0 p-0.5">
               <X size={14} />
             </button>
           ) : (
@@ -87,7 +87,7 @@ export default function SearchSelect({ label, value, onChange, options, placehol
 
         {/* Dropdown */}
         {open && (
-          <div className="absolute top-full left-0 right-0 z-[100] mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl overflow-hidden max-h-52 overflow-y-auto">
+          <div className="absolute top-full left-0 right-0 z-[100] mt-1 glass-dropdown rounded-xl shadow-xl overflow-hidden max-h-52 overflow-y-auto dark:bg-gray-800 dark:border-gray-700">
             {filtered.length === 0 ? (
               <div className="px-4 py-3 text-sm text-gray-400">{emptyText}</div>
             ) : (

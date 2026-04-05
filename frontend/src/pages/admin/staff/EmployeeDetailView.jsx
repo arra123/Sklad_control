@@ -199,7 +199,7 @@ export default function EmployeeDetailView({ employee, onBack }) {
                           <Pencil size={13} />
                         </button>
                         <button onClick={() => handleDelete(item)}
-                          className="p-1 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all">
+                          className="p-1 rounded-lg text-gray-400 hover:text-rose-500 hover:bg-rose-50 transition-all">
                           <Trash2 size={13} />
                         </button>
                       </div>
@@ -260,7 +260,7 @@ export default function EmployeeDetailView({ employee, onBack }) {
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-800 truncate">{m.product_name || m.notes || '—'}</p>
                         <div className="flex items-center gap-1 mt-0.5 text-[10px] text-gray-400 flex-wrap">
-                          {from && <span className="text-red-400">{from}</span>}
+                          {from && <span className="text-rose-400">{from}</span>}
                           {(from || to) && <span className="text-gray-300">→</span>}
                           {to && <span className="text-green-600">{to}</span>}
                         </div>

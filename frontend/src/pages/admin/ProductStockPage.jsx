@@ -107,7 +107,7 @@ function EmployeeInventoryView({ onBack }) {
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-800 truncate">{m.product_name || m.notes || '—'}</p>
                         <div className="flex items-center gap-1 mt-0.5 text-[10px] text-gray-400 flex-wrap">
-                          {from && <span className="text-red-400">{from}</span>}
+                          {from && <span className="text-rose-400">{from}</span>}
                           {(from || to) && <span className="text-gray-300">→</span>}
                           {to && <span className="text-green-600">{to}</span>}
                         </div>
@@ -374,7 +374,7 @@ function InventoryHistoryList({ node, history, loading }) {
             </div>
             <div className="rounded-xl bg-gray-50 px-3 py-2">
               <p className="text-[11px] text-gray-400 uppercase tracking-wider">Разница</p>
-              <p className={`text-sm font-semibold mt-1 ${Number(event.delta_vs_current || 0) === 0 ? 'text-gray-900' : Number(event.delta_vs_current || 0) > 0 ? 'text-green-700' : 'text-red-600'}`}>
+              <p className={`text-sm font-semibold mt-1 ${Number(event.delta_vs_current || 0) === 0 ? 'text-gray-900' : Number(event.delta_vs_current || 0) > 0 ? 'text-green-700' : 'text-rose-600'}`}>
                 {Number(event.delta_vs_current || 0) > 0 ? '+' : ''}{fmtQty(event.delta_vs_current)} шт.
               </p>
             </div>
@@ -742,12 +742,16 @@ export default function ProductStockPage() {
           {selectedWarehouse && <span className="text-xs font-semibold text-gray-700">{warehouses.find(w => w.id === selectedWarehouse)?.name}</span>}
         </div>
         <div className="flex-1" />
-        <Button variant="outline" size="sm" icon={<Users size={15} />} onClick={() => setShowEmployeeInventory(true)}>
+        <button
+          onClick={() => setShowEmployeeInventory(true)}
+          className="glass-btn text-gray-600 bg-white/50 backdrop-blur-xl border border-gray-200 rounded-[14px] hover:bg-white/70 px-4 py-2 text-sm font-medium flex items-center gap-2 transition-all"
+        >
+          <Users size={15} />
           С остатками
-        </Button>
+        </button>
       </div>
       <div className="mb-4">
-        <div className="flex flex-wrap gap-2 bg-gray-50/80 rounded-2xl p-2 border border-gray-100 w-fit">
+        <div className="flex flex-wrap gap-2 w-fit">
           {warehouses.map(w => (
             <button
               key={w.id}
@@ -755,11 +759,11 @@ export default function ProductStockPage() {
               className={cn(
                 'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all border',
                 selectedWarehouse === w.id
-                  ? `shadow-sm ${['border-blue-200 bg-blue-50/50','border-green-200 bg-green-50/50','border-amber-200 bg-amber-50/50','border-purple-200 bg-purple-50/50'][warehouses.indexOf(w) % 4]}`
-                  : 'border-transparent hover:bg-gray-50 text-gray-600'
+                  ? 'glass-btn text-primary-700 bg-primary-600/8 border border-primary-600/20 backdrop-blur-xl shadow-sm'
+                  : 'text-gray-500 bg-white/50 border border-gray-200 hover:bg-white/70'
               )}
             >
-              <span className={cn('w-2 h-2 rounded-full flex-shrink-0', selectedWarehouse === w.id ? ['bg-blue-400','bg-green-400','bg-amber-400','bg-purple-400'][warehouses.indexOf(w) % 4] : 'bg-gray-300')} />
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0"><rect x="3" y="8" width="18" height="13" rx="1"/><path d="M2 9.5L12 3l10 6.5"/><line x1="7" y1="14" x2="17" y2="14"/><line x1="7" y1="18" x2="17" y2="18"/></svg>
               {w.name}
             </button>
           ))}
@@ -770,13 +774,23 @@ export default function ProductStockPage() {
           {/* Статистика */}
           {stats && (
             <div className="grid grid-cols-2 gap-3 mb-5">
-              <div className="bg-indigo-50 border border-indigo-100 rounded-xl px-3 py-1.5 text-center">
-                <p className="text-lg font-black text-indigo-600">{total.toLocaleString('ru-RU')}</p>
-                <p className="text-[10px] text-indigo-400 font-medium">Товаров</p>
+              <div className="bg-white/50 backdrop-blur-xl border border-white/75 rounded-[14px] px-5 py-3 flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-primary-50 flex items-center justify-center">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="text-primary-500"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+                </div>
+                <div>
+                  <p className="text-xl font-extrabold text-gray-900">{total.toLocaleString('ru-RU')}</p>
+                  <p className="text-xs text-gray-400">Товаров</p>
+                </div>
               </div>
-              <div className="bg-green-50 border border-green-100 rounded-xl px-3 py-1.5 text-center">
-                <p className="text-lg font-black text-green-600">{Math.round(Number(stats.warehouse_total || 0)).toLocaleString('ru-RU')}</p>
-                <p className="text-[10px] text-green-400 font-medium">Остаток (шт)</p>
+              <div className="bg-white/50 backdrop-blur-xl border border-white/75 rounded-[14px] px-5 py-3 flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-500"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                </div>
+                <div>
+                  <p className="text-xl font-extrabold text-gray-900">{Math.round(Number(stats.warehouse_total || 0)).toLocaleString('ru-RU')}</p>
+                  <p className="text-xs text-gray-400">Остаток (шт)</p>
+                </div>
               </div>
             </div>
           )}
@@ -791,7 +805,7 @@ export default function ProductStockPage() {
                 icon={<Search size={15} />}
               />
             </div>
-            <Button type="submit" size="md">Найти</Button>
+            <button type="submit" className="glass-btn text-primary-700 bg-primary-600/8 backdrop-blur-xl border border-primary-600/18 rounded-[14px] hover:bg-primary-600/14 px-4 py-2 text-sm font-medium transition-all">Найти</button>
             {search && (
               <Button type="button" variant="ghost" size="md" onClick={() => { setSearch(''); setSearchInput(''); setPage(1); }}>
                 Сбросить

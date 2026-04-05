@@ -68,6 +68,44 @@
   --color-primary-900: #881337;
 }
 
+/* ─── Design System tokens ──────────────────────────────────────────────── */
+:root {
+  --ds-rose: #e11d48;
+  --ds-cyan: #0891b2;
+  --ds-success: #22c55e;
+  --ds-warning: #f59e0b;
+  --ds-info: #3b82f6;
+  --ds-orange: #f97316;
+  --ds-purple: #8b5cf6;
+  --ds-neutral: #6b7280;
+  --glass-bg: rgba(255,255,255,0.5);
+  --glass-border: rgba(255,255,255,0.75);
+  --glass-blur: 16px;
+  --mp-wb: #cb11ab;
+  --mp-ozon: #005bff;
+  --mp-yandex: #ffcc00;
+  --mp-sber: #21a038;
+}
+
+/* ─── Glass button highlight ───────────────────────────────────────────── */
+.glass-btn { position: relative; overflow: hidden; }
+.glass-btn::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 50%;
+  background: linear-gradient(180deg, rgba(255,255,255,0.5) 0%, transparent 100%);
+  pointer-events: none;
+}
+
+/* ─── Glass dropdown panel ─────────────────────────────────────────────── */
+.glass-dropdown {
+  background: rgba(255,255,255,0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255,255,255,0.75);
+}
+
 /* ─── Base styles ────────────────────────────────────────────────────────── */
 * {
   box-sizing: border-box;

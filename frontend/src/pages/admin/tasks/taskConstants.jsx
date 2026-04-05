@@ -14,7 +14,7 @@ export const TASK_TYPE_ICON = {
   packaging: { Icon: PackagingIcon, bg: 'bg-purple-50', border: 'border-purple-100' },
   production_transfer: { Icon: TransferIcon, bg: 'bg-amber-50', border: 'border-amber-100' },
   bundle_assembly: { Icon: BundleIcon, bg: 'bg-green-50', border: 'border-green-100' },
-  returns: { Icon: ReturnsIcon, bg: 'bg-teal-50', border: 'border-teal-100' },
+  returns: { Icon: ReturnsIcon, bg: 'bg-cyan-50', border: 'border-cyan-100' },
 };
 
 export function fmtTime(iso) {

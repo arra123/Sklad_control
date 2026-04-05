@@ -16,7 +16,7 @@ const STATUS_MAP = {
   in_progress: { label: 'В работе', variant: 'warning', color: 'bg-amber-50 text-amber-600 border-amber-200', icon: ScanLine },
   paused: { label: 'На паузе', variant: 'info', color: 'bg-orange-50 text-orange-600 border-orange-200', icon: Pause },
   completed: { label: 'Выполнена', variant: 'success', color: 'bg-green-50 text-green-600 border-green-200', icon: CheckCircle2 },
-  cancelled: { label: 'Отменена', variant: 'danger', color: 'bg-red-50 text-red-500 border-red-200', icon: AlertCircle },
+  cancelled: { label: 'Отменена', variant: 'danger', color: 'bg-rose-50 text-rose-500 border-rose-200', icon: AlertCircle },
 };
 
 const TASK_TYPE_STYLE = {
@@ -24,7 +24,7 @@ const TASK_TYPE_STYLE = {
   packaging: { SvgIcon: PackagingIcon, label: 'Оприходование', bg: 'bg-purple-50', text: 'text-purple-600', border: 'border-purple-200' },
   production_transfer: { SvgIcon: TransferIcon, label: 'Перенос', bg: 'bg-amber-50', text: 'text-amber-600', border: 'border-amber-200' },
   bundle_assembly: { SvgIcon: BundleIcon, label: 'Сборка комплектов', bg: 'bg-green-50', text: 'text-green-600', border: 'border-green-200' },
-  returns: { SvgIcon: ReturnsIcon, label: 'Возвраты', bg: 'bg-teal-50', text: 'text-teal-600', border: 'border-teal-200' },
+  returns: { SvgIcon: ReturnsIcon, label: 'Возвраты', bg: 'bg-cyan-50', text: 'text-cyan-600', border: 'border-cyan-200' },
   default: { SvgIcon: InventoryIcon, label: 'Задача', bg: 'bg-primary-50', text: 'text-primary-600', border: 'border-primary-200' },
 };
 

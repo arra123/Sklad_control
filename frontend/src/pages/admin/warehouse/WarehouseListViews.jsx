@@ -59,20 +59,6 @@ export function WarehouseListView({ warehouses, selectedId, onSelect, onReload, 
             api.put('/warehouse/warehouses/reorder', { order: ids }).then(() => onReload()).catch(() => {});
           }}>
           {warehouses.map((wh, idx) => {
-            const getColor = (name) => {
-              const n = (name || '').toLowerCase();
-              if (n.includes('нов')) return { border: 'border-amber-300 bg-amber-50/60', dot: 'bg-amber-400' };
-              if (n.includes('fbs') || n.includes('фбс')) return { border: 'border-blue-300 bg-blue-50/60', dot: 'bg-blue-400' };
-              if (n.includes('fbo') || n.includes('фбо')) return { border: 'border-purple-300 bg-purple-50/60', dot: 'bg-purple-400' };
-              if (n.includes('продукц')) return { border: 'border-green-300 bg-green-50/60', dot: 'bg-green-400' };
-              const fallback = [
-                { border: 'border-teal-300 bg-teal-50/60', dot: 'bg-teal-400' },
-                { border: 'border-rose-300 bg-rose-50/60', dot: 'bg-rose-400' },
-                { border: 'border-indigo-300 bg-indigo-50/60', dot: 'bg-indigo-400' },
-              ];
-              return fallback[idx % fallback.length];
-            };
-            const { border: color, dot: dotColor } = getColor(wh.name);
             const isSelected = selectedId === wh.id;
             return (
               <div
@@ -86,20 +72,27 @@ export function WarehouseListView({ warehouses, selectedId, onSelect, onReload, 
                 onDrop={e => { e.currentTarget.style.transform = ''; }}
                 onClick={() => onSelect(wh)}
                 className={cn(
-                  'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all whitespace-nowrap cursor-pointer select-none group border',
-                  isSelected ? `${color} shadow-sm` : `border-transparent hover:bg-gray-50`,
+                  'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all whitespace-nowrap cursor-pointer select-none group border backdrop-blur-xl',
+                  isSelected
+                    ? 'text-violet-700 dark:text-violet-300 border-violet-600/20 shadow-sm'
+                    : 'text-gray-400 border-transparent hover:bg-white/70 dark:hover:bg-gray-800/50',
                   wh.active === false && 'opacity-50'
                 )}
-                style={{ minWidth: 'fit-content' }}
+                style={{
+                  minWidth: 'fit-content',
+                  background: isSelected ? 'rgba(124,58,237,0.08)' : 'rgba(255,255,255,0.5)',
+                  backdropFilter: 'blur(16px)',
+                  WebkitBackdropFilter: 'blur(16px)',
+                }}
               >
-                <span className={cn('w-2 h-2 rounded-full flex-shrink-0', isSelected ? dotColor : 'bg-gray-300')} />
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0"><rect x="3" y="8" width="18" height="13" rx="1"/><path d="M2 9.5L12 3l10 6.5"/><line x1="7" y1="14" x2="17" y2="14"/><line x1="7" y1="18" x2="17" y2="18"/></svg>
                 <span className={wh.active === false ? 'line-through' : ''}>{wh.name}</span>
                 {isSelected && (
                   <>
                     <span role="button" onClick={e => { e.stopPropagation(); setEditWh(wh); }} className="opacity-0 group-hover:opacity-70 hover:!opacity-100 cursor-pointer transition-opacity">
                       <Pencil size={11} />
                     </span>
-                    <span role="button" onClick={e => { e.stopPropagation(); deleteWh(wh); }} className="opacity-0 group-hover:opacity-70 hover:!opacity-100 cursor-pointer transition-opacity text-red-400">
+                    <span role="button" onClick={e => { e.stopPropagation(); deleteWh(wh); }} className="opacity-0 group-hover:opacity-70 hover:!opacity-100 cursor-pointer transition-opacity text-rose-400">
                       <Trash2 size={11} />
                     </span>
                   </>
@@ -363,7 +356,7 @@ export function BoxWarehouseView({ warehouse }) {
                         <Pencil size={13} />
                       </button>
                       <button onClick={() => deleteBox(box)}
-                        className="p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all">
+                        className="p-1.5 rounded-lg text-gray-300 hover:text-rose-500 hover:bg-rose-50 transition-all">
                         <Trash2 size={13} />
                       </button>
                     </div>

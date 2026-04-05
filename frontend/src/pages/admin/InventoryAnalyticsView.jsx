@@ -51,9 +51,9 @@ function fmtQty(val) {
 
 // ═══ Stat Box ═══
 function StatBox({ label, value, accent }) {
-  const colors = accent === 'green' ? 'text-green-600' : accent === 'red' ? 'text-red-600' : accent === 'amber' ? 'text-amber-600' : 'text-gray-900 dark:text-white';
+  const colors = accent === 'green' ? 'text-green-600' : accent === 'red' ? 'text-rose-600' : accent === 'amber' ? 'text-amber-600' : 'text-gray-900 dark:text-white';
   return (
-    <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-3">
+    <div className="bg-white/50 backdrop-blur-xl border border-white/75 rounded-[14px] p-3">
       <p className="text-[11px] text-gray-400 uppercase font-semibold">{label}</p>
       <p className={`text-lg font-black ${colors}`}>{value}</p>
     </div>
@@ -77,7 +77,7 @@ function InventoryCard({ node, type, onDrill, settings }) {
     >
       <div className="flex items-start gap-3">
         <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: st.bg }}>
-          {type === 'warehouse' ? <WarehouseIcon size={24} /> :
+          {type === 'warehouse' ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="8" width="18" height="13" rx="1"/><path d="M2 9.5L12 3l10 6.5"/><line x1="7" y1="14" x2="17" y2="14"/><line x1="7" y1="18" x2="17" y2="18"/></svg> :
            type === 'rack' ? <RackIcon size={24} /> :
            type === 'shelf' ? <ShelfIcon size={24} /> :
            type === 'pallet' ? <PalletIcon size={24} /> :
@@ -108,7 +108,7 @@ function InventoryCard({ node, type, onDrill, settings }) {
               </div>
               <div>
                 <span className="text-gray-400">Разница</span>
-                <p className={`font-bold ${delta > 0 ? 'text-green-600' : delta < 0 ? 'text-red-600' : 'text-gray-400'}`}>
+                <p className={`font-bold ${delta > 0 ? 'text-green-600' : delta < 0 ? 'text-rose-600' : 'text-gray-400'}`}>
                   {delta > 0 ? '+' : ''}{delta}
                 </p>
               </div>
@@ -365,7 +365,7 @@ function DetailPanel({ node, breadcrumbs, onDrill, onBack, settings }) {
             {node.previous_inventory_qty != null && (
               <div className="bg-gray-50 dark:bg-gray-800 rounded-xl px-4 py-2.5 mb-3 flex items-center gap-4 text-xs">
                 <span className="text-gray-400">Между инвентами:</span>
-                <span className={`font-bold ${deltaPrev > 0 ? 'text-green-600' : deltaPrev < 0 ? 'text-red-600' : 'text-gray-400'}`}>
+                <span className={`font-bold ${deltaPrev > 0 ? 'text-green-600' : deltaPrev < 0 ? 'text-rose-600' : 'text-gray-400'}`}>
                   {deltaPrev > 0 ? '+' : ''}{deltaPrev} шт.
                 </span>
                 {node.previous_inventory_at && (
@@ -557,7 +557,7 @@ export default function InventoryAnalyticsView() {
             onClick={() => setSelectedWarehouse(w.id)}
             className={`px-4 py-2 rounded-xl text-sm font-medium transition-all flex items-center gap-1.5 ${String(selectedWarehouse) === String(w.id) ? 'bg-primary-600 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:border-primary-300'}`}
           >
-            <WarehouseIcon size={14} /> {w.name}
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="8" width="18" height="13" rx="1"/><path d="M2 9.5L12 3l10 6.5"/><line x1="7" y1="14" x2="17" y2="14"/><line x1="7" y1="18" x2="17" y2="18"/></svg> {w.name}
           </button>
         ))}
         <div className="flex-1 min-w-[200px]">
@@ -610,7 +610,7 @@ export default function InventoryAnalyticsView() {
         return (
           <div key={wh.id} className="mb-6">
             <div className="flex items-center gap-3 mb-3">
-              <WarehouseIcon size={22} />
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="8" width="18" height="13" rx="1"/><path d="M2 9.5L12 3l10 6.5"/><line x1="7" y1="14" x2="17" y2="14"/><line x1="7" y1="18" x2="17" y2="18"/></svg>
               <h3 className="font-bold text-gray-900 dark:text-white">{wh.name}</h3>
               <span className="text-xs text-gray-400">{wh.warehouse_type === 'fbo' ? 'Паллетный' : 'Стеллажный'}</span>
               <div className="flex-1" />

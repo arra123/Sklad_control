@@ -75,7 +75,7 @@ function SettingRow({ label, hint, children }) {
 function SpeedPreview({ fast, slow }) {
   const color = (s) => s < fast ? 'bg-green-100 text-green-700 border-green-200'
     : s < slow ? 'bg-amber-100 text-amber-700 border-amber-200'
-    : 'bg-red-100 text-red-700 border-red-200';
+    : 'bg-rose-100 text-rose-700 border-rose-200';
   const uniq = [...new Set([1, fast - 1, fast, fast + 1, (fast + slow) / 2 | 0, slow - 1, slow, slow + 2])].filter(x => x > 0);
   return (
     <div className="flex flex-wrap gap-1.5 mt-3">
@@ -967,7 +967,7 @@ function ChangelogSection() {
 
 // ─── Feedback Admin ──────────────────────────────────────────────────────────
 const STATUS_MAP = { new: { label: 'Новое', color: 'bg-blue-100 text-blue-700' }, in_progress: { label: 'В работе', color: 'bg-amber-100 text-amber-700' }, resolved: { label: 'Решено', color: 'bg-green-100 text-green-700' }, declined: { label: 'Отклонено', color: 'bg-gray-100 text-gray-500' } };
-const CAT_MAP = { bug: { label: 'Баг', icon: Bug, color: 'text-red-500' }, suggestion: { label: 'Предложение', icon: Lightbulb, color: 'text-amber-500' }, question: { label: 'Вопрос', icon: HelpCircle, color: 'text-blue-500' } };
+const CAT_MAP = { bug: { label: 'Баг', icon: Bug, color: 'text-rose-500' }, suggestion: { label: 'Предложение', icon: Lightbulb, color: 'text-amber-500' }, question: { label: 'Вопрос', icon: HelpCircle, color: 'text-blue-500' } };
 
 function FeedbackAdmin() {
   const toast = useToast();
@@ -1131,7 +1131,7 @@ function FeedbackAdmin() {
                       className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 disabled:opacity-50">Отклонить</button>
                     <div className="flex-1" />
                     <button onClick={() => deleteFeedback(detail.id)}
-                      className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-50 text-red-500 hover:bg-red-100">
+                      className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-50 text-rose-500 hover:bg-rose-100">
                       <Trash2 size={12} className="inline mr-1" />Удалить
                     </button>
                   </div>
@@ -1235,7 +1235,7 @@ function GraCoinSettings() {
               className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700 font-medium transition-colors">
               Отмена
             </button>
-            <Button onClick={handleSave} loading={saving} icon={<Save size={14} />}>
+            <Button variant="primary-solid" onClick={handleSave} loading={saving} icon={<Save size={14} />}>
               Сохранить тарифы
             </Button>
           </div>
@@ -1330,17 +1330,17 @@ function OzonBulkCheck() {
                 <p className="text-lg font-black text-green-600">{result.matched_count}</p>
                 <p className="text-[10px] text-gray-400 uppercase">Совпали</p>
               </div>
-              <div className="bg-red-50 rounded-xl p-3 text-center">
-                <p className="text-lg font-black text-red-600">{result.not_found_count}</p>
+              <div className="bg-rose-50 rounded-xl p-3 text-center">
+                <p className="text-lg font-black text-rose-600">{result.not_found_count}</p>
                 <p className="text-[10px] text-gray-400 uppercase">Не найдены</p>
               </div>
             </div>
             {result.not_found?.length > 0 && (
               <div>
-                <p className="text-xs font-semibold text-red-500 mb-2">Не найдены ({result.not_found.length})</p>
+                <p className="text-xs font-semibold text-rose-500 mb-2">Не найдены ({result.not_found.length})</p>
                 <div className="max-h-[200px] overflow-y-auto space-y-1">
                   {result.not_found.map(p => (
-                    <div key={p.id} className="flex items-center gap-3 px-3 py-2 bg-red-50 rounded-xl border border-red-100">
+                    <div key={p.id} className="flex items-center gap-3 px-3 py-2 bg-rose-50 rounded-xl border border-rose-100">
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-800 truncate">{p.name}</p>
                         {p.code && <p className="text-[10px] text-gray-400">{p.code}</p>}
@@ -1423,17 +1423,17 @@ function WbBulkCheck() {
                 <p className="text-lg font-black text-green-600">{result.matched_count}</p>
                 <p className="text-[10px] text-gray-400 uppercase">Совпали</p>
               </div>
-              <div className="bg-red-50 rounded-xl p-3 text-center">
-                <p className="text-lg font-black text-red-600">{result.not_found_count}</p>
+              <div className="bg-rose-50 rounded-xl p-3 text-center">
+                <p className="text-lg font-black text-rose-600">{result.not_found_count}</p>
                 <p className="text-[10px] text-gray-400 uppercase">Не найдены</p>
               </div>
             </div>
             {result.not_found?.length > 0 && (
               <div>
-                <p className="text-xs font-semibold text-red-500 mb-2">Не найдены ({result.not_found.length})</p>
+                <p className="text-xs font-semibold text-rose-500 mb-2">Не найдены ({result.not_found.length})</p>
                 <div className="max-h-[200px] overflow-y-auto space-y-1">
                   {result.not_found.map(p => (
-                    <div key={p.id} className="flex items-center gap-3 px-3 py-2 bg-red-50 rounded-xl border border-red-100">
+                    <div key={p.id} className="flex items-center gap-3 px-3 py-2 bg-rose-50 rounded-xl border border-rose-100">
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-800 truncate">{p.name}</p>
                         {p.code && <p className="text-[10px] text-gray-400">{p.code}</p>}
@@ -1568,7 +1568,7 @@ export default function SettingsPage() {
               <h2 className="font-semibold text-gray-900 dark:text-white">Скорость сканирования</h2>
             </div>
             <p className="text-xs text-gray-400 mb-4">
-              Цветовая индикация: <span className="text-green-600 font-medium">зелёный</span> — быстро, <span className="text-amber-500 font-medium">жёлтый</span> — средне, <span className="text-red-500 font-medium">красный</span> — медленно.
+              Цветовая индикация: <span className="text-green-600 font-medium">зелёный</span> — быстро, <span className="text-amber-500 font-medium">жёлтый</span> — средне, <span className="text-rose-500 font-medium">красный</span> — медленно.
             </p>
             <SettingRow label="Порог «быстро»" hint="До этого времени — зелёная индикация">
               <NumberStepper value={s.scan_fast_threshold} onChange={v => updateSetting('scan_fast_threshold', v)} min={1} max={s.scan_slow_threshold - 1} step={0.5} unit="с" />
@@ -1757,7 +1757,7 @@ export default function SettingsPage() {
                 <p className="text-gray-600">Последняя синхронизация: <span className="font-medium">{new Date(lastImport.created_at).toLocaleString('ru-RU')}</span></p>
                 <p className="text-gray-500 mt-0.5">
                   {lastImport.products_count} товаров &middot; {lastImport.bundles_count} комплектов {' · '}
-                  <span className={lastImport.status === 'success' ? 'text-green-500' : 'text-red-500'}>{lastImport.status === 'success' ? 'Успешно' : 'Ошибка'}</span>
+                  <span className={lastImport.status === 'success' ? 'text-green-500' : 'text-rose-500'}>{lastImport.status === 'success' ? 'Успешно' : 'Ошибка'}</span>
                 </p>
               </div>
             )}

@@ -5,9 +5,16 @@ const variants = {
   primary: 'bg-primary-100 text-primary-700',
   success: 'bg-green-100 text-green-700',
   warning: 'bg-amber-100 text-amber-700',
-  danger: 'bg-red-100 text-red-700',
+  danger: 'bg-rose-100 text-rose-700',
   info: 'bg-blue-100 text-blue-700',
   purple: 'bg-purple-100 text-purple-700',
+  cyan: 'bg-cyan-100 text-cyan-700',
+  orange: 'bg-orange-100 text-orange-700',
+  // Marketplace brand badges
+  wb: 'bg-[#cb11ab] text-white',
+  ozon: 'bg-[#005bff] text-white',
+  yandex: 'bg-[#ffcc00] text-gray-900',
+  sber: 'bg-[#21a038] text-white',
 };
 
 export default function Badge({ children, variant = 'default', className, dot }) {
@@ -22,8 +29,10 @@ export default function Badge({ children, variant = 'default', className, dot })
         'bg-primary-500': variant === 'primary',
         'bg-green-500': variant === 'success',
         'bg-amber-500': variant === 'warning',
-        'bg-red-500': variant === 'danger',
+        'bg-rose-500': variant === 'danger',
         'bg-blue-500': variant === 'info',
+        'bg-cyan-500': variant === 'cyan',
+        'bg-orange-500': variant === 'orange',
       })} />}
       {children}
     </span>

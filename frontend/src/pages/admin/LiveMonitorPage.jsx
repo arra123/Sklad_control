@@ -277,9 +277,9 @@ function ActivityTimeline({ buckets, tasks, breaks = [], thresholds }) {
             <span className="text-gray-500">Тех. пауза: <b className="text-amber-600">{fmtDuration(techMinutes * 60)}</b></span>
           )}
           {taskPauseMinutes > 0 && (
-            <span className="text-gray-500">Пауза: <b className="text-red-400">{fmtDuration(taskPauseMinutes * 60)}</b></span>
+            <span className="text-gray-500">Пауза: <b className="text-rose-400">{fmtDuration(taskPauseMinutes * 60)}</b></span>
           )}
-          <span className="text-gray-500">Простой: <b className="text-red-500">{fmtDuration(idleMinutes * 60)}</b></span>
+          <span className="text-gray-500">Простой: <b className="text-rose-500">{fmtDuration(idleMinutes * 60)}</b></span>
         </div>
       </div>
 
@@ -314,7 +314,7 @@ function ActivityTimeline({ buckets, tasks, breaks = [], thresholds }) {
               : restBuckets.has(bNum) ? (isHovered ? 'bg-blue-400' : 'bg-blue-300')
               : (isHovered ? 'bg-amber-400' : 'bg-amber-300')
               : isTaskPause
-              ? (isHovered ? 'bg-red-300' : 'bg-red-200')
+              ? (isHovered ? 'bg-rose-300' : 'bg-rose-200')
               : scans <= 0 ? (isHovered ? 'bg-gray-200' : 'bg-gray-100')
               : scans <= T1 ? (isHovered ? 'bg-green-300' : 'bg-green-100')
               : scans <= T2 ? (isHovered ? 'bg-green-400' : 'bg-green-200')
@@ -342,10 +342,10 @@ function ActivityTimeline({ buckets, tasks, breaks = [], thresholds }) {
           {/* Now marker — only show if in visible range */}
           {nowPct >= 0 && nowPct <= 100 && (
             <div
-              className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-10"
+              className="absolute top-0 bottom-0 w-0.5 bg-rose-500 z-10"
               style={{ left: `${nowPct}%` }}
             >
-              <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-red-500" />
+              <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-rose-500" />
             </div>
           )}
         </div>
@@ -369,7 +369,7 @@ function ActivityTimeline({ buckets, tasks, breaks = [], thresholds }) {
                     {isLunch ? '🍽 Обед' : isRest ? '☕ Отдых' : '⏸ Тех. пауза'}
                   </p>
                 ) : isTaskPause ? (
-                  <p className="text-red-300 mt-0.5">⏸ Пауза задачи</p>
+                  <p className="text-rose-300 mt-0.5">⏸ Пауза задачи</p>
                 ) : scans > 0 ? (
                   <>
                     <p className="text-green-300 mt-0.5">{bucketTaskMap[bNum] || 'Работа'}</p>
@@ -403,8 +403,8 @@ function ActivityTimeline({ buckets, tasks, breaks = [], thresholds }) {
           <span className="flex items-center gap-1 text-[10px] text-gray-400"><span className="w-3 h-3 rounded-sm bg-pink-300" />Обед</span>
           <span className="flex items-center gap-1 text-[10px] text-gray-400"><span className="w-3 h-3 rounded-sm bg-blue-300" />Отдых</span>
           <span className="flex items-center gap-1 text-[10px] text-gray-400"><span className="w-3 h-3 rounded-sm bg-amber-300" />Тех. пауза</span>
-          <span className="flex items-center gap-1 text-[10px] text-gray-400"><span className="w-3 h-3 rounded-sm bg-red-200" />Пауза задачи</span>
-          <span className="flex items-center gap-1 text-[10px] text-gray-400"><span className="w-1 h-3 rounded-sm bg-red-500" />Сейчас</span>
+          <span className="flex items-center gap-1 text-[10px] text-gray-400"><span className="w-3 h-3 rounded-sm bg-rose-200" />Пауза задачи</span>
+          <span className="flex items-center gap-1 text-[10px] text-gray-400"><span className="w-1 h-3 rounded-sm bg-rose-500" />Сейчас</span>
         </div>
       </div>
 
@@ -569,10 +569,10 @@ function ActivityTimeline({ buckets, tasks, breaks = [], thresholds }) {
             </div>
             {pauses.length > 0 && (
               <div className="mt-2 pt-2 border-t border-gray-200">
-                <p className="text-[10px] font-bold text-red-400 mb-1">⏸ Паузы ({pauses.length}) — всего {fmtDuration(totalPauseSec)}</p>
+                <p className="text-[10px] font-bold text-rose-400 mb-1">⏸ Паузы ({pauses.length}) — всего {fmtDuration(totalPauseSec)}</p>
                 <div className="flex flex-wrap gap-1">
                   {pauses.map((p, idx) => (
-                    <span key={idx} className="text-[10px] bg-red-50 text-red-500 rounded px-1.5 py-0.5">
+                    <span key={idx} className="text-[10px] bg-rose-50 text-rose-500 rounded px-1.5 py-0.5">
                       {fmtTime(p.paused_at)} → {p.resumed_at ? fmtTime(p.resumed_at) : 'сейчас'}
                     </span>
                   ))}
@@ -683,7 +683,7 @@ function EmployeeDetailView({ employeeId, employees, onBack, thresholds, date, i
                   await loadTimeline();
                 } catch {} finally { setBreakLoading(false); }
               }} disabled={breakLoading}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-red-100 text-red-700 hover:bg-red-200 ring-1 ring-red-300 transition-all flex-shrink-0">
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-rose-100 text-rose-700 hover:bg-rose-200 ring-1 ring-rose-300 transition-all flex-shrink-0">
                 {brLabel} — Снять
               </button>
             );
@@ -830,10 +830,10 @@ function EmployeeDetailView({ employeeId, employees, onBack, thresholds, date, i
                           )}
                           {pauses.length > 0 && (
                             <div className="mt-2 pt-2 border-t border-gray-100">
-                              <p className="text-[10px] font-bold text-red-400 mb-1">⏸ Паузы ({pauses.length}) — {fmtDuration(totalPause)}</p>
+                              <p className="text-[10px] font-bold text-rose-400 mb-1">⏸ Паузы ({pauses.length}) — {fmtDuration(totalPause)}</p>
                               <div className="flex flex-wrap gap-1">
                                 {pauses.map((p, idx) => (
-                                  <span key={idx} className="text-[10px] bg-red-50 text-red-500 rounded px-1.5 py-0.5">
+                                  <span key={idx} className="text-[10px] bg-rose-50 text-rose-500 rounded px-1.5 py-0.5">
                                     {fmtTime(p.paused_at)} → {p.resumed_at ? fmtTime(p.resumed_at) : 'сейчас'}
                                   </span>
                                 ))}

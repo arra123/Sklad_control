@@ -45,7 +45,7 @@ function ScanErrorModal({ error, onClose, onResolved }) {
     <Modal open={!!error} onClose={onClose}
       title={
         <div className="flex items-center gap-2">
-          {isResolved ? <CheckCircle2 size={18} className="text-green-500" /> : <AlertTriangle size={18} className="text-red-500" />}
+          {isResolved ? <CheckCircle2 size={18} className="text-green-500" /> : <AlertTriangle size={18} className="text-rose-500" />}
           <span>Ошибка сканирования #{error.id}</span>
         </div>
       }
@@ -75,10 +75,10 @@ function ScanErrorModal({ error, onClose, onResolved }) {
             </div>
           </div>
         )}
-        <div className="bg-red-50 border border-red-100 rounded-xl px-4 py-3">
-          <p className="text-xs font-semibold text-red-400 uppercase tracking-wider mb-1">Отсканированный штрих-код</p>
+        <div className="bg-rose-50 border border-rose-100 rounded-xl px-4 py-3">
+          <p className="text-xs font-semibold text-rose-400 uppercase tracking-wider mb-1">Отсканированный штрих-код</p>
           <div className="flex items-center gap-2 flex-wrap">
-            <p className="text-lg font-mono font-bold text-red-700 break-all">{error.scanned_value}</p>
+            <p className="text-lg font-mono font-bold text-rose-700 break-all">{error.scanned_value}</p>
             <CopyBadge value={error.scanned_value} />
           </div>
         </div>
@@ -123,7 +123,7 @@ function ScanErrorModal({ error, onClose, onResolved }) {
 
 // ─── System Error Detail Modal ────────────────────────────────────────────────
 const ERROR_TYPE_LABELS = {
-  js_error:            { label: 'Ошибка скрипта',       color: 'bg-red-100 text-red-700' },
+  js_error:            { label: 'Ошибка скрипта',       color: 'bg-rose-100 text-rose-700' },
   unhandled_rejection: { label: 'Необработанная ошибка', color: 'bg-orange-100 text-orange-700' },
   react_error:         { label: 'Ошибка компонента',     color: 'bg-pink-100 text-pink-700' },
   api_error:           { label: 'Ошибка запроса',        color: 'bg-amber-100 text-amber-700' },
@@ -202,9 +202,9 @@ function SysErrorModal({ error, onClose, onDelete }) {
     >
       <div className="space-y-3 text-sm">
         {/* Сообщение */}
-        <div className="bg-red-50 border border-red-100 rounded-xl px-4 py-3">
-          <p className="text-xs font-semibold text-red-400 uppercase tracking-wider mb-1">Сообщение</p>
-          <p className="text-sm text-red-800 break-all leading-relaxed">{translateError(error.error_message)}</p>
+        <div className="bg-rose-50 border border-rose-100 rounded-xl px-4 py-3">
+          <p className="text-xs font-semibold text-rose-400 uppercase tracking-wider mb-1">Сообщение</p>
+          <p className="text-sm text-rose-800 break-all leading-relaxed">{translateError(error.error_message)}</p>
         </div>
 
         {/* Стек */}
@@ -236,7 +236,7 @@ function SysErrorModal({ error, onClose, onDelete }) {
           {error.http_status && (
             <div className="bg-gray-50 rounded-xl px-3 py-2">
               <p className="text-xs text-gray-400 mb-0.5">HTTP статус</p>
-              <p className={`font-bold text-lg ${error.http_status >= 500 ? 'text-red-600' : 'text-amber-600'}`}>{error.http_status}</p>
+              <p className={`font-bold text-lg ${error.http_status >= 500 ? 'text-rose-600' : 'text-amber-600'}`}>{error.http_status}</p>
             </div>
           )}
           {error.request_method && error.request_url && (
@@ -313,10 +313,10 @@ function SysErrorRow({ err, onClick }) {
   const type = ERROR_TYPE_LABELS[err.error_type] || ERROR_TYPE_LABELS.unknown;
   return (
     <button type="button" onClick={onClick}
-      className="w-full text-left px-5 py-3.5 hover:bg-red-50/30 transition-colors">
+      className="w-full text-left px-5 py-3.5 hover:bg-rose-50/30 transition-colors">
       <div className="flex items-start gap-3">
-        <div className="w-8 h-8 rounded-xl bg-red-50 flex items-center justify-center flex-shrink-0 mt-0.5">
-          <Globe size={14} className="text-red-400" />
+        <div className="w-8 h-8 rounded-xl bg-rose-50 flex items-center justify-center flex-shrink-0 mt-0.5">
+          <Globe size={14} className="text-rose-400" />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-0.5 flex-wrap">
@@ -339,14 +339,14 @@ function SysErrorRow({ err, onClick }) {
 function ScanErrorRow({ err, resolved, onClick }) {
   return (
     <button type="button" onClick={onClick}
-      className={cn('w-full text-left px-5 py-4 transition-colors', resolved ? 'hover:bg-green-50/40 dark:hover:bg-green-900/20' : 'hover:bg-red-50/30 dark:hover:bg-red-900/20')}>
+      className={cn('w-full text-left px-5 py-4 transition-colors', resolved ? 'hover:bg-green-50/40 dark:hover:bg-green-900/20' : 'hover:bg-rose-50/30 dark:hover:bg-rose-900/20')}>
       <div className="flex items-start gap-4">
-        <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5', resolved ? 'bg-green-50 dark:bg-green-900/30' : 'bg-red-50 dark:bg-red-900/30')}>
-          {resolved ? <CheckCircle2 size={16} className="text-green-500" /> : <AlertTriangle size={16} className="text-red-500" />}
+        <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5', resolved ? 'bg-green-50 dark:bg-green-900/30' : 'bg-rose-50 dark:bg-rose-900/30')}>
+          {resolved ? <CheckCircle2 size={16} className="text-green-500" /> : <AlertTriangle size={16} className="text-rose-500" />}
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1 flex-wrap">
-            <p className={cn('text-sm font-mono font-semibold', resolved ? 'text-gray-500' : 'text-red-700')}>{err.scanned_value}</p>
+            <p className={cn('text-sm font-mono font-semibold', resolved ? 'text-gray-500' : 'text-rose-700')}>{err.scanned_value}</p>
             {resolved && <span className="inline-flex items-center gap-1 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium"><CheckCircle2 size={10} />Исправлено</span>}
           </div>
           {err.employee_note
@@ -441,9 +441,9 @@ export default function ErrorsPage() {
       {/* Вкладки */}
       <div className="flex gap-1 bg-gray-50 dark:bg-gray-800 rounded-2xl p-1.5 mb-5 w-fit border border-gray-200 dark:border-gray-700">
         <button onClick={() => setTab('scan')}
-          className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all border ${tab === 'scan' ? 'bg-red-50 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-300 shadow-sm' : 'text-gray-400 hover:text-gray-600 border-transparent'}`}>
+          className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all border ${tab === 'scan' ? 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-900/30 dark:text-rose-300 shadow-sm' : 'text-gray-400 hover:text-gray-600 border-transparent'}`}>
           Ошибки сканирования
-          {unresolved.length > 0 && <span className="ml-2 bg-red-500 text-white text-xs rounded-full px-1.5 py-0.5">{unresolved.length}</span>}
+          {unresolved.length > 0 && <span className="ml-2 bg-rose-500 text-white text-xs rounded-full px-1.5 py-0.5">{unresolved.length}</span>}
         </button>
         <button onClick={() => setTab('system')}
           className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all border ${tab === 'system' ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 shadow-sm' : 'text-gray-400 hover:text-gray-600 border-transparent'}`}>
@@ -495,15 +495,15 @@ export default function ErrorsPage() {
                       for (const [val, errs] of groups) {
                         if (errs.length > 1) {
                           result.push(
-                            <div key={`group-${val}`} className="px-5 py-3.5 hover:bg-red-50/30 transition-colors">
+                            <div key={`group-${val}`} className="px-5 py-3.5 hover:bg-rose-50/30 transition-colors">
                               <div className="flex items-center gap-3">
-                                <div className="w-9 h-9 rounded-xl bg-red-50 flex items-center justify-center flex-shrink-0">
-                                  <AlertTriangle size={16} className="text-red-500" />
+                                <div className="w-9 h-9 rounded-xl bg-rose-50 flex items-center justify-center flex-shrink-0">
+                                  <AlertTriangle size={16} className="text-rose-500" />
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-2 mb-0.5">
-                                    <p className="text-sm font-mono font-semibold text-red-700">{val}</p>
-                                    <span className="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full font-bold">×{errs.length}</span>
+                                    <p className="text-sm font-mono font-semibold text-rose-700">{val}</p>
+                                    <span className="text-xs bg-rose-100 text-rose-600 px-1.5 py-0.5 rounded-full font-bold">×{errs.length}</span>
                                   </div>
                                   <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-gray-400">
                                     {[...new Set(errs.map(e => e.employee_name).filter(Boolean))].map(n => <span key={n}>{n}</span>)}

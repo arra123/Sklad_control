@@ -16,7 +16,7 @@ export default function TaskCard({ task, onClick }) {
   return (
     <button
       onClick={() => onClick(task)}
-      className={`w-full text-left card p-4 hover:shadow-md transition-all group ${slaLevel === 'danger' ? 'border-red-300 bg-red-50/30 hover:border-red-400' : slaLevel === 'warning' ? 'border-amber-200 bg-amber-50/20 hover:border-amber-300' : 'hover:border-primary-200'}`}
+      className={`w-full text-left card p-4 hover:shadow-md transition-all group ${slaLevel === 'danger' ? 'border-rose-300 bg-rose-50/30 hover:border-rose-400' : slaLevel === 'warning' ? 'border-amber-200 bg-amber-50/20 hover:border-amber-300' : 'hover:border-primary-200'}`}
     >
       <div className="flex items-start gap-3">
         <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 border ${typeInfo.bg} ${typeInfo.border}`}>
@@ -35,7 +35,7 @@ export default function TaskCard({ task, onClick }) {
             {task.task_type === 'production_transfer' && <span className="font-semibold text-sky-700 bg-sky-100 px-1.5 py-0.5 rounded-lg">Перенос</span>}
             {task.task_type === 'inventory' && <span className="font-semibold text-indigo-700 bg-indigo-100 px-1.5 py-0.5 rounded-lg">Инвентаризация</span>}
             {task.task_type === 'bundle_assembly' && <span className="font-semibold text-purple-700 bg-purple-100 px-1.5 py-0.5 rounded-lg">Сборка</span>}
-            {task.task_type === 'returns' && <span className="font-semibold text-teal-700 bg-teal-100 px-1.5 py-0.5 rounded-lg">Возвраты</span>}
+            {task.task_type === 'returns' && <span className="font-semibold text-cyan-700 bg-cyan-100 px-1.5 py-0.5 rounded-lg">Возвраты</span>}
             {task.employee_name && <span className="text-gray-500">{task.employee_name}</span>}
             {task.shelf_code && <span className="inline-flex items-center gap-1 text-gray-500"><ShelfIcon size={12} />{task.rack_name} · {task.shelf_name}</span>}
             {!task.shelf_code && task.pallet_name && <span className="inline-flex items-center gap-1 text-gray-500"><PalletIcon size={12} />{task.pallet_row_name || 'Ряд'} · {task.pallet_name}</span>}
@@ -75,9 +75,9 @@ export default function TaskCard({ task, onClick }) {
 
         {isActive && (
           <div className="flex flex-col items-end gap-1 flex-shrink-0 mt-1">
-            <span className={`w-2 h-2 rounded-full animate-pulse ${slaLevel === 'danger' ? 'bg-red-500' : slaLevel === 'warning' ? 'bg-amber-500' : 'bg-amber-400'}`} />
+            <span className={`w-2 h-2 rounded-full animate-pulse ${slaLevel === 'danger' ? 'bg-rose-500' : slaLevel === 'warning' ? 'bg-amber-500' : 'bg-amber-400'}`} />
             {hoursRunning >= 0.5 && (
-              <span className={`text-[10px] font-mono ${slaLevel === 'danger' ? 'text-red-500 font-bold' : slaLevel === 'warning' ? 'text-amber-500' : 'text-gray-400'}`}>
+              <span className={`text-[10px] font-mono ${slaLevel === 'danger' ? 'text-rose-500 font-bold' : slaLevel === 'warning' ? 'text-amber-500' : 'text-gray-400'}`}>
                 {Math.floor(hoursRunning)}ч{Math.floor((hoursRunning % 1) * 60)}м
               </span>
             )}

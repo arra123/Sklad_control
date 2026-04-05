@@ -600,7 +600,7 @@ export default function AssemblyPage() {
                             ))}
                           </div>
                         ) : (
-                          <p className="text-xs text-red-500">Не найден на складах</p>
+                          <p className="text-xs text-rose-500">Не найден на складах</p>
                         )}
                         {!done && compLocs.length > 0 && (
                           <Button size="sm" className="w-full" onClick={() => { setActiveComponent(c); setPickStep('location'); }}>
@@ -680,7 +680,7 @@ export default function AssemblyPage() {
                       <div className="text-right flex-shrink-0">
                         <p className="text-[11px] font-mono text-gray-500">{new Date(sc.created_at).toLocaleTimeString('ru-RU', {hour:'2-digit',minute:'2-digit',second:'2-digit'})}</p>
                         {sc.seconds_since_prev != null && Number(sc.seconds_since_prev) > 0
-                          ? <p className={`text-[11px] font-mono font-bold ${Number(sc.seconds_since_prev) > 10 ? 'text-red-400' : Number(sc.seconds_since_prev) > 5 ? 'text-amber-400' : 'text-green-500'}`}>+{sc.seconds_since_prev}с</p>
+                          ? <p className={`text-[11px] font-mono font-bold ${Number(sc.seconds_since_prev) > 10 ? 'text-rose-400' : Number(sc.seconds_since_prev) > 5 ? 'text-amber-400' : 'text-green-500'}`}>+{sc.seconds_since_prev}с</p>
                           : <p className="text-[11px] text-primary-400 font-mono">старт</p>
                         }
                       </div>

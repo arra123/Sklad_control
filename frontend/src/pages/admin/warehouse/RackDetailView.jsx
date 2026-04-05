@@ -180,7 +180,7 @@ export function RackDetailView({ rack, onBack, onReload, initialShelfId, initial
                           <Pencil size={13} />
                         </button>
                         <button onClick={() => deleteShelf(shelf.id, shelf.name)}
-                          className="p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all">
+                          className="p-1.5 rounded-lg text-gray-300 hover:text-rose-500 hover:bg-rose-50 transition-all">
                           <Trash2 size={13} />
                         </button>
                       </div>

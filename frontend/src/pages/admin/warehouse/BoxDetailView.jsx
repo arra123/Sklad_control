@@ -193,7 +193,7 @@ export function BoxDetailView({ boxId, boxType, onClose, onChanged }) {
             </button>
           )}
           <button onClick={handleDelete}
-            className="p-2 rounded-xl text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all">
+            className="p-2 rounded-xl text-gray-400 hover:text-rose-500 hover:bg-rose-50 transition-all">
             <Trash2 size={15} />
           </button>
         </div>

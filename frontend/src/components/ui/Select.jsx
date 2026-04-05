@@ -12,14 +12,14 @@ export default function Select({ label, error, className, containerClass, childr
           'focus:border-primary-400 focus:ring-2 focus:ring-primary-100 focus:outline-none',
           'disabled:bg-gray-50 disabled:cursor-not-allowed transition-all duration-150',
           'dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100',
-          error && 'border-red-300',
+          error && 'border-rose-300',
           className
         )}
         {...props}
       >
         {children}
       </select>
-      {error && <p className="text-xs text-red-500">{error}</p>}
+      {error && <p className="text-xs text-rose-500">{error}</p>}
     </div>
   );
 }

@@ -258,8 +258,8 @@ export default function ReturnsPage() {
         <h1 className="text-xl font-bold text-gray-900 mb-1">Возвраты</h1>
         <p className="text-sm text-gray-400 mb-6">Разложить возвращённые баночки по полкам</p>
 
-        <div className="bg-teal-50 rounded-2xl p-6 mb-5 text-center">
-          <div className="w-20 h-20 rounded-2xl bg-teal-100 text-teal-600 ring-4 ring-teal-200 flex items-center justify-center mx-auto mb-4">
+        <div className="bg-cyan-50 rounded-2xl p-6 mb-5 text-center">
+          <div className="w-20 h-20 rounded-2xl bg-cyan-100 text-cyan-600 ring-4 ring-cyan-200 flex items-center justify-center mx-auto mb-4">
             <ReturnsIcon size={48} />
           </div>
           <h2 className="text-lg font-bold text-gray-900 mb-2">Как это работает</h2>
@@ -271,13 +271,13 @@ export default function ReturnsPage() {
         </div>
 
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-4 ret-shake">
-            <p className="text-sm text-red-700">{error}</p>
+          <div className="bg-rose-50 border border-rose-200 rounded-xl px-4 py-3 mb-4 ret-shake">
+            <p className="text-sm text-rose-700">{error}</p>
           </div>
         )}
 
         <button onClick={handleStart} disabled={loading}
-          className="w-full py-4 rounded-2xl bg-teal-500 text-white font-bold text-base hover:bg-teal-600 disabled:opacity-50 transition-all shadow-lg shadow-teal-200 active:scale-[0.98]">
+          className="w-full py-4 rounded-2xl bg-cyan-500 text-white font-bold text-base hover:bg-cyan-600 disabled:opacity-50 transition-all shadow-lg shadow-cyan-200 active:scale-[0.98]">
           {loading ? <Spinner size="sm" className="mx-auto" /> : 'Начать раскладку возвратов'}
         </button>
       </div>
@@ -306,8 +306,8 @@ export default function ReturnsPage() {
         </div>
 
         {/* Scan hint */}
-        <div className="bg-teal-50 rounded-2xl p-5 mb-4 text-center">
-          <div className="w-16 h-16 rounded-2xl bg-teal-100 text-teal-600 ring-4 ring-teal-200 flex items-center justify-center mx-auto mb-3">
+        <div className="bg-cyan-50 rounded-2xl p-5 mb-4 text-center">
+          <div className="w-16 h-16 rounded-2xl bg-cyan-100 text-cyan-600 ring-4 ring-cyan-200 flex items-center justify-center mx-auto mb-3">
             <ScanLine size={28} />
           </div>
           <p className="text-sm font-bold text-gray-900">Сканируйте банку из возврата</p>
@@ -315,8 +315,8 @@ export default function ReturnsPage() {
         </div>
 
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-3 ret-shake">
-            <p className="text-sm text-red-700">{error}</p>
+          <div className="bg-rose-50 border border-rose-200 rounded-xl px-4 py-3 mb-3 ret-shake">
+            <p className="text-sm text-rose-700">{error}</p>
           </div>
         )}
 
@@ -347,10 +347,10 @@ export default function ReturnsPage() {
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-900 truncate">{item.product_name}</p>
                         <div className="flex items-center gap-2 mt-1">
-                          <span className="text-sm font-bold text-teal-600 bg-teal-50 px-2 py-0.5 rounded-lg">{item.quantity} шт.</span>
+                          <span className="text-sm font-bold text-cyan-600 bg-cyan-50 px-2 py-0.5 rounded-lg">{item.quantity} шт.</span>
                         </div>
                       </div>
-                      <button onClick={() => removeItem(idx)} className="p-1 text-gray-300 hover:text-red-400 transition-colors">
+                      <button onClick={() => removeItem(idx)} className="p-1 text-gray-300 hover:text-rose-400 transition-colors">
                         <Trash2 size={14} />
                       </button>
                     </div>
@@ -358,11 +358,11 @@ export default function ReturnsPage() {
                   {/* Location hint + deliver button */}
                   <div className="bg-gray-50 px-4 py-2.5 flex items-center justify-between border-t border-gray-100">
                     <div className="flex items-center gap-2 text-xs text-gray-500 min-w-0">
-                      <MapPin size={12} className="text-teal-500 flex-shrink-0" />
+                      <MapPin size={12} className="text-cyan-500 flex-shrink-0" />
                       <span className="truncate">{locationText}</span>
                     </div>
                     <button onClick={() => startDeliver(idx)}
-                      className="px-3 py-1.5 rounded-lg bg-teal-500 text-white text-xs font-bold hover:bg-teal-600 transition-colors flex-shrink-0 ml-2">
+                      className="px-3 py-1.5 rounded-lg bg-cyan-500 text-white text-xs font-bold hover:bg-cyan-600 transition-colors flex-shrink-0 ml-2">
                       Отнести
                     </button>
                   </div>
@@ -398,13 +398,13 @@ export default function ReturnsPage() {
         </button>
 
         {/* Where to go */}
-        <div className="bg-teal-50 rounded-2xl p-5 mb-4 text-center">
-          <div className="w-16 h-16 rounded-2xl bg-teal-100 text-teal-600 ring-4 ring-teal-200 flex items-center justify-center mx-auto mb-3">
+        <div className="bg-cyan-50 rounded-2xl p-5 mb-4 text-center">
+          <div className="w-16 h-16 rounded-2xl bg-cyan-100 text-cyan-600 ring-4 ring-cyan-200 flex items-center justify-center mx-auto mb-3">
             <MapPin size={28} />
           </div>
           <p className="text-sm font-bold text-gray-900 mb-1">Отнесите к коробке</p>
           {locationText && (
-            <p className="text-lg font-bold text-teal-700 bg-white rounded-xl py-2 px-4 mt-2 inline-block shadow-sm border border-teal-200">
+            <p className="text-lg font-bold text-cyan-700 bg-white rounded-xl py-2 px-4 mt-2 inline-block shadow-sm border border-cyan-200">
               {locationText}
             </p>
           )}
@@ -414,12 +414,12 @@ export default function ReturnsPage() {
         <div className="bg-white rounded-xl border border-gray-100 px-4 py-3 mb-4 shadow-sm">
           <p className="text-xs text-gray-400 mb-1">Переложить в коробку:</p>
           <p className="text-sm font-medium text-gray-900 truncate">{item.product_name}</p>
-          <p className="text-lg font-bold text-teal-600 mt-1">{item.quantity} шт.</p>
+          <p className="text-lg font-bold text-cyan-600 mt-1">{item.quantity} шт.</p>
         </div>
 
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-3 ret-shake">
-            <p className="text-sm text-red-700">{error}</p>
+          <div className="bg-rose-50 border border-rose-200 rounded-xl px-4 py-3 mb-3 ret-shake">
+            <p className="text-sm text-rose-700">{error}</p>
           </div>
         )}
 
@@ -442,7 +442,7 @@ export default function ReturnsPage() {
         </p>
         <div className="flex gap-3 justify-center mt-8">
           <button onClick={() => { setPhase('start'); setItems([]); setTaskId(null); setTotalDelivered(0); setError(''); }}
-            className="px-6 py-3 rounded-2xl bg-teal-500 text-white font-bold text-sm hover:bg-teal-600 shadow-lg shadow-teal-200 transition-all">
+            className="px-6 py-3 rounded-2xl bg-cyan-500 text-white font-bold text-sm hover:bg-cyan-600 shadow-lg shadow-cyan-200 transition-all">
             Новая раскладка
           </button>
           <button onClick={() => navigate('/employee/tasks')}

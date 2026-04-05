@@ -95,7 +95,7 @@ function getNodeLabel(node) {
 
 function getNodeIcon(type, size = 18, colorIndex = 0) {
   switch (type) {
-    case 'warehouse': return <WarehouseIcon size={size} colorIndex={colorIndex} />;
+    case 'warehouse': return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="8" width="18" height="13" rx="1"/><path d="M2 9.5L12 3l10 6.5"/><line x1="7" y1="14" x2="17" y2="14"/><line x1="7" y1="18" x2="17" y2="18"/></svg>;
     case 'rack': return <RackIcon size={size} />;
     case 'row': return <RowIcon size={size} />;
     case 'shelf': return <ShelfIcon size={size} />;
@@ -151,7 +151,7 @@ function TreeNode({ node, type, depth = 0, expandedNodes, selectedNodeId, onTogg
 
   const getFolderIcon = () => {
     if (isBox) return <BoxIcon size={16} />;
-    if (type === 'warehouse') return <WarehouseIcon size={18} colorIndex={node._colorIdx ?? ((node.id || 0) % 10)} />;
+    if (type === 'warehouse') return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="8" width="18" height="13" rx="1"/><path d="M2 9.5L12 3l10 6.5"/><line x1="7" y1="14" x2="17" y2="14"/><line x1="7" y1="18" x2="17" y2="18"/></svg>;
     if (type === 'rack') return <RackIcon size={16} />;
     if (type === 'row') return <RowIcon size={16} />;
     if (type === 'shelf') return <ShelfIcon size={16} />;
@@ -261,7 +261,7 @@ function TaskScansPanel({ taskId, boxId, boxType }) {
           const secSince = Number(sc.seconds_since_prev);
           const speedClass = sc.seconds_since_prev == null
             ? 'text-purple-400'
-            : secSince <= 5 ? 'text-green-500' : secSince <= 10 ? 'text-amber-500' : 'text-red-500';
+            : secSince <= 5 ? 'text-green-500' : secSince <= 10 ? 'text-amber-500' : 'text-rose-500';
           return (
             <div key={sc.id} className="flex items-center gap-2.5 px-3 py-1.5">
               <span className="text-[11px] font-mono text-gray-300 w-5 text-right flex-shrink-0">{i + 1}</span>
@@ -473,10 +473,9 @@ function OverviewPanel({ data, settings, singleWarehouse, onSelectNode }) {
       <div className="bg-white rounded-2xl border border-gray-100 p-6 mb-5">
         <div className="flex items-center gap-4 flex-wrap">
           <div className="flex items-center gap-3.5 flex-1 min-w-0">
-            {isSingle
-              ? <WarehouseIcon size={44} colorIndex={wh._colorIdx ?? ((wh.id || 0) % 10)} />
-              : <WarehouseIcon size={44} colorIndex={0} />
-            }
+            <div className="w-11 h-11 rounded-2xl bg-primary-50 flex items-center justify-center flex-shrink-0">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#6d28d9" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="8" width="18" height="13" rx="1"/><path d="M2 9.5L12 3l10 6.5"/><line x1="7" y1="14" x2="17" y2="14"/><line x1="7" y1="18" x2="17" y2="18"/></svg>
+            </div>
             <div className="min-w-0">
               <h1 className="text-[22px] font-extrabold text-gray-900 break-words">{headerTitle}</h1>
               <p className="text-sm text-gray-500 mt-0.5">{headerSubtitle}</p>
@@ -757,7 +756,7 @@ function RackRowDetail({ node, type, settings, onSelectNode }) {
                   <p className="text-[10px] text-gray-400">сейчас</p>
                 </div>
                 <div>
-                  <p className={cn('text-sm font-black', cDelta != null ? (cDelta > 0 ? 'text-green-600' : cDelta < 0 ? 'text-red-600' : 'text-gray-400') : 'text-gray-300')}>
+                  <p className={cn('text-sm font-black', cDelta != null ? (cDelta > 0 ? 'text-green-600' : cDelta < 0 ? 'text-rose-600' : 'text-gray-400') : 'text-gray-300')}>
                     {cDelta != null ? ((cDelta > 0 ? '+' : '') + cDelta) : cHasAny ? '1 инв.' : '—'}
                   </p>
                   <p className="text-[10px] text-gray-400">расхожд.</p>

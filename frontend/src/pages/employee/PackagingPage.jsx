@@ -18,7 +18,7 @@ import { useAppSettings } from '../../context/AppSettingsContext';
 import { makePlayBeep, SCAN_AUTO_SUBMIT_MS } from '../../utils/audio';
 
 function makeSpeedColor(fast, slow) {
-  return (s) => s < fast ? 'text-green-500' : s < slow ? 'text-amber-500' : 'text-red-400';
+  return (s) => s < fast ? 'text-green-500' : s < slow ? 'text-amber-500' : 'text-rose-400';
 }
 
 // ─── Шаг 1: Сканировать паллет для начала ─────────────────────────────────────
@@ -106,12 +106,12 @@ function StepScanPallet({ task, onSuccess }) {
           disabled={loading} autoComplete="off"
         />
         {error && (
-          <div className="flex items-start gap-2 p-3 bg-red-50 rounded-xl text-sm text-red-700">
+          <div className="flex items-start gap-2 p-3 bg-rose-50 rounded-xl text-sm text-rose-700">
             <AlertCircle size={16} className="flex-shrink-0 mt-0.5" />
             <p>{error}</p>
           </div>
         )}
-        <Button variant="primary" size="lg" className="w-full" loading={loading} onClick={() => doScan(value)}>
+        <Button variant="primary-solid" size="lg" className="w-full" loading={loading} onClick={() => doScan(value)}>
           Подтвердить
         </Button>
       </div>
@@ -156,7 +156,7 @@ function StepOpenBox({ task, stats, onOpen }) {
         <Step num={4} text="Отсканируйте этикетку на коробке" />
       </div>
 
-      <Button variant="primary" size="xl" className="w-full" loading={loading} onClick={handleOpen}>
+      <Button variant="primary-solid" size="xl" className="w-full" loading={loading} onClick={handleOpen}>
         <Box size={20} />
         Открыть новую коробку
       </Button>
@@ -259,7 +259,7 @@ function StepConfirmBox({ task, box, onConfirmed }) {
           disabled={loading} autoComplete="off"
         />
         {error && (
-          <div className="flex items-start gap-2 p-3 bg-red-50 rounded-xl text-sm text-red-700">
+          <div className="flex items-start gap-2 p-3 bg-rose-50 rounded-xl text-sm text-rose-700">
             <AlertCircle size={16} className="flex-shrink-0 mt-0.5" />
             <p>{error}</p>
           </div>
@@ -370,7 +370,7 @@ function StepFillBox({ task, box, onRefresh, onDone, onRemainder }) {
                 className={`text-xs px-1.5 py-0.5 rounded-md font-mono animate-pop-in ${
                   t < 3 ? 'bg-green-100 text-green-700' :
                   t < 6 ? 'bg-amber-100 text-amber-700' :
-                  'bg-red-100 text-red-600'
+                  'bg-rose-100 text-rose-600'
                 }`}
                 style={{ animationDelay: `${i * 0.04}s` }}
               >
@@ -415,7 +415,7 @@ function StepFillBox({ task, box, onRefresh, onDone, onRemainder }) {
             </div>
           ) : (
             <div className={`flex items-start justify-between gap-2 p-3 rounded-xl text-sm font-medium
-              ${lastScan.ok ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+              ${lastScan.ok ? 'bg-green-50 text-green-700' : 'bg-rose-50 text-rose-700'}`}>
               <div className="flex items-start gap-2">
                 {lastScan.ok ? <CheckCircle2 size={16} className="flex-shrink-0 mt-0.5" /> : <AlertCircle size={16} className="flex-shrink-0 mt-0.5" />}
                 <div>
@@ -435,7 +435,7 @@ function StepFillBox({ task, box, onRefresh, onDone, onRemainder }) {
 
       {/* Кнопка "Коробка заполнена" — только при достижении нормы */}
       {isFull && (
-        <Button variant="primary" size="xl" className="w-full" onClick={onDone}>
+        <Button variant="primary-solid" size="xl" className="w-full" onClick={onDone}>
           <ChevronRight size={20} />
           Коробка заполнена → Перенести на паллет
         </Button>
@@ -526,12 +526,12 @@ function StepTransferBox({ task, box, onSuccess }) {
           disabled={loading} autoComplete="off"
         />
         {error && (
-          <div className="flex items-start gap-2 p-3 bg-red-50 rounded-xl text-sm text-red-700">
+          <div className="flex items-start gap-2 p-3 bg-rose-50 rounded-xl text-sm text-rose-700">
             <AlertCircle size={16} className="flex-shrink-0 mt-0.5" />
             <p>{error}</p>
           </div>
         )}
-        <Button variant="primary" size="lg" className="w-full" loading={loading} onClick={() => doScan(value)}>
+        <Button variant="primary-solid" size="lg" className="w-full" loading={loading} onClick={() => doScan(value)}>
           Подтвердить размещение
         </Button>
       </div>
@@ -629,12 +629,12 @@ function StepRemainderInfo({ task, box, onConfirmShelf, onBack }) {
           disabled={scanning} autoComplete="off"
         />
         {error && (
-          <div className="flex items-start gap-2 p-3 bg-red-50 rounded-xl text-sm text-red-700">
+          <div className="flex items-start gap-2 p-3 bg-rose-50 rounded-xl text-sm text-rose-700">
             <AlertCircle size={16} className="flex-shrink-0 mt-0.5" />
             <p>{error}</p>
           </div>
         )}
-        <Button variant="primary" size="lg" className="w-full" loading={scanning} onClick={() => doScan(scanValue)}>
+        <Button variant="primary-solid" size="lg" className="w-full" loading={scanning} onClick={() => doScan(scanValue)}>
           Подтвердить полку
         </Button>
       </div>
@@ -727,12 +727,12 @@ function StepRemainderShelf({ task, box, onSuccess }) {
           disabled={loading} autoComplete="off"
         />
         {error && (
-          <div className="flex items-start gap-2 p-3 bg-red-50 rounded-xl text-sm text-red-700">
+          <div className="flex items-start gap-2 p-3 bg-rose-50 rounded-xl text-sm text-rose-700">
             <AlertCircle size={16} className="flex-shrink-0 mt-0.5" />
             <p>{error}</p>
           </div>
         )}
-        <Button variant="primary" size="lg" className="w-full" loading={loading} onClick={() => doScan(value)}>
+        <Button variant="primary-solid" size="lg" className="w-full" loading={loading} onClick={() => doScan(value)}>
           Подтвердить размещение на ФБС
         </Button>
       </div>

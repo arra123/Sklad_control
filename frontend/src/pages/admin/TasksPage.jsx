@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { Plus, ClipboardList, Video, RefreshCw, Download } from 'lucide-react';
+import { Plus, ClipboardList, Video, RefreshCw } from 'lucide-react';
 import api from '../../api/client';
 import Button from '../../components/ui/Button';
 import Spinner from '../../components/ui/Spinner';
@@ -166,21 +166,7 @@ export default function TasksPage() {
     load();
   };
 
-  const exportCSV = () => {
-    const headers = ['ID', 'Название', 'Тип', 'Статус', 'Сотрудник', 'Сканов', 'Длительность (мин)', 'Создана', 'Завершена'];
-    const rows = filtered.map(t => [
-      t.id, `"${(t.title || '').replace(/"/g, '""')}"`,
-      t.task_type, t.status, t.employee_name || '',
-      t.scans_count || 0, t.duration_minutes || '',
-      t.created_at ? new Date(t.created_at).toLocaleString('ru-RU') : '',
-      t.completed_at ? new Date(t.completed_at).toLocaleString('ru-RU') : '',
-    ]);
-    const csv = '\uFEFF' + [headers.join(';'), ...rows.map(r => r.join(';'))].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = `tasks_${new Date().toISOString().slice(0,10)}.csv`; a.click();
-    URL.revokeObjectURL(url);
-  };
+
 
   const hasActiveFilters = searchText || filterEmployee || filterStatus || filterLocation || filterType || filterPeriod !== 'all';
 
@@ -211,28 +197,21 @@ export default function TasksPage() {
           <button
             onClick={() => { setBulkMode(!bulkMode); setSelectedIds(new Set()); }}
             title="Массовые действия"
-            className={`hidden sm:flex p-2 rounded-xl transition-colors ${bulkMode ? 'text-red-500 bg-red-50' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`}
+            className={`hidden sm:flex p-2 rounded-xl transition-all ${bulkMode ? 'text-rose-500 bg-rose-500/10 border border-rose-500/25 shadow-[0_2px_10px_rgba(244,63,94,0.12)]' : 'text-gray-500 bg-white/50 border border-gray-200 hover:bg-white/70'}`}
           >
             <ClipboardList size={16} />
           </button>
           <button
-            onClick={exportCSV}
-            title="Экспорт в CSV"
-            className="hidden sm:flex p-2 rounded-xl text-gray-400 hover:text-green-600 hover:bg-green-50 transition-colors"
-          >
-            <Download size={16} />
-          </button>
-          <button
             onClick={() => { setRefreshing(true); load().finally(() => setTimeout(() => setRefreshing(false), 500)); }}
             title={lastUpdate ? `Обновлено ${lastUpdate.toLocaleTimeString('ru-RU')}` : 'Обновить'}
-            className="p-2 rounded-xl text-gray-400 hover:text-primary-600 hover:bg-primary-50 transition-colors"
+            className="p-2 rounded-xl text-gray-500 bg-white/50 border border-gray-200 hover:bg-white/70 hover:text-primary-600 transition-all"
           >
             <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />
           </button>
           <button
             onClick={() => navigate('/admin/live-monitor')}
             title="Live-мониторинг"
-            className="p-2 rounded-xl text-gray-400 hover:text-primary-600 hover:bg-primary-50 transition-colors"
+            className="p-2 rounded-xl text-gray-500 bg-white/50 border border-gray-200 hover:bg-white/70 hover:text-primary-600 transition-all"
           >
             <Video size={18} />
           </button>
@@ -248,7 +227,7 @@ export default function TasksPage() {
         {[['all', 'Все'], ['today', 'Сегодня'], ['yesterday', 'Вчера']].map(([k, l]) => (
           <button key={k} onClick={() => setFilterPeriod(k)}
             className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
-              filterPeriod === k ? 'bg-primary-600 text-white shadow-sm' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+              filterPeriod === k ? 'text-primary-700 bg-primary-600/10 border border-primary-600/25 shadow-[0_2px_10px_rgba(124,58,237,0.12)]' : 'text-gray-500 bg-white/50 border border-gray-200 hover:bg-white/70'
             }`}>{l}</button>
         ))}
         <span className="w-px h-5 bg-gray-200" />
@@ -256,7 +235,7 @@ export default function TasksPage() {
         {[['date', '↓ Дата'], ['status', '↓ Статус'], ['scans', '↓ Сканы']].map(([k, l]) => (
           <button key={k} onClick={() => setSortBy(k)}
             className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
-              sortBy === k ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+              sortBy === k ? 'text-primary-700 bg-primary-600/10 border border-primary-600/25 shadow-[0_2px_10px_rgba(124,58,237,0.12)]' : 'text-gray-500 bg-white/50 border border-gray-200 hover:bg-white/70'
             }`}>{l}</button>
         ))}
         <span className="w-px h-5 bg-gray-200" />
@@ -267,12 +246,12 @@ export default function TasksPage() {
           placeholder="Поиск..."
           value={searchText}
           onChange={e => setSearchText(e.target.value)}
-          className="px-3 py-1 text-xs rounded-lg border border-gray-200 bg-white focus:outline-none focus:border-primary-400 w-36 sm:w-48"
+          className="px-3 py-1 text-xs rounded-lg border border-gray-200 bg-white/50 focus:outline-none focus:border-primary-400 focus:bg-white/70 w-36 sm:w-48 transition-all"
         />
         <select
           value={filterEmployee}
           onChange={e => setFilterEmployee(e.target.value)}
-          className="px-2 py-1 text-xs rounded-lg border border-gray-200 bg-white focus:outline-none focus:border-primary-400 text-gray-600"
+          className="px-2 py-1 text-xs rounded-lg border border-gray-200 bg-white/50 focus:outline-none focus:border-primary-400 focus:bg-white/70 text-gray-600 transition-all"
         >
           <option value="">Все сотрудники</option>
           {uniqueEmployees.map(name => (
@@ -282,7 +261,7 @@ export default function TasksPage() {
         <select
           value={filterStatus}
           onChange={e => setFilterStatus(e.target.value)}
-          className="px-2 py-1 text-xs rounded-lg border border-gray-200 bg-white focus:outline-none focus:border-primary-400 text-gray-600"
+          className="px-2 py-1 text-xs rounded-lg border border-gray-200 bg-white/50 focus:outline-none focus:border-primary-400 focus:bg-white/70 text-gray-600 transition-all"
         >
           <option value="">Все статусы</option>
           <option value="new">Новые</option>
@@ -294,7 +273,7 @@ export default function TasksPage() {
         <select
           value={filterType}
           onChange={e => setFilterType(e.target.value)}
-          className="px-2 py-1 text-xs rounded-lg border border-gray-200 bg-white focus:outline-none focus:border-primary-400 text-gray-600"
+          className="px-2 py-1 text-xs rounded-lg border border-gray-200 bg-white/50 focus:outline-none focus:border-primary-400 focus:bg-white/70 text-gray-600 transition-all"
         >
           <option value="">Все типы</option>
           <option value="inventory">Инвентаризация</option>
@@ -307,7 +286,7 @@ export default function TasksPage() {
 
       {/* Bulk actions bar */}
       {bulkMode && (
-        <div className="flex items-center gap-3 mb-3 px-4 py-2.5 bg-red-50 border border-red-200 rounded-2xl">
+        <div className="flex items-center gap-3 mb-3 px-4 py-2.5 bg-rose-50 border border-rose-200 rounded-2xl">
           <input
             type="checkbox"
             checked={selectedIds.size === filtered.length && filtered.length > 0}
@@ -315,13 +294,13 @@ export default function TasksPage() {
               if (selectedIds.size === filtered.length) setSelectedIds(new Set());
               else setSelectedIds(new Set(filtered.map(t => t.id)));
             }}
-            className="w-4 h-4 rounded border-gray-300 text-red-500"
+            className="w-4 h-4 rounded border-gray-300 text-rose-500"
           />
-          <span className="text-sm font-semibold text-red-700">{selectedIds.size > 0 ? `Выбрано: ${selectedIds.size}` : 'Выберите задачи'}</span>
+          <span className="text-sm font-semibold text-rose-700">{selectedIds.size > 0 ? `Выбрано: ${selectedIds.size}` : 'Выберите задачи'}</span>
           {selectedIds.size > 0 && (
-            <button onClick={bulkDelete} className="px-3 py-1 rounded-xl bg-red-500 text-white text-xs font-bold hover:bg-red-600 transition-colors">Удалить</button>
+            <button onClick={bulkDelete} className="px-3 py-1 rounded-xl text-white bg-gradient-to-br from-rose-400 to-rose-600 border border-rose-600/30 shadow-[0_2px_12px_rgba(244,63,94,0.2)] text-xs font-bold hover:from-rose-500 hover:to-rose-700 transition-all">Удалить</button>
           )}
-          <button onClick={() => { setSelectedIds(new Set()); setBulkMode(false); }} className="px-3 py-1 rounded-xl text-xs text-gray-500 hover:bg-gray-100 transition-colors">Выйти</button>
+          <button onClick={() => { setSelectedIds(new Set()); setBulkMode(false); }} className="px-3 py-1 rounded-xl text-xs text-gray-500 bg-white/50 border border-gray-200 hover:bg-white/70 transition-all">Выйти</button>
         </div>
       )}
 
@@ -332,7 +311,7 @@ export default function TasksPage() {
           <ClipboardList size={40} className="mb-2 opacity-30" />
           <p className="text-sm">{items.length === 0 ? 'Нет задач' : 'Ничего не найдено по фильтрам'}</p>
           {hasActiveFilters && (
-            <button onClick={resetFilters} className="mt-2 text-sm text-primary-500 hover:text-primary-700 font-medium">Сбросить фильтры</button>
+            <button onClick={resetFilters} className="mt-2 text-sm text-primary-600 bg-white/50 border border-gray-200 hover:bg-white/70 px-3 py-1 rounded-lg font-medium transition-all">Сбросить фильтры</button>
           )}
         </div>
       ) : (
@@ -355,7 +334,7 @@ export default function TasksPage() {
           {items.length < totalCount && (
             <button
               onClick={loadMore}
-              className="w-full py-3 rounded-2xl border-2 border-dashed border-gray-200 text-gray-500 text-sm font-medium hover:bg-gray-50 hover:border-gray-300 transition-all mt-2"
+              className="w-full py-3 rounded-2xl border-2 border-dashed border-gray-200 text-gray-500 bg-white/50 text-sm font-medium hover:bg-white/70 hover:border-primary-300 hover:text-primary-600 transition-all mt-2"
             >
               Загрузить ещё ({items.length} из {totalCount})
             </button>

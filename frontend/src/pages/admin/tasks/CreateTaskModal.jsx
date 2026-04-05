@@ -454,7 +454,7 @@ export default function CreateTaskModal({ open, onClose, onSuccess }) {
       title={modalTitle}
       footer={<>
         <Button variant="ghost" onClick={handleClose}>Отмена</Button>
-        <Button form="task-form" type="submit" loading={loading}>Создать</Button>
+        <Button variant="primary-solid" form="task-form" type="submit" loading={loading}>Создать</Button>
       </>}
     >
       {/* Type selector */}
@@ -516,7 +516,7 @@ export default function CreateTaskModal({ open, onClose, onSuccess }) {
                     >
                       <p className="font-medium text-gray-900 truncate">{s.name}</p>
                       <p className="text-xs text-gray-400 truncate">{s.code}{s.uses_boxes ? ' · коробки' : ''}</p>
-                      {busy && <p className="text-[10px] text-red-400 mt-0.5 truncate">В задаче #{busy.task_id}</p>}
+                      {busy && <p className="text-[10px] text-rose-400 mt-0.5 truncate">В задаче #{busy.task_id}</p>}
                     </button>
                   );
                 })}
@@ -598,7 +598,7 @@ export default function CreateTaskModal({ open, onClose, onSuccess }) {
                         <div className="min-w-0 flex-1">
                           <p className="font-medium text-gray-800 truncate">{box.product_name || 'Пустая коробка'}</p>
                           <p className="text-xs text-gray-400">{box.barcode_value} · {Number(box.quantity || 0)} шт.</p>
-                          {busy && <p className="text-[10px] text-red-400 mt-0.5">В задаче #{busy.task_id}</p>}
+                          {busy && <p className="text-[10px] text-rose-400 mt-0.5">В задаче #{busy.task_id}</p>}
                         </div>
                       </label>
                     );
@@ -649,7 +649,7 @@ export default function CreateTaskModal({ open, onClose, onSuccess }) {
                           <p className="text-xs text-gray-500">
                             {box.barcode_value} · {Number(box.quantity || 0)} шт. · {Number(box.products_count || 0) > 1 ? `${Number(box.products_count)} товара` : (box.product_name || 'Пустая коробка')}
                           </p>
-                          {busy && <p className="text-[10px] text-red-400 mt-0.5">В задаче #{busy.task_id}</p>}
+                          {busy && <p className="text-[10px] text-rose-400 mt-0.5">В задаче #{busy.task_id}</p>}
                         </div>
                       </label>
                     );
@@ -678,7 +678,7 @@ export default function CreateTaskModal({ open, onClose, onSuccess }) {
                   <p className="text-xs text-gray-400">{selectedProduct.code}</p>
                 </div>
                 <button type="button" onClick={() => { setSelectedProduct(null); setProductSearch(''); }}
-                  className="text-gray-400 hover:text-red-500 flex-shrink-0 text-xs">✕</button>
+                  className="text-gray-400 hover:text-rose-500 flex-shrink-0 text-xs">✕</button>
               </div>
             ) : (
               <div className="relative">
@@ -730,7 +730,7 @@ export default function CreateTaskModal({ open, onClose, onSuccess }) {
                   <p className="text-xs text-gray-400">{selectedBundle.code}</p>
                 </div>
                 <button type="button" onClick={() => { setSelectedBundle(null); setBundleSearch(''); }}
-                  className="text-gray-400 hover:text-red-500"><X size={14} /></button>
+                  className="text-gray-400 hover:text-rose-500"><X size={14} /></button>
               </div>
             ) : (
               <div className="relative" ref={bundleDropRef}>
@@ -802,7 +802,7 @@ export default function CreateTaskModal({ open, onClose, onSuccess }) {
                             <span className="text-xs text-green-800 flex-1 truncate">{selected.path}</span>
                             <span className="text-xs text-green-600">{selected.qty} шт</span>
                             <button type="button" onClick={() => setBundleSourceByComponent(prev => { const n = { ...prev }; delete n[compId]; return n; })}
-                              className="text-gray-400 hover:text-red-500"><X size={12} /></button>
+                              className="text-gray-400 hover:text-rose-500"><X size={12} /></button>
                           </div>
                         ) : bundleSourceLoading ? (
                           <p className="text-xs text-gray-400">Загрузка...</p>
@@ -842,7 +842,7 @@ export default function CreateTaskModal({ open, onClose, onSuccess }) {
               <div key={i} className="flex items-center gap-2 mb-2 px-3 py-2 bg-blue-50 border border-blue-100 rounded-xl">
                 <MapPin size={14} className="text-blue-500 flex-shrink-0" />
                 <span className="text-sm text-gray-800 flex-1">{d.label}</span>
-                <button type="button" onClick={() => setBundleDestList(prev => prev.filter((_, j) => j !== i))} className="text-gray-400 hover:text-red-500"><X size={14} /></button>
+                <button type="button" onClick={() => setBundleDestList(prev => prev.filter((_, j) => j !== i))} className="text-gray-400 hover:text-rose-500"><X size={14} /></button>
               </div>
             ))}
 
@@ -927,7 +927,7 @@ export default function CreateTaskModal({ open, onClose, onSuccess }) {
             {selectedTransferProduct && (
               <div className="mt-2 flex items-center gap-2 px-3 py-2 bg-primary-50 rounded-xl border border-primary-100">
                 <span className="text-sm font-medium truncate flex-1">{selectedTransferProduct.name}</span>
-                <button type="button" onClick={() => setSelectedTransferProduct(null)} className="text-gray-400 hover:text-red-500"><X size={14} /></button>
+                <button type="button" onClick={() => setSelectedTransferProduct(null)} className="text-gray-400 hover:text-rose-500"><X size={14} /></button>
               </div>
             )}
           </div>

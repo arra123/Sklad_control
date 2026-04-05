@@ -47,15 +47,23 @@ export function ToastProvider({ children }) {
 function Toast({ toast, onRemove }) {
   const icons = {
     success: <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />,
-    error: <XCircle className="w-4 h-4 text-red-500 flex-shrink-0" />,
+    error: <XCircle className="w-4 h-4 text-rose-500 flex-shrink-0" />,
     warning: <AlertCircle className="w-4 h-4 text-amber-500 flex-shrink-0" />,
     info: <AlertCircle className="w-4 h-4 text-blue-500 flex-shrink-0" />,
   };
 
+  const borderColors = {
+    success: 'border-l-green-500',
+    error: 'border-l-rose-500',
+    warning: 'border-l-amber-500',
+    info: 'border-l-blue-500',
+  };
+
   return (
     <div className={cn(
-      'pointer-events-auto flex items-start gap-3 px-4 py-3 rounded-xl shadow-lg border',
+      'pointer-events-auto flex items-start gap-3 px-4 py-3 rounded-xl shadow-lg border border-l-4',
       'bg-white dark:bg-gray-900 border-gray-100 dark:border-gray-800',
+      borderColors[toast.type],
       'animate-fade-in'
     )}>
       {icons[toast.type]}

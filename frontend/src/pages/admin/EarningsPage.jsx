@@ -1,574 +1,563 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { ChevronDown, ChevronRight, RefreshCw } from 'lucide-react';
-import { GRACoinIcon, WalletIcon, ScannerIcon, OrderPickIcon, TrendUpIcon, AdjustIcon, RateGearIcon, WorkerAvatar } from '../../components/ui/WarehouseIcons';
+import { ChevronRight, ChevronDown, RefreshCw, Search } from 'lucide-react';
 import api from '../../api/client';
-import Button from '../../components/ui/Button';
 import Spinner from '../../components/ui/Spinner';
 import { useToast } from '../../components/ui/Toast';
 
-function fmtGra(value) {
-  const amount = Number(value || 0);
-  // Определяем реальное количество знаков (до 6, без лишних нулей)
-  const str = String(amount);
-  const dec = str.includes('.') ? str.split('.')[1].length : 0;
-  return new Intl.NumberFormat('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: Math.min(dec, 6) }).format(amount);
+/* ─── Formatters ────────────────────────────────────────────────────────── */
+function fmt(v) {
+  const n = Number(v || 0);
+  const s = String(n);
+  const d = s.includes('.') ? s.split('.')[1].length : 0;
+  return new Intl.NumberFormat('ru-RU', { maximumFractionDigits: Math.min(d, 2) }).format(n);
 }
 
-function fmtRub(value) {
-  const gra = Number(value || 0);
-  const rub = gra / 100;
-  // Показываем реальное значение без округления (до 6 знаков)
-  const str = String(rub);
-  const dec = str.includes('.') ? str.split('.')[1].length : 0;
-  return new Intl.NumberFormat('ru-RU', { minimumFractionDigits: Math.min(dec, 2), maximumFractionDigits: Math.min(dec, 6) }).format(rub);
+/* ─── Periods ───────────────────────────────────────────────────────────── */
+const PERIODS = [
+  { value: 'today', label: 'Сегодня' },
+  { value: 'week', label: 'Неделя' },
+  { value: 'month', label: 'Месяц' },
+  { value: 'all', label: 'Всё время' },
+];
+
+/* ─── Currency (GRA ⇄ ₽) ────────────────────────────────────────────────── */
+const GRA_TO_RUB = 0.01; // 1 GRA = 0.01 ₽ (см. CLAUDE.md)
+function convert(value, unit) {
+  const n = Number(value || 0);
+  return unit === 'rub' ? n * GRA_TO_RUB : n;
 }
+function unitLabel(unit) { return unit === 'rub' ? '₽' : 'GRA'; }
 
-function fmtRubRate(value) {
-  const gra = Number(value || 0);
-  const rub = gra / 100;
-  const str = String(rub);
-  const dec = str.includes('.') ? str.split('.')[1].length : 0;
-  return new Intl.NumberFormat('ru-RU', { minimumFractionDigits: Math.min(dec, 3), maximumFractionDigits: Math.min(dec, 6) }).format(rub);
-}
+/* ─── Line Icons ────────────────────────────────────────────────────────── */
+const IconCoin = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="9"/><path d="M12 7v10"/><path d="M9 9.5C9 8.67 10.34 8 12 8s3 .67 3 1.5S13.66 11 12 11s-3 .67-3 1.5S10.34 14 12 14s3 .67 3 1.5c0 .83-1.34 1.5-3 1.5s-3-.67-3-1.5"/>
+  </svg>
+);
+const IconUsers = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>
+  </svg>
+);
+const IconScan = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M3 7V5a2 2 0 012-2h2"/><path d="M17 3h2a2 2 0 012 2v2"/><path d="M21 17v2a2 2 0 01-2 2h-2"/><path d="M7 21H5a2 2 0 01-2-2v-2"/><line x1="5" y1="12" x2="19" y2="12"/>
+  </svg>
+);
+const IconTrend = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+  </svg>
+);
 
-function fmtDateTime(iso) {
-  if (!iso) return '—';
-  return new Date(iso).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-}
-
-function fmtShort(iso) {
-  if (!iso) return '—';
-  return new Date(iso).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' });
-}
-
-// ─── Balance Modal ───────────────────────────────────────────────────────────
-function BalanceAdjustModal({ employee, onClose, onSubmit, saving }) {
-  const [newBalance, setNewBalance] = useState(String(Number(employee?.current_balance || 0)));
-  const [notes, setNotes] = useState('');
-  useEffect(() => { setNewBalance(String(Number(employee?.current_balance || 0))); setNotes(''); }, [employee]);
-
+/* ─── Stat Card ─────────────────────────────────────────────────────────── */
+function Stat({ icon, label, value, color }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-5" onClick={e => e.stopPropagation()}>
-        <h3 className="text-lg font-bold text-gray-900">Изменить баланс</h3>
-        <p className="text-sm text-gray-500 mt-1">{employee?.full_name}</p>
-        <div className="mt-4 space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Новый текущий баланс</label>
-            <input type="number" min="0" step="0.001" value={newBalance} onChange={e => setNewBalance(e.target.value)}
-              className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:border-primary-400 focus:ring-2 focus:ring-primary-100 focus:outline-none" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Причина изменения</label>
-            <textarea rows={3} value={notes} onChange={e => setNotes(e.target.value)}
-              className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:border-primary-400 focus:ring-2 focus:ring-primary-100 focus:outline-none resize-none"
-              placeholder="Например: выплата за март" />
-          </div>
-        </div>
-        <div className="mt-5 flex gap-3">
-          <Button variant="ghost" className="flex-1" onClick={onClose}>Отмена</Button>
-          <Button className="flex-1" loading={saving} onClick={() => onSubmit({ newBalance, notes })}>Сохранить</Button>
-        </div>
+    <div className="bg-white/50 backdrop-blur-xl border border-white/75 rounded-[14px] px-4 py-3 flex items-center gap-3 min-w-0">
+      <div className={`w-8 h-8 rounded-lg ${color || 'bg-primary-50 text-primary-600'} flex items-center justify-center flex-shrink-0`}>
+        {icon}
+      </div>
+      <div className="min-w-0">
+        <p className="text-lg font-extrabold text-gray-900 truncate">{value}</p>
+        <p className="text-[10px] text-gray-400 uppercase tracking-wider">{label}</p>
       </div>
     </div>
   );
 }
 
-// ─── Main Component ──────────────────────────────────────────────────────────
+/* ─── Rates Bar ─────────────────────────────────────────────────────────── */
+const RATE_LABELS = {
+  inventory: 'Инвентаризация',
+  packaging: 'Оприходование',
+  production_transfer: 'Перенос',
+  assembly: 'Сборка',
+};
+
+function RatesBar({ rates, unit }) {
+  if (!rates) return null;
+  const entries = Object.entries(RATE_LABELS).filter(([k]) => rates[k] != null);
+  if (entries.length === 0) return null;
+  return (
+    <div className="flex items-center gap-2 flex-wrap bg-white/50 backdrop-blur-xl border border-white/75 rounded-[14px] px-3 py-2 mb-4">
+      <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mr-1">Ставка за скан</span>
+      {entries.map(([key, label]) => (
+        <div key={key} className="inline-flex items-center gap-1.5 bg-gray-50 border border-gray-100 rounded-full px-2.5 py-1">
+          <span className="text-[11px] text-gray-500">{label}</span>
+          <span className="text-[11px] font-bold text-amber-600">
+            {fmt(convert(rates[key], unit))} {unitLabel(unit)}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MAIN PAGE
+   ═══════════════════════════════════════════════════════════════════════════ */
 export default function EarningsPage() {
   const toast = useToast();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [sp, setSp] = useSearchParams();
 
-  const tab = searchParams.get('tab') || 'summary';
-  const selectedEmployeeId = searchParams.get('employee') || null;
-  const selectedTaskId = searchParams.get('task') || null;
-  const detailTab = searchParams.get('dtab') || 'sklad';
+  const period = sp.get('period') || 'all';
+  const employeeId = sp.get('employee');
+  const unit = sp.get('unit') === 'rub' ? 'rub' : 'gra';
 
-  const setTab = useCallback((v) => setSearchParams(prev => { const p = new URLSearchParams(prev); p.set('tab', v); return p; }, { replace: true }), [setSearchParams]);
-  const setSelectedEmployeeId = useCallback((v) => {
-    if (typeof v === 'function') {
-      setSearchParams(prev => { const p = new URLSearchParams(prev); const cur = p.get('employee') || null; const next = v(cur); if (next) p.set('employee', next); else p.delete('employee'); return p; }, { replace: true });
-    } else {
-      setSearchParams(prev => { const p = new URLSearchParams(prev); if (v) p.set('employee', v); else p.delete('employee'); return p; }, { replace: true });
-    }
-  }, [setSearchParams]);
-  const setSelectedTaskId = useCallback((v) => setSearchParams(prev => { const p = new URLSearchParams(prev); if (v) p.set('task', v); else p.delete('task'); return p; }, { replace: true }), [setSearchParams]);
-  const setDetailTab = useCallback((v) => setSearchParams(prev => { const p = new URLSearchParams(prev); p.set('dtab', v); return p; }, { replace: true }), [setSearchParams]);
-
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [summary, setSummary] = useState(null);
-  const [employees, setEmployees] = useState([]);
-  const [employeeDetails, setEmployeeDetails] = useState(null);
-  const [employeeLoading, setEmployeeLoading] = useState(false);
-  const [taskDetails, setTaskDetails] = useState(null);
-  const [taskLoading, setTaskLoading] = useState(false);
-  const [adjustModalOpen, setAdjustModalOpen] = useState(false);
-  const [savingBalance, setSavingBalance] = useState(false);
-  const [expandedTask, setExpandedTask] = useState(null);
-  const [showRub, setShowRub] = useState(false);
-  const period = searchParams.get('period') || 'all';
-  const setPeriod = useCallback((v) => setSearchParams(prev => { const p = new URLSearchParams(prev); p.set('period', v); return p; }, { replace: true }), [setSearchParams]);
-  const fmt = (v) => showRub ? fmtRub(v) : fmtGra(v);
-  const fmtRate = (v) => showRub ? fmtRubRate(v) : fmtGra(v);
-  const unit = showRub ? '₽' : 'GRA';
+  const [detail, setDetail] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [search, setSearch] = useState('');
 
-  const loadBase = useCallback(async (background = false, periodParam = 'all') => {
-    if (background) setRefreshing(true); else setLoading(true);
-    const params = { period: periodParam };
+  /* ─── Fetch summary ─────────────────────────────────────────────────── */
+  const fetchSummary = useCallback(async () => {
+    setLoading(true);
     try {
-      const [summaryRes, employeesRes] = await Promise.all([api.get('/earnings/summary', { params }), api.get('/earnings/employees', { params })]);
-      setSummary(summaryRes.data);
-      setEmployees(employeesRes.data || []);
-      // Auto-select first employee if none selected
-      const currentEmp = new URLSearchParams(window.location.search).get('employee');
-      if (!currentEmp && employeesRes.data?.length > 0) {
-        setSelectedEmployeeId(employeesRes.data[0].employee_id);
-      }
-    } catch (err) { if (!background) toast.error(err.response?.data?.error || 'Не удалось загрузить'); }
-    finally { if (background) setRefreshing(false); else setLoading(false); }
-  }, [toast]);
-
-  const employeeAbort = useRef(null);
-  const taskAbort = useRef(null);
-
-  const loadEmployeeDetails = useCallback(async (employeeId, p) => {
-    if (employeeAbort.current) employeeAbort.current.abort();
-    if (!employeeId) { setEmployeeDetails(null); return; }
-    const ctrl = new AbortController();
-    employeeAbort.current = ctrl;
-    setEmployeeLoading(true);
-    try {
-      const res = await api.get(`/earnings/employees/${employeeId}`, { signal: ctrl.signal, params: { period: p || 'all' } });
-      setEmployeeDetails(res.data);
-    } catch (err) {
-      if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
-      console.error('[Earnings]', err.message);
-    } finally { if (!ctrl.signal.aborted) setEmployeeLoading(false); }
-  }, [toast]);
-
-  const loadTaskDetails = useCallback(async (taskId) => {
-    if (taskAbort.current) taskAbort.current.abort();
-    if (!taskId) { setTaskDetails(null); return; }
-    const ctrl = new AbortController();
-    taskAbort.current = ctrl;
-    setTaskLoading(true);
-    try {
-      const res = await api.get(`/earnings/tasks/${taskId}`, { signal: ctrl.signal });
-      setTaskDetails(res.data);
-    } catch (err) {
-      if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
-      console.error('[Earnings]', err.message);
-    } finally { if (!ctrl.signal.aborted) setTaskLoading(false); }
-  }, [toast]);
-
-  // Load on mount and when period changes
-  useEffect(() => {
-    loadBase(false, period);
+      const { data } = await api.get('/earnings/summary', { params: { period } });
+      setSummary(data);
+    } catch (e) {
+      toast.error('Ошибка загрузки');
+    } finally {
+      setLoading(false);
+    }
   }, [period]);
 
-  // Load employee details when employee or period changes
-  useEffect(() => {
-    if (!selectedEmployeeId) { setEmployeeDetails(null); return; }
-    setTaskDetails(null); setExpandedTask(null);
-    loadEmployeeDetails(selectedEmployeeId, period);
-  }, [selectedEmployeeId, period]);
-
-  useEffect(() => { if (selectedTaskId) loadTaskDetails(selectedTaskId); }, [selectedTaskId, loadTaskDetails]);
-
-  const selectedEmployee = useMemo(() => {
-    if (!selectedEmployeeId) return null;
-    return employees.find(item => Number(item.employee_id) === Number(selectedEmployeeId)) || employeeDetails?.employee || null;
-  }, [employees, employeeDetails, selectedEmployeeId]);
-
-  const saveBalance = async ({ newBalance, notes }) => {
-    const numeric = Number.parseFloat(String(newBalance).replace(',', '.'));
-    if (!Number.isFinite(numeric) || numeric < 0) { toast.error('Укажите корректный баланс'); return; }
-    if (!notes.trim()) { toast.error('Укажите причину'); return; }
-    if (!selectedEmployee) return;
-    setSavingBalance(true);
+  /* ─── Fetch employee detail ─────────────────────────────────────────── */
+  const fetchDetail = useCallback(async (eid) => {
+    setDetailLoading(true);
     try {
-      await api.post(`/earnings/employees/${selectedEmployee.employee_id}/set-balance`, { new_balance: numeric, notes });
-      toast.success('Баланс обновлён'); setAdjustModalOpen(false);
-      await Promise.all([loadBase(true, period), loadEmployeeDetails(selectedEmployee.employee_id)]);
-    } catch (err) { toast.error(err.response?.data?.error || 'Ошибка'); }
-    finally { setSavingBalance(false); }
+      const { data } = await api.get(`/earnings/employees/${eid}`, { params: { period } });
+      setDetail(data);
+    } catch (e) {
+      toast.error('Ошибка загрузки сотрудника');
+    } finally {
+      setDetailLoading(false);
+    }
+  }, [period]);
+
+  useEffect(() => { fetchSummary(); }, [period]);
+  useEffect(() => {
+    if (employeeId) fetchDetail(employeeId);
+    else setDetail(null);
+  }, [employeeId, period]);
+
+  /* ─── URL helpers ───────────────────────────────────────────────────── */
+  const update = (patch) => {
+    const n = new URLSearchParams(sp);
+    Object.entries(patch).forEach(([k, v]) => {
+      if (v == null || v === '') n.delete(k); else n.set(k, v);
+    });
+    setSp(n, { replace: true });
   };
+  const setPeriod = (p) => update({ period: p });
+  const setUnit = (u) => update({ unit: u === 'rub' ? 'rub' : null });
+  const selectEmployee = (eid) => update({ employee: eid });
+  const clearEmployee = () => update({ employee: null });
 
-  if (loading) return <div className="flex items-center justify-center h-64"><Spinner size="lg" /></div>;
-
-  const overview = summary?.overview || {};
+  const ov = summary?.overview;
   const leaders = summary?.leaders || [];
-  const recentAdjustments = summary?.recent_adjustments || [];
-  const employeeTasks = employeeDetails?.tasks || [];
-  const employeeAdjustments = employeeDetails?.adjustments || [];
-  const sborkaPicks = employeeDetails?.sborka_picks || [];
+  const rates = summary?.settings?.rates;
 
-  const TASK_TYPE_LABELS = { inventory: 'Инвентаризация', packaging: 'Оприходование', production_transfer: 'Перенос', bundle_assembly: 'Сборка', inventory_scan: 'Сканирование' };
-  const taskLocation = (t) => {
-    if (t.shelf_code) return `${t.rack_name || t.rack_code || 'Стеллаж'} · ${t.shelf_name || t.shelf_code}`;
-    if (t.pallet_name) return `${t.pallet_row_name || 'Ряд'} · ${t.pallet_name}`;
-    return TASK_TYPE_LABELS[t.task_type] || '—';
-  };
-
+  /* ═══ RENDER ═══ */
   return (
-    <div className="p-6 max-w-[1400px] mx-auto">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center"><GRACoinIcon size={24} /></div>
-          <div>
-            <h1 className="text-xl font-bold text-gray-900">Заработок</h1>
-            <p className="text-xs text-gray-400">GRACoin — система вознаграждений</p>
+    <div className="p-6 max-w-7xl mx-auto">
+
+      {/* ─── Header ─────────────────────────────────────────────────────── */}
+      <div className="flex items-center justify-between gap-4 mb-5 flex-wrap">
+        <h1 className="text-2xl font-bold text-gray-900">Заработок</h1>
+
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {PERIODS.map(p => (
+            <button
+              key={p.value}
+              onClick={() => setPeriod(p.value)}
+              className={`px-3.5 py-1.5 rounded-[12px] text-sm font-medium transition-all border ${
+                period === p.value
+                  ? 'glass-btn text-primary-700 bg-primary-600/10 border-primary-600/25 shadow-sm backdrop-blur-xl'
+                  : 'text-gray-500 bg-white/50 border-transparent hover:bg-white/70 hover:text-gray-700'
+              }`}
+            >
+              {p.label}
+            </button>
+          ))}
+
+          {/* GRA ⇄ ₽ */}
+          <div className="ml-2 flex items-center bg-white/50 backdrop-blur-xl border border-gray-200 rounded-[12px] p-0.5">
+            <button
+              onClick={() => setUnit('gra')}
+              className={`px-2.5 py-1 rounded-[9px] text-xs font-semibold transition-all ${
+                unit === 'gra' ? 'bg-amber-500/15 text-amber-700 shadow-sm' : 'text-gray-400 hover:text-gray-600'
+              }`}
+            >GRA</button>
+            <button
+              onClick={() => setUnit('rub')}
+              className={`px-2.5 py-1 rounded-[9px] text-xs font-semibold transition-all ${
+                unit === 'rub' ? 'bg-green-500/15 text-green-700 shadow-sm' : 'text-gray-400 hover:text-gray-600'
+              }`}
+            >₽</button>
           </div>
-        </div>
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex bg-gray-50 rounded-2xl p-1.5 gap-1 border border-gray-200">
-            {[['summary', 'Сводка', 'bg-amber-50 text-amber-700 border-amber-200'], ['history', 'История', 'bg-blue-50 text-blue-700 border-blue-200']].map(([k, l, activeClass]) => (
-              <button key={k} onClick={() => setTab(k)} className={`px-4 py-1.5 rounded-xl text-sm font-medium transition-all border ${tab === k ? `${activeClass} shadow-sm font-semibold` : 'text-gray-500 hover:text-gray-700 border-transparent'}`}>{l}</button>
-            ))}
-          </div>
-          <div className="flex gap-1 bg-gray-50 p-1.5 rounded-2xl items-center border border-gray-200">
-            {[['all', 'Всё'], ['month', 'Месяц'], ['week', 'Неделя'], ['today', 'Сегодня']].map(([k, l]) => (
-              <button key={k} onClick={() => setPeriod(k)} className={`px-2.5 py-1.5 rounded-xl text-xs font-medium transition-all border ${period === k ? 'bg-white shadow-sm text-gray-900 font-semibold border-gray-200' : 'text-gray-500 border-transparent'}`}>{l}</button>
-            ))}
-            <input type="date" value={/^\d{4}-\d{2}-\d{2}$/.test(period) ? period : ''} onChange={e => { if (e.target.value) setPeriod(e.target.value); }}
-              className={`px-2 py-1 rounded-lg text-xs font-medium border-0 bg-transparent cursor-pointer transition-all ${/^\d{4}-\d{2}-\d{2}$/.test(period) ? 'bg-white shadow-sm text-gray-900 font-semibold' : 'text-gray-400'}`}
-              title="Выбрать день" />
-          </div>
-          <button onClick={() => setShowRub(!showRub)} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${showRub ? 'bg-green-50 border-green-200 text-green-700' : 'bg-amber-50 border-amber-200 text-amber-700'}`}>
-            {showRub ? '₽ рубли' : 'G GRACoin'}
-          </button>
-          <button onClick={() => loadBase(true, period)} className="p-2 rounded-xl text-gray-400 hover:text-primary-500 hover:bg-primary-50 transition-all">
-            <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />
+
+          <button onClick={() => { fetchSummary(); if (employeeId) fetchDetail(employeeId); }} className="p-2 rounded-xl text-gray-400 hover:text-primary-600 hover:bg-white/70 transition-all">
+            <RefreshCw size={16} />
           </button>
         </div>
       </div>
 
-      {/* ═══ СВОДКА ═══ */}
-      {tab === 'summary' && (
+      {loading ? (
+        <div className="flex justify-center py-20"><Spinner /></div>
+      ) : ov ? (
         <>
-          <div className="grid grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
-            {[
-              { Icon: WalletIcon, label: `Баланс ${unit}`, value: fmt(overview.total_current_balance), color: 'text-green-600', bg: 'bg-green-50' },
-              { Icon: GRACoinIcon, label: 'Сотрудников', value: overview.employees_with_activity || 0, bg: 'bg-purple-50' },
-              { Icon: ScannerIcon, label: 'Сканов', value: fmtGra(overview.rewarded_scans || 0), bg: 'bg-blue-50' },
-              { Icon: TrendUpIcon, label: 'Начислено', value: `${fmt(overview.total_awarded)} ${unit}`, bg: 'bg-emerald-50' },
-              { Icon: OrderPickIcon, label: 'Сборки', value: `${fmt(overview.total_sborka_amount)} ${unit}`, hint: `${fmtGra(overview.total_sborka_units || 0)} пиков`, bg: 'bg-pink-50' },
-              { Icon: RateGearIcon, label: 'Ставка', value: `${fmtRate(summary?.settings?.gra_inventory_scan_rate || 0)} ${unit}`, bg: 'bg-gray-50' },
-            ].map((s, i) => (
-              <div key={i} className="bg-white rounded-xl p-3 border border-gray-100">
-                <div className="flex items-center gap-2 mb-1"><div className={`w-6 h-6 rounded-md ${s.bg} flex items-center justify-center`}><s.Icon size={14} /></div><span className="text-[9px] text-gray-400 uppercase tracking-wider">{s.label}</span></div>
-                <p className={`text-lg font-black ${s.color || 'text-gray-900'}`}>{s.value}</p>
-                {s.hint && <p className="text-[9px] text-gray-300">{s.hint}</p>}
-              </div>
-            ))}
+          {/* Stats row */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+            <Stat icon={<IconCoin />} label={`Общий баланс ${unitLabel(unit)}`} value={fmt(convert(ov.total_current_balance, unit))} color="bg-amber-50 text-amber-600" />
+            <Stat icon={<IconUsers />} label="Сотрудников" value={ov.employees_with_activity || 0} color="bg-primary-50 text-primary-600" />
+            <Stat icon={<IconScan />} label="Сканов" value={fmt(ov.rewarded_scans)} color="bg-blue-50 text-blue-600" />
+            <Stat icon={<IconTrend />} label={`Начислено ${unitLabel(unit)}`} value={fmt(convert(ov.total_awarded, unit))} color="bg-green-50 text-green-600" />
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-            {/* Leaders table */}
-            <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-100 overflow-hidden">
-              <div className="px-5 py-3.5 border-b border-gray-100 flex items-center gap-2">
-                <GRACoinIcon size={18} />
-                <h2 className="font-bold text-gray-900 text-sm">Лидеры по балансу</h2>
+          {/* Rates bar */}
+          <RatesBar rates={rates} unit={unit} />
+
+          {/* Two-pane: employee list + detail/leaderboard */}
+          <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-4">
+
+            {/* Left: employee list */}
+            <div className="bg-white rounded-[18px] border border-gray-100 overflow-hidden flex flex-col max-h-[calc(100vh-280px)]">
+              <div className="p-3 border-b border-gray-100 flex items-center gap-2">
+                <div className="relative flex-1">
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    placeholder="Поиск сотрудника..."
+                    className="w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-100 rounded-[10px] text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:border-primary-300 focus:bg-white"
+                  />
+                </div>
+                {employeeId && (
+                  <button
+                    onClick={clearEmployee}
+                    className="text-[11px] font-semibold text-gray-400 hover:text-primary-600 px-2 py-1 rounded-md hover:bg-gray-50"
+                    title="Показать сводку"
+                  >
+                    Сброс
+                  </button>
+                )}
               </div>
-              {leaders.length === 0 ? (
-                <div className="text-center py-12 text-gray-400"><p className="font-medium">Начислений ещё нет</p></div>
-              ) : (
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-gray-50/60">
-                      {['#', 'Сотрудник', 'Сканы', 'Задачи', 'Склад', 'Сборки', 'Баланс'].map((h, i) => (
-                        <th key={h} className={`${i <= 1 ? 'text-left' : 'text-right'} px-3 py-2.5 text-[10px] font-semibold text-gray-400 uppercase ${i === 0 ? 'w-12 px-4' : ''} ${i === 6 ? 'px-4' : ''}`}>{h}</th>
-                      ))}
-                      <th className="w-8"></th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-50">
-                    {leaders.map((item, index) => (
-                      <tr key={item.employee_id} onClick={() => { setSearchParams(prev => { const p = new URLSearchParams(prev); p.set('tab', 'history'); if (item.employee_id) p.set('employee', item.employee_id); return p; }, { replace: true }); }}
-                        className="hover:bg-primary-50/30 cursor-pointer transition-colors">
-                        <td className="px-4 py-3 text-center">
-                          <span className={`inline-flex w-6 h-6 rounded-full items-center justify-center text-xs font-black ${index === 0 ? 'bg-amber-100 text-amber-700' : index === 1 ? 'bg-gray-200 text-gray-600' : index === 2 ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-500'}`}>{index + 1}</span>
-                        </td>
-                        <td className="px-3 py-3 font-semibold text-gray-900">{item.full_name}</td>
-                        <td className="px-3 py-3 text-right text-gray-600">{fmtGra(item.rewarded_scans || 0)}</td>
-                        <td className="px-3 py-3 text-right text-gray-600">{item.rewarded_tasks_count || 0}</td>
-                        <td className="px-3 py-3 text-right text-blue-600 font-semibold">{fmt(item.total_awarded)}</td>
-                        <td className="px-3 py-3 text-right text-pink-600 font-semibold">{fmt(item.sborka_amount || 0)}</td>
-                        <td className="px-4 py-3 text-right font-black text-green-600">{fmt(item.current_balance)}</td>
-                        <td className="pr-3"><ChevronRight size={14} className="text-gray-300" /></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
+              <div className="overflow-y-auto flex-1">
+                {leaders
+                  .filter(emp => emp.full_name.toLowerCase().includes(search.toLowerCase()))
+                  .map(emp => (
+                    <button
+                      key={emp.employee_id}
+                      onClick={() => selectEmployee(emp.employee_id)}
+                      className={`w-full text-left px-4 py-3 border-b border-gray-50 transition-colors ${
+                        String(employeeId) === String(emp.employee_id)
+                          ? 'bg-primary-50 border-l-2 border-l-primary-500'
+                          : 'hover:bg-gray-50 border-l-2 border-l-transparent'
+                      }`}
+                    >
+                      <p className="text-sm font-semibold text-gray-900 truncate">{emp.full_name}</p>
+                      <div className="flex items-center justify-between mt-0.5">
+                        <span className="text-[11px] text-gray-400">{fmt(emp.rewarded_scans)} сканов</span>
+                        <span className="text-xs font-bold text-green-600">{fmt(convert(emp.current_balance, unit))} {unitLabel(unit)}</span>
+                      </div>
+                    </button>
+                  ))}
+                {leaders.length === 0 && (
+                  <p className="text-center text-sm text-gray-400 py-8">Нет данных</p>
+                )}
+              </div>
             </div>
 
-            {/* Adjustments */}
-            <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-              <div className="px-5 py-3.5 border-b border-gray-100 flex items-center gap-2">
-                <AdjustIcon size={18} />
-                <h2 className="font-bold text-gray-900 text-sm">Корректировки</h2>
-              </div>
-              {recentAdjustments.length === 0 ? (
-                <div className="text-center py-12 text-gray-400"><p className="font-medium">Ручных правок не было</p></div>
+            {/* Right: detail or leaderboard */}
+            <div>
+              {employeeId ? (
+                detailLoading ? (
+                  <div className="flex justify-center py-20"><Spinner /></div>
+                ) : detail ? (
+                  <EmployeeDetail detail={detail} unit={unit} />
+                ) : null
               ) : (
-                <div className="divide-y divide-gray-50 max-h-[400px] overflow-y-auto">
-                  {recentAdjustments.map(item => (
-                    <div key={item.id} className="px-4 py-3 hover:bg-gray-50/50 transition-colors">
-                      <div className="flex items-start justify-between gap-2">
-                        <p className="text-sm font-semibold text-gray-800 min-w-0">{item.employee_name}</p>
-                        <span className={`text-sm font-black flex-shrink-0 whitespace-nowrap ${Number(item.amount_delta) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                          {Number(item.amount_delta) >= 0 ? '+' : ''}{fmt(item.amount_delta)} {unit}
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-gray-400 mt-0.5">{fmtDateTime(item.created_at)} · {item.changed_by_username || 'система'}</p>
-                      {item.notes && <p className="text-[11px] text-gray-500 mt-0.5">{item.notes}</p>}
-                    </div>
-                  ))}
-                </div>
+                <Leaderboard
+                  leaders={leaders}
+                  adjustments={summary?.recent_adjustments || []}
+                  unit={unit}
+                  onSelect={selectEmployee}
+                />
               )}
             </div>
           </div>
         </>
-      )}
+      ) : null}
+    </div>
+  );
+}
 
-      {/* ═══ ИСТОРИЯ ═══ */}
-      {tab === 'history' && (
-        <div className="flex gap-5">
-          {/* Sidebar */}
-          <div className="w-72 flex-shrink-0 bg-white rounded-2xl border border-gray-100 overflow-hidden">
-            <div className="px-4 py-3 border-b border-gray-100">
-              <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Сотрудники</h3>
-            </div>
-            {employees.length === 0 ? (
-              <div className="text-center py-12 text-gray-400 text-sm">Нет данных</div>
-            ) : (
-              <div className="max-h-[70vh] overflow-y-auto divide-y divide-gray-50">
-                {employees.map(item => (
-                  <button key={item.employee_id} onClick={() => setSelectedEmployeeId(item.employee_id)}
-                    className={`w-full px-4 py-3 text-left transition-colors border-l-[3px] ${Number(selectedEmployeeId) === Number(item.employee_id) ? 'bg-primary-50 border-primary-500' : 'border-transparent hover:bg-gray-50'}`}>
-                    <div className="flex items-center gap-2">
-                      <p className={`text-sm flex-1 ${Number(selectedEmployeeId) === Number(item.employee_id) ? 'font-bold text-gray-900' : 'font-medium text-gray-700'}`}>{item.full_name}</p>
-                      <p className="text-sm font-black text-green-600 flex-shrink-0">{fmt(item.current_balance)}</p>
-                    </div>
-                    <p className="text-[10px] text-gray-400 mt-0.5">
-                      {fmtGra(item.rewarded_scans || 0)} скан · {item.rewarded_tasks_count || 0} задач
-                      {Number(item.sborka_amount) > 0 && ` · сборки: ${fmt(item.sborka_amount)}`}
-                    </p>
-                  </button>
-                ))}
+/* ═══════════════════════════════════════════════════════════════════════════
+   LEADERBOARD (default right-pane)
+   ═══════════════════════════════════════════════════════════════════════════ */
+function Leaderboard({ leaders, adjustments, unit, onSelect }) {
+  return (
+    <>
+      <div className="bg-white rounded-[18px] border border-gray-100 overflow-hidden">
+        <div className="px-4 py-3 border-b border-gray-100 bg-gray-50/50">
+          <h3 className="text-sm font-semibold text-gray-700">Лидеры</h3>
+        </div>
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="bg-gray-50 border-b border-gray-100">
+              <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide w-10">#</th>
+              <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Сотрудник</th>
+              <th className="px-4 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Сканы</th>
+              <th className="px-4 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Склад</th>
+              <th className="px-4 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Сборка</th>
+              <th className="px-4 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Текущий баланс</th>
+              <th className="w-8"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {leaders.map((emp, i) => (
+              <tr
+                key={emp.employee_id}
+                onClick={() => onSelect(emp.employee_id)}
+                className={`group border-b border-gray-50 cursor-pointer transition-colors hover:bg-primary-50/30 ${
+                  i < 3 ? 'bg-amber-50/20' : ''
+                }`}
+              >
+                <td className="px-4 py-3">
+                  <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${
+                    i === 0 ? 'bg-amber-100 text-amber-700' :
+                    i === 1 ? 'bg-gray-200 text-gray-600' :
+                    i === 2 ? 'bg-orange-100 text-orange-700' :
+                    'text-gray-400'
+                  }`}>{i + 1}</span>
+                </td>
+                <td className="px-4 py-3 font-medium text-gray-900">{emp.full_name}</td>
+                <td className="px-4 py-3 text-right font-mono text-gray-600">{fmt(emp.rewarded_scans)}</td>
+                <td className="px-4 py-3 text-right text-primary-600 font-semibold">{fmt(convert(emp.total_awarded, unit))}</td>
+                <td className="px-4 py-3 text-right text-purple-600 font-semibold">{fmt(convert(emp.sborka_amount, unit))}</td>
+                <td className="px-4 py-3 text-right font-bold text-green-600">{fmt(convert(emp.current_balance, unit))}</td>
+                <td className="pr-3 text-gray-300 group-hover:text-primary-500 transition-colors">
+                  <ChevronRight size={16} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {adjustments.length > 0 && (
+        <div className="mt-5">
+          <h3 className="text-sm font-semibold text-gray-700 mb-3">Корректировки</h3>
+          <div className="space-y-2">
+            {adjustments.slice(0, 5).map(adj => (
+              <div key={adj.id} className="bg-white/50 backdrop-blur-xl border border-white/75 rounded-xl px-4 py-3 flex items-center justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate">{adj.employee_name}</p>
+                  <p className="text-xs text-gray-400 truncate">{adj.notes || '—'}</p>
+                </div>
+                <span className={`text-sm font-bold flex-shrink-0 ${Number(adj.amount_delta) >= 0 ? 'text-green-600' : 'text-rose-600'}`}>
+                  {Number(adj.amount_delta) >= 0 ? '+' : ''}{fmt(convert(adj.amount_delta, unit))} {unitLabel(unit)}
+                </span>
               </div>
-            )}
+            ))}
           </div>
+        </div>
+      )}
+    </>
+  );
+}
 
-          {/* Detail */}
-          <div className="flex-1 space-y-4 min-w-0 min-h-[70vh]">
-            {!selectedEmployee ? (
-              <div className="bg-white rounded-2xl border border-gray-100 text-center py-16 text-gray-400">
-                <p className="font-medium">Выберите сотрудника</p>
-              </div>
-            ) : (
-              <>
-                {/* Employee header card */}
-                <div className="bg-white rounded-2xl border border-gray-100 p-5">
-                  {employeeLoading && !employeeDetails ? (
-                    <div className="flex items-center justify-center h-32"><Spinner size="md" /></div>
-                  ) : (
-                    <>
-                      <div className="flex items-center justify-between mb-4">
-                        <div>
-                          <h2 className="text-lg font-bold text-gray-900">{selectedEmployee.full_name}</h2>
-                          <p className="text-xs text-gray-400">Последнее: {fmtDateTime(selectedEmployee.last_earned_at)}</p>
-                        </div>
-                        <button onClick={() => setAdjustModalOpen(true)} className="px-3 py-1.5 text-xs font-semibold text-primary-600 bg-primary-50 rounded-lg hover:bg-primary-100 transition-colors">Изменить баланс</button>
-                      </div>
-                      <div className="grid grid-cols-4 gap-3">
-                        {[
-                          { Icon: WalletIcon, label: 'Баланс', value: fmt(employeeDetails?.employee?.current_balance ?? selectedEmployee.current_balance), color: 'text-green-600', border: 'border-green-100', bg: 'bg-green-50' },
-                          { Icon: ScannerIcon, label: 'Склад', value: fmt(employeeDetails?.employee?.total_awarded || 0), color: 'text-blue-600', border: 'border-blue-100', bg: 'bg-blue-50' },
-                          { Icon: OrderPickIcon, label: 'Сборки', value: fmt(employeeDetails?.employee?.sborka_amount || 0), color: 'text-pink-600', border: 'border-pink-100', bg: 'bg-pink-50' },
-                          { Icon: AdjustIcon, label: 'Корректировки', value: fmt(employeeDetails?.employee?.total_manual_adjustments || 0), color: 'text-amber-600', border: 'border-amber-100', bg: 'bg-amber-50' },
-                        ].map((s, i) => (
-                          <div key={i} className={`rounded-xl p-3 ${s.bg} border ${s.border}`}>
-                            <div className="flex items-center gap-2 mb-1"><s.Icon size={16} /><span className="text-[10px] text-gray-500 uppercase">{s.label}</span></div>
-                            <p className={`text-xl font-black ${s.color}`}>{s.value} <span className="text-xs font-semibold text-gray-400">{unit}</span></p>
-                          </div>
-                        ))}
-                      </div>
-                    </>
-                  )}
-                </div>
+/* ═══════════════════════════════════════════════════════════════════════════
+   EMPLOYEE DETAIL VIEW
+   ═══════════════════════════════════════════════════════════════════════════ */
+const TASK_TYPE_LABELS = {
+  inventory: 'Инвентаризация',
+  packaging: 'Оприходование',
+  production_transfer: 'Перенос с производства',
+  bundle_assembly: 'Сборка комплекта',
+};
 
-                {/* Sub tabs + period filter */}
-                <div className="flex items-center gap-3 flex-wrap">
-                  <div className="flex gap-1 bg-gray-50 p-1.5 rounded-2xl border border-gray-200">
-                    {[['sklad', 'Склад', 'bg-blue-50 text-blue-700 border-blue-200'], ['orders', 'Заказы', 'bg-purple-50 text-purple-700 border-purple-200']].map(([k, l, ac]) => (
-                      <button key={k} onClick={() => setDetailTab(k)} className={`px-4 py-1.5 rounded-xl text-sm font-medium transition-all border ${detailTab === k ? `${ac} shadow-sm font-semibold` : 'text-gray-500 border-transparent'}`}>{l}</button>
-                    ))}
-                  </div>
-                  <div className="flex gap-1 bg-gray-50 p-1.5 rounded-2xl items-center border border-gray-200">
-                    {[['all', 'Всё время'], ['month', 'Месяц'], ['week', 'Неделя'], ['today', 'Сегодня']].map(([k, l]) => (
-                      <button key={k} onClick={() => setPeriod(k)} className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all border ${period === k ? 'bg-white shadow-sm text-gray-900 font-semibold border-gray-200' : 'text-gray-500 border-transparent'}`}>{l}</button>
-                    ))}
-                    <input type="date" value={/^\d{4}-\d{2}-\d{2}$/.test(period) ? period : ''} onChange={e => { if (e.target.value) setPeriod(e.target.value); }}
-                      className={`px-2 py-1 rounded-lg text-xs font-medium border-0 bg-transparent cursor-pointer transition-all ${/^\d{4}-\d{2}-\d{2}$/.test(period) ? 'bg-white shadow-sm text-gray-900 font-semibold' : 'text-gray-400'}`}
-                      title="Выбрать день" />
-                  </div>
-                </div>
+function taskLocation(t) {
+  if (t.shelf_code || t.shelf_name) return `${t.rack_name ? t.rack_name + ' · ' : ''}${t.shelf_code || t.shelf_name}`;
+  if (t.pallet_name) return `${t.pallet_row_name ? t.pallet_row_name + ' · ' : ''}${t.pallet_name}`;
+  return '—';
+}
 
-                {/* Warehouse tasks */}
-                {detailTab === 'sklad' && (
-                  <div className="space-y-2">
-                    {employeeLoading && !employeeDetails ? (
-                      <div className="flex items-center justify-center py-16"><Spinner size="md" /></div>
-                    ) : employeeTasks.length === 0 ? (
-                      <div className="text-center py-12 text-gray-400 bg-white rounded-2xl border border-gray-100">Нет оплаченных задач</div>
-                    ) : employeeTasks.map((task, idx) => {
-                      const rowKey = task.row_key || `${task.task_id}-${idx}`;
-                      const isExpanded = expandedTask === rowKey;
-                      const typeColors = { inventory: 'bg-blue-100 text-blue-700', packaging: 'bg-purple-100 text-purple-700', production_transfer: 'bg-amber-100 text-amber-700', bundle_assembly: 'bg-green-100 text-green-700' };
-                      return (
-                        <div key={rowKey} className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-                          {/* Task row */}
-                          <div onClick={() => { setSelectedTaskId(task.task_id); setExpandedTask(isExpanded ? null : rowKey); }}
-                            className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50/50 transition-colors">
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-semibold text-gray-800 truncate">{task.title}</p>
-                              <div className="flex items-center gap-2 mt-1">
-                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-lg ${typeColors[task.task_type] || 'bg-gray-100 text-gray-600'}`}>
-                                  {TASK_TYPE_LABELS[task.task_type] || task.task_type}
-                                </span>
-                                {task.shelf_code && <span className="text-[10px] text-gray-400">{task.rack_name} · {task.shelf_name}</span>}
-                                {task.pallet_name && <span className="text-[10px] text-gray-400">{task.pallet_row_name} · {task.pallet_name}</span>}
-                                {!task.task_id && <span className="text-[10px] text-red-400">удалена</span>}
+function EmployeeDetail({ detail, unit = 'gra' }) {
+  const emp = detail.employee;
+  const tasks = detail.tasks || [];
+  const adjustments = detail.adjustments || [];
+  const sborka = detail.sborka_picks || [];
+  const [expandedDay, setExpandedDay] = useState(null);
+
+  const dailyData = useMemo(() => {
+    const byDate = {};
+
+    tasks.forEach(t => {
+      const date = t.last_earned_at ? new Date(t.last_earned_at).toLocaleDateString('ru-RU') : 'Без даты';
+      if (!byDate[date]) byDate[date] = { date, scans: 0, tasks: 0, warehouse: 0, sborka: 0, taskItems: [], sborkaItems: [] };
+      byDate[date].scans += Number(t.rewarded_scans || 0);
+      byDate[date].tasks += 1;
+      byDate[date].warehouse += Number(t.amount_earned || 0);
+      byDate[date].taskItems.push(t);
+    });
+
+    sborka.forEach(s => {
+      const date = s.created_at ? new Date(s.created_at).toLocaleDateString('ru-RU') : 'Без даты';
+      if (!byDate[date]) byDate[date] = { date, scans: 0, tasks: 0, warehouse: 0, sborka: 0, taskItems: [], sborkaItems: [] };
+      byDate[date].sborka += Number(s.amount_delta || 0);
+      byDate[date].sborkaItems.push(s);
+    });
+
+    return Object.values(byDate).sort((a, b) => {
+      const da = a.date.split('.').reverse().join('-');
+      const db = b.date.split('.').reverse().join('-');
+      return db.localeCompare(da);
+    });
+  }, [tasks, sborka]);
+
+  const totalSborka = Number(emp?.sborka_amount || 0);
+
+  return (
+    <>
+      <div className="mb-4">
+        <h2 className="text-xl font-bold text-gray-900">{emp?.full_name}</h2>
+        <p className="text-xs text-gray-400">Статистика за выбранный период</p>
+      </div>
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+        <Stat icon={<IconCoin />} label={`Текущий баланс ${unitLabel(unit)}`} value={fmt(convert(emp?.current_balance, unit))} color="bg-green-50 text-green-600" />
+        <Stat icon={<IconScan />} label="Сканов" value={fmt(emp?.rewarded_scans)} color="bg-blue-50 text-blue-600" />
+        <Stat icon={<IconTrend />} label={`Склад ${unitLabel(unit)}`} value={fmt(convert(emp?.total_awarded, unit))} color="bg-primary-50 text-primary-600" />
+        <Stat icon={<IconCoin />} label={`Сборка ${unitLabel(unit)}`} value={fmt(convert(totalSborka, unit))} color="bg-purple-50 text-purple-600" />
+      </div>
+
+      {dailyData.length > 0 && (
+        <div className="bg-white rounded-[18px] border border-gray-100 overflow-hidden mb-5">
+          <div className="px-4 py-3 border-b border-gray-100 bg-gray-50/50">
+            <h3 className="text-sm font-semibold text-gray-700">По дням</h3>
+          </div>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-gray-50 border-b border-gray-100">
+                <th className="w-8"></th>
+                <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Дата</th>
+                <th className="px-4 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Сканы</th>
+                <th className="px-4 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Задачи</th>
+                <th className="px-4 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Склад</th>
+                <th className="px-4 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Сборка</th>
+                <th className="px-4 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Итого</th>
+              </tr>
+            </thead>
+            <tbody>
+              {dailyData.map(day => {
+                const isOpen = expandedDay === day.date;
+                return (
+                  <Fragment key={day.date}>
+                    <tr
+                      onClick={() => setExpandedDay(isOpen ? null : day.date)}
+                      className={`border-b border-gray-50 cursor-pointer transition-colors ${isOpen ? 'bg-primary-50/30' : 'hover:bg-gray-50/50'}`}
+                    >
+                      <td className="pl-3 text-gray-400">
+                        {isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                      </td>
+                      <td className="px-4 py-3 font-medium text-gray-900">{day.date}</td>
+                      <td className="px-4 py-3 text-right font-mono text-gray-600">{fmt(day.scans)}</td>
+                      <td className="px-4 py-3 text-right text-gray-600">{day.tasks}</td>
+                      <td className="px-4 py-3 text-right text-primary-600 font-semibold">{fmt(convert(day.warehouse, unit))}</td>
+                      <td className="px-4 py-3 text-right text-purple-600 font-semibold">{fmt(convert(day.sborka, unit))}</td>
+                      <td className="px-4 py-3 text-right font-bold text-gray-900">{fmt(convert(day.warehouse + day.sborka, unit))}</td>
+                    </tr>
+                    {isOpen && (
+                      <tr className="bg-gray-50/40 border-b border-gray-100">
+                        <td></td>
+                        <td colSpan={6} className="px-4 py-3">
+                          {day.taskItems.length === 0 && day.sborkaItems.length === 0 && (
+                            <p className="text-xs text-gray-400">Нет детализации</p>
+                          )}
+                          {day.taskItems.length > 0 && (
+                            <div className="mb-2">
+                              <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Задачи склада</p>
+                              <div className="space-y-1">
+                                {day.taskItems.map((t, i) => (
+                                  <div key={(t.task_id || 'x') + '-' + i} className="flex items-center justify-between gap-3 bg-white rounded-lg border border-gray-100 px-3 py-2">
+                                    <div className="min-w-0 flex-1">
+                                      <p className="text-sm font-medium text-gray-900 truncate">{t.title}</p>
+                                      <p className="text-[11px] text-gray-400 truncate">
+                                        {TASK_TYPE_LABELS[t.task_type] || t.task_type} · {taskLocation(t)}
+                                      </p>
+                                    </div>
+                                    <div className="text-right flex-shrink-0">
+                                      <p className="text-sm font-bold text-primary-600">{fmt(convert(t.amount_earned, unit))} {unitLabel(unit)}</p>
+                                      <p className="text-[11px] text-gray-400">{fmt(t.rewarded_scans)} сканов</p>
+                                    </div>
+                                  </div>
+                                ))}
                               </div>
                             </div>
-                            <div className="text-right flex-shrink-0">
-                              <p className="text-xs text-gray-400">{fmtGra(task.rewarded_scans)} сканов</p>
-                            </div>
-                            <div className="text-right flex-shrink-0 w-20">
-                              <p className="text-sm font-black text-green-600">{fmt(task.amount_earned)}</p>
-                              <p className="text-[10px] text-gray-300">{unit}</p>
-                            </div>
-                            <div className="flex-shrink-0 w-12 text-right">
-                              <p className="text-[10px] text-gray-400">{fmtShort(task.last_earned_at)}</p>
-                            </div>
-                            <div className="flex-shrink-0">
-                              {isExpanded ? <ChevronDown size={14} className="text-primary-400" /> : <ChevronRight size={14} className="text-gray-300" />}
-                            </div>
-                          </div>
-                          {/* Expanded details */}
-                          {isExpanded && task.task_id && (
-                            <div className="border-t border-gray-100 bg-gray-50/30 px-4 py-3">
-                              {taskLoading ? (
-                                <div className="flex items-center justify-center py-6"><Spinner size="sm" /></div>
-                              ) : !taskDetails ? null : (
-                                <div className="space-y-2">
-                                  {(taskDetails.scopes || []).map(scope => (
-                                    <div key={scope.scope_key} className="bg-white rounded-xl border border-gray-100 overflow-hidden">
-                                      <div className="bg-gray-50 px-3 py-1.5 flex items-center justify-between">
-                                        <span className="text-[10px] font-bold text-gray-500">{scope.scope_label}</span>
-                                        <span className="text-[10px] font-bold text-green-600">{fmt(scope.amount_earned)} {unit} · {fmtGra(scope.rewarded_scans)} сканов</span>
-                                      </div>
-                                      <div className="divide-y divide-gray-50 max-h-[200px] overflow-y-auto">
-                                        {scope.scans.map((scan, si) => (
-                                          <div key={scan.earning_id} className="flex items-center gap-2 px-3 py-1.5 text-xs">
-                                            <span className="text-gray-300 w-5 text-right">#{si + 1}</span>
-                                            <span className="flex-1 text-gray-700 truncate">{scan.product_name || scan.scanned_value}</span>
-                                            <span className="text-gray-400 font-mono text-[10px]">{scan.product_code || ''}</span>
-                                            <span className="font-bold text-green-600">+{fmt(scan.amount_delta)}</span>
-                                            <span className="text-gray-300 text-[10px]">{fmtGra(scan.reward_units)} × {fmtRate(scan.rate_per_unit)}</span>
-                                          </div>
-                                        ))}
-                                      </div>
+                          )}
+                          {day.sborkaItems.length > 0 && (
+                            <div>
+                              <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Сборка заказов</p>
+                              <div className="space-y-1">
+                                {day.sborkaItems.map(s => (
+                                  <div key={s.id} className="flex items-center justify-between gap-3 bg-white rounded-lg border border-gray-100 px-3 py-2">
+                                    <div className="min-w-0 flex-1">
+                                      <p className="text-sm font-medium text-gray-900 truncate">
+                                        {s.source_product_name || s.source_entity_name || 'Сборка'}
+                                      </p>
+                                      <p className="text-[11px] text-gray-400 truncate">
+                                        {[s.source_marketplace, s.source_store_name, s.source_article].filter(Boolean).join(' · ') || '—'}
+                                      </p>
                                     </div>
-                                  ))}
-                                </div>
-                              )}
+                                    <div className="text-right flex-shrink-0">
+                                      <p className="text-sm font-bold text-purple-600">+{fmt(convert(s.amount_delta, unit))} {unitLabel(unit)}</p>
+                                      <p className="text-[11px] text-gray-400">{new Date(s.created_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</p>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
                             </div>
                           )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {/* Orders */}
-                {detailTab === 'orders' && (
-                  <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-                    <div className="px-5 py-3.5 border-b border-gray-100 flex items-center gap-2">
-                      <OrderPickIcon size={18} />
-                      <h2 className="font-bold text-gray-900 text-sm">Заказы (сборка OZ/WB)</h2>
-                    </div>
-                    {employeeLoading && !employeeDetails ? (
-                      <div className="flex items-center justify-center h-40"><Spinner size="md" /></div>
-                    ) : sborkaPicks.length === 0 ? (
-                      <div className="text-center py-12 text-gray-400">Нет начислений за сборку</div>
-                    ) : (
-                      <div className="overflow-x-auto max-h-[70vh] overflow-y-auto">
-                        <table className="w-full text-sm">
-                          <thead className="bg-gray-50 sticky top-0">
-                            <tr>
-                              {['Дата', 'Маркетплейс', 'Магазин', 'Товар', 'Артикул', 'GRA', 'Пики'].map((h, i) => (
-                                <th key={h} className={`${i >= 5 ? 'text-right' : 'text-left'} px-4 py-2.5 text-[10px] font-semibold text-gray-400 uppercase`}>{h}</th>
-                              ))}
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-gray-50">
-                            {sborkaPicks.map(pick => (
-                              <tr key={pick.id} className="hover:bg-gray-50 transition-colors">
-                                <td className="px-4 py-2.5 text-gray-600 whitespace-nowrap">{fmtShort(pick.created_at)} <span className="text-gray-400">{pick.created_at ? new Date(pick.created_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : ''}</span></td>
-                                <td className="px-4 py-2.5 text-gray-900 font-medium">{pick.source_marketplace || '—'}</td>
-                                <td className="px-4 py-2.5 text-gray-600 truncate max-w-[160px]">{pick.source_store_name || '—'}</td>
-                                <td className="px-4 py-2.5 text-gray-600 truncate max-w-[200px]">{pick.source_product_name || pick.source_entity_name || '—'}</td>
-                                <td className="px-4 py-2.5 text-gray-500 font-mono text-xs">{pick.source_article || '—'}</td>
-                                <td className="px-4 py-2.5 text-right font-bold text-green-600">+{fmt(pick.amount_delta)}</td>
-                                <td className="px-4 py-2.5 text-right text-gray-600">{fmtGra(pick.reward_units)}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
+                        </td>
+                      </tr>
                     )}
-                  </div>
-                )}
+                  </Fragment>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
 
-                {/* Adjustments for employee */}
-                {employeeAdjustments.length > 0 && (
-                  <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-                    <div className="px-5 py-3.5 border-b border-gray-100 flex items-center gap-2">
-                      <AdjustIcon size={18} />
-                      <h2 className="font-bold text-gray-900 text-sm">Ручные корректировки</h2>
-                    </div>
-                    <div className="divide-y divide-gray-50 max-h-[200px] overflow-y-auto">
-                      {employeeAdjustments.map(item => (
-                        <div key={item.id} className="px-4 py-3">
-                          <div className="flex items-center justify-between">
-                            <span className={`text-sm font-black ${Number(item.amount_delta) >= 0 ? 'text-green-600' : 'text-red-500'}`}>
-                              {Number(item.amount_delta) >= 0 ? '+' : ''}{fmt(item.amount_delta)} {unit}
-                            </span>
-                            <span className="text-xs text-gray-400">{fmtDateTime(item.created_at)}</span>
-                          </div>
-                          <p className="text-xs text-gray-500 mt-0.5">{fmt(item.balance_before)} → {fmt(item.balance_after)} {unit} · {item.changed_by_username || 'система'}</p>
-                          {item.notes && <p className="text-xs text-gray-400 mt-0.5">{item.notes}</p>}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
+      {adjustments.length > 0 && (
+        <div>
+          <h3 className="text-sm font-semibold text-gray-700 mb-3">Корректировки</h3>
+          <div className="space-y-2">
+            {adjustments.map(adj => (
+              <div key={adj.id} className="bg-white/50 backdrop-blur-xl border border-white/75 rounded-xl px-4 py-3 flex items-center justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="text-xs text-gray-400">{new Date(adj.created_at).toLocaleString('ru-RU')} · {adj.changed_by_username}</p>
+                  <p className="text-sm text-gray-600 truncate">{adj.notes || '—'}</p>
+                </div>
+                <span className={`text-sm font-bold flex-shrink-0 ${Number(adj.amount_delta) >= 0 ? 'text-green-600' : 'text-rose-600'}`}>
+                  {Number(adj.amount_delta) >= 0 ? '+' : ''}{fmt(convert(adj.amount_delta, unit))} {unitLabel(unit)}
+                </span>
+              </div>
+            ))}
           </div>
         </div>
       )}
 
-
-      {adjustModalOpen && selectedEmployee && (
-        <BalanceAdjustModal employee={selectedEmployee} saving={savingBalance} onClose={() => setAdjustModalOpen(false)} onSubmit={saveBalance} />
+      {dailyData.length === 0 && adjustments.length === 0 && (
+        <div className="bg-white rounded-[18px] border border-gray-100 py-16 text-center text-gray-400">
+          <p className="text-lg font-semibold mb-1">Нет данных</p>
+          <p className="text-sm">За выбранный период нет начислений</p>
+        </div>
       )}
-    </div>
+    </>
   );
 }

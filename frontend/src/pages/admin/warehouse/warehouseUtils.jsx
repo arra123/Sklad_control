@@ -59,14 +59,14 @@ export const OP_LABELS = {
   // shelf_movements_s operation types
   inventory:              { label: 'Инвентаризация',       color: 'text-blue-600',    bg: 'bg-blue-50',    icon: '📋' },
   stock_in:               { label: 'Приход',               color: 'text-green-600',   bg: 'bg-green-50',   icon: '📥' },
-  stock_out:              { label: 'Списание',             color: 'text-red-600',     bg: 'bg-red-50',     icon: '📤' },
+  stock_out:              { label: 'Списание',             color: 'text-rose-600',     bg: 'bg-rose-50',     icon: '📤' },
   correction:             { label: 'Корректировка',        color: 'text-amber-600',   bg: 'bg-amber-50',   icon: '✏️' },
   transfer:               { label: 'Перемещение',          color: 'text-primary-600', bg: 'bg-primary-50', icon: '🔄' },
   // movements_s types — box operations
   box_create:             { label: 'Создание коробки',     color: 'text-green-600',   bg: 'bg-green-50',   icon: '📦' },
-  box_delete:             { label: 'Удаление коробки',     color: 'text-red-600',     bg: 'bg-red-50',     icon: '🗑️' },
+  box_delete:             { label: 'Удаление коробки',     color: 'text-rose-600',     bg: 'bg-rose-50',     icon: '🗑️' },
   edit_add_to_box:        { label: 'Добавлено в коробку',  color: 'text-green-600',   bg: 'bg-green-50',   icon: '📥' },
-  edit_remove_from_box:   { label: 'Списание из коробки',  color: 'text-red-600',     bg: 'bg-red-50',     icon: '📤' },
+  edit_remove_from_box:   { label: 'Списание из коробки',  color: 'text-rose-600',     bg: 'bg-rose-50',     icon: '📤' },
   box_product_change:     { label: 'Замена товара',        color: 'text-amber-600',   bg: 'bg-amber-50',   icon: '🔄' },
   // movements_s types — location transfers
   shelf_to_shelf:         { label: 'Полка → Полка',        color: 'text-blue-600',    bg: 'bg-blue-50',    icon: '🔄' },
@@ -74,12 +74,12 @@ export const OP_LABELS = {
   pallet_to_shelf:        { label: 'Паллет → Полка',       color: 'text-green-600',   bg: 'bg-green-50',   icon: '📥' },
   pallet_to_pallet:       { label: 'Паллет → Паллет',      color: 'text-indigo-600',  bg: 'bg-indigo-50',  icon: '🔄' },
   shelf_to_employee:      { label: 'Забрал с полки',       color: 'text-orange-600',  bg: 'bg-orange-50',  icon: '👤' },
-  employee_to_shelf:      { label: 'Положил на полку',     color: 'text-teal-600',    bg: 'bg-teal-50',    icon: '📥' },
+  employee_to_shelf:      { label: 'Положил на полку',     color: 'text-cyan-600',    bg: 'bg-cyan-50',    icon: '📥' },
   employee_to_pallet:     { label: 'Положил на паллет',    color: 'text-cyan-600',    bg: 'bg-cyan-50',    icon: '📥' },
   pallet_to_employee:     { label: 'Забрал с паллета',     color: 'text-amber-600',   bg: 'bg-amber-50',   icon: '👤' },
   box_to_employee:        { label: 'Забрал из коробки',    color: 'text-orange-600',  bg: 'bg-orange-50',  icon: '📦→👤' },
   employee_to_box:        { label: 'Положил в коробку',    color: 'text-cyan-600',    bg: 'bg-cyan-50',    icon: '👤→📦' },
-  box_to_shelf:           { label: 'Коробка → Полка',      color: 'text-teal-600',    bg: 'bg-teal-50',    icon: '📥' },
+  box_to_shelf:           { label: 'Коробка → Полка',      color: 'text-cyan-600',    bg: 'bg-cyan-50',    icon: '📥' },
   box_to_pallet:          { label: 'Коробка → Паллет',     color: 'text-violet-600',  bg: 'bg-violet-50',  icon: '📤' },
   shelf_to_box:           { label: 'Полка → Коробка',      color: 'text-fuchsia-600', bg: 'bg-fuchsia-50', icon: '📦' },
   pallet_to_box:          { label: 'Паллет → Коробка',     color: 'text-fuchsia-600', bg: 'bg-fuchsia-50', icon: '📦' },
@@ -89,15 +89,15 @@ export const OP_LABELS = {
   external_to_pallet:     { label: 'Приход на паллет',     color: 'text-emerald-600', bg: 'bg-emerald-50', icon: '📥' },
   external_to_employee:   { label: 'Выдача сотруднику',    color: 'text-amber-600',   bg: 'bg-amber-50',   icon: '👤' },
   edit_add_to_shelf:      { label: 'Добавлено на полку',   color: 'text-green-600',   bg: 'bg-green-50',   icon: '📥' },
-  edit_remove_from_shelf: { label: 'Списание с полки',     color: 'text-red-600',     bg: 'bg-red-50',     icon: '📤' },
+  edit_remove_from_shelf: { label: 'Списание с полки',     color: 'text-rose-600',     bg: 'bg-rose-50',     icon: '📤' },
   edit_add_to_pallet:     { label: 'Добавлено на паллет',  color: 'text-green-600',   bg: 'bg-green-50',   icon: '📥' },
-  edit_remove_from_pallet:{ label: 'Списание с паллета',   color: 'text-red-600',     bg: 'bg-red-50',     icon: '📤' },
+  edit_remove_from_pallet:{ label: 'Списание с паллета',   color: 'text-rose-600',     bg: 'bg-rose-50',     icon: '📤' },
   pallet_correction_in:   { label: 'Корректировка +',      color: 'text-green-600',   bg: 'bg-green-50',   icon: '✏️' },
-  pallet_correction_out:  { label: 'Корректировка −',      color: 'text-red-600',     bg: 'bg-red-50',     icon: '✏️' },
+  pallet_correction_out:  { label: 'Корректировка −',      color: 'text-rose-600',     bg: 'bg-rose-50',     icon: '✏️' },
   employee_correction_in: { label: 'Добавлено сотруднику', color: 'text-green-600',   bg: 'bg-green-50',   icon: '👤+' },
-  employee_correction_out:{ label: 'Списание у сотрудника',color: 'text-red-600',     bg: 'bg-red-50',     icon: '👤−' },
-  employee_writeoff:      { label: 'Списание',             color: 'text-red-600',     bg: 'bg-red-50',     icon: '🗑️' },
-  write_off:              { label: 'Списание',             color: 'text-red-600',     bg: 'bg-red-50',     icon: '🗑️' },
+  employee_correction_out:{ label: 'Списание у сотрудника',color: 'text-rose-600',     bg: 'bg-rose-50',     icon: '👤−' },
+  employee_writeoff:      { label: 'Списание',             color: 'text-rose-600',     bg: 'bg-rose-50',     icon: '🗑️' },
+  write_off:              { label: 'Списание',             color: 'text-rose-600',     bg: 'bg-rose-50',     icon: '🗑️' },
 };
 
 export function opMeta(type) {
@@ -196,7 +196,7 @@ export function LocationHistory({ movements, mode, onModeChange, title }) {
                     {boxInfo && <span className="text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">📦 {boxInfo}</span>}
                     {route.length >= 2 && (
                       <span className="text-[10px] text-gray-400">
-                        <span className="text-red-400">{route[0].label}</span>
+                        <span className="text-rose-400">{route[0].label}</span>
                         <span className="mx-0.5">→</span>
                         <span className="text-green-600">{route[1].label}</span>
                       </span>
@@ -212,7 +212,7 @@ export function LocationHistory({ movements, mode, onModeChange, title }) {
                     {mode === 'detailed' && hasQtyChange && (
                       <span className="text-[10px] font-mono text-gray-400">{qty(r.quantity_before)}→{qty(r.quantity_after)}</span>
                     )}
-                    <span className={`text-sm font-bold ${delta > 0 ? 'text-green-600' : delta < 0 ? 'text-red-500' : 'text-gray-400'}`}>
+                    <span className={`text-sm font-bold ${delta > 0 ? 'text-green-600' : delta < 0 ? 'text-rose-500' : 'text-gray-400'}`}>
                       {delta !== 0 ? `${sign}${qty(delta)} шт.` : `${qty(Math.abs(Number(r.quantity || 0)))} шт.`}
                     </span>
                   </div>

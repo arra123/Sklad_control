@@ -101,7 +101,7 @@ function EmployeesTable({ employees, onEdit, onDelete, onDrill }) {
                       <Pencil size={14} />
                     </button>
                     <button onClick={() => onDelete(emp.id)}
-                      className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all">
+                      className="p-1.5 rounded-lg text-gray-400 hover:text-rose-500 hover:bg-rose-50 transition-all">
                       <Trash2 size={14} />
                     </button>
                     <ChevronRight size={16} className="text-gray-300" />
@@ -116,47 +116,18 @@ function EmployeesTable({ employees, onEdit, onDelete, onDrill }) {
   );
 }
 
-// ─── Position Avatar ─────────────────────────────────────────────────────────
-// ─── SVG Avatar by position/role ─────────────────────────────────────────────
-import {
-  AdminAvatar, ManagerAvatar, WorkerAvatar, PackerAvatar,
-  ControllerAvatar, WarehouseWorkerAvatar, DefaultAvatar
-} from '../../components/ui/WarehouseIcons';
-
-const POSITION_AVATAR_MAP = [
-  { match: /admin|админ/i, Component: AdminAvatar, bg: 'bg-indigo-50' },
-  { match: /менедж|руковод|директ|начальн/i, Component: ManagerAvatar, bg: 'bg-blue-50' },
-  { match: /контрол|качеств|ОТК/i, Component: ControllerAvatar, bg: 'bg-yellow-50' },
-  { match: /упаков|фасов|комплект/i, Component: PackerAvatar, bg: 'bg-green-50' },
-  { match: /кладовщ|склад/i, Component: WarehouseWorkerAvatar, bg: 'bg-orange-50' },
-  { match: /грузч|погруз/i, Component: WorkerAvatar, bg: 'bg-red-50' },
-  { match: /оператор|станок|произв/i, Component: WorkerAvatar, bg: 'bg-amber-50' },
-  { match: /разнораб/i, Component: WorkerAvatar, bg: 'bg-sky-50' },
-  { match: /технолог/i, Component: ControllerAvatar, bg: 'bg-violet-50' },
-  { match: /бухгалт|финанс/i, Component: ManagerAvatar, bg: 'bg-green-50' },
-  { match: /програм|разраб|систем|IT|айти/i, Component: ManagerAvatar, bg: 'bg-indigo-50' },
-  { match: /водител|логист|доставк/i, Component: WorkerAvatar, bg: 'bg-cyan-50' },
-  { match: /стажер|практик/i, Component: PackerAvatar, bg: 'bg-lime-50' },
-];
-
-function positionAvatar(position, roleName) {
-  const text = (position || '') + ' ' + (roleName || '');
-  for (const { match, Component, bg } of POSITION_AVATAR_MAP) {
-    if (match.test(text)) return { Component, bg };
-  }
-  if (position) return { Component: WorkerAvatar, bg: 'bg-gray-50' };
-  return { Component: DefaultAvatar, bg: 'bg-gray-50' };
+// ─── Simple Person Avatar ────────────────────────────────────────────────────
+function PersonAvatar() {
+  return (
+    <div className="w-9 h-9 rounded-xl bg-primary-50 flex items-center justify-center border border-gray-100">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6d28d9" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/>
+        <circle cx="12" cy="7" r="4"/>
+      </svg>
+    </div>
+  );
 }
 
-const ROLE_ICONS = {
-  'Администратор': { Component: AdminAvatar, color: 'text-blue-500' },
-  'Менеджер': { Component: ManagerAvatar, color: 'text-indigo-500' },
-  'Сотрудник': { Component: WorkerAvatar, color: 'text-amber-500' },
-  'Старший кладовщик': { Component: WarehouseWorkerAvatar, color: 'text-orange-500' },
-};
-function roleIcon(roleName) {
-  return ROLE_ICONS[roleName] || { Component: DefaultAvatar, color: 'text-gray-400' };
-}
 
 // ─── Copy Button ─────────────────────────────────────────────────────────────
 function copyToClipboard(text) {
@@ -232,14 +203,11 @@ function UsersTable({ users, employees, onEdit, onDelete, onDrill }) {
   adminUsers.sort((a, b) => (a.employee_name || '').localeCompare(b.employee_name || '', 'ru'));
 
   const renderRow = (user) => {
-    const av = positionAvatar(user.position, user.role_name);
     return (
     <div key={user.id} onClick={() => onDrill?.(user)} className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0 cursor-pointer">
       {/* Avatar + online indicator */}
       <div className="relative flex-shrink-0">
-        <div className={`w-9 h-9 rounded-xl ${av.bg} flex items-center justify-center border border-gray-100`}>
-          <av.Component size={28} />
-        </div>
+        <PersonAvatar />
         {user.last_active_at && (Date.now() - new Date(user.last_active_at).getTime()) < 600000 && (
           <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-white rounded-full" />
         )}
@@ -261,7 +229,7 @@ function UsersTable({ users, employees, onEdit, onDelete, onDrill }) {
           <Pencil size={13} />
         </button>
         <button onClick={() => onDelete(user.id)}
-          className="p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all">
+          className="p-1.5 rounded-lg text-gray-300 hover:text-rose-500 hover:bg-rose-50 transition-all">
           <Trash2 size={13} />
         </button>
       </div>
@@ -276,7 +244,9 @@ function UsersTable({ users, employees, onEdit, onDelete, onDrill }) {
         <div key={roleName} className="card overflow-hidden">
           <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              {(() => { const ri = roleIcon(roleName); return <ri.Component size={20} />; })()}
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6d28d9" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>
+              </svg>
               <span className="text-xs font-bold text-gray-700">{roleName}</span>
             </div>
             <span className="text-[10px] text-gray-400 font-medium">{list.length} чел.</span>
@@ -471,7 +441,7 @@ function RolesManager() {
                   <Pencil size={14} />
                 </button>
                 <button onClick={() => setDeleteTarget(role)}
-                  className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all">
+                  className="p-1.5 rounded-lg text-gray-400 hover:text-rose-500 hover:bg-rose-50 transition-all">
                   <Trash2 size={14} />
                 </button>
               </div>
@@ -487,7 +457,7 @@ function RolesManager() {
       )}
       <RoleFormModal open={showForm} onClose={() => { setShowForm(false); setEditRole(null); }} role={editRole} onSuccess={load} />
       <Modal open={!!deleteTarget} onClose={() => setDeleteTarget(null)} title="Удалить роль"
-        footer={<><Button variant="ghost" onClick={() => setDeleteTarget(null)}>Отмена</Button><Button variant="danger" onClick={confirmDelete} loading={deleting}>Удалить</Button></>}>
+        footer={<><Button variant="ghost" onClick={() => setDeleteTarget(null)}>Отмена</Button><Button variant="danger-solid" onClick={confirmDelete} loading={deleting}>Удалить</Button></>}>
         <p className="text-sm text-gray-600">Удалить роль «{deleteTarget?.name}»? Это действие нельзя отменить.</p>
       </Modal>
     </div>
@@ -647,13 +617,10 @@ export default function StaffPage() {
                 <span className="text-[10px] text-gray-400 font-medium">{filteredNoAccount.length} чел.</span>
               </div>
               {filteredNoAccount.map(emp => {
-                const av = positionAvatar(emp.position);
                 return (
                   <div key={emp.id} onClick={() => setDrillEmployee(emp)}
                     className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0 cursor-pointer">
-                    <div className={`w-9 h-9 rounded-xl ${av.bg} flex items-center justify-center flex-shrink-0 border border-gray-100`}>
-                      <av.Component size={28} />
-                    </div>
+                    <PersonAvatar />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-900 truncate">{emp.full_name}</p>
                       {emp.position && <p className="text-[11px] text-gray-400 truncate">{emp.position}</p>}
@@ -665,7 +632,7 @@ export default function StaffPage() {
                         <Pencil size={13} />
                       </button>
                       <button onClick={() => deleteEmployee(emp.id)}
-                        className="p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all">
+                        className="p-1.5 rounded-lg text-gray-300 hover:text-rose-500 hover:bg-rose-50 transition-all">
                         <Trash2 size={13} />
                       </button>
                     </div>

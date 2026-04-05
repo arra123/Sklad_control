@@ -296,7 +296,7 @@ export default function TaskDetailPanel({ task, onClose, onReload }) {
             )}
             <div className="px-3 py-3 text-center">
               <p className="text-xs text-gray-400 mb-0.5">Ошибок</p>
-              <p className={`text-lg font-bold ${errors.length > 0 ? 'text-red-500' : 'text-gray-400'}`}>{errors.length}</p>
+              <p className={`text-lg font-bold ${errors.length > 0 ? 'text-rose-500' : 'text-gray-400'}`}>{errors.length}</p>
             </div>
             <div className="px-3 py-3 text-center">
               <p className="text-xs text-gray-400 mb-0.5">{duration ? 'Время' : 'Начато'}</p>
@@ -331,7 +331,7 @@ export default function TaskDetailPanel({ task, onClose, onReload }) {
                 <div><p className="text-lg font-black text-primary-700">{uniqueProducts}</p><p className="text-[10px] text-primary-400">Товаров</p></div>
                 {avgGap && <div><p className="text-lg font-black text-primary-700">{avgGap}с</p><p className="text-[10px] text-primary-400">Ср. пик</p></div>}
                 {duration && <div><p className="text-lg font-black text-primary-700">{duration}</p><p className="text-[10px] text-primary-400">мин</p></div>}
-                {errors.length > 0 && <div><p className="text-lg font-black text-red-500">{errors.length}</p><p className="text-[10px] text-red-400">Ошибок</p></div>}
+                {errors.length > 0 && <div><p className="text-lg font-black text-rose-500">{errors.length}</p><p className="text-[10px] text-rose-400">Ошибок</p></div>}
               </div>
               {task.started_at && <p className="text-[10px] text-primary-400">
                 Начало: {new Date(task.started_at).toLocaleString('ru-RU', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}
@@ -353,8 +353,8 @@ export default function TaskDetailPanel({ task, onClose, onReload }) {
             onClick={() => setTab('errors')}
             className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all ${
               tab === 'errors'
-                ? errors.length > 0 ? 'bg-red-500 text-white shadow-sm' : 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
-                : errors.length > 0 ? 'text-red-400' : 'text-gray-400'
+                ? errors.length > 0 ? 'bg-rose-500 text-white shadow-sm' : 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                : errors.length > 0 ? 'text-rose-400' : 'text-gray-400'
             }`}
           >
             Ошибки{errors.length > 0 ? ` (${errors.length})` : ''}
@@ -505,7 +505,7 @@ export default function TaskDetailPanel({ task, onClose, onReload }) {
                                           {sc.product_code && <p className="text-xs text-gray-400">{sc.product_code}</p>}
                                         </>
                                       ) : (
-                                        <p className="text-sm text-red-400 italic">Неизвестный товар</p>
+                                        <p className="text-sm text-rose-400 italic">Неизвестный товар</p>
                                       )}
                                     </div>
                                     <div className="text-right flex-shrink-0">
@@ -568,7 +568,7 @@ export default function TaskDetailPanel({ task, onClose, onReload }) {
                               {sc.product_code && <p className="text-xs text-gray-400">{sc.product_code}</p>}
                             </>
                           ) : (
-                            <p className="text-sm text-red-400 italic">Неизвестный товар</p>
+                            <p className="text-sm text-rose-400 italic">Неизвестный товар</p>
                           )}
                           <CopyBadge value={sc.scanned_value} className="mt-0.5" />
                         </div>
@@ -597,10 +597,10 @@ export default function TaskDetailPanel({ task, onClose, onReload }) {
             ) : (
               <div className="space-y-2">
                 {errors.map(err => (
-                  <div key={err.id} className="rounded-xl border border-red-100 bg-red-50 px-4 py-3">
+                  <div key={err.id} className="rounded-xl border border-rose-100 bg-rose-50 px-4 py-3">
                     <div className="flex items-center justify-between mb-1">
                       <div className="flex items-center gap-2">
-                        <p className="text-sm font-mono font-medium text-red-700">{err.scanned_value}</p>
+                        <p className="text-sm font-mono font-medium text-rose-700">{err.scanned_value}</p>
                         <CopyBadge value={err.scanned_value} />
                       </div>
                       <p className="text-xs text-gray-400">{fmtTime(err.created_at)}</p>
@@ -761,7 +761,7 @@ export default function TaskDetailPanel({ task, onClose, onReload }) {
                           <span className="flex-1 truncate text-gray-700">{(sc.product_name || '').replace(/GraFLab,?\s*/i, '').trim()}</span>
                           <span className="font-mono text-gray-500 flex-shrink-0">{new Date(sc.created_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
                           {sc.seconds_since_prev != null && sc.seconds_since_prev > 0
-                            ? <span className={`font-mono font-bold flex-shrink-0 w-10 text-right ${Number(sc.seconds_since_prev) > 10 ? 'text-red-400' : Number(sc.seconds_since_prev) > 5 ? 'text-amber-400' : 'text-green-500'}`}>+{sc.seconds_since_prev}с</span>
+                            ? <span className={`font-mono font-bold flex-shrink-0 w-10 text-right ${Number(sc.seconds_since_prev) > 10 ? 'text-rose-400' : Number(sc.seconds_since_prev) > 5 ? 'text-amber-400' : 'text-green-500'}`}>+{sc.seconds_since_prev}с</span>
                             : <span className="text-primary-400 font-mono flex-shrink-0 w-10 text-right">старт</span>
                           }
                         </div>
@@ -822,8 +822,8 @@ export default function TaskDetailPanel({ task, onClose, onReload }) {
             {deleteConfirm === 'ask' ? (
               <>
                 <div className="px-6 pt-6 pb-2 text-center">
-                  <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-3">
-                    <AlertTriangle className="w-6 h-6 text-red-500" />
+                  <div className="w-12 h-12 rounded-full bg-rose-50 flex items-center justify-center mx-auto mb-3">
+                    <AlertTriangle className="w-6 h-6 text-rose-500" />
                   </div>
                   <h3 className="text-lg font-bold text-gray-900 dark:text-white">Удалить задачу?</h3>
                   <p className="text-sm text-gray-500 mt-1">{task.title}</p>

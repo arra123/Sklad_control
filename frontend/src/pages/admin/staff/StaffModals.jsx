@@ -35,7 +35,7 @@ function EmployeeModal({ open, onClose, employee, onSuccess }) {
 
   return (
     <Modal open={open} onClose={onClose} title="Редактировать сотрудника"
-      footer={<><Button variant="ghost" onClick={onClose}>Отмена</Button><Button form="emp-form" type="submit" loading={loading}>Сохранить</Button></>}>
+      footer={<><Button variant="ghost" onClick={onClose}>Отмена</Button><Button variant="primary-solid" form="emp-form" type="submit" loading={loading}>Сохранить</Button></>}>
       <form id="emp-form" onSubmit={handleSubmit} className="space-y-4">
         <Input label="ФИО" value={form.full_name} onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))} required />
         <Input label="Должность" value={form.position} onChange={e => setForm(f => ({ ...f, position: e.target.value }))} />
@@ -219,7 +219,7 @@ function EditUserModal({ open, onClose, user, onSuccess, employees }) {
     <Modal open={open} onClose={onClose} title="Редактировать пользователя"
       footer={<>
         <Button variant="ghost" onClick={onClose}>Отмена</Button>
-        <Button form="edit-user-form" type="submit" loading={loading}>Сохранить</Button>
+        <Button variant="primary-solid" form="edit-user-form" type="submit" loading={loading}>Сохранить</Button>
       </>}
     >
       <form id="edit-user-form" onSubmit={handleSubmit} className="space-y-4">
@@ -331,7 +331,7 @@ function UserModal({ open, onClose, onSuccess, employees }) {
     <Modal open={open} onClose={onClose} title="Создать пользователя"
       footer={<>
         <Button variant="ghost" onClick={onClose}>Отмена</Button>
-        <Button form="user-form" type="submit" loading={loading}>Создать</Button>
+        <Button variant="primary-solid" form="user-form" type="submit" loading={loading}>Создать</Button>
       </>}
     >
       <form id="user-form" onSubmit={handleSubmit} className="space-y-4">

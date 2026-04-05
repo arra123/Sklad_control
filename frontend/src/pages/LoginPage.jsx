@@ -73,13 +73,14 @@ export default function LoginPage() {
             />
 
             {error && (
-              <div className="px-4 py-3 rounded-xl bg-red-50 border border-red-100 text-red-600 text-sm">
+              <div className="px-4 py-3 rounded-xl bg-rose-50 border border-rose-100 text-rose-600 text-sm">
                 {error}
               </div>
             )}
 
             <Button
               type="submit"
+              variant="primary-solid"
               className="w-full"
               size="lg"
               loading={loading}

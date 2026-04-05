@@ -2,10 +2,50 @@ import { useState, useEffect } from 'react';
 import FeedbackButton from '../ui/FeedbackButton';
 import { NavLink, useNavigate, useLocation, useSearchParams, Link } from 'react-router-dom';
 import {
-  LayoutDashboard, Package, Warehouse, ClipboardList,
-  Users, Settings, LogOut, Menu, X, ChevronRight, BarChart3, AlertTriangle, Boxes, ArrowLeftRight,
-  ChevronDown, LayoutGrid, PackageSearch, Home, Coins, FlaskConical, ScanLine, Activity
+  LogOut, Menu, X, ChevronRight,
+  ChevronDown, Home
 } from 'lucide-react';
+
+// ─── Inline SVG Icons (stroke-only, matching design system) ─────────────────
+const IconPackage = ({ className }) => (
+  <svg className={className || "w-[18px] h-[18px]"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20 7L12 3 4 7v10l8 4 8-4V7z"/><path d="M4 7l8 4 8-4"/><line x1="12" y1="22" x2="12" y2="11"/></svg>
+);
+const IconLayoutGrid = ({ className }) => (
+  <svg className={className || "w-[18px] h-[18px]"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+);
+const IconPackageSearch = ({ className }) => (
+  <svg className={className || "w-[18px] h-[18px]"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20 7L12 3 4 7v10l8 4 8-4V7z"/><path d="M4 7l8 4 8-4"/><line x1="12" y1="22" x2="12" y2="11"/><circle cx="18.5" cy="18.5" r="3.5"/><line x1="21" y1="21" x2="20" y2="20"/></svg>
+);
+const IconFlask = ({ className }) => (
+  <svg className={className || "w-[18px] h-[18px]"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 3h6M12 3v7l-5 8.5a2 2 0 001.7 3h6.6a2 2 0 001.7-3L12 10V3"/></svg>
+);
+const IconWarehouse = ({ className }) => (
+  <svg className={className || "w-[18px] h-[18px]"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="8" width="18" height="13" rx="1"/><path d="M2 9.5L12 3l10 6.5"/><line x1="7" y1="14" x2="17" y2="14"/><line x1="7" y1="18" x2="17" y2="18"/></svg>
+);
+const IconClipboard = ({ className }) => (
+  <svg className={className || "w-[18px] h-[18px]"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><polyline points="8 10 10 12 14 8"/><line x1="8" y1="16" x2="16" y2="16"/></svg>
+);
+const IconBarChart = ({ className }) => (
+  <svg className={className || "w-[18px] h-[18px]"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+);
+const IconCoins = ({ className }) => (
+  <svg className={className || "w-[18px] h-[18px]"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v10"/><path d="M9 9.5C9 8.67 10.34 8 12 8s3 .67 3 1.5S13.66 11 12 11s-3 .67-3 1.5S10.34 14 12 14s3 .67 3 1.5c0 .83-1.34 1.5-3 1.5s-3-.67-3-1.5"/></svg>
+);
+const IconActivity = ({ className }) => (
+  <svg className={className || "w-[18px] h-[18px]"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+);
+const IconArrows = ({ className }) => (
+  <svg className={className || "w-[18px] h-[18px]"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>
+);
+const IconUsers = ({ className }) => (
+  <svg className={className || "w-[18px] h-[18px]"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+);
+const IconSettings = ({ className }) => (
+  <svg className={className || "w-[18px] h-[18px]"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.93 4.93l2.12 2.12M16.95 16.95l2.12 2.12M2 12h3M19 12h3M4.93 19.07l2.12-2.12M16.95 7.05l2.12-2.12"/></svg>
+);
+const IconAlertTriangle = ({ className }) => (
+  <svg className={className || "w-[18px] h-[18px]"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+);
 import { useAuth } from '../../context/AuthContext';
 import { cn } from '../../utils/cn';
 import { AdminAvatar, ManagerAvatar, WorkerAvatar } from '../ui/WarehouseIcons';
@@ -162,14 +202,14 @@ function Breadcrumb() {
 }
 
 const ALL_NAV = [
-  { to: '/admin/warehouse', icon: Warehouse, label: 'Склады', perm: 'warehouse.view' },
-  { to: '/admin/tasks', icon: ClipboardList, label: 'Задачи', perm: 'tasks.view' },
-  { to: '/admin/analytics', icon: BarChart3, label: 'Аналитика', perm: 'analytics' },
-  { to: '/admin/earnings', icon: Coins, label: 'Заработок', perm: 'analytics' },
-  { to: '/admin/live-monitor', icon: Activity, label: 'Мониторинг', perm: 'analytics' },
-  { to: '/admin/move', icon: ScanLine, label: 'Переместить', perm: 'movements.edit' },
-  { to: '/admin/staff', icon: Users, label: 'Сотрудники', perm: 'staff.view' },
-  { to: '/admin/settings', icon: Settings, label: 'Настройки', perm: 'settings' },
+  { to: '/admin/warehouse', icon: IconWarehouse, label: 'Склады', perm: 'warehouse.view' },
+  { to: '/admin/tasks', icon: IconClipboard, label: 'Задачи', perm: 'tasks.view' },
+  { to: '/admin/analytics', icon: IconBarChart, label: 'Аналитика', perm: 'analytics' },
+  { to: '/admin/earnings', icon: IconCoins, label: 'Заработок', perm: 'analytics' },
+  { to: '/admin/live-monitor', icon: IconActivity, label: 'Мониторинг', perm: 'analytics' },
+  { to: '/admin/move', icon: IconArrows, label: 'Переместить', perm: 'movements.edit' },
+  { to: '/admin/staff', icon: IconUsers, label: 'Сотрудники', perm: 'staff.view' },
+  { to: '/admin/settings', icon: IconSettings, label: 'Настройки', perm: 'settings' },
 ];
 
 export default function AdminLayout({ children }) {
@@ -209,7 +249,7 @@ export default function AdminLayout({ children }) {
         <div className="flex items-center justify-between h-16 px-5 border-b border-gray-100 dark:border-gray-800">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl bg-primary-600 flex items-center justify-center">
-              <BarChart3 className="w-4.5 h-4.5 text-white" size={18} />
+              <IconBarChart className="w-4.5 h-4.5 text-white" />
             </div>
             <span className="font-bold text-gray-900 dark:text-white text-lg tracking-tight">GRAсклад</span>
           </div>
@@ -230,7 +270,7 @@ export default function AdminLayout({ children }) {
                 onClick={() => setProductsOpen(v => !v)}
                 className={cn('sidebar-link w-full', isProductsActive && 'active')}
               >
-                <Package size={18} className="flex-shrink-0" />
+                <IconPackage className="w-[18px] h-[18px] flex-shrink-0" />
                 <span className="flex-1 text-left">Товары</span>
                 <ChevronDown size={14} className={cn('transition-transform duration-200 flex-shrink-0', productsOpen && 'rotate-180')} />
               </button>
@@ -241,7 +281,7 @@ export default function AdminLayout({ children }) {
                     className={({ isActive }) => cn('sidebar-link text-[13px] py-1.5', isActive && 'active')}
                     onClick={() => setSidebarOpen(false)}
                   >
-                    <LayoutGrid size={15} className="flex-shrink-0" />
+                    <IconLayoutGrid className="w-[15px] h-[15px] flex-shrink-0" />
                     <span>Карточки</span>
                   </NavLink>
                   <NavLink
@@ -249,7 +289,7 @@ export default function AdminLayout({ children }) {
                     className={({ isActive }) => cn('sidebar-link text-[13px] py-1.5', isActive && 'active')}
                     onClick={() => setSidebarOpen(false)}
                   >
-                    <PackageSearch size={15} className="flex-shrink-0" />
+                    <IconPackageSearch className="w-[15px] h-[15px] flex-shrink-0" />
                     <span>Остатки</span>
                   </NavLink>
                   <NavLink
@@ -257,7 +297,7 @@ export default function AdminLayout({ children }) {
                     className={({ isActive }) => cn('sidebar-link text-[13px] py-1.5', isActive && 'active')}
                     onClick={() => setSidebarOpen(false)}
                   >
-                    <FlaskConical size={15} className="flex-shrink-0" />
+                    <IconFlask className="w-[15px] h-[15px] flex-shrink-0" />
                     <span>Сырьё</span>
                   </NavLink>
                 </div>
@@ -274,7 +314,7 @@ export default function AdminLayout({ children }) {
               className={({ isActive }) => cn('sidebar-link', isActive && 'active')}
               onClick={() => setSidebarOpen(false)}
             >
-              <Icon className="w-4.5 h-4.5 flex-shrink-0" size={18} />
+              <Icon className="w-[18px] h-[18px] flex-shrink-0" />
               <span className="flex-1">{label}</span>
             </NavLink>
           ))}
@@ -291,13 +331,13 @@ export default function AdminLayout({ children }) {
                 className={({ isActive }) => cn(
                   'w-9 h-9 rounded-xl flex items-center justify-center transition-all',
                   isActive
-                    ? 'bg-red-100 text-red-600'
+                    ? 'bg-rose-100 text-rose-600'
                     : 'bg-gray-100 dark:bg-gray-800 text-gray-400 hover:text-amber-600 hover:bg-amber-50'
                 )}
                 title="Ошибки сканирования"
                 onClick={() => setSidebarOpen(false)}
               >
-                <AlertTriangle size={16} />
+                <IconAlertTriangle className="w-4 h-4" />
               </NavLink>
             )}
           </div>
@@ -313,12 +353,12 @@ export default function AdminLayout({ children }) {
           <div className="flex items-center justify-between">
             <button
               onClick={handleLogout}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs text-gray-400 hover:text-rose-500 hover:bg-rose-50 transition-all"
             >
               <LogOut className="w-3.5 h-3.5" />
               Выйти
             </button>
-            <p className="text-[10px] text-gray-300 dark:text-gray-600">v7.8.0</p>
+            <p className="text-[10px] text-gray-300 dark:text-gray-600">v7.9.0</p>
           </div>
         </div>
       </aside>
@@ -335,7 +375,7 @@ export default function AdminLayout({ children }) {
           </button>
           <div className="flex items-center gap-2 ml-3">
             <div className="w-6 h-6 rounded-lg bg-primary-600 flex items-center justify-center">
-              <BarChart3 size={14} className="text-white" />
+              <IconBarChart className="w-3.5 h-3.5 text-white" />
             </div>
             <span className="font-bold text-gray-900">GRAсклад</span>
           </div>

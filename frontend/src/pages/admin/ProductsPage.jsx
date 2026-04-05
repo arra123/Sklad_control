@@ -116,7 +116,7 @@ function BarcodeRow({ label, value, kind, isSystem, onDelete, onSetSystem }) {
       )}
       {onDelete && (
         <button onClick={() => onDelete(value)}
-          className="flex-shrink-0 opacity-0 group-hover:opacity-100 text-red-300 hover:text-red-500 transition-all">
+          className="flex-shrink-0 opacity-0 group-hover:opacity-100 text-rose-300 hover:text-rose-500 transition-all">
           <X size={14} />
         </button>
       )}
@@ -393,7 +393,7 @@ export function ProductFormModal({ open, onClose, onSuccess, initial }) {
 
   return (
     <Modal open={open} onClose={onClose} title={isEdit ? 'Редактировать товар' : 'Добавить товар'} size="full"
-      footer={<><Button variant="ghost" onClick={onClose}>Отмена</Button><Button form="product-form" type="submit" loading={loading}>{isEdit?'Сохранить':'Добавить'}</Button></>}
+      footer={<><Button variant="ghost" onClick={onClose}>Отмена</Button><Button variant="primary-solid" form="product-form" type="submit" loading={loading}>{isEdit?'Сохранить':'Добавить'}</Button></>}
     >
       <form id="product-form" onSubmit={handleSubmit}>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -448,7 +448,7 @@ export function ProductFormModal({ open, onClose, onSuccess, initial }) {
                     <div key={i} className="flex items-center gap-2 px-3 py-2 bg-gray-50 dark:bg-gray-800 rounded-xl group">
                       <code className="flex-1 text-sm font-mono text-gray-700 dark:text-gray-300">{bc}</code>
                       <button type="button" onClick={() => removeBarcode(i)}
-                        className="text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100">
+                        className="text-gray-300 hover:text-rose-500 transition-colors opacity-0 group-hover:opacity-100">
                         <X size={14} />
                       </button>
                     </div>
@@ -720,12 +720,12 @@ export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
           <div className="flex items-center justify-between w-full">
             {confirmDelete ? (
               <div className="flex items-center gap-2">
-                <span className="text-sm text-red-600 font-medium">Точно удалить?</span>
-                <Button variant="danger" size="sm" onClick={handleDelete}>Да, удалить</Button>
+                <span className="text-sm text-rose-600 font-medium">Точно удалить?</span>
+                <Button variant="danger-solid" size="sm" onClick={handleDelete}>Да, удалить</Button>
                 <Button variant="ghost" size="sm" onClick={() => setConfirmDelete(false)}>Нет</Button>
               </div>
             ) : (
-              <Button variant="ghost" size="sm" className="text-red-400 hover:text-red-600" icon={<Trash2 size={14} />} onClick={handleDelete}>Удалить</Button>
+              <Button variant="ghost" size="sm" className="text-rose-400 hover:text-rose-600" icon={<Trash2 size={14} />} onClick={handleDelete}>Удалить</Button>
             )}
             <div className="flex gap-2">
               <Button variant="ghost" onClick={onClose}>Отмена</Button>
@@ -925,7 +925,7 @@ export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
                         <div className="flex gap-2">
                           <button onClick={saveTechCard} className="px-3 py-1 rounded-lg bg-primary-600 text-white text-xs font-semibold hover:bg-primary-700">Сохранить</button>
                           <button onClick={() => setTcEditing(false)} className="px-3 py-1 rounded-lg bg-gray-100 text-gray-600 text-xs font-semibold hover:bg-gray-200">Отмена</button>
-                          <button onClick={deleteTechCard} className="ml-auto px-2 py-1 rounded-lg text-red-400 text-xs hover:text-red-600 hover:bg-red-50">Удалить</button>
+                          <button onClick={deleteTechCard} className="ml-auto px-2 py-1 rounded-lg text-rose-400 text-xs hover:text-rose-600 hover:bg-rose-50">Удалить</button>
                         </div>
                       </div>
                     ) : (
@@ -962,7 +962,7 @@ export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
                             </button>
                           )}
                           <button onClick={() => removeTcMaterial(m.id)}
-                            className="flex-shrink-0 opacity-0 group-hover:opacity-100 text-red-300 hover:text-red-500 transition-all"><X size={14} /></button>
+                            className="flex-shrink-0 opacity-0 group-hover:opacity-100 text-rose-300 hover:text-rose-500 transition-all"><X size={14} /></button>
                         </div>
                       ))}
                     </div>
@@ -1024,7 +1024,7 @@ export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
                           <span className="text-xs font-bold text-primary-700 bg-white dark:bg-gray-800 px-2 py-0.5 rounded-lg">{fmtQty(c.quantity)} шт.</span>
                           {c.bc_id && (
                             <button onClick={() => handleDeleteComponent(c.bc_id)}
-                              className="opacity-0 group-hover:opacity-100 text-red-300 hover:text-red-500 transition-all"><X size={14} /></button>
+                              className="opacity-0 group-hover:opacity-100 text-rose-300 hover:text-rose-500 transition-all"><X size={14} /></button>
                           )}
                         </div>
                       ))}
@@ -1436,12 +1436,12 @@ export default function ProductsPage() {
             key={value}
             onClick={() => setActiveTab(value)}
             className={cn(
-              'flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all',
+              'glass-btn flex items-center gap-2 px-5 py-2.5 rounded-[14px] text-sm font-semibold transition-all backdrop-blur-xl',
               activeTab === value
                 ? value === 'bundle'
-                  ? 'bg-purple-600 text-white shadow-sm'
-                  : 'bg-primary-600 text-white shadow-sm'
-                : 'bg-white border border-gray-200 text-gray-600 hover:border-gray-300'
+                  ? 'text-purple-700 bg-purple-500/10 border border-purple-500/25 shadow-[0_2px_10px_rgba(139,92,246,0.12)]'
+                  : 'text-primary-700 bg-primary-600/10 border border-primary-600/25 shadow-[0_2px_10px_rgba(124,58,237,0.12)]'
+                : 'text-gray-600 bg-white/50 border border-white/75 hover:bg-white/70 hover:shadow-sm'
             )}
           >
             <Icon size={20} />

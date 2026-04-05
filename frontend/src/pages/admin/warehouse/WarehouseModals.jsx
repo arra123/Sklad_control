@@ -53,7 +53,7 @@ export function WarehouseModal({ open, onClose, warehouse, onSuccess }) {
     <Modal open={open} onClose={onClose} title={warehouse ? 'Редактировать склад' : 'Создать склад'}
       footer={<>
         <Button variant="ghost" onClick={onClose}>Отмена</Button>
-        <Button form="wh-form" type="submit" loading={loading}>{warehouse ? 'Сохранить' : 'Создать'}</Button>
+        <Button variant="primary-solid" form="wh-form" type="submit" loading={loading}>{warehouse ? 'Сохранить' : 'Создать'}</Button>
       </>}>
       <form id="wh-form" onSubmit={handleSubmit} className="space-y-4">
         <Input label="Название склада" placeholder="Склад Ижевск" value={form.name}
@@ -63,7 +63,7 @@ export function WarehouseModal({ open, onClose, warehouse, onSuccess }) {
         {warehouse && (
           <label className="flex items-center gap-3 px-4 py-3 rounded-xl border border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors">
             <input type="checkbox" checked={!form.active} onChange={() => setForm(f => ({ ...f, active: !f.active }))}
-              className="w-4 h-4 rounded border-gray-300 text-red-500 focus:ring-red-400" />
+              className="w-4 h-4 rounded border-gray-300 text-rose-500 focus:ring-rose-400" />
             <div>
               <p className="text-sm font-medium text-gray-700">Скрыть склад</p>
               <p className="text-xs text-gray-400">Не учитывается в статистике и остатках</p>
@@ -143,7 +143,7 @@ export function RackModal({ open, onClose, warehouseId, rack, onSuccess }) {
     <Modal open={open} onClose={onClose} title={rack ? 'Редактировать стеллаж' : 'Добавить стеллаж'}
       footer={<>
         <Button variant="ghost" onClick={onClose}>Отмена</Button>
-        <Button form="rack-form" type="submit" loading={loading}>{rack ? 'Сохранить' : 'Добавить'}</Button>
+        <Button variant="primary-solid" form="rack-form" type="submit" loading={loading}>{rack ? 'Сохранить' : 'Добавить'}</Button>
       </>}>
       <form id="rack-form" onSubmit={handleSubmit} className="space-y-4">
         <Input label="Название" placeholder="Стеллаж 12" value={form.name}
@@ -195,7 +195,7 @@ export function ShelfModal({ open, onClose, rackId, shelf, onSuccess }) {
     <Modal open={open} onClose={onClose} title={shelf ? 'Редактировать полку' : 'Добавить полку'}
       footer={<>
         <Button variant="ghost" onClick={onClose}>Отмена</Button>
-        <Button form="shelf-form" type="submit" loading={loading}>{shelf ? 'Сохранить' : 'Добавить'}</Button>
+        <Button variant="primary-solid" form="shelf-form" type="submit" loading={loading}>{shelf ? 'Сохранить' : 'Добавить'}</Button>
       </>}>
       <form id="shelf-form" onSubmit={handleSubmit} className="space-y-4">
         <Input label="Название" placeholder="Полка 7" value={form.name}
@@ -382,7 +382,7 @@ export function PalletModal({ open, onClose, rowId, pallet, onSuccess }) {
   };
   return (
     <Modal open={open} onClose={onClose} title={isEdit ? 'Редактировать паллет' : 'Добавить паллет'}
-      footer={<><Button variant="ghost" onClick={onClose}>Отмена</Button><Button form="pallet-form" type="submit" loading={loading}>{isEdit ? 'Сохранить' : 'Добавить'}</Button></>}>
+      footer={<><Button variant="ghost" onClick={onClose}>Отмена</Button><Button variant="primary-solid" form="pallet-form" type="submit" loading={loading}>{isEdit ? 'Сохранить' : 'Добавить'}</Button></>}>
       <form id="pallet-form" onSubmit={handleSubmit} className="space-y-4">
         <Input label="Название" placeholder="Паллет 1" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required />
         <Input label="Номер" type="number" min="1" placeholder="1" value={form.number} onChange={e => setForm(f => ({ ...f, number: e.target.value }))} required />
@@ -428,7 +428,7 @@ export function RowModal({ open, onClose, warehouseId, row, onSuccess }) {
   };
   return (
     <Modal open={open} onClose={onClose} title={isEdit ? 'Редактировать ряд' : 'Добавить ряд'}
-      footer={<><Button variant="ghost" onClick={onClose}>Отмена</Button><Button form="row-form" type="submit" loading={loading}>{isEdit ? 'Сохранить' : 'Добавить'}</Button></>}>
+      footer={<><Button variant="ghost" onClick={onClose}>Отмена</Button><Button variant="primary-solid" form="row-form" type="submit" loading={loading}>{isEdit ? 'Сохранить' : 'Добавить'}</Button></>}>
       <form id="row-form" onSubmit={handleSubmit} className="space-y-4">
         <Input label="Название" placeholder="Ряд 1" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required />
         <Input label="Номер" type="number" min="1" placeholder="1" value={form.number} onChange={e => setForm(f => ({ ...f, number: e.target.value }))} required />
@@ -487,7 +487,7 @@ export function BoxWarehouseModal({ open, onClose, warehouseId, box, products, o
 
   return (
     <Modal open={open} onClose={onClose} title={isEdit ? 'Редактировать коробку' : 'Создать коробку'}
-      footer={<><Button variant="ghost" onClick={onClose}>Отмена</Button><Button form="box-wh-form" type="submit" loading={loading}>{isEdit ? 'Сохранить' : 'Создать'}</Button></>}>
+      footer={<><Button variant="ghost" onClick={onClose}>Отмена</Button><Button variant="primary-solid" form="box-wh-form" type="submit" loading={loading}>{isEdit ? 'Сохранить' : 'Создать'}</Button></>}>
       <form id="box-wh-form" onSubmit={handleSubmit} className="space-y-4">
         <Input label="Название" placeholder="Коробка A1" value={form.name}
           onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
@@ -499,7 +499,7 @@ export function BoxWarehouseModal({ open, onClose, warehouseId, box, products, o
             <div className="flex items-center gap-2 p-2 rounded-lg bg-primary-50 border border-primary-200">
               <span className="text-sm font-medium text-gray-800 flex-1 truncate">{selectedProduct.name}</span>
               <button type="button" onClick={() => setForm(f => ({ ...f, product_id: '' }))}
-                className="p-1 rounded text-gray-400 hover:text-red-500"><X size={14} /></button>
+                className="p-1 rounded text-gray-400 hover:text-rose-500"><X size={14} /></button>
             </div>
           ) : (
             <div>

@@ -258,7 +258,7 @@ export function ShelfDetailView({ shelfId, rackId, onClose, initialBoxId }) {
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <div className="flex flex-col items-end gap-1">
-                      <span className={`text-xs font-semibold ${Number(box.quantity) > Number(box.box_size) ? 'text-red-600' : 'text-gray-600 dark:text-gray-300'}`}>
+                      <span className={`text-xs font-semibold ${Number(box.quantity) > Number(box.box_size) ? 'text-rose-600' : 'text-gray-600 dark:text-gray-300'}`}>
                         {qty(box.quantity)} из {box.box_size || 50}
                       </span>
                       <span className="text-[11px] text-gray-400">К{box.position}</span>
@@ -273,7 +273,7 @@ export function ShelfDetailView({ shelfId, rackId, onClose, initialBoxId }) {
                         <Pencil size={12} />
                       </button>
                       <button onClick={(e) => { e.stopPropagation(); deleteShelfBox(box); }}
-                        className="p-1 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all">
+                        className="p-1 text-gray-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all">
                         <Trash2 size={12} />
                       </button>
                     </div>

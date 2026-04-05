@@ -187,8 +187,8 @@ function ErrorReportForm({ taskId, scannedValue, errorId, onClose, onSent }) {
     <div className="fixed inset-0 z-50 flex items-end bg-black/40" onClick={onClose}>
       <div className="w-full bg-white rounded-t-3xl p-5 space-y-4" onClick={e => e.stopPropagation()}>
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-red-50 flex items-center justify-center flex-shrink-0">
-            <AlertTriangle size={18} className="text-red-500" />
+          <div className="w-10 h-10 rounded-2xl bg-rose-50 flex items-center justify-center flex-shrink-0">
+            <AlertTriangle size={18} className="text-rose-500" />
           </div>
           <div>
             <p className="font-bold text-gray-900">Штрих-код не найден</p>
@@ -210,7 +210,7 @@ function ErrorReportForm({ taskId, scannedValue, errorId, onClose, onSent }) {
 
         <div className="flex gap-3">
           <Button variant="ghost" className="flex-1" onClick={onClose}>Отмена</Button>
-          <Button variant="primary" className="flex-1" icon={<Send size={15} />} onClick={handleSend} loading={loading}>
+          <Button variant="primary-solid" className="flex-1" icon={<Send size={15} />} onClick={handleSend} loading={loading}>
             Отправить
           </Button>
         </div>
@@ -628,7 +628,7 @@ function ScanStep({ task, onComplete }) {
           </div>
         ) : (
           <div className={`mx-4 mt-3 px-4 py-2.5 rounded-2xl flex items-center gap-3 ${
-            lastScan.type === 'found' ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
+            lastScan.type === 'found' ? 'bg-green-50 border border-green-200' : 'bg-rose-50 border border-rose-200'
           }`}>
             {lastScan.type === 'found' ? (
               <>
@@ -640,10 +640,10 @@ function ScanStep({ task, onComplete }) {
               </>
             ) : (
               <>
-                <X size={16} className="text-red-400 flex-shrink-0" />
+                <X size={16} className="text-rose-400 flex-shrink-0" />
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold text-red-700 font-mono truncate">{lastScan.value}</p>
-                  <p className="text-xs text-red-500">Не найден — отправлен в ошибки</p>
+                  <p className="text-sm font-semibold text-rose-700 font-mono truncate">{lastScan.value}</p>
+                  <p className="text-xs text-rose-500">Не найден — отправлен в ошибки</p>
                 </div>
               </>
             )}
@@ -671,7 +671,7 @@ function ScanStep({ task, onComplete }) {
               ? 'bg-green-100 text-green-700'
               : lastPickMs < 15000
               ? 'bg-orange-100 text-orange-700'
-              : 'bg-red-100 text-red-700'
+              : 'bg-rose-100 text-rose-700'
           }`}>
             ⚡ {(lastPickMs / 1000).toFixed(1)}с
           </div>
@@ -706,9 +706,9 @@ function ScanStep({ task, onComplete }) {
               <p className="text-[10px] text-blue-500 font-semibold uppercase tracking-wider">Сканов</p>
               <p className="text-lg font-black text-blue-700">{scans.length}</p>
             </div>
-            <div className={`rounded-xl px-3 py-2.5 text-center border ${errors.length > 0 ? 'bg-red-50 border-red-100' : 'bg-gray-50 border-gray-100'}`}>
-              <p className={`text-[10px] font-semibold uppercase tracking-wider ${errors.length > 0 ? 'text-red-400' : 'text-gray-400'}`}>Ошибок</p>
-              <p className={`text-lg font-black ${errors.length > 0 ? 'text-red-500' : 'text-gray-400'}`}>{errors.length}</p>
+            <div className={`rounded-xl px-3 py-2.5 text-center border ${errors.length > 0 ? 'bg-rose-50 border-rose-100' : 'bg-gray-50 border-gray-100'}`}>
+              <p className={`text-[10px] font-semibold uppercase tracking-wider ${errors.length > 0 ? 'text-rose-400' : 'text-gray-400'}`}>Ошибок</p>
+              <p className={`text-lg font-black ${errors.length > 0 ? 'text-rose-500' : 'text-gray-400'}`}>{errors.length}</p>
             </div>
             <div className="bg-amber-50 rounded-xl px-3 py-2.5 text-center border border-amber-100">
               <p className="text-[10px] text-amber-500 font-semibold uppercase tracking-wider">Ср. время</p>
@@ -730,8 +730,8 @@ function ScanStep({ task, onComplete }) {
               onClick={() => setTab('errors')}
               className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                 tab === 'errors'
-                  ? errors.length > 0 ? 'bg-red-500 text-white shadow-sm' : 'bg-white text-gray-900 shadow-sm'
-                  : errors.length > 0 ? 'text-red-400' : 'text-gray-400'
+                  ? errors.length > 0 ? 'bg-rose-500 text-white shadow-sm' : 'bg-white text-gray-900 shadow-sm'
+                  : errors.length > 0 ? 'text-rose-400' : 'text-gray-400'
               }`}
             >
               <AlertTriangle size={13} />
@@ -778,16 +778,16 @@ function ScanStep({ task, onComplete }) {
               ) : (
                 <div className="space-y-2 pt-1">
                   {errors.map(err => (
-                    <div key={err.id} className="flex items-start gap-3 p-3 bg-red-50 rounded-xl border border-red-100">
-                      <AlertTriangle size={15} className="text-red-400 flex-shrink-0 mt-0.5" />
+                    <div key={err.id} className="flex items-start gap-3 p-3 bg-rose-50 rounded-xl border border-rose-100">
+                      <AlertTriangle size={15} className="text-rose-400 flex-shrink-0 mt-0.5" />
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-mono font-medium text-red-700 truncate">{err.scanned_value}</p>
+                        <p className="text-sm font-mono font-medium text-rose-700 truncate">{err.scanned_value}</p>
                         {err.employee_note && <p className="text-xs text-gray-600 mt-0.5">{err.employee_note}</p>}
-                        <p className="text-xs text-red-400 mt-0.5">{fmtTime(err.created_at)}</p>
+                        <p className="text-xs text-rose-400 mt-0.5">{fmtTime(err.created_at)}</p>
                       </div>
                       <button
                         onClick={() => setErrorForm({ value: err.scanned_value, errorId: err.id })}
-                        className="text-xs text-red-400 hover:text-red-600 underline whitespace-nowrap flex-shrink-0"
+                        className="text-xs text-rose-400 hover:text-rose-600 underline whitespace-nowrap flex-shrink-0"
                       >
                         Описать
                       </button>

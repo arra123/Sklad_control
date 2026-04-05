@@ -57,7 +57,7 @@ function FBOWarehouseModal({ open, onClose, onSuccess }) {
       title="Создать паллетный склад"
       footer={<>
         <Button variant="ghost" onClick={onClose}>Отмена</Button>
-        <Button form="fbo-wh-form" type="submit" loading={loading}>Создать</Button>
+        <Button variant="primary-solid" form="fbo-wh-form" type="submit" loading={loading}>Создать</Button>
       </>}
     >
       <form id="fbo-wh-form" onSubmit={handleSubmit} className="space-y-4">
@@ -111,7 +111,7 @@ function RowModal({ open, onClose, warehouseId, onSuccess }) {
       title="Добавить ряд"
       footer={<>
         <Button variant="ghost" onClick={onClose}>Отмена</Button>
-        <Button form="fbo-row-form" type="submit" loading={loading}>Добавить</Button>
+        <Button variant="primary-solid" form="fbo-row-form" type="submit" loading={loading}>Добавить</Button>
       </>}
     >
       <form id="fbo-row-form" onSubmit={handleSubmit} className="space-y-4">
@@ -168,7 +168,7 @@ function PalletModal({ open, onClose, rowId, onSuccess }) {
       title="Добавить паллету"
       footer={<>
         <Button variant="ghost" onClick={onClose}>Отмена</Button>
-        <Button form="fbo-pallet-form" type="submit" loading={loading}>Добавить</Button>
+        <Button variant="primary-solid" form="fbo-pallet-form" type="submit" loading={loading}>Добавить</Button>
       </>}
     >
       <form id="fbo-pallet-form" onSubmit={handleSubmit} className="space-y-4">
@@ -513,7 +513,7 @@ function PalletDetailModal({ open, onClose, palletId, onReload }) {
                           </button>
                           <button
                             onClick={() => handleDeleteBox(box)}
-                            className="p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all"
+                            className="p-1.5 rounded-lg text-gray-300 hover:text-rose-500 hover:bg-rose-50 transition-all"
                             title="Удалить коробку"
                           >
                             <Trash2 size={13} />
@@ -798,7 +798,7 @@ function PalletListView({ row, onBack }) {
                   </button>
                   <button
                     onClick={() => deletePallet(pallet)}
-                    className="p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all"
+                    className="p-1.5 rounded-lg text-gray-300 hover:text-rose-500 hover:bg-rose-50 transition-all"
                   >
                     <Trash2 size={13} />
                   </button>
@@ -975,7 +975,7 @@ function RowListView({ warehouse }) {
                 >
                   <button
                     onClick={() => deleteRow(row)}
-                    className="p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all"
+                    className="p-1.5 rounded-lg text-gray-300 hover:text-rose-500 hover:bg-rose-50 transition-all"
                     title="Удалить ряд"
                   >
                     <Trash2 size={13} />
@@ -1077,7 +1077,7 @@ export default function FBOPage() {
                     </button>
                     <button
                       onClick={(e) => { e.stopPropagation(); deleteWarehouse(wh); }}
-                      className="ml-1 p-1 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all opacity-0 group-hover:opacity-100"
+                      className="ml-1 p-1 rounded-lg text-gray-300 hover:text-rose-500 hover:bg-rose-50 transition-all opacity-0 group-hover:opacity-100"
                       title="Удалить склад"
                     >
                       <Trash2 size={12} />

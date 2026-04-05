@@ -24,3 +24,9 @@ desktop.ini
 # Temp files
 tmp_*.js
 db_backup_*/
+
+# Debug screenshots (audit runs)
+audit-*.png
+v2-*.png
+v3-*.png
+design-system.html

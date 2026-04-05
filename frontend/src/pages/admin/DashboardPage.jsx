@@ -39,7 +39,7 @@ function StatCard({ icon: Icon, label, value, sub, color = 'primary' }) {
     blue: 'bg-blue-50 text-blue-600',
     amber: 'bg-amber-50 text-amber-600',
     purple: 'bg-purple-50 text-purple-600',
-    red: 'bg-red-50 text-red-600',
+    red: 'bg-rose-50 text-rose-600',
     gray: 'bg-gray-100 text-gray-500',
   };
   return (
@@ -167,8 +167,8 @@ function TaskAnalytics({ taskId, onBack }) {
         )}
         <button onClick={() => setTab('errors')}
           className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${
-            tab === 'errors' ? errors.length > 0 ? 'bg-red-500 text-white shadow-sm' : 'bg-white text-gray-900 dark:text-white shadow-sm'
-            : errors.length > 0 ? 'text-red-400' : 'text-gray-400'
+            tab === 'errors' ? errors.length > 0 ? 'bg-rose-500 text-white shadow-sm' : 'bg-white text-gray-900 dark:text-white shadow-sm'
+            : errors.length > 0 ? 'text-rose-400' : 'text-gray-400'
           }`}>
           Ошибки ({errors.length})
         </button>
@@ -204,7 +204,7 @@ function TaskAnalytics({ taskId, onBack }) {
                 <div key={sc.id} className="flex items-center gap-3 px-4 py-2.5">
                   <span className="text-xs text-gray-300 w-6 text-right flex-shrink-0">{i + 1}</span>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-800 truncate">{sc.product_name || <span className="text-red-400 italic">Неизвестен</span>}</p>
+                    <p className="text-sm font-medium text-gray-800 truncate">{sc.product_name || <span className="text-rose-400 italic">Неизвестен</span>}</p>
                     {sc.product_code && <p className="text-xs text-gray-400">{sc.product_code}</p>}
                   </div>
                   <div className="text-right flex-shrink-0">
@@ -225,7 +225,7 @@ function TaskAnalytics({ taskId, onBack }) {
               {errors.map(err => (
                 <div key={err.id} className="px-4 py-3">
                   <div className="flex items-center justify-between mb-1">
-                    <p className="text-sm font-mono font-medium text-red-700">{err.scanned_value}</p>
+                    <p className="text-sm font-mono font-medium text-rose-700">{err.scanned_value}</p>
                     <p className="text-xs text-gray-400">{fmtTime(err.created_at)}</p>
                   </div>
                   {err.employee_note && <p className="text-sm text-gray-600 bg-gray-50 rounded-lg px-3 py-1.5 mt-1">{err.employee_note}</p>}
@@ -328,7 +328,7 @@ export default function DashboardPage() {
                     <div key={wh.id} className="flex items-center gap-2 py-1">
                       <span className="text-[11px] text-gray-600 w-24 truncate">{wh.name}</span>
                       <div className="flex-1 h-3 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
-                        <div className={`h-full rounded-full ${fill > 80 ? 'bg-red-400' : fill > 50 ? 'bg-amber-400' : 'bg-green-400'}`} style={{ width: `${fill}%` }} />
+                        <div className={`h-full rounded-full ${fill > 80 ? 'bg-rose-400' : fill > 50 ? 'bg-amber-400' : 'bg-green-400'}`} style={{ width: `${fill}%` }} />
                       </div>
                       <span className="text-[10px] text-gray-500 w-8 text-right">{fill}%</span>
                     </div>
@@ -400,7 +400,7 @@ export default function DashboardPage() {
             <span className="text-sm text-gray-400">{occupiedShelves} / {totalShelves} полок</span>
           </div>
           <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
-            <div className={`h-full rounded-full transition-all ${fillPercent > 80 ? 'bg-red-400' : fillPercent > 50 ? 'bg-amber-400' : 'bg-green-400'}`} style={{ width: `${fillPercent}%` }} />
+            <div className={`h-full rounded-full transition-all ${fillPercent > 80 ? 'bg-rose-400' : fillPercent > 50 ? 'bg-amber-400' : 'bg-green-400'}`} style={{ width: `${fillPercent}%` }} />
           </div>
           <div className="flex justify-between text-xs text-gray-400 mt-2">
             <span>{occupiedShelves} занято</span>
@@ -447,7 +447,7 @@ export default function DashboardPage() {
               { label: 'Новые', value: taskStats?.new_count || 0, color: 'bg-gray-200' },
               { label: 'В работе', value: taskStats?.in_progress_count || 0, color: 'bg-amber-400' },
               { label: 'Выполнены', value: taskStats?.completed_count || 0, color: 'bg-green-400' },
-              { label: 'Отменены', value: taskStats?.cancelled_count || 0, color: 'bg-red-300' },
+              { label: 'Отменены', value: taskStats?.cancelled_count || 0, color: 'bg-rose-300' },
             ].map(({ label, value, color }) => {
               const total = Object.values(taskStats || {}).reduce((s, v) => s + Number(v), 0) || 1;
               return (
@@ -511,7 +511,7 @@ export default function DashboardPage() {
                           </p>
                         </div>
                         {Number(t.errors_count) > 0 && (
-                          <span className="text-xs bg-red-50 text-red-500 px-1.5 py-0.5 rounded-lg font-medium">{t.errors_count} ош.</span>
+                          <span className="text-xs bg-rose-50 text-rose-500 px-1.5 py-0.5 rounded-lg font-medium">{t.errors_count} ош.</span>
                         )}
                         <ChevronRight size={15} className="text-gray-300" />
                       </div>
@@ -607,7 +607,7 @@ export default function DashboardPage() {
                         <span>{whFill}%</span>
                       </div>
                       <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                        <div className={`h-full rounded-full ${whFill > 80 ? 'bg-red-400' : whFill > 50 ? 'bg-amber-400' : 'bg-green-400'}`} style={{ width: `${whFill}%` }} />
+                        <div className={`h-full rounded-full ${whFill > 80 ? 'bg-rose-400' : whFill > 50 ? 'bg-amber-400' : 'bg-green-400'}`} style={{ width: `${whFill}%` }} />
                       </div>
                     </div>
                   )}

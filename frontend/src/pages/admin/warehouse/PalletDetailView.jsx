@@ -312,7 +312,7 @@ export function PalletDetailView({ pallet, onClose, initialBoxId }) {
                       <Pencil size={12} />
                     </button>
                     <button onClick={(e) => { e.stopPropagation(); handleDeleteBox(box); }}
-                      className="p-1 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all">
+                      className="p-1 text-gray-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all">
                       <Trash2 size={12} />
                     </button>
                   </div>

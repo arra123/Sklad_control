@@ -137,7 +137,7 @@ export default function EmployeeLayout({ children }) {
     : activeBreak?.break_type === 'tech' ? 'Тех. проблема' : 'Перерыв';
 
   const breakColor = activeBreak?.break_type === 'tech'
-    ? 'bg-red-100 text-red-700 ring-1 ring-red-300'
+    ? 'bg-rose-100 text-rose-700 ring-1 ring-rose-300'
     : activeBreak ? 'bg-amber-100 text-amber-700 ring-1 ring-amber-300 animate-pulse'
     : 'bg-gray-100 text-gray-500';
 
@@ -171,7 +171,7 @@ export default function EmployeeLayout({ children }) {
               <WorkerAvatar size={24} />
             </div>
             <button onClick={() => { if (window.confirm('Выйти из аккаунта?')) { logout(); navigate('/login'); } }}
-              className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950 transition-all flex-shrink-0">
+              className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl text-gray-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950 transition-all flex-shrink-0">
               <LogOut size={18} />
             </button>
           </div>
@@ -202,7 +202,7 @@ export default function EmployeeLayout({ children }) {
                   )}>
                     <item.icon size={22} strokeWidth={isActive ? 2.5 : 2} />
                     {item.to === '/employee/tasks' && activeTasks > 0 && !isActive && (
-                      <span className="absolute -top-1.5 -right-2.5 min-w-[16px] h-4 flex items-center justify-center rounded-full bg-red-500 text-white text-[9px] font-bold px-1">{activeTasks}</span>
+                      <span className="absolute -top-1.5 -right-2.5 min-w-[16px] h-4 flex items-center justify-center rounded-full bg-rose-500 text-white text-[9px] font-bold px-1">{activeTasks}</span>
                     )}
                     {isActive && (
                       <div className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-current opacity-60 animate-pulse" />
@@ -226,7 +226,7 @@ export default function EmployeeLayout({ children }) {
               'employee-nav-item group relative flex flex-col items-center gap-0.5 px-2.5 sm:px-3 py-2 rounded-2xl transition-all duration-200 min-w-[52px]',
               activeBreak
                 ? activeBreak.break_type === 'tech'
-                  ? 'bg-red-50 text-red-600 ring-1 ring-red-200 shadow-sm'
+                  ? 'bg-rose-50 text-rose-600 ring-1 ring-rose-200 shadow-sm'
                   : 'bg-amber-50 text-amber-600 ring-1 ring-amber-200 shadow-sm animate-pulse'
                 : 'text-gray-400 hover:text-gray-600'
             )}
@@ -267,8 +267,8 @@ export default function EmployeeLayout({ children }) {
               </div>
             </button>
             <button onClick={() => startBreak('tech')} disabled={breakLoading}
-              className="w-full flex items-center gap-3 p-3 rounded-xl bg-red-50 hover:bg-red-100 transition-colors">
-              <Wrench size={20} className="text-red-600" />
+              className="w-full flex items-center gap-3 p-3 rounded-xl bg-rose-50 hover:bg-rose-100 transition-colors">
+              <Wrench size={20} className="text-rose-600" />
               <div className="text-left">
                 <p className="text-sm font-semibold text-gray-900">Техническая проблема</p>
                 <p className="text-[10px] text-gray-400">Снять может только администратор</p>

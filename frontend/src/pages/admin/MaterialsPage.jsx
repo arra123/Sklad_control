@@ -19,11 +19,11 @@ function fmtPrice(val) {
 }
 
 const GROUP_LABELS = {
-  'порошки': { label: 'Порошки', color: 'bg-green-50 text-green-700', Icon: PowderIcon },
-  'полуфабрикаты': { label: 'Полуфабрикаты', color: 'bg-purple-50 text-purple-700', Icon: SemiProductIcon },
-  'этикетки': { label: 'Этикетки', color: 'bg-amber-50 text-amber-700', Icon: LabelIcon },
-  'смеси': { label: 'Смеси', color: 'bg-orange-50 text-orange-700', Icon: MixIcon },
-  'расходники': { label: 'Расходники', color: 'bg-blue-50 text-blue-700', Icon: SuppliesIcon },
+  'порошки': { label: 'Порошки', color: 'bg-green-100 text-green-700', Icon: PowderIcon },
+  'полуфабрикаты': { label: 'Полуфабрикаты', color: 'bg-purple-100 text-purple-700', Icon: SemiProductIcon },
+  'этикетки': { label: 'Этикетки', color: 'bg-amber-100 text-amber-700', Icon: LabelIcon },
+  'смеси': { label: 'Смеси', color: 'bg-orange-100 text-orange-700', Icon: MixIcon },
+  'расходники': { label: 'Расходники', color: 'bg-blue-100 text-blue-700', Icon: SuppliesIcon },
   'другое': { label: 'Другое', color: 'bg-gray-100 text-gray-600', Icon: PackagingMaterialIcon },
 };
 
@@ -330,7 +330,7 @@ function MaterialDetailModal({ materialId, onClose, onUpdated }) {
                           </div>
                           <span className="text-sm font-bold text-gray-700 dark:text-gray-300 flex-shrink-0">{fmtQty(r.quantity)} {r.unit || 'шт'}</span>
                           <button onClick={(e) => { e.stopPropagation(); removeRecipeIngredient(r.recipe_id); }}
-                            className="p-1 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all">
+                            className="p-1 rounded-lg text-gray-300 hover:text-rose-500 hover:bg-rose-50 opacity-0 group-hover:opacity-100 transition-all">
                             <X size={14} />
                           </button>
                         </div>
@@ -486,7 +486,7 @@ export default function MaterialsPage() {
         <div className="flex flex-wrap items-center gap-2 mt-3">
           <button
             onClick={() => { setGroup(''); setPage(1); }}
-            className={`text-xs font-semibold px-3 py-1.5 rounded-full transition-colors ${!group ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+            className={`text-xs px-3 py-1.5 rounded-full transition-all ${!group ? 'glass-btn text-primary-700 bg-primary-600/10 border border-primary-600/25 backdrop-blur-xl shadow-[0_2px_10px_rgba(124,58,237,0.12)] font-semibold' : 'text-gray-500 bg-white/50 border border-gray-200 hover:bg-white/70 hover:text-gray-700 font-semibold'}`}
           >
             Все ({stats.total})
           </button>
@@ -499,7 +499,7 @@ export default function MaterialsPage() {
               <button
                 key={g.group}
                 onClick={() => { setGroup(g.group); setPage(1); }}
-                className={`text-xs font-semibold px-3 py-1.5 rounded-full transition-colors ${group === g.group ? 'bg-purple-600 text-white' : gl.color + ' hover:opacity-80'}`}
+                className={`text-xs px-3 py-1.5 rounded-full transition-all ${group === g.group ? 'glass-btn text-primary-700 bg-primary-600/10 border border-primary-600/25 backdrop-blur-xl shadow-[0_2px_10px_rgba(124,58,237,0.12)] font-semibold' : 'text-gray-500 bg-white/50 border border-gray-200 hover:bg-white/70 hover:text-gray-700 font-semibold'}`}
               >
                 {gl.label} ({g.count})
               </button>
@@ -509,15 +509,15 @@ export default function MaterialsPage() {
       </div>
 
       {/* Search */}
-      <div className="bg-white rounded-xl border border-gray-100 p-4">
+      <div className="bg-white/60 backdrop-blur-sm rounded-xl border border-gray-200/60 p-4">
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input placeholder="Поиск по названию или коду..." value={search} onChange={e => setSearch(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent" />
+              className="w-full pl-9 pr-3 py-2 rounded-lg bg-white/50 border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-transparent" />
           </div>
           <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer whitespace-nowrap">
-            <input type="checkbox" checked={archived} onChange={e => { setArchived(e.target.checked); setPage(1); }} className="rounded border-gray-300" />
+            <input type="checkbox" checked={archived} onChange={e => { setArchived(e.target.checked); setPage(1); }} className="rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
             Архивные
           </label>
         </div>

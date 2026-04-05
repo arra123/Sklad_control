@@ -144,9 +144,11 @@ function WarehouseContent({ warehouse, initialRackId, initialShelfId, initialRow
   const viewBtnStyle = (active) => ({
     display:'inline-flex', alignItems:'center', gap:5, padding:'5px 12px',
     borderRadius:8, fontSize:12, fontWeight:700, cursor:'pointer', transition:'all .15s',
-    border: active ? '1px solid #4f46e5' : '1px solid #e5e7eb',
-    background: active ? '#eef2ff' : '#fff',
-    color: active ? '#4f46e5' : '#9ca3af',
+    border: active ? '1px solid rgba(124,58,237,0.2)' : '1px solid rgba(229,231,235,0.8)',
+    background: active ? 'rgba(124,58,237,0.08)' : 'rgba(255,255,255,0.5)',
+    color: active ? '#6d28d9' : '#9ca3af',
+    backdropFilter: 'blur(16px)',
+    WebkitBackdropFilter: 'blur(16px)',
   });
 
   return (
@@ -315,7 +317,7 @@ function WarehouseContent({ warehouse, initialRackId, initialShelfId, initialRow
                               <Pencil size={13} />
                             </button>
                             <button onClick={() => deleteRack(rack)}
-                              className="p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all">
+                              className="p-1.5 rounded-lg text-gray-300 hover:text-rose-500 hover:bg-rose-50 transition-all">
                               <Trash2 size={13} />
                             </button>
                           </div>
