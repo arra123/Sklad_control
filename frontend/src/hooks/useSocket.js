@@ -13,7 +13,9 @@ function getSocket() {
   socket = io(window.location.origin, {
     path: `${basePath}/socket.io`,
     auth: { token },
-    transports: ['websocket', 'polling'],
+    // nginx в проде не проксирует WS upgrade — используем только long-polling
+    transports: ['polling'],
+    upgrade: false,
     reconnection: true,
     reconnectionDelay: 5000,
     autoConnect: true,
