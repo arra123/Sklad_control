@@ -43,9 +43,10 @@ function fmtTime(iso) {
 }
 
 function taskTypeLabel(type) {
-  if (type === 'bundle_assembly') return 'Сборка';
+  if (type === 'bundle_assembly') return 'Сборка компл.';
   if (type === 'packaging') return 'Оприход.';
   if (type === 'production_transfer') return 'Перенос';
+  if (type === 'returns') return 'Возвраты';
   return 'Инвент.';
 }
 
@@ -53,6 +54,7 @@ function taskTypeBg(type) {
   if (type === 'bundle_assembly') return 'bg-purple-100 text-purple-700';
   if (type === 'packaging') return 'bg-amber-100 text-amber-700';
   if (type === 'production_transfer') return 'bg-sky-100 text-sky-700';
+  if (type === 'returns') return 'bg-rose-100 text-rose-700';
   return 'bg-indigo-100 text-indigo-700'; // inventory
 }
 
@@ -60,6 +62,7 @@ function taskTypeBarColor(type) {
   if (type === 'bundle_assembly') return 'bg-purple-100 border-purple-300';
   if (type === 'packaging') return 'bg-amber-100 border-amber-300';
   if (type === 'production_transfer') return 'bg-sky-100 border-sky-300';
+  if (type === 'returns') return 'bg-rose-100 border-rose-300';
   return 'bg-indigo-100 border-indigo-300'; // inventory
 }
 
@@ -67,6 +70,7 @@ function taskTypeActiveBarColor(type) {
   if (type === 'bundle_assembly') return 'bg-purple-200 border-purple-400';
   if (type === 'packaging') return 'bg-amber-200 border-amber-400';
   if (type === 'production_transfer') return 'bg-sky-200 border-sky-400';
+  if (type === 'returns') return 'bg-rose-200 border-rose-400';
   return 'bg-indigo-200 border-indigo-400'; // inventory
 }
 
@@ -867,8 +871,53 @@ function EmployeeDetailView({ employeeId, employees, onBack, thresholds, date, i
               </div>
             )}
           </div>
+
+          {/* Sborka orders — live events from sborka site */}
+          <SborkaOrdersSection events={timeline.sborka_events || []} />
         </>
       ) : null}
+    </div>
+  );
+}
+
+// ─── Sborka orders section ──────────────────────────────────────────────────
+function SborkaOrdersSection({ events }) {
+  const completed = events.filter(e => e.event_type === 'order_complete');
+  const picks = events.filter(e => e.event_type === 'pick');
+  if (completed.length === 0 && picks.length === 0) return null;
+
+  // Join order_start (has product_name) with order_complete by order_id
+  const startsByOrder = {};
+  events.filter(e => e.event_type === 'order_start').forEach(e => {
+    if (e.order_id) startsByOrder[e.order_id] = e;
+  });
+
+  return (
+    <div className="mt-5">
+      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+        Сборка заказов ({completed.length}{picks.length > 0 ? ` · ${picks.length} пиков` : ''})
+      </p>
+      <div className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
+        {completed.slice().reverse().map(o => {
+          const start = startsByOrder[o.order_id];
+          const product = start?.product_name;
+          return (
+            <div key={o.id} className="bg-white rounded-xl border border-gray-100 p-3 flex items-center gap-3">
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-fuchsia-100 text-fuchsia-700 uppercase flex-shrink-0">
+                {o.marketplace || '—'}
+              </span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-gray-900 truncate">{o.order_id || '—'}</p>
+                {product && <p className="text-[11px] text-gray-400 truncate">{product}</p>}
+              </div>
+              <div className="text-right flex-shrink-0">
+                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-green-50 text-green-600">готов</span>
+                <p className="text-[11px] text-gray-400 mt-0.5">{new Date(o.created_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

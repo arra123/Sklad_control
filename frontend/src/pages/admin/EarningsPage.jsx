@@ -381,6 +381,7 @@ const TASK_TYPE_LABELS = {
   packaging: 'Оприходование',
   production_transfer: 'Перенос с производства',
   bundle_assembly: 'Сборка комплекта',
+  returns: 'Возвраты',
 };
 
 function taskLocation(t) {
