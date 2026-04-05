@@ -4,7 +4,7 @@ import { NavLink, useNavigate, useLocation, useSearchParams, Link } from 'react-
 import {
   LayoutDashboard, Package, Warehouse, ClipboardList,
   Users, Settings, LogOut, Menu, X, ChevronRight, BarChart3, AlertTriangle, Boxes, ArrowLeftRight,
-  ChevronDown, LayoutGrid, PackageSearch, Home, Coins, FlaskConical, ScanLine
+  ChevronDown, LayoutGrid, PackageSearch, Home, Coins, FlaskConical, ScanLine, Activity
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { cn } from '../../utils/cn';
@@ -166,6 +166,7 @@ const ALL_NAV = [
   { to: '/admin/tasks', icon: ClipboardList, label: 'Задачи', perm: 'tasks.view' },
   { to: '/admin/analytics', icon: BarChart3, label: 'Аналитика', perm: 'analytics' },
   { to: '/admin/earnings', icon: Coins, label: 'Заработок', perm: 'analytics' },
+  { to: '/admin/live-monitor', icon: Activity, label: 'Мониторинг', perm: 'analytics' },
   { to: '/admin/move', icon: ScanLine, label: 'Переместить', perm: 'movements.edit' },
   { to: '/admin/staff', icon: Users, label: 'Сотрудники', perm: 'staff.view' },
   { to: '/admin/settings', icon: Settings, label: 'Настройки', perm: 'settings' },
