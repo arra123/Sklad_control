@@ -204,7 +204,7 @@ export default function TasksPage() {
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Задачи</h1>
           <p className="text-gray-500 text-sm mt-1">
-            {filtered.length !== items.length ? `${filtered.length} из ${items.length} задач` : `${items.length} задач`} · нажмите для деталей
+            {filtered.length !== items.length ? `${filtered.length} из ${items.length}` : `${items.length} задач`}
           </p>
         </div>
         <div className="flex items-center gap-2">
