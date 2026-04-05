@@ -753,13 +753,13 @@ export default function ProductStockPage() {
               key={w.id}
               onClick={() => handleSelectWarehouse(w.id)}
               className={cn(
-                'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all',
+                'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all border',
                 selectedWarehouse === w.id
-                  ? 'bg-white text-primary-700 shadow-sm border border-primary-200'
-                  : 'text-gray-600 hover:bg-white/80 border border-transparent'
+                  ? `shadow-sm ${['border-blue-200 bg-blue-50/50','border-green-200 bg-green-50/50','border-amber-200 bg-amber-50/50','border-purple-200 bg-purple-50/50'][warehouses.indexOf(w) % 4]}`
+                  : 'border-transparent hover:bg-gray-50 text-gray-600'
               )}
             >
-              <WarehouseIcon size={18} colorIndex={warehouses.indexOf(w) + 1} />
+              <span className={cn('w-2 h-2 rounded-full flex-shrink-0', selectedWarehouse === w.id ? ['bg-blue-400','bg-green-400','bg-amber-400','bg-purple-400'][warehouses.indexOf(w) % 4] : 'bg-gray-300')} />
               {w.name}
             </button>
           ))}

@@ -58,43 +58,50 @@ export function WarehouseListView({ warehouses, selectedId, onSelect, onReload, 
             ids.splice(toIdx, 0, fromId);
             api.put('/warehouse/warehouses/reorder', { order: ids }).then(() => onReload()).catch(() => {});
           }}>
-          {warehouses.map(wh => (
-            <button
-              key={wh.id}
-              data-whid={wh.id}
-              draggable
-              onDragStart={e => e.dataTransfer.setData('wh_id', String(wh.id))}
-              onClick={() => onSelect(wh)}
-              className={cn(
-                'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all whitespace-nowrap',
-                selectedId === wh.id
-                  ? 'bg-white text-primary-700 shadow-sm border border-primary-200'
-                  : wh.active === false
-                    ? 'text-gray-400 border border-dashed border-gray-300'
-                    : 'text-gray-600 hover:bg-white/80 hover:shadow-sm border border-transparent'
-              )}
-            >
-              <WarehouseIcon size={18} colorIndex={warehouses.indexOf(wh) + 1} className={wh.active === false ? 'opacity-40' : ''} />
-              <span className={wh.active === false ? 'line-through opacity-60' : ''}>{wh.name}</span>
-              {wh.active === false && <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-200 text-gray-500">скрыт</span>}
-              <span className={cn(
-                'text-xs px-1.5 py-0.5 rounded-md',
-                selectedId === wh.id ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'
-              )}>
-                {structureLabel(wh)}
-              </span>
-              {selectedId === wh.id && (
-                <>
-                  <span role="button" onClick={e => { e.stopPropagation(); setEditWh(wh); }} className="ml-1 opacity-70 hover:opacity-100 cursor-pointer">
-                    <Pencil size={12} />
-                  </span>
-                  <span role="button" onClick={e => { e.stopPropagation(); deleteWh(wh); }} className="opacity-70 hover:opacity-100 cursor-pointer">
-                    <Trash2 size={12} />
-                  </span>
-                </>
-              )}
-            </button>
-          ))}
+          {warehouses.map((wh, idx) => {
+            const colors = [
+              'border-blue-200 bg-blue-50/50',
+              'border-green-200 bg-green-50/50',
+              'border-amber-200 bg-amber-50/50',
+              'border-purple-200 bg-purple-50/50',
+              'border-teal-200 bg-teal-50/50',
+              'border-rose-200 bg-rose-50/50',
+            ];
+            const color = colors[idx % colors.length];
+            const isSelected = selectedId === wh.id;
+            return (
+              <div
+                key={wh.id}
+                data-whid={wh.id}
+                draggable
+                onDragStart={e => { e.dataTransfer.setData('wh_id', String(wh.id)); e.target.style.opacity = '0.5'; }}
+                onDragEnd={e => { e.target.style.opacity = '1'; }}
+                onDragOver={e => { e.preventDefault(); e.currentTarget.style.transform = 'scale(1.05)'; }}
+                onDragLeave={e => { e.currentTarget.style.transform = ''; }}
+                onDrop={e => { e.currentTarget.style.transform = ''; }}
+                onClick={() => onSelect(wh)}
+                className={cn(
+                  'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all whitespace-nowrap cursor-pointer select-none group border',
+                  isSelected ? `${color} shadow-sm` : 'border-transparent hover:bg-gray-50',
+                  wh.active === false && 'opacity-50'
+                )}
+                style={{ minWidth: 'fit-content' }}
+              >
+                <span className={cn('w-2 h-2 rounded-full flex-shrink-0', isSelected ? color.split(' ')[0].replace('border-', 'bg-').replace('-200', '-400') : 'bg-gray-300')} />
+                <span className={wh.active === false ? 'line-through' : ''}>{wh.name}</span>
+                {isSelected && (
+                  <>
+                    <span role="button" onClick={e => { e.stopPropagation(); setEditWh(wh); }} className="opacity-0 group-hover:opacity-70 hover:!opacity-100 cursor-pointer transition-opacity">
+                      <Pencil size={11} />
+                    </span>
+                    <span role="button" onClick={e => { e.stopPropagation(); deleteWh(wh); }} className="opacity-0 group-hover:opacity-70 hover:!opacity-100 cursor-pointer transition-opacity text-red-400">
+                      <Trash2 size={11} />
+                    </span>
+                  </>
+                )}
+              </div>
+            );
+          })}
         </div>
         <Button variant="outline" size="sm" icon={<Plus size={14} />} onClick={() => setShowCreate(true)}>
           Склад
