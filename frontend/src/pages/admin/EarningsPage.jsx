@@ -283,17 +283,70 @@ export default function EarningsPage() {
                   <EmployeeDetail detail={detail} unit={unit} />
                 ) : null
               ) : (
-                <Leaderboard
-                  leaders={leaders}
-                  adjustments={summary?.recent_adjustments || []}
-                  unit={unit}
-                  onSelect={selectEmployee}
-                />
+                <>
+                  <PayrollSummary payroll={summary?.payroll || []} unit={unit} />
+                  <Leaderboard
+                    leaders={leaders}
+                    adjustments={summary?.recent_adjustments || []}
+                    unit={unit}
+                    onSelect={selectEmployee}
+                  />
+                </>
               )}
             </div>
           </div>
         </>
       ) : null}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PAYROLL SUMMARY
+   ═══════════════════════════════════════════════════════════════════════════ */
+function PayrollSummary({ payroll, unit }) {
+  if (!payroll.length) return null;
+
+  const active = payroll.filter(e => e.active);
+  const fired = payroll.filter(e => !e.active);
+
+  const sumGra = (arr) => arr.reduce((s, e) => s + Number(e.gra_balance || 0), 0);
+  const totalActive = sumGra(active);
+  const totalFired = sumGra(fired);
+  const grandTotal = totalActive + totalFired;
+
+  const sections = [
+    { key: 'active', label: 'Активные сотрудники', employees: active, total: totalActive, color: 'text-green-600', bg: 'bg-green-50' },
+    { key: 'fired', label: 'Уволенные', employees: fired, total: totalFired, color: 'text-rose-600', bg: 'bg-rose-50' },
+  ].filter(s => s.employees.length > 0);
+
+  return (
+    <div className="bg-white rounded-[18px] border border-gray-100 overflow-hidden mb-4">
+      <div className="px-4 py-3 border-b border-gray-100 bg-gray-50/50 flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-gray-700">Расчёт выплат</h3>
+        <span className="text-sm font-bold text-gray-900">{fmt(convert(grandTotal, unit))} {unitLabel(unit)}</span>
+      </div>
+      <div className="divide-y divide-gray-50">
+        {sections.map(sec => (
+          <div key={sec.key} className="px-4 py-3">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{sec.label} ({sec.employees.length})</span>
+              <span className={`text-sm font-bold ${sec.color}`}>{fmt(convert(sec.total, unit))} {unitLabel(unit)}</span>
+            </div>
+            <div className="space-y-1">
+              {sec.employees.map(e => (
+                <div key={e.id} className="flex items-center justify-between py-1">
+                  <div className="min-w-0 flex-1">
+                    <span className="text-sm text-gray-700 truncate block">{e.full_name}</span>
+                    {e.position && <span className="text-[10px] text-gray-400">{e.position}</span>}
+                  </div>
+                  <span className={`text-xs font-semibold ${sec.color} flex-shrink-0 ml-2`}>{fmt(convert(e.gra_balance, unit))} {unitLabel(unit)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

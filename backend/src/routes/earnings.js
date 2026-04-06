@@ -145,6 +145,16 @@ router.get('/summary', requireAuth, requirePermission('analytics', 'staff.view')
     ]);
 
     const allRates = await getAllGraRates(pool);
+
+    // Payroll summary — all employees with positive balance
+    const payrollResult = await pool.query(`
+      SELECT e.id, e.full_name, e.position, e.active,
+        COALESCE(e.gra_balance, 0) as gra_balance
+      FROM employees_s e
+      WHERE e.gra_balance > 0
+      ORDER BY e.gra_balance DESC
+    `);
+
     const result = {
       settings: {
         gra_inventory_scan_rate: rate,
@@ -153,6 +163,7 @@ router.get('/summary', requireAuth, requirePermission('analytics', 'staff.view')
       overview: overviewResult.rows[0] || {},
       leaders: leadersResult.rows,
       recent_adjustments: recentAdjustmentsResult.rows,
+      payroll: payrollResult.rows,
     };
     setCache(cacheKey, result);
     res.json(result);
