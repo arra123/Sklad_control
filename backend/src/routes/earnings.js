@@ -293,7 +293,7 @@ router.get('/employees/:employeeId', requireAuth, requirePermission('analytics',
           COALESCE(SUM(CASE WHEN ee.event_type IN ('external_order_pick','external_order_collect') AND ee.source = 'sborka-site' THEN ee.reward_units ELSE 0 END), 0) as sborka_units,
           MAX(ee.created_at) as last_earned_at
         FROM employees_s e
-        LEFT JOIN employee_earnings_s ee ON ee.employee_id = e.id
+        LEFT JOIN employee_earnings_s ee ON ee.employee_id = e.id ${periodFilter}
         WHERE e.id = $1
         GROUP BY e.id, e.full_name, e.gra_balance
       `, [employeeId]),
@@ -364,8 +364,8 @@ router.get('/employees/:employeeId', requireAuth, requirePermission('analytics',
         WHERE ee.employee_id = $1
           AND ee.event_type IN ('external_order_pick', 'external_order_collect')
           AND ee.source = 'sborka-site'
+          ${periodFilter}
         ORDER BY ee.created_at DESC
-        LIMIT 200
       `, [employeeId]),
       pool.query(`
         SELECT
@@ -374,7 +374,6 @@ router.get('/employees/:employeeId', requireAuth, requirePermission('analytics',
         WHERE sle.employee_id = $1
           ${liveFilter}
         ORDER BY sle.created_at DESC
-        LIMIT 2000
       `, [employeeId]),
     ]);
 
