@@ -4,6 +4,7 @@ import api from '../../../api/client';
 import Button from '../../../components/ui/Button';
 import Modal from '../../../components/ui/Modal';
 import Input from '../../../components/ui/Input';
+import Select from '../../../components/ui/Select';
 import SearchSelect from '../../../components/ui/SearchSelect';
 import CopyBadge from '../../../components/ui/CopyBadge';
 import { useToast } from '../../../components/ui/Toast';
