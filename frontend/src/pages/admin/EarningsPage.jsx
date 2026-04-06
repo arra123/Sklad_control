@@ -423,9 +423,13 @@ function EmployeeDetail({ detail, unit = 'gra' }) {
       const d = ensure(date);
       d.sborka += Number(s.amount_delta || 0);
       d.sborkaItems.push(s);
+      // Count orders from collects (authoritative source — more complete than live_events)
+      if (s.event_type === 'external_order_collect') {
+        d.orderCount += 1;
+      }
     });
 
-    // Live sborka events (picks + completed orders) — operational side
+    // Live sborka events — for expanded order list (order_id, product_name, time)
     liveEvents.forEach(e => {
       const date = e.created_at ? new Date(e.created_at).toLocaleDateString('ru-RU') : 'Без даты';
       const d = ensure(date);
@@ -433,7 +437,6 @@ function EmployeeDetail({ detail, unit = 'gra' }) {
         d.pickCount += 1;
         d.livePicks.push(e);
       } else if (e.event_type === 'order_complete') {
-        d.orderCount += 1;
         d.liveOrders.push(e);
       }
     });
@@ -446,7 +449,7 @@ function EmployeeDetail({ detail, unit = 'gra' }) {
   }, [tasks, sborka, liveEvents]);
 
   const totalSborka = Number(emp?.sborka_amount || 0);
-  const totalOrders = liveEvents.filter(e => e.event_type === 'order_complete').length;
+  const totalOrders = sborka.filter(s => s.event_type === 'external_order_collect').length;
 
   return (
     <>
