@@ -141,12 +141,46 @@ router.put('/warehouses/:id', requireAuth, requirePermission('warehouse.edit'), 
 
 // DELETE /api/warehouse/warehouses/:id
 router.delete('/warehouses/:id', requireAuth, requirePermission('warehouse.edit'), async (req, res) => {
+  const client = await pool.connect();
   try {
-    await pool.query('DELETE FROM warehouses_s WHERE id = $1', [req.params.id]);
+    await client.query('BEGIN');
+    // Cascade: shelf_box_items → shelf_boxes → shelf_items → shelves → racks
+    const racks = await client.query('SELECT id FROM racks_s WHERE warehouse_id=$1', [req.params.id]);
+    const rackIds = racks.rows.map(r => r.id);
+    if (rackIds.length) {
+      const shelves = await client.query('SELECT id FROM shelves_s WHERE rack_id = ANY($1)', [rackIds]);
+      const shelfIds = shelves.rows.map(s => s.id);
+      if (shelfIds.length) {
+        const sboxes = await client.query('SELECT id FROM shelf_boxes_s WHERE shelf_id = ANY($1)', [shelfIds]);
+        const sboxIds = sboxes.rows.map(b => b.id);
+        if (sboxIds.length) await client.query('DELETE FROM shelf_box_items_s WHERE shelf_box_id = ANY($1)', [sboxIds]);
+        await client.query('DELETE FROM shelf_boxes_s WHERE shelf_id = ANY($1)', [shelfIds]);
+        await client.query('DELETE FROM shelf_items_s WHERE shelf_id = ANY($1)', [shelfIds]);
+      }
+      await client.query('DELETE FROM shelves_s WHERE rack_id = ANY($1)', [rackIds]);
+    }
+    await client.query('DELETE FROM racks_s WHERE warehouse_id=$1', [req.params.id]);
+    // Also FBO side: rows → pallets → boxes → items
+    const rows = await client.query('SELECT id FROM pallet_rows_s WHERE warehouse_id=$1', [req.params.id]);
+    const rowIds = rows.rows.map(r => r.id);
+    if (rowIds.length) {
+      const pallets = await client.query('SELECT id FROM pallets_s WHERE row_id = ANY($1)', [rowIds]);
+      const palletIds = pallets.rows.map(p => p.id);
+      if (palletIds.length) {
+        const boxes = await client.query('SELECT id FROM boxes_s WHERE pallet_id = ANY($1)', [palletIds]);
+        const boxIds = boxes.rows.map(b => b.id);
+        if (boxIds.length) await client.query('DELETE FROM box_items_s WHERE box_id = ANY($1)', [boxIds]);
+        await client.query('DELETE FROM boxes_s WHERE pallet_id = ANY($1)', [palletIds]);
+        await client.query('DELETE FROM pallet_items_s WHERE pallet_id = ANY($1)', [palletIds]);
+      }
+      await client.query('DELETE FROM pallets_s WHERE row_id = ANY($1)', [rowIds]);
+    }
+    await client.query('DELETE FROM pallet_rows_s WHERE warehouse_id=$1', [req.params.id]);
+    await client.query('DELETE FROM warehouses_s WHERE id=$1', [req.params.id]);
+    await client.query('COMMIT');
     res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  } catch (err) { await client.query('ROLLBACK'); res.status(500).json({ error: err.message }); }
+  finally { client.release(); }
 });
 
 // ─── Racks ────────────────────────────────────────────────────────────────────
@@ -254,12 +288,24 @@ router.put('/racks/:id', requireAuth, requirePermission('warehouse.edit'), async
 
 // DELETE /api/warehouse/racks/:id
 router.delete('/racks/:id', requireAuth, requirePermission('warehouse.edit'), async (req, res) => {
+  const client = await pool.connect();
   try {
-    await pool.query('DELETE FROM racks_s WHERE id = $1', [req.params.id]);
+    await client.query('BEGIN');
+    const shelves = await client.query('SELECT id FROM shelves_s WHERE rack_id=$1', [req.params.id]);
+    const shelfIds = shelves.rows.map(s => s.id);
+    if (shelfIds.length) {
+      const sboxes = await client.query('SELECT id FROM shelf_boxes_s WHERE shelf_id = ANY($1)', [shelfIds]);
+      const sboxIds = sboxes.rows.map(b => b.id);
+      if (sboxIds.length) await client.query('DELETE FROM shelf_box_items_s WHERE shelf_box_id = ANY($1)', [sboxIds]);
+      await client.query('DELETE FROM shelf_boxes_s WHERE shelf_id = ANY($1)', [shelfIds]);
+      await client.query('DELETE FROM shelf_items_s WHERE shelf_id = ANY($1)', [shelfIds]);
+    }
+    await client.query('DELETE FROM shelves_s WHERE rack_id=$1', [req.params.id]);
+    await client.query('DELETE FROM racks_s WHERE id=$1', [req.params.id]);
+    await client.query('COMMIT');
     res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  } catch (err) { await client.query('ROLLBACK'); res.status(500).json({ error: err.message }); }
+  finally { client.release(); }
 });
 
 // ─── Shelves ──────────────────────────────────────────────────────────────────
@@ -379,12 +425,19 @@ router.put('/shelves/:id', requireAuth, requirePermission('warehouse.edit'), asy
 
 // DELETE /api/warehouse/shelves/:id
 router.delete('/shelves/:id', requireAuth, requirePermission('warehouse.edit'), async (req, res) => {
+  const client = await pool.connect();
   try {
-    await pool.query('DELETE FROM shelves_s WHERE id = $1', [req.params.id]);
+    await client.query('BEGIN');
+    const sboxes = await client.query('SELECT id FROM shelf_boxes_s WHERE shelf_id=$1', [req.params.id]);
+    const sboxIds = sboxes.rows.map(b => b.id);
+    if (sboxIds.length) await client.query('DELETE FROM shelf_box_items_s WHERE shelf_box_id = ANY($1)', [sboxIds]);
+    await client.query('DELETE FROM shelf_boxes_s WHERE shelf_id=$1', [req.params.id]);
+    await client.query('DELETE FROM shelf_items_s WHERE shelf_id=$1', [req.params.id]);
+    await client.query('DELETE FROM shelves_s WHERE id=$1', [req.params.id]);
+    await client.query('COMMIT');
     res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  } catch (err) { await client.query('ROLLBACK'); res.status(500).json({ error: err.message }); }
+  finally { client.release(); }
 });
 
 // ─── Shelf Item Operations ────────────────────────────────────────────────────
@@ -642,6 +695,7 @@ router.delete('/shelf-boxes/:id', requireAuth, requirePermission('warehouse.edit
       );
     }
 
+    await pool.query('DELETE FROM shelf_box_items_s WHERE shelf_box_id = $1', [req.params.id]);
     await pool.query('DELETE FROM shelf_boxes_s WHERE id = $1', [req.params.id]);
     res.json({ success: true });
   } catch (err) {

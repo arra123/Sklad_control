@@ -93,12 +93,26 @@ router.put('/rows/:id', requireAuth, requirePermission('warehouse.edit'), async 
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// DELETE /api/fbo/rows/:id
+// DELETE /api/fbo/rows/:id (cascade: items → boxes → pallets → row)
 router.delete('/rows/:id', requireAuth, requirePermission('warehouse.edit'), async (req, res) => {
+  const client = await pool.connect();
   try {
-    await pool.query('DELETE FROM pallet_rows_s WHERE id=$1', [req.params.id]);
+    await client.query('BEGIN');
+    const pallets = await client.query('SELECT id FROM pallets_s WHERE row_id=$1', [req.params.id]);
+    const palletIds = pallets.rows.map(p => p.id);
+    if (palletIds.length) {
+      const boxes = await client.query('SELECT id FROM boxes_s WHERE pallet_id = ANY($1)', [palletIds]);
+      const boxIds = boxes.rows.map(b => b.id);
+      if (boxIds.length) await client.query('DELETE FROM box_items_s WHERE box_id = ANY($1)', [boxIds]);
+      await client.query('DELETE FROM boxes_s WHERE pallet_id = ANY($1)', [palletIds]);
+      await client.query('DELETE FROM pallet_items_s WHERE pallet_id = ANY($1)', [palletIds]);
+    }
+    await client.query('DELETE FROM pallets_s WHERE row_id=$1', [req.params.id]);
+    await client.query('DELETE FROM pallet_rows_s WHERE id=$1', [req.params.id]);
+    await client.query('COMMIT');
     res.json({ success: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { await client.query('ROLLBACK'); res.status(500).json({ error: err.message }); }
+  finally { client.release(); }
 });
 
 // GET /api/fbo/rows/:id — row with pallets
@@ -285,12 +299,21 @@ router.put('/pallets/:id', requireAuth, requirePermission('warehouse.edit'), asy
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// DELETE /api/fbo/pallets/:id
+// DELETE /api/fbo/pallets/:id (cascade: items → boxes → pallet)
 router.delete('/pallets/:id', requireAuth, requirePermission('warehouse.edit'), async (req, res) => {
+  const client = await pool.connect();
   try {
-    await pool.query('DELETE FROM pallets_s WHERE id=$1', [req.params.id]);
+    await client.query('BEGIN');
+    const boxes = await client.query('SELECT id FROM boxes_s WHERE pallet_id=$1', [req.params.id]);
+    const boxIds = boxes.rows.map(b => b.id);
+    if (boxIds.length) await client.query('DELETE FROM box_items_s WHERE box_id = ANY($1)', [boxIds]);
+    await client.query('DELETE FROM boxes_s WHERE pallet_id=$1', [req.params.id]);
+    await client.query('DELETE FROM pallet_items_s WHERE pallet_id=$1', [req.params.id]);
+    await client.query('DELETE FROM pallets_s WHERE id=$1', [req.params.id]);
+    await client.query('COMMIT');
     res.json({ success: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { await client.query('ROLLBACK'); res.status(500).json({ error: err.message }); }
+  finally { client.release(); }
 });
 
 // GET /api/fbo/pallets/:id — pallet with boxes
@@ -451,6 +474,7 @@ router.delete('/boxes/:id', requireAuth, requirePermission('warehouse.edit'), as
       );
     }
 
+    await pool.query('DELETE FROM box_items_s WHERE box_id=$1', [req.params.id]);
     const result = await pool.query('DELETE FROM boxes_s WHERE id=$1 RETURNING id', [req.params.id]);
     res.json({ success: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
