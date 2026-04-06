@@ -1523,7 +1523,12 @@ router.get('/analytics/live', requireAuth, requirePermission('analytics', 'dashb
         (SELECT sle.created_at FROM sborka_live_events_s sle
           WHERE sle.employee_id = e.id
             AND sle.created_at >= ${dateFilterSql} AND sle.created_at < ${dateFilterSql} + INTERVAL '1 day'
-          ORDER BY sle.created_at DESC LIMIT 1) as last_sborka_at
+          ORDER BY sle.created_at DESC LIMIT 1) as last_sborka_at,
+        -- Active break
+        (SELECT json_build_object('id', eb.id, 'break_type', eb.break_type, 'started_at', eb.started_at)
+          FROM employee_breaks_s eb
+          WHERE eb.employee_id = e.id AND eb.ended_at IS NULL
+          ORDER BY eb.started_at DESC LIMIT 1) as active_break
       FROM employees_s e
       WHERE e.active = true
         AND (

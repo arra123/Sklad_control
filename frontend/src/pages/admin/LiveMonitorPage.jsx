@@ -976,18 +976,25 @@ function SborkaOrdersSection({ events }) {
 
 // ─── Employee Card ──────────────────────────────────────────────────────────
 
+const BREAK_LABELS = { lunch: 'Обед', rest: 'Перекур', tech: 'Тех. пауза' };
+const BREAK_COLORS = { lunch: 'bg-rose-100 text-rose-700', rest: 'bg-sky-100 text-sky-700', tech: 'bg-amber-100 text-amber-700' };
+
 function EmployeeCard({ emp, onClick }) {
   const task = emp.active_task;
+  const brk = emp.active_break;
   const isActive = task && task.status === 'in_progress';
   const lastScanRecent = emp.last_scan_at && (Date.now() - new Date(emp.last_scan_at).getTime()) < 120000;
   const lastSborkaRecent = emp.last_sborka_at && (Date.now() - new Date(emp.last_sborka_at).getTime()) < 120000;
-  const isAnythingLive = isActive && lastScanRecent || lastSborkaRecent;
+  const isAnythingLive = (isActive && lastScanRecent) || lastSborkaRecent;
+  const onBreak = !!brk;
 
-  const statusDot = isAnythingLive
-    ? <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" /><span className="text-[10px] font-bold text-green-600">LIVE</span></span>
-    : isActive
-      ? <span className="w-2 h-2 rounded-full bg-amber-400 inline-block" />
-      : <span className="w-2 h-2 rounded-full bg-gray-200 inline-block" />;
+  const statusDot = onBreak
+    ? <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-sky-400 animate-pulse" /><span className="text-[10px] font-bold text-sky-600">{BREAK_LABELS[brk.break_type] || 'Пауза'}</span></span>
+    : isAnythingLive
+      ? <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" /><span className="text-[10px] font-bold text-green-600">LIVE</span></span>
+      : isActive
+        ? <span className="w-2 h-2 rounded-full bg-amber-400 inline-block" />
+        : <span className="w-2 h-2 rounded-full bg-gray-200 inline-block" />;
 
   return (
     <button onClick={onClick} className="w-full text-left bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-primary-200 transition-all p-3.5 flex flex-col">
