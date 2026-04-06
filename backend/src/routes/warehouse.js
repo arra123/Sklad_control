@@ -2,6 +2,27 @@ const router = require('express').Router();
 const pool = require('../db/pool');
 const { requireAuth, requirePermission } = require('../middleware/auth');
 
+// Nullify FK refs in history/logs/tasks before cascade delete
+async function nullifyShelfRefs(client, shelfIds) {
+  if (!shelfIds.length) return;
+  await client.query('UPDATE inventory_tasks_s SET shelf_id=NULL WHERE shelf_id=ANY($1)', [shelfIds]);
+  await client.query('UPDATE inventory_tasks_s SET dest_shelf_id=NULL WHERE dest_shelf_id=ANY($1)', [shelfIds]);
+  await client.query('UPDATE assembly_items_s SET source_shelf_id=NULL WHERE source_shelf_id=ANY($1)', [shelfIds]);
+  await client.query('UPDATE movements_s SET from_shelf_id=NULL WHERE from_shelf_id=ANY($1)', [shelfIds]);
+  await client.query('UPDATE movements_s SET to_shelf_id=NULL WHERE to_shelf_id=ANY($1)', [shelfIds]);
+  await client.query('UPDATE employee_earnings_s SET shelf_id=NULL WHERE shelf_id=ANY($1)', [shelfIds]);
+  await client.query('UPDATE shelf_movements_s SET shelf_id=NULL WHERE shelf_id=ANY($1)', [shelfIds]);
+  await client.query('UPDATE boxes_s SET remainder_shelf_id=NULL WHERE remainder_shelf_id=ANY($1)', [shelfIds]);
+}
+async function nullifyShelfBoxRefs(client, sboxIds) {
+  if (!sboxIds.length) return;
+  await client.query('UPDATE inventory_task_boxes_s SET shelf_box_id=NULL WHERE shelf_box_id=ANY($1)', [sboxIds]);
+  await client.query('UPDATE inventory_tasks_s SET target_shelf_box_id=NULL WHERE target_shelf_box_id=ANY($1)', [sboxIds]);
+  await client.query('UPDATE employee_earnings_s SET shelf_box_id=NULL WHERE shelf_box_id=ANY($1)', [sboxIds]);
+  await client.query('UPDATE movements_s SET from_shelf_box_id=NULL WHERE from_shelf_box_id=ANY($1)', [sboxIds]);
+  await client.query('UPDATE movements_s SET to_shelf_box_id=NULL WHERE to_shelf_box_id=ANY($1)', [sboxIds]);
+}
+
 function parseBoolean(value, fallback = false) {
   if (value === undefined || value === null || value === '') return fallback;
   if (typeof value === 'boolean') return value;
@@ -151,9 +172,13 @@ router.delete('/warehouses/:id', requireAuth, requirePermission('warehouse.edit'
       const shelves = await client.query('SELECT id FROM shelves_s WHERE rack_id = ANY($1)', [rackIds]);
       const shelfIds = shelves.rows.map(s => s.id);
       if (shelfIds.length) {
+        await nullifyShelfRefs(client, shelfIds);
         const sboxes = await client.query('SELECT id FROM shelf_boxes_s WHERE shelf_id = ANY($1)', [shelfIds]);
         const sboxIds = sboxes.rows.map(b => b.id);
-        if (sboxIds.length) await client.query('DELETE FROM shelf_box_items_s WHERE shelf_box_id = ANY($1)', [sboxIds]);
+        if (sboxIds.length) {
+          await nullifyShelfBoxRefs(client, sboxIds);
+          await client.query('DELETE FROM shelf_box_items_s WHERE shelf_box_id = ANY($1)', [sboxIds]);
+        }
         await client.query('DELETE FROM shelf_boxes_s WHERE shelf_id = ANY($1)', [shelfIds]);
         await client.query('DELETE FROM shelf_items_s WHERE shelf_id = ANY($1)', [shelfIds]);
       }
@@ -167,9 +192,22 @@ router.delete('/warehouses/:id', requireAuth, requirePermission('warehouse.edit'
       const pallets = await client.query('SELECT id FROM pallets_s WHERE row_id = ANY($1)', [rowIds]);
       const palletIds = pallets.rows.map(p => p.id);
       if (palletIds.length) {
+        await client.query('UPDATE inventory_tasks_s SET target_pallet_id=NULL WHERE target_pallet_id=ANY($1)', [palletIds]);
+        await client.query('UPDATE inventory_tasks_s SET dest_pallet_id=NULL WHERE dest_pallet_id=ANY($1)', [palletIds]);
+        await client.query('UPDATE assembly_items_s SET source_pallet_id=NULL WHERE source_pallet_id=ANY($1)', [palletIds]);
+        await client.query('UPDATE movements_s SET from_pallet_id=NULL WHERE from_pallet_id=ANY($1)', [palletIds]);
+        await client.query('UPDATE movements_s SET to_pallet_id=NULL WHERE to_pallet_id=ANY($1)', [palletIds]);
         const boxes = await client.query('SELECT id FROM boxes_s WHERE pallet_id = ANY($1)', [palletIds]);
         const boxIds = boxes.rows.map(b => b.id);
-        if (boxIds.length) await client.query('DELETE FROM box_items_s WHERE box_id = ANY($1)', [boxIds]);
+        if (boxIds.length) {
+          await client.query('UPDATE inventory_tasks_s SET target_box_id=NULL WHERE target_box_id=ANY($1)', [boxIds]);
+          await client.query('UPDATE inventory_task_boxes_s SET box_id=NULL WHERE box_id=ANY($1)', [boxIds]);
+          await client.query('UPDATE assembly_items_s SET source_box_id=NULL WHERE source_box_id=ANY($1)', [boxIds]);
+          await client.query('UPDATE movements_s SET from_box_id=NULL WHERE from_box_id=ANY($1)', [boxIds]);
+          await client.query('UPDATE movements_s SET to_box_id=NULL WHERE to_box_id=ANY($1)', [boxIds]);
+          await client.query('UPDATE employee_earnings_s SET box_id=NULL WHERE box_id=ANY($1)', [boxIds]);
+          await client.query('DELETE FROM box_items_s WHERE box_id = ANY($1)', [boxIds]);
+        }
         await client.query('DELETE FROM boxes_s WHERE pallet_id = ANY($1)', [palletIds]);
         await client.query('DELETE FROM pallet_items_s WHERE pallet_id = ANY($1)', [palletIds]);
       }
@@ -294,9 +332,13 @@ router.delete('/racks/:id', requireAuth, requirePermission('warehouse.edit'), as
     const shelves = await client.query('SELECT id FROM shelves_s WHERE rack_id=$1', [req.params.id]);
     const shelfIds = shelves.rows.map(s => s.id);
     if (shelfIds.length) {
+      await nullifyShelfRefs(client, shelfIds);
       const sboxes = await client.query('SELECT id FROM shelf_boxes_s WHERE shelf_id = ANY($1)', [shelfIds]);
       const sboxIds = sboxes.rows.map(b => b.id);
-      if (sboxIds.length) await client.query('DELETE FROM shelf_box_items_s WHERE shelf_box_id = ANY($1)', [sboxIds]);
+      if (sboxIds.length) {
+        await nullifyShelfBoxRefs(client, sboxIds);
+        await client.query('DELETE FROM shelf_box_items_s WHERE shelf_box_id = ANY($1)', [sboxIds]);
+      }
       await client.query('DELETE FROM shelf_boxes_s WHERE shelf_id = ANY($1)', [shelfIds]);
       await client.query('DELETE FROM shelf_items_s WHERE shelf_id = ANY($1)', [shelfIds]);
     }
@@ -428,9 +470,14 @@ router.delete('/shelves/:id', requireAuth, requirePermission('warehouse.edit'), 
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+    const sid = [parseInt(req.params.id)];
+    await nullifyShelfRefs(client, sid);
     const sboxes = await client.query('SELECT id FROM shelf_boxes_s WHERE shelf_id=$1', [req.params.id]);
     const sboxIds = sboxes.rows.map(b => b.id);
-    if (sboxIds.length) await client.query('DELETE FROM shelf_box_items_s WHERE shelf_box_id = ANY($1)', [sboxIds]);
+    if (sboxIds.length) {
+      await nullifyShelfBoxRefs(client, sboxIds);
+      await client.query('DELETE FROM shelf_box_items_s WHERE shelf_box_id = ANY($1)', [sboxIds]);
+    }
     await client.query('DELETE FROM shelf_boxes_s WHERE shelf_id=$1', [req.params.id]);
     await client.query('DELETE FROM shelf_items_s WHERE shelf_id=$1', [req.params.id]);
     await client.query('DELETE FROM shelves_s WHERE id=$1', [req.params.id]);
@@ -695,6 +742,7 @@ router.delete('/shelf-boxes/:id', requireAuth, requirePermission('warehouse.edit
       );
     }
 
+    await nullifyShelfBoxRefs(pool, [parseInt(req.params.id)]);
     await pool.query('DELETE FROM shelf_box_items_s WHERE shelf_box_id = $1', [req.params.id]);
     await pool.query('DELETE FROM shelf_boxes_s WHERE id = $1', [req.params.id]);
     res.json({ success: true });

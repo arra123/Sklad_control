@@ -93,7 +93,7 @@ router.put('/rows/:id', requireAuth, requirePermission('warehouse.edit'), async 
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// DELETE /api/fbo/rows/:id (cascade: items → boxes → pallets → row)
+// DELETE /api/fbo/rows/:id (cascade: nullify refs → items → boxes → pallets → row)
 router.delete('/rows/:id', requireAuth, requirePermission('warehouse.edit'), async (req, res) => {
   const client = await pool.connect();
   try {
@@ -103,7 +103,21 @@ router.delete('/rows/:id', requireAuth, requirePermission('warehouse.edit'), asy
     if (palletIds.length) {
       const boxes = await client.query('SELECT id FROM boxes_s WHERE pallet_id = ANY($1)', [palletIds]);
       const boxIds = boxes.rows.map(b => b.id);
-      if (boxIds.length) await client.query('DELETE FROM box_items_s WHERE box_id = ANY($1)', [boxIds]);
+      // Nullify FK refs
+      await client.query('UPDATE inventory_tasks_s SET target_pallet_id=NULL WHERE target_pallet_id=ANY($1)', [palletIds]);
+      await client.query('UPDATE inventory_tasks_s SET dest_pallet_id=NULL WHERE dest_pallet_id=ANY($1)', [palletIds]);
+      await client.query('UPDATE assembly_items_s SET source_pallet_id=NULL WHERE source_pallet_id=ANY($1)', [palletIds]);
+      await client.query('UPDATE movements_s SET from_pallet_id=NULL WHERE from_pallet_id=ANY($1)', [palletIds]);
+      await client.query('UPDATE movements_s SET to_pallet_id=NULL WHERE to_pallet_id=ANY($1)', [palletIds]);
+      if (boxIds.length) {
+        await client.query('UPDATE inventory_tasks_s SET target_box_id=NULL WHERE target_box_id=ANY($1)', [boxIds]);
+        await client.query('UPDATE inventory_task_boxes_s SET box_id=NULL WHERE box_id=ANY($1)', [boxIds]);
+        await client.query('UPDATE assembly_items_s SET source_box_id=NULL WHERE source_box_id=ANY($1)', [boxIds]);
+        await client.query('UPDATE movements_s SET from_box_id=NULL WHERE from_box_id=ANY($1)', [boxIds]);
+        await client.query('UPDATE movements_s SET to_box_id=NULL WHERE to_box_id=ANY($1)', [boxIds]);
+        await client.query('UPDATE employee_earnings_s SET box_id=NULL WHERE box_id=ANY($1)', [boxIds]);
+        await client.query('DELETE FROM box_items_s WHERE box_id = ANY($1)', [boxIds]);
+      }
       await client.query('DELETE FROM boxes_s WHERE pallet_id = ANY($1)', [palletIds]);
       await client.query('DELETE FROM pallet_items_s WHERE pallet_id = ANY($1)', [palletIds]);
     }
@@ -299,17 +313,32 @@ router.put('/pallets/:id', requireAuth, requirePermission('warehouse.edit'), asy
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// DELETE /api/fbo/pallets/:id (cascade: items → boxes → pallet)
+// DELETE /api/fbo/pallets/:id (cascade: nullify refs → items → boxes → pallet)
 router.delete('/pallets/:id', requireAuth, requirePermission('warehouse.edit'), async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    const boxes = await client.query('SELECT id FROM boxes_s WHERE pallet_id=$1', [req.params.id]);
+    const pid = req.params.id;
+    const boxes = await client.query('SELECT id FROM boxes_s WHERE pallet_id=$1', [pid]);
     const boxIds = boxes.rows.map(b => b.id);
-    if (boxIds.length) await client.query('DELETE FROM box_items_s WHERE box_id = ANY($1)', [boxIds]);
-    await client.query('DELETE FROM boxes_s WHERE pallet_id=$1', [req.params.id]);
-    await client.query('DELETE FROM pallet_items_s WHERE pallet_id=$1', [req.params.id]);
-    await client.query('DELETE FROM pallets_s WHERE id=$1', [req.params.id]);
+    // Nullify FK refs in logs/history/tasks
+    await client.query('UPDATE inventory_tasks_s SET target_pallet_id=NULL WHERE target_pallet_id=$1', [pid]);
+    await client.query('UPDATE inventory_tasks_s SET dest_pallet_id=NULL WHERE dest_pallet_id=$1', [pid]);
+    await client.query('UPDATE assembly_items_s SET source_pallet_id=NULL WHERE source_pallet_id=$1', [pid]);
+    await client.query('UPDATE movements_s SET from_pallet_id=NULL WHERE from_pallet_id=$1', [pid]);
+    await client.query('UPDATE movements_s SET to_pallet_id=NULL WHERE to_pallet_id=$1', [pid]);
+    if (boxIds.length) {
+      await client.query('UPDATE inventory_tasks_s SET target_box_id=NULL WHERE target_box_id=ANY($1)', [boxIds]);
+      await client.query('UPDATE inventory_task_boxes_s SET box_id=NULL WHERE box_id=ANY($1)', [boxIds]);
+      await client.query('UPDATE assembly_items_s SET source_box_id=NULL WHERE source_box_id=ANY($1)', [boxIds]);
+      await client.query('UPDATE movements_s SET from_box_id=NULL WHERE from_box_id=ANY($1)', [boxIds]);
+      await client.query('UPDATE movements_s SET to_box_id=NULL WHERE to_box_id=ANY($1)', [boxIds]);
+      await client.query('UPDATE employee_earnings_s SET box_id=NULL WHERE box_id=ANY($1)', [boxIds]);
+      await client.query('DELETE FROM box_items_s WHERE box_id=ANY($1)', [boxIds]);
+    }
+    await client.query('DELETE FROM boxes_s WHERE pallet_id=$1', [pid]);
+    await client.query('DELETE FROM pallet_items_s WHERE pallet_id=$1', [pid]);
+    await client.query('DELETE FROM pallets_s WHERE id=$1', [pid]);
     await client.query('COMMIT');
     res.json({ success: true });
   } catch (err) { await client.query('ROLLBACK'); res.status(500).json({ error: err.message }); }
@@ -474,8 +503,15 @@ router.delete('/boxes/:id', requireAuth, requirePermission('warehouse.edit'), as
       );
     }
 
-    await pool.query('DELETE FROM box_items_s WHERE box_id=$1', [req.params.id]);
-    const result = await pool.query('DELETE FROM boxes_s WHERE id=$1 RETURNING id', [req.params.id]);
+    const bid = req.params.id;
+    await pool.query('UPDATE inventory_task_boxes_s SET box_id=NULL WHERE box_id=$1', [bid]);
+    await pool.query('UPDATE inventory_tasks_s SET target_box_id=NULL WHERE target_box_id=$1', [bid]);
+    await pool.query('UPDATE assembly_items_s SET source_box_id=NULL WHERE source_box_id=$1', [bid]);
+    await pool.query('UPDATE movements_s SET from_box_id=NULL WHERE from_box_id=$1', [bid]);
+    await pool.query('UPDATE movements_s SET to_box_id=NULL WHERE to_box_id=$1', [bid]);
+    await pool.query('UPDATE employee_earnings_s SET box_id=NULL WHERE box_id=$1', [bid]);
+    await pool.query('DELETE FROM box_items_s WHERE box_id=$1', [bid]);
+    const result = await pool.query('DELETE FROM boxes_s WHERE id=$1 RETURNING id', [bid]);
     res.json({ success: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
