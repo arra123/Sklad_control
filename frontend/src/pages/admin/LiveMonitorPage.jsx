@@ -880,40 +880,92 @@ function EmployeeDetailView({ employeeId, employees, onBack, thresholds, date, i
   );
 }
 
-// ─── Sborka orders section ──────────────────────────────────────────────────
+// ─── Sborka orders section (grouped into sessions by 5-min gap) ─────────────
+function groupIntoSessions(completedOrders, gapMs = 5 * 60 * 1000) {
+  if (!completedOrders.length) return [];
+  const sorted = [...completedOrders].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+  const sessions = [];
+  let cur = { orders: [sorted[0]], start: new Date(sorted[0].created_at), end: new Date(sorted[0].created_at) };
+  for (let i = 1; i < sorted.length; i++) {
+    const t = new Date(sorted[i].created_at);
+    if (t - cur.end <= gapMs) {
+      cur.orders.push(sorted[i]);
+      cur.end = t;
+    } else {
+      sessions.push(cur);
+      cur = { orders: [sorted[i]], start: t, end: t };
+    }
+  }
+  sessions.push(cur);
+  return sessions;
+}
+
 function SborkaOrdersSection({ events }) {
   const completed = events.filter(e => e.event_type === 'order_complete');
-  const picks = events.filter(e => e.event_type === 'pick');
-  if (completed.length === 0 && picks.length === 0) return null;
+  if (completed.length === 0) return null;
 
-  // Join order_start (has product_name) with order_complete by order_id
   const startsByOrder = {};
   events.filter(e => e.event_type === 'order_start').forEach(e => {
     if (e.order_id) startsByOrder[e.order_id] = e;
   });
 
+  const sessions = groupIntoSessions(completed);
+  const [expandedSession, setExpandedSession] = useState(null);
+
   return (
     <div className="mt-5">
-      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
-        Сборка заказов ({completed.length}{picks.length > 0 ? ` · ${picks.length} пиков` : ''})
+      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+        Сборка заказов — {sessions.length} {sessions.length === 1 ? 'сессия' : 'сессий'} · {completed.length} заказов
       </p>
-      <div className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
-        {completed.slice().reverse().map(o => {
-          const start = startsByOrder[o.order_id];
-          const product = start?.product_name;
+      <div className="space-y-2">
+        {sessions.map((s, i) => {
+          const isOpen = expandedSession === i;
+          const dur = (s.end - s.start) / 1000;
+          const mps = {};
+          s.orders.forEach(o => { const mp = (o.marketplace || '—').toUpperCase(); mps[mp] = (mps[mp] || 0) + 1; });
           return (
-            <div key={o.id} className="bg-white rounded-xl border border-gray-100 p-3 flex items-center gap-3">
-              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-fuchsia-100 text-fuchsia-700 uppercase flex-shrink-0">
-                {o.marketplace || '—'}
-              </span>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-gray-900 truncate">{o.order_id || '—'}</p>
-                {product && <p className="text-[11px] text-gray-400 truncate">{product}</p>}
-              </div>
-              <div className="text-right flex-shrink-0">
-                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-green-50 text-green-600">готов</span>
-                <p className="text-[11px] text-gray-400 mt-0.5">{new Date(o.created_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</p>
-              </div>
+            <div key={i} className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+              <button
+                onClick={() => setExpandedSession(isOpen ? null : i)}
+                className="w-full flex items-center gap-3 p-3 text-left hover:bg-gray-50 transition-colors"
+              >
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-fuchsia-100 text-fuchsia-700 flex-shrink-0">
+                  Сборка
+                </span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900">
+                    {s.orders.length} заказов
+                    <span className="text-gray-400 text-xs ml-1.5">
+                      {Object.entries(mps).map(([k, v]) => `${k}: ${v}`).join(' · ')}
+                    </span>
+                  </p>
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <p className="text-xs text-gray-500">
+                    {fmtTime(s.start.toISOString())} → {fmtTime(s.end.toISOString())}
+                  </p>
+                  {dur > 0 && <p className="text-[10px] text-gray-400">{fmtDuration(dur)}</p>}
+                </div>
+                <ChevronDown size={14} className={`text-gray-300 transition-transform flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {isOpen && (
+                <div className="px-3 pb-3 border-t border-gray-50 max-h-[300px] overflow-y-auto space-y-1 pt-2">
+                  {s.orders.map(o => {
+                    const start = startsByOrder[o.order_id];
+                    return (
+                      <div key={o.id} className="flex items-center justify-between gap-2 bg-gray-50 rounded-lg px-2.5 py-1.5">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-medium text-gray-800 truncate">{o.order_id || '—'}</p>
+                          {start?.product_name && <p className="text-[10px] text-gray-400 truncate">{start.product_name}</p>}
+                        </div>
+                        <span className="text-[10px] text-gray-400 flex-shrink-0">
+                          {(o.marketplace || '').toUpperCase()} · {new Date(o.created_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           );
         })}
@@ -928,8 +980,10 @@ function EmployeeCard({ emp, onClick }) {
   const task = emp.active_task;
   const isActive = task && task.status === 'in_progress';
   const lastScanRecent = emp.last_scan_at && (Date.now() - new Date(emp.last_scan_at).getTime()) < 120000;
+  const lastSborkaRecent = emp.last_sborka_at && (Date.now() - new Date(emp.last_sborka_at).getTime()) < 120000;
+  const isAnythingLive = isActive && lastScanRecent || lastSborkaRecent;
 
-  const statusDot = isActive && lastScanRecent
+  const statusDot = isAnythingLive
     ? <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" /><span className="text-[10px] font-bold text-green-600">LIVE</span></span>
     : isActive
       ? <span className="w-2 h-2 rounded-full bg-amber-400 inline-block" />
@@ -959,6 +1013,14 @@ function EmployeeCard({ emp, onClick }) {
               {task.scans > 0 && <span>· {fmtCompact(task.scans)}</span>}
               {task.boxes_total > 0 && <span>· {task.boxes_done}/{task.boxes_total}</span>}
               {task.type === 'bundle_assembly' && <span>· {task.assembled}/{task.bundle_qty}</span>}
+            </div>
+          </div>
+        ) : Number(emp.sborka_orders_today) > 0 ? (
+          <div className="px-2 py-1.5 bg-fuchsia-50 rounded-lg border border-fuchsia-100 h-full overflow-hidden">
+            <p className="text-[11px] font-semibold text-fuchsia-700 truncate leading-tight">Сборка заказов</p>
+            <div className="flex items-center gap-1 mt-1 text-[9px] text-fuchsia-500 flex-wrap leading-tight">
+              <span className="bg-fuchsia-100 rounded px-1 py-px font-bold">Сборка</span>
+              <span>· {emp.sborka_orders_today} заказов</span>
             </div>
           </div>
         ) : (
