@@ -23,7 +23,7 @@ function ScanInput({ onScan, placeholder, disabled, autoFocus = true }) {
   };
   return (
     <input ref={inputRef} value={value} onChange={handleChange}
-      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); const v = value.trim(); if (v) { onScan(v); setValue(''); } } }}
+      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); clearTimeout(timerRef.current); const v = value.trim(); if (v) { onScan(v); setValue(''); } } }}
       placeholder={placeholder} disabled={disabled}
       className="w-full px-4 py-3.5 rounded-2xl border-2 border-dashed border-primary-300 focus:border-primary-500 focus:border-solid bg-white text-center text-lg font-mono transition-all outline-none disabled:opacity-40" />
   );

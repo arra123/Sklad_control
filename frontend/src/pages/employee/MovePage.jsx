@@ -36,7 +36,7 @@ function ScanInput({ onScan, placeholder, disabled, autoFocus = true }) {
         ref={inputRef}
         value={value}
         onChange={handleChange}
-        onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); submit(); } }}
+        onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); clearTimeout(timerRef.current); submit(); } }}
         placeholder={placeholder}
         disabled={disabled}
         className="scan-input relative w-full px-4 py-4 rounded-2xl border-2 border-dashed border-primary-300 focus:border-primary-500 focus:border-solid bg-white text-center text-lg font-mono transition-all outline-none disabled:opacity-40"
