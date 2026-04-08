@@ -167,21 +167,46 @@ function CopyBtn({ text, label }) {
   );
 }
 
-// ─── Users Table (grouped by role + status) ──────────────────────────────────
+// ─── Users Table (переключаемая группировка) ─────────────────────────────────
 //
-// Источники users:
-// - users_d (общая таблица с сайтом сотрудников) — все 121+ сотрудник
+// Источники users (все 156):
+// - users_d — общая таблица с сайтом сотрудников
+// - pending_applicants_d — заявки на трудоустройство
 // - sklad_service_users_s — служебные аккаунты склада
+// - employees_s «сироты» — архив (удалены на сайте сотрудников)
 //
-// Группировка:
-// - Активные группы: Администратор / Старший кладовщик / Сотрудник / Без доступа
-// - Свёрнутые в конце: Уволенные, Не приняты
+// Пользователь сам выбирает режим группировки: Должность / Отдел / Роль / Статус.
+// Каждая группа — отдельная карточка в 2-колоночном grid'е, сворачивается.
+const GROUP_MODES = [
+  { key: 'position',   label: 'По должности' },
+  { key: 'department', label: 'По отделу' },
+  { key: 'role',       label: 'По роли склада' },
+  { key: 'status',     label: 'По статусу' },
+];
+
+const STATUS_LABELS = {
+  active: 'Работают',
+  internship: 'Стажёры',
+  pending_employment: 'Оформляются',
+  pending_fired: 'Готовятся к увольнению',
+  service: 'Служебные',
+  unknown: 'Без сотрудника',
+  fired: 'Уволенные',
+  rejected: 'Не приняты',
+  applicant_pending: 'Заявки (ожидают)',
+  applicant_approved: 'Заявки (одобрены)',
+  applicant_rejected: 'Заявки (отклонены)',
+  archived: 'Архив склада',
+};
+
+// Какие статусы считать «полноценно работающими» (без dim'а)
+const ACTIVE_STATUSES = new Set(['active', 'internship', 'pending_employment', 'pending_fired', 'service', 'unknown']);
+
 function UsersTable({ users, employees, onEdit, onDelete, onDrill }) {
-  const [showFired, setShowFired] = useState(false);
-  const [showRejected, setShowRejected] = useState(false);
-  const [showNoRole, setShowNoRole] = useState(false);
-  const [showApplicants, setShowApplicants] = useState(false);
-  const [showArchived, setShowArchived] = useState(false);
+  const [groupBy, setGroupBy] = useState(() => localStorage.getItem('staff_group_by') || 'position');
+  const [collapsed, setCollapsed] = useState({}); // { groupKey: true } — свёрнутые
+  const setMode = (m) => { setGroupBy(m); localStorage.setItem('staff_group_by', m); };
+  const toggle = (key) => setCollapsed(prev => ({ ...prev, [key]: !prev[key] }));
 
   if (users.length === 0) {
     return (
@@ -192,43 +217,61 @@ function UsersTable({ users, employees, onEdit, onDelete, onDrill }) {
     );
   }
 
-  // Сортировка списка: разбивка по статусу и по роли склада
-  const ACTIVE_STATUSES = new Set(['active', 'internship', 'pending_employment', 'pending_fired', 'service', 'unknown']);
+  // Получить ключ группы для пользователя в выбранном режиме
+  const getGroupKey = (u) => {
+    switch (groupBy) {
+      case 'position':   return u.position || '— без должности —';
+      case 'department': return u.department || '— без отдела —';
+      case 'role':       return u.role_name || '— без роли склада —';
+      case 'status':     return STATUS_LABELS[u.employee_status] || u.employee_status || '— без статуса —';
+      default:           return '—';
+    }
+  };
 
-  const activeByRole = {};      // role_name -> [users] (активные с ролью склада)
-  const noRole = [];            // активные, но без sklad_user_roles_s
-  const fired = [];             // employee_status='fired'
-  const rejected = [];          // employee_status='rejected'
-  const applicants = [];        // pending_applicants_d (всех статусов)
-  const archived = [];          // employees_s сироты — удалены на сайте сотрудников
-
+  // Группируем
+  const groups = {};
   for (const u of users) {
-    const status = u.employee_status || 'active';
-    if (status === 'archived') { archived.push(u); continue; }
-    if (status.startsWith('applicant_')) { applicants.push(u); continue; }
-    if (status === 'fired') { fired.push(u); continue; }
-    if (status === 'rejected') { rejected.push(u); continue; }
-    if (!ACTIVE_STATUSES.has(status)) { fired.push(u); continue; }
-    if (!u.role_name) { noRole.push(u); continue; }
-    if (!activeByRole[u.role_name]) activeByRole[u.role_name] = [];
-    activeByRole[u.role_name].push(u);
+    const key = getGroupKey(u);
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(u);
   }
 
-  // Сортировка ролей: Администратор → Старший кладовщик → Сотрудник → прочие
-  const ROLE_ORDER = ['Администратор', 'Старший кладовщик', 'Сотрудник'];
-  const sortedRoles = Object.keys(activeByRole).sort((a, b) => {
-    const ai = ROLE_ORDER.indexOf(a); const bi = ROLE_ORDER.indexOf(b);
-    if (ai === -1 && bi === -1) return a.localeCompare(b, 'ru');
-    if (ai === -1) return 1;
-    if (bi === -1) return -1;
-    return ai - bi;
+  // Сортируем группы по количеству DESC, потом по алфавиту
+  // Кроме режима «по статусу» — там фиксированный порядок (работающие → проблемные → архив)
+  const STATUS_ORDER = [
+    'Работают', 'Стажёры', 'Оформляются', 'Готовятся к увольнению',
+    'Служебные', 'Без сотрудника',
+    'Заявки (ожидают)', 'Заявки (одобрены)', 'Заявки (отклонены)',
+    'Уволенные', 'Не приняты', 'Архив склада',
+  ];
+  const sortedGroups = Object.entries(groups).sort(([a, la], [b, lb]) => {
+    if (groupBy === 'status') {
+      const ai = STATUS_ORDER.indexOf(a); const bi = STATUS_ORDER.indexOf(b);
+      if (ai !== -1 || bi !== -1) {
+        if (ai === -1) return 1;
+        if (bi === -1) return -1;
+        return ai - bi;
+      }
+    }
+    // Заглушки «без …» в конец
+    const aDash = a.startsWith('—'); const bDash = b.startsWith('—');
+    if (aDash !== bDash) return aDash ? 1 : -1;
+    if (lb.length !== la.length) return lb.length - la.length;
+    return a.localeCompare(b, 'ru');
   });
 
-  const sortByName = (list) => list.sort((a, b) =>
-    (a.employee_name || a.username || '').localeCompare(b.employee_name || b.username || '', 'ru')
-  );
-  for (const k of sortedRoles) sortByName(activeByRole[k]);
-  sortByName(noRole); sortByName(fired); sortByName(rejected); sortByName(applicants); sortByName(archived);
+  // Внутри группы — сортируем по ФИО
+  for (const [, list] of sortedGroups) {
+    list.sort((a, b) =>
+      (a.employee_name || a.username || '').localeCompare(b.employee_name || b.username || '', 'ru')
+    );
+  }
+
+  // Какие группы свёрнуты по умолчанию: те, в которых преобладают неактивные
+  const isDefaultCollapsed = (list) => {
+    const blocked = list.filter(u => !ACTIVE_STATUSES.has(u.employee_status || 'active')).length;
+    return blocked >= list.length * 0.5; // >= половина неактивных → свёрнута
+  };
 
   const renderRow = (user, dim = false) => (
     <div key={user.id}
@@ -271,97 +314,61 @@ function UsersTable({ users, employees, onEdit, onDelete, onDrill }) {
     </div>
   );
 
-  const groupHeader = (label, count, color = 'primary') => (
-    <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
-      <div className="flex items-center gap-2">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-          stroke={color === 'rose' ? '#e11d48' : color === 'gray' ? '#6b7280' : '#6d28d9'}
-          strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>
-          <path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>
-        </svg>
-        <span className="text-xs font-bold text-gray-700">{label}</span>
-      </div>
-      <span className="text-[10px] text-gray-400 font-medium">{count} чел.</span>
-    </div>
-  );
-
-  // Внутри роли «Сотрудник» дополнительно бьём по должностям
-  const groupByPosition = (list) => {
-    const byPos = {};
-    for (const u of list) {
-      const key = u.position || '— без должности —';
-      if (!byPos[key]) byPos[key] = [];
-      byPos[key].push(u);
-    }
-    return Object.entries(byPos).sort(([a], [b]) => a.localeCompare(b, 'ru'));
-  };
-
-  const renderRoleCard = (roleName) => {
-    const list = activeByRole[roleName];
-    // «Сотрудник» — много людей → бьём по должностям
-    if (roleName === 'Сотрудник' && list.length > 5) {
-      const positions = groupByPosition(list);
-      return (
-        <div key={roleName} className="card overflow-hidden">
-          {groupHeader(roleName, list.length)}
-          {positions.map(([posName, posList]) => (
-            <div key={posName}>
-              <div className="px-4 py-1.5 bg-white border-b border-gray-50 sticky top-0">
-                <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
-                  {posName} <span className="text-gray-300">· {posList.length}</span>
-                </span>
-              </div>
-              {posList.map(u => renderRow(u))}
-            </div>
-          ))}
-        </div>
-      );
-    }
+  // Карточка одной группы — заголовок (кнопка-сворачиваем) + список
+  const renderGroupCard = ([groupKey, list]) => {
+    const isOpen = collapsed[groupKey] !== undefined ? !collapsed[groupKey] : !isDefaultCollapsed(list);
+    const allBlocked = list.every(u => !ACTIVE_STATUSES.has(u.employee_status || 'active'));
+    const headerClass = allBlocked
+      ? 'bg-gray-50 hover:bg-gray-100 border-gray-100 text-gray-500'
+      : 'bg-gray-50 hover:bg-gray-100 border-gray-100 text-gray-700';
     return (
-      <div key={roleName} className="card overflow-hidden">
-        {groupHeader(roleName, list.length)}
-        {list.map(u => renderRow(u))}
-      </div>
-    );
-  };
-
-  // Свёрнутый блок — общий рендер
-  const collapsibleCard = (key, title, list, dim, isOpen, setOpen, color) => {
-    const palette = {
-      amber:  { hdr: 'bg-amber-50 hover:bg-amber-100 border-amber-100', txt: 'text-amber-700', sub: 'text-amber-600', icon: 'text-amber-500' },
-      gray:   { hdr: 'bg-gray-50 hover:bg-gray-100 border-gray-100',    txt: 'text-gray-500', sub: 'text-gray-400', icon: 'text-gray-400' },
-      gray2:  { hdr: 'bg-gray-100 hover:bg-gray-200 border-gray-200',   txt: 'text-gray-600', sub: 'text-gray-500', icon: 'text-gray-500' },
-      blue:   { hdr: 'bg-blue-50 hover:bg-blue-100 border-blue-100',    txt: 'text-blue-700',  sub: 'text-blue-600',  icon: 'text-blue-500' },
-    }[color];
-    return (
-      <div key={key} className="card overflow-hidden">
-        <button onClick={() => setOpen(v => !v)}
-          className={`w-full px-4 py-2.5 ${palette.hdr} border-b flex items-center justify-between transition-colors`}>
-          <div className="flex items-center gap-2">
-            <UserCog size={14} className={palette.icon} />
-            <span className={`text-xs font-bold ${palette.txt}`}>{title}</span>
+      <div key={groupKey} className="card overflow-hidden break-inside-avoid">
+        <button onClick={() => toggle(groupKey)}
+          className={`w-full px-4 py-2.5 ${headerClass} border-b flex items-center justify-between transition-colors`}>
+          <div className="flex items-center gap-2 min-w-0">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+              stroke={allBlocked ? '#9ca3af' : '#6d28d9'}
+              strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+              <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>
+              <path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>
+            </svg>
+            <span className="text-xs font-bold truncate">{groupKey}</span>
           </div>
-          <div className="flex items-center gap-2">
-            <span className={`text-[10px] ${palette.sub} font-medium`}>{list.length} чел.</span>
-            <ChevronDown size={14} className={`${palette.icon} transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <span className="text-[10px] text-gray-400 font-medium">{list.length} чел.</span>
+            <ChevronDown size={14} className={`text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
           </div>
         </button>
-        {isOpen && list.map(u => renderRow(u, dim))}
+        {isOpen && list.map(u => renderRow(u, !ACTIVE_STATUSES.has(u.employee_status || 'active')))}
       </div>
     );
   };
 
   return (
-    // 2 колонки на больших экранах, 1 на мобиле. Каждая «карточка» — независимый
-    // блок, заполняет ячейку грида. Грид auto-flow:dense чтобы заполнять пустоты.
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 [grid-auto-flow:dense]">
-      {sortedRoles.map(renderRoleCard)}
-      {noRole.length > 0    && collapsibleCard('noRole',    'Без доступа к складу',                noRole,    false, showNoRole,    setShowNoRole,    'amber')}
-      {fired.length > 0     && collapsibleCard('fired',     'Уволенные',                            fired,     true,  showFired,     setShowFired,     'gray')}
-      {rejected.length > 0  && collapsibleCard('rejected',  'Не приняты',                           rejected,  true,  showRejected,  setShowRejected,  'gray')}
-      {applicants.length > 0 && collapsibleCard('applicants','Заявки на трудоустройство',           applicants,true,  showApplicants,setShowApplicants,'blue')}
-      {archived.length > 0  && collapsibleCard('archived',  'Архив (удалены на сайте сотрудников)', archived,  true,  showArchived,  setShowArchived,  'gray2')}
+    <div className="space-y-3">
+      {/* Переключатель режима группировки */}
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs text-gray-400 mr-1">Группировать:</span>
+        {GROUP_MODES.map(m => (
+          <button key={m.key} onClick={() => setMode(m.key)}
+            className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${
+              groupBy === m.key
+                ? 'bg-primary-50 border-primary-200 text-primary-700 font-semibold'
+                : 'bg-white border-gray-200 text-gray-500 hover:border-gray-300'
+            }`}>
+            {m.label}
+          </button>
+        ))}
+        <button onClick={() => setCollapsed({})}
+          className="text-xs text-gray-400 hover:text-gray-600 ml-auto">
+          Сбросить состояние
+        </button>
+      </div>
+
+      {/* 2-колоночный grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 [grid-auto-flow:dense]">
+        {sortedGroups.map(renderGroupCard)}
+      </div>
     </div>
   );
 }
