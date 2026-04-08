@@ -81,8 +81,8 @@ router.post('/login', async (req, res) => {
       const ok = await comparePassword(password, dUser.password_hash);
       if (!ok) return res.status(401).json({ error: 'Неверный логин или пароль' });
 
-      const ALLOWED_STATUSES = ['active', 'internship', 'pending_employment'];
-      const BLOCKED_STATUSES = ['fired', 'pending_fired', 'rejected'];
+      const ALLOWED_STATUSES = ['active', 'internship', 'pending_employment', 'pending_fired'];
+      const BLOCKED_STATUSES = ['fired', 'rejected'];
       const isAllowed = ALLOWED_STATUSES.includes(dUser.status);
       const isBlocked = BLOCKED_STATUSES.includes(dUser.status);
       if (!isAllowed && !isBlocked) {
@@ -146,7 +146,6 @@ router.post('/login', async (req, res) => {
 
       const blockedMessages = {
         fired: 'Вы уволены. Доступ к складу закрыт.',
-        pending_fired: 'Вы уволены. Доступ к складу закрыт.',
         rejected: 'Вам отказано в трудоустройстве. Доступ к складу закрыт.',
       };
 

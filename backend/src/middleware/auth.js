@@ -63,11 +63,10 @@ async function requireAuth(req, res, next) {
       }
       const row = result.rows[0];
 
-      const BLOCKED_STATUSES = ['fired', 'pending_fired', 'rejected'];
+      const BLOCKED_STATUSES = ['fired', 'rejected'];
       const isBlocked = row.users_d_id && BLOCKED_STATUSES.includes(row.employee_status);
       const blockedMessages = {
         fired: 'Вы уволены. Доступ к складу закрыт.',
-        pending_fired: 'Вы уволены. Доступ к складу закрыт.',
         rejected: 'Вам отказано в трудоустройстве. Доступ к складу закрыт.',
       };
 

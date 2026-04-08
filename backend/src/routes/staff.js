@@ -288,13 +288,87 @@ async function invalidateCacheForDUser(usersDId) {
 
 router.get('/users', requireAuth, requirePermission('staff.view', 'staff.edit'), async (req, res) => {
   try {
+    // Возвращаем ВСЕХ из общей БД сайта сотрудников + служебные:
+    //   - users_d                      (зарегистрированные пользователи)
+    //   - pending_applicants_d         (заявки на трудоустройство, ещё не оформлены)
+    //   - sklad_service_users_s        (служебные аккаунты склада)
     const result = await pool.query(
-      `SELECT u.id, u.username, u.password_plain, u.role, u.role_id, u.active, u.employee_id, u.created_at, u.last_active_at,
-              e.full_name as employee_name, e.position, r.name as role_name, r.permissions as role_permissions
-       FROM users_s u
-       LEFT JOIN employees_s e ON e.id = u.employee_id
-       LEFT JOIN roles_s r ON r.id = u.role_id
-       ORDER BY u.created_at DESC`
+      `(
+        -- users_d: все пользователи на сайте сотрудников (с linked employees_d или без)
+        SELECT
+          ud.id                              AS id,
+          ud.login                           AS username,
+          NULL::varchar                      AS password_plain,
+          CASE WHEN r.name = 'Администратор' THEN 'admin' ELSE 'employee' END AS role,
+          sur.role_id                        AS role_id,
+          (ed.status IS NULL OR ed.status IN ('active','internship','pending_employment','pending_fired')) AS active,
+          es.id                              AS employee_id,
+          ud.id                              AS users_d_id,
+          ud.created_at                      AS created_at,
+          sur.last_active_at                 AS last_active_at,
+          COALESCE(ed.full_name, ud.full_name, ud.login) AS employee_name,
+          p.name                             AS position,
+          d.name                             AS department,
+          r.name                             AS role_name,
+          r.permissions                      AS role_permissions,
+          COALESCE(ed.status, 'unknown')     AS employee_status,
+          'd'                                AS source
+        FROM users_d ud
+        LEFT JOIN employees_d ed ON ed.id = ud.employee_id
+        LEFT JOIN positions_d p ON p.id = ed.position_id
+        LEFT JOIN departments_d d ON d.id = ed.department_id
+        LEFT JOIN sklad_user_roles_s sur ON sur.user_id = ud.id
+        LEFT JOIN roles_s r ON r.id = sur.role_id
+        LEFT JOIN employees_s es ON es.external_employee_id = ud.employee_id
+      )
+      UNION ALL
+      (
+        -- pending_applicants_d: заявки на трудоустройство (ещё нет users_d)
+        SELECT
+          (2000000 + pa.id)                  AS id,
+          ('заявка №' || pa.id)              AS username,
+          NULL::varchar                      AS password_plain,
+          'employee'                         AS role,
+          NULL::int                          AS role_id,
+          (pa.status = 'pending')            AS active,
+          NULL::int                          AS employee_id,
+          NULL::int                          AS users_d_id,
+          pa.created_at                      AS created_at,
+          NULL::timestamptz                  AS last_active_at,
+          pa.full_name                       AS employee_name,
+          'Заявка на трудоустройство'::varchar AS position,
+          NULL::varchar                      AS department,
+          NULL::varchar                      AS role_name,
+          NULL::jsonb                        AS role_permissions,
+          ('applicant_' || COALESCE(pa.status, 'pending'))::varchar AS employee_status,
+          'applicant'::varchar               AS source
+        FROM pending_applicants_d pa
+      )
+      UNION ALL
+      (
+        -- sklad_service_users_s: служебные аккаунты склада
+        SELECT
+          (1000000 + sv.id)                  AS id,
+          sv.username                        AS username,
+          NULL::varchar                      AS password_plain,
+          CASE WHEN r.name = 'Администратор' THEN 'admin' ELSE 'employee' END AS role,
+          sv.role_id                         AS role_id,
+          sv.active                          AS active,
+          NULL::int                          AS employee_id,
+          NULL::int                          AS users_d_id,
+          sv.created_at                      AS created_at,
+          sv.last_active_at                  AS last_active_at,
+          sv.username                        AS employee_name,
+          'Служебный аккаунт'::varchar       AS position,
+          NULL::varchar                      AS department,
+          r.name                             AS role_name,
+          r.permissions                      AS role_permissions,
+          'service'::varchar                 AS employee_status,
+          'service'::varchar                 AS source
+        FROM sklad_service_users_s sv
+        LEFT JOIN roles_s r ON r.id = sv.role_id
+      )
+      ORDER BY employee_name`
     );
     res.json(result.rows);
   } catch (err) {

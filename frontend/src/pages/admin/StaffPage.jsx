@@ -167,9 +167,20 @@ function CopyBtn({ text, label }) {
   );
 }
 
-// ─── Users Table (grouped by role) ───────────────────────────────────────────
+// ─── Users Table (grouped by role + status) ──────────────────────────────────
+//
+// Источники users:
+// - users_d (общая таблица с сайтом сотрудников) — все 121+ сотрудник
+// - sklad_service_users_s — служебные аккаунты склада
+//
+// Группировка:
+// - Активные группы: Администратор / Старший кладовщик / Сотрудник / Без доступа
+// - Свёрнутые в конце: Уволенные, Не приняты
 function UsersTable({ users, employees, onEdit, onDelete, onDrill }) {
-  const [showAdmin, setShowAdmin] = useState(false);
+  const [showFired, setShowFired] = useState(false);
+  const [showRejected, setShowRejected] = useState(false);
+  const [showNoRole, setShowNoRole] = useState(false);
+  const [showApplicants, setShowApplicants] = useState(false);
 
   if (users.length === 0) {
     return (
@@ -180,49 +191,62 @@ function UsersTable({ users, employees, onEdit, onDelete, onDrill }) {
     );
   }
 
-  // Enrich users with employee data (position, department)
-  const enriched = users.map(u => {
-    const emp = employees.find(e => e.id === u.employee_id);
-    return { ...u, position: emp?.position, department: emp?.department };
-  });
+  // Сортировка списка: разбивка по статусу и по роли склада
+  const ACTIVE_STATUSES = new Set(['active', 'internship', 'pending_employment', 'pending_fired', 'service', 'unknown']);
 
-  // Group by role_name, separate production vs admin
-  const roleGroups = {};
-  const adminUsers = [];
-  for (const u of enriched) {
-    const isAdmin = u.department && !['Производство', 'производство'].includes(u.department);
-    if (isAdmin) { adminUsers.push(u); continue; }
-    const roleName = u.role_name || (u.role === 'admin' ? 'Администратор' : u.role === 'manager' ? 'Менеджер' : 'Сотрудник');
-    if (!roleGroups[roleName]) roleGroups[roleName] = [];
-    roleGroups[roleName].push(u);
+  const activeByRole = {};      // role_name -> [users] (активные с ролью склада)
+  const noRole = [];            // активные, но без sklad_user_roles_s
+  const fired = [];             // employee_status='fired'
+  const rejected = [];          // employee_status='rejected'
+  const applicants = [];        // pending_applicants_d (всех статусов)
+
+  for (const u of users) {
+    const status = u.employee_status || 'active';
+    if (status.startsWith('applicant_')) { applicants.push(u); continue; }
+    if (status === 'fired') { fired.push(u); continue; }
+    if (status === 'rejected') { rejected.push(u); continue; }
+    if (!ACTIVE_STATUSES.has(status)) { fired.push(u); continue; }
+    if (!u.role_name) { noRole.push(u); continue; }
+    if (!activeByRole[u.role_name]) activeByRole[u.role_name] = [];
+    activeByRole[u.role_name].push(u);
   }
 
-  // Sort groups: by name, users inside by employee_name
-  const sortedGroups = Object.entries(roleGroups).sort(([a], [b]) => a.localeCompare(b, 'ru'));
-  for (const [, list] of sortedGroups) list.sort((a, b) => (a.employee_name || '').localeCompare(b.employee_name || '', 'ru'));
-  adminUsers.sort((a, b) => (a.employee_name || '').localeCompare(b.employee_name || '', 'ru'));
+  // Сортировка ролей: Администратор → Старший кладовщик → Сотрудник → прочие
+  const ROLE_ORDER = ['Администратор', 'Старший кладовщик', 'Сотрудник'];
+  const sortedRoles = Object.keys(activeByRole).sort((a, b) => {
+    const ai = ROLE_ORDER.indexOf(a); const bi = ROLE_ORDER.indexOf(b);
+    if (ai === -1 && bi === -1) return a.localeCompare(b, 'ru');
+    if (ai === -1) return 1;
+    if (bi === -1) return -1;
+    return ai - bi;
+  });
 
-  const renderRow = (user) => {
-    return (
-    <div key={user.id} onClick={() => onDrill?.(user)} className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0 cursor-pointer">
-      {/* Avatar + online indicator */}
+  const sortByName = (list) => list.sort((a, b) =>
+    (a.employee_name || a.username || '').localeCompare(b.employee_name || b.username || '', 'ru')
+  );
+  for (const k of sortedRoles) sortByName(activeByRole[k]);
+  sortByName(noRole); sortByName(fired); sortByName(rejected); sortByName(applicants);
+
+  const renderRow = (user, dim = false) => (
+    <div key={user.id}
+      onClick={() => onDrill?.(user)}
+      className={`flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0 cursor-pointer ${dim ? 'opacity-60' : ''}`}>
       <div className="relative flex-shrink-0">
         <PersonAvatar />
         {user.last_active_at && (Date.now() - new Date(user.last_active_at).getTime()) < 600000 && (
           <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-white rounded-full" />
         )}
       </div>
-      {/* Employee name + position */}
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-gray-900 truncate">{user.employee_name || user.username}</p>
+        <p className={`text-sm font-medium truncate ${dim ? 'text-gray-500 line-through' : 'text-gray-900'}`}>
+          {user.employee_name || user.username}
+        </p>
         {user.position && <p className="text-[11px] text-gray-400 truncate">{user.position}</p>}
       </div>
-      {/* Credentials */}
       <div className="flex items-center gap-2 flex-shrink-0" onClick={e => e.stopPropagation()}>
         <CopyBtn text={user.username} label="логин" />
         {user.password_plain && <CopyBtn text={user.password_plain} label="пароль" />}
       </div>
-      {/* Actions */}
       <div className="flex items-center gap-0.5 flex-shrink-0" onClick={e => e.stopPropagation()}>
         <button onClick={() => onEdit(user)}
           className="p-1.5 rounded-lg text-gray-300 hover:text-primary-500 hover:bg-primary-50 transition-all">
@@ -235,41 +259,102 @@ function UsersTable({ users, employees, onEdit, onDelete, onDrill }) {
       </div>
       <ChevronRight size={14} className="text-gray-200 flex-shrink-0" />
     </div>
-    );
-  };
+  );
+
+  const groupHeader = (label, count, color = 'primary') => (
+    <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
+      <div className="flex items-center gap-2">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+          stroke={color === 'rose' ? '#e11d48' : color === 'gray' ? '#6b7280' : '#6d28d9'}
+          strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>
+          <path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>
+        </svg>
+        <span className="text-xs font-bold text-gray-700">{label}</span>
+      </div>
+      <span className="text-[10px] text-gray-400 font-medium">{count} чел.</span>
+    </div>
+  );
 
   return (
     <div className="space-y-3">
-      {sortedGroups.map(([roleName, list]) => (
+      {/* Активные с ролью */}
+      {sortedRoles.map(roleName => (
         <div key={roleName} className="card overflow-hidden">
-          <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6d28d9" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>
-              </svg>
-              <span className="text-xs font-bold text-gray-700">{roleName}</span>
-            </div>
-            <span className="text-[10px] text-gray-400 font-medium">{list.length} чел.</span>
-          </div>
-          {list.map(renderRow)}
+          {groupHeader(roleName, activeByRole[roleName].length)}
+          {activeByRole[roleName].map(u => renderRow(u))}
         </div>
       ))}
 
-      {/* Admin/non-production users — collapsed */}
-      {adminUsers.length > 0 && (
+      {/* Активные без роли склада */}
+      {noRole.length > 0 && (
         <div className="card overflow-hidden">
-          <button onClick={() => setShowAdmin(v => !v)}
+          <button onClick={() => setShowNoRole(v => !v)}
+            className="w-full px-4 py-2.5 bg-amber-50 border-b border-amber-100 flex items-center justify-between hover:bg-amber-100 transition-colors">
+            <div className="flex items-center gap-2">
+              <UserCog size={14} className="text-amber-500" />
+              <span className="text-xs font-bold text-amber-700">Без доступа к складу</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-amber-600 font-medium">{noRole.length} чел.</span>
+              <ChevronDown size={14} className={`text-amber-500 transition-transform ${showNoRole ? 'rotate-180' : ''}`} />
+            </div>
+          </button>
+          {showNoRole && noRole.map(u => renderRow(u))}
+        </div>
+      )}
+
+      {/* Уволенные */}
+      {fired.length > 0 && (
+        <div className="card overflow-hidden">
+          <button onClick={() => setShowFired(v => !v)}
             className="w-full px-4 py-2.5 bg-gray-50 border-b border-gray-100 flex items-center justify-between hover:bg-gray-100 transition-colors">
             <div className="flex items-center gap-2">
               <UserCog size={14} className="text-gray-400" />
-              <span className="text-xs font-bold text-gray-500">Администрация / не производство</span>
+              <span className="text-xs font-bold text-gray-500">Уволенные</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-[10px] text-gray-400 font-medium">{adminUsers.length} чел.</span>
-              <ChevronDown size={14} className={`text-gray-400 transition-transform ${showAdmin ? 'rotate-180' : ''}`} />
+              <span className="text-[10px] text-gray-400 font-medium">{fired.length} чел.</span>
+              <ChevronDown size={14} className={`text-gray-400 transition-transform ${showFired ? 'rotate-180' : ''}`} />
             </div>
           </button>
-          {showAdmin && adminUsers.map(renderRow)}
+          {showFired && fired.map(u => renderRow(u, true))}
+        </div>
+      )}
+
+      {/* Не приняты */}
+      {rejected.length > 0 && (
+        <div className="card overflow-hidden">
+          <button onClick={() => setShowRejected(v => !v)}
+            className="w-full px-4 py-2.5 bg-gray-50 border-b border-gray-100 flex items-center justify-between hover:bg-gray-100 transition-colors">
+            <div className="flex items-center gap-2">
+              <UserCog size={14} className="text-gray-400" />
+              <span className="text-xs font-bold text-gray-500">Не приняты</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-gray-400 font-medium">{rejected.length} чел.</span>
+              <ChevronDown size={14} className={`text-gray-400 transition-transform ${showRejected ? 'rotate-180' : ''}`} />
+            </div>
+          </button>
+          {showRejected && rejected.map(u => renderRow(u, true))}
+        </div>
+      )}
+
+      {/* Заявки на трудоустройство (pending_applicants_d) */}
+      {applicants.length > 0 && (
+        <div className="card overflow-hidden">
+          <button onClick={() => setShowApplicants(v => !v)}
+            className="w-full px-4 py-2.5 bg-blue-50 border-b border-blue-100 flex items-center justify-between hover:bg-blue-100 transition-colors">
+            <div className="flex items-center gap-2">
+              <UserCog size={14} className="text-blue-500" />
+              <span className="text-xs font-bold text-blue-700">Заявки на трудоустройство</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-blue-600 font-medium">{applicants.length} чел.</span>
+              <ChevronDown size={14} className={`text-blue-500 transition-transform ${showApplicants ? 'rotate-180' : ''}`} />
+            </div>
+          </button>
+          {showApplicants && applicants.map(u => renderRow(u, true))}
         </div>
       )}
     </div>
