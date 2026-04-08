@@ -241,9 +241,16 @@ function UsersTable({ users, employees, onEdit, onDelete, onDrill }) {
         )}
       </div>
       <div className="flex-1 min-w-0">
-        <p className={`text-sm font-medium truncate ${dim ? 'text-gray-500 line-through' : 'text-gray-900'}`}>
-          {user.employee_name || user.username}
-        </p>
+        <div className="flex items-center gap-1.5">
+          <p className={`text-sm font-medium truncate ${dim ? 'text-gray-500 line-through' : 'text-gray-900'}`}>
+            {user.employee_name || user.username}
+          </p>
+          {user.employee_status === 'internship' && (
+            <span className="flex-shrink-0 text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 border border-orange-200">
+              стажёр
+            </span>
+          )}
+        </div>
         {user.position && <p className="text-[11px] text-gray-400 truncate">{user.position}</p>}
       </div>
       <div className="flex items-center gap-2 flex-shrink-0" onClick={e => e.stopPropagation()}>
@@ -279,105 +286,82 @@ function UsersTable({ users, employees, onEdit, onDelete, onDrill }) {
     </div>
   );
 
-  return (
-    <div className="space-y-3">
-      {/* Активные с ролью */}
-      {sortedRoles.map(roleName => (
+  // Внутри роли «Сотрудник» дополнительно бьём по должностям
+  const groupByPosition = (list) => {
+    const byPos = {};
+    for (const u of list) {
+      const key = u.position || '— без должности —';
+      if (!byPos[key]) byPos[key] = [];
+      byPos[key].push(u);
+    }
+    return Object.entries(byPos).sort(([a], [b]) => a.localeCompare(b, 'ru'));
+  };
+
+  const renderRoleCard = (roleName) => {
+    const list = activeByRole[roleName];
+    // «Сотрудник» — много людей → бьём по должностям
+    if (roleName === 'Сотрудник' && list.length > 5) {
+      const positions = groupByPosition(list);
+      return (
         <div key={roleName} className="card overflow-hidden">
-          {groupHeader(roleName, activeByRole[roleName].length)}
-          {activeByRole[roleName].map(u => renderRow(u))}
+          {groupHeader(roleName, list.length)}
+          {positions.map(([posName, posList]) => (
+            <div key={posName}>
+              <div className="px-4 py-1.5 bg-white border-b border-gray-50 sticky top-0">
+                <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+                  {posName} <span className="text-gray-300">· {posList.length}</span>
+                </span>
+              </div>
+              {posList.map(u => renderRow(u))}
+            </div>
+          ))}
         </div>
-      ))}
+      );
+    }
+    return (
+      <div key={roleName} className="card overflow-hidden">
+        {groupHeader(roleName, list.length)}
+        {list.map(u => renderRow(u))}
+      </div>
+    );
+  };
 
-      {/* Активные без роли склада */}
-      {noRole.length > 0 && (
-        <div className="card overflow-hidden">
-          <button onClick={() => setShowNoRole(v => !v)}
-            className="w-full px-4 py-2.5 bg-amber-50 border-b border-amber-100 flex items-center justify-between hover:bg-amber-100 transition-colors">
-            <div className="flex items-center gap-2">
-              <UserCog size={14} className="text-amber-500" />
-              <span className="text-xs font-bold text-amber-700">Без доступа к складу</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-amber-600 font-medium">{noRole.length} чел.</span>
-              <ChevronDown size={14} className={`text-amber-500 transition-transform ${showNoRole ? 'rotate-180' : ''}`} />
-            </div>
-          </button>
-          {showNoRole && noRole.map(u => renderRow(u))}
-        </div>
-      )}
+  // Свёрнутый блок — общий рендер
+  const collapsibleCard = (key, title, list, dim, isOpen, setOpen, color) => {
+    const palette = {
+      amber:  { hdr: 'bg-amber-50 hover:bg-amber-100 border-amber-100', txt: 'text-amber-700', sub: 'text-amber-600', icon: 'text-amber-500' },
+      gray:   { hdr: 'bg-gray-50 hover:bg-gray-100 border-gray-100',    txt: 'text-gray-500', sub: 'text-gray-400', icon: 'text-gray-400' },
+      gray2:  { hdr: 'bg-gray-100 hover:bg-gray-200 border-gray-200',   txt: 'text-gray-600', sub: 'text-gray-500', icon: 'text-gray-500' },
+      blue:   { hdr: 'bg-blue-50 hover:bg-blue-100 border-blue-100',    txt: 'text-blue-700',  sub: 'text-blue-600',  icon: 'text-blue-500' },
+    }[color];
+    return (
+      <div key={key} className="card overflow-hidden">
+        <button onClick={() => setOpen(v => !v)}
+          className={`w-full px-4 py-2.5 ${palette.hdr} border-b flex items-center justify-between transition-colors`}>
+          <div className="flex items-center gap-2">
+            <UserCog size={14} className={palette.icon} />
+            <span className={`text-xs font-bold ${palette.txt}`}>{title}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className={`text-[10px] ${palette.sub} font-medium`}>{list.length} чел.</span>
+            <ChevronDown size={14} className={`${palette.icon} transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+          </div>
+        </button>
+        {isOpen && list.map(u => renderRow(u, dim))}
+      </div>
+    );
+  };
 
-      {/* Уволенные */}
-      {fired.length > 0 && (
-        <div className="card overflow-hidden">
-          <button onClick={() => setShowFired(v => !v)}
-            className="w-full px-4 py-2.5 bg-gray-50 border-b border-gray-100 flex items-center justify-between hover:bg-gray-100 transition-colors">
-            <div className="flex items-center gap-2">
-              <UserCog size={14} className="text-gray-400" />
-              <span className="text-xs font-bold text-gray-500">Уволенные</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-gray-400 font-medium">{fired.length} чел.</span>
-              <ChevronDown size={14} className={`text-gray-400 transition-transform ${showFired ? 'rotate-180' : ''}`} />
-            </div>
-          </button>
-          {showFired && fired.map(u => renderRow(u, true))}
-        </div>
-      )}
-
-      {/* Не приняты */}
-      {rejected.length > 0 && (
-        <div className="card overflow-hidden">
-          <button onClick={() => setShowRejected(v => !v)}
-            className="w-full px-4 py-2.5 bg-gray-50 border-b border-gray-100 flex items-center justify-between hover:bg-gray-100 transition-colors">
-            <div className="flex items-center gap-2">
-              <UserCog size={14} className="text-gray-400" />
-              <span className="text-xs font-bold text-gray-500">Не приняты</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-gray-400 font-medium">{rejected.length} чел.</span>
-              <ChevronDown size={14} className={`text-gray-400 transition-transform ${showRejected ? 'rotate-180' : ''}`} />
-            </div>
-          </button>
-          {showRejected && rejected.map(u => renderRow(u, true))}
-        </div>
-      )}
-
-      {/* Заявки на трудоустройство (pending_applicants_d) */}
-      {applicants.length > 0 && (
-        <div className="card overflow-hidden">
-          <button onClick={() => setShowApplicants(v => !v)}
-            className="w-full px-4 py-2.5 bg-blue-50 border-b border-blue-100 flex items-center justify-between hover:bg-blue-100 transition-colors">
-            <div className="flex items-center gap-2">
-              <UserCog size={14} className="text-blue-500" />
-              <span className="text-xs font-bold text-blue-700">Заявки на трудоустройство</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-blue-600 font-medium">{applicants.length} чел.</span>
-              <ChevronDown size={14} className={`text-blue-500 transition-transform ${showApplicants ? 'rotate-180' : ''}`} />
-            </div>
-          </button>
-          {showApplicants && applicants.map(u => renderRow(u, true))}
-        </div>
-      )}
-
-      {/* Архив — сотрудники, удалённые на сайте сотрудников, но история склада сохранена */}
-      {archived.length > 0 && (
-        <div className="card overflow-hidden">
-          <button onClick={() => setShowArchived(v => !v)}
-            className="w-full px-4 py-2.5 bg-gray-100 border-b border-gray-200 flex items-center justify-between hover:bg-gray-200 transition-colors">
-            <div className="flex items-center gap-2">
-              <UserCog size={14} className="text-gray-500" />
-              <span className="text-xs font-bold text-gray-600">Архив (удалены на сайте сотрудников)</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-gray-500 font-medium">{archived.length} чел.</span>
-              <ChevronDown size={14} className={`text-gray-500 transition-transform ${showArchived ? 'rotate-180' : ''}`} />
-            </div>
-          </button>
-          {showArchived && archived.map(u => renderRow(u, true))}
-        </div>
-      )}
+  return (
+    // 2 колонки на больших экранах, 1 на мобиле. Каждая «карточка» — независимый
+    // блок, заполняет ячейку грида. Грид auto-flow:dense чтобы заполнять пустоты.
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 [grid-auto-flow:dense]">
+      {sortedRoles.map(renderRoleCard)}
+      {noRole.length > 0    && collapsibleCard('noRole',    'Без доступа к складу',                noRole,    false, showNoRole,    setShowNoRole,    'amber')}
+      {fired.length > 0     && collapsibleCard('fired',     'Уволенные',                            fired,     true,  showFired,     setShowFired,     'gray')}
+      {rejected.length > 0  && collapsibleCard('rejected',  'Не приняты',                           rejected,  true,  showRejected,  setShowRejected,  'gray')}
+      {applicants.length > 0 && collapsibleCard('applicants','Заявки на трудоустройство',           applicants,true,  showApplicants,setShowApplicants,'blue')}
+      {archived.length > 0  && collapsibleCard('archived',  'Архив (удалены на сайте сотрудников)', archived,  true,  showArchived,  setShowArchived,  'gray2')}
     </div>
   );
 }
