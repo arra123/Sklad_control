@@ -81,41 +81,55 @@ router.post('/login', async (req, res) => {
       const ok = await comparePassword(password, dUser.password_hash);
       if (!ok) return res.status(401).json({ error: 'Неверный логин или пароль' });
 
-      // Проверка статуса сотрудника
-      if (!['active', 'internship', 'pending_employment'].includes(dUser.status)) {
-        return res.status(403).json({ error: 'Сотрудник деактивирован на сайте сотрудников.' });
+      const ALLOWED_STATUSES = ['active', 'internship', 'pending_employment'];
+      const BLOCKED_STATUSES = ['fired', 'pending_fired', 'rejected'];
+      const isAllowed = ALLOWED_STATUSES.includes(dUser.status);
+      const isBlocked = BLOCKED_STATUSES.includes(dUser.status);
+      if (!isAllowed && !isBlocked) {
+        return res.status(403).json({ error: 'Доступ запрещён' });
       }
 
-      // Проверка наличия роли склада
-      const roleRes = await client.query(
-        `SELECT sur.role_id, r.name AS role_name, r.permissions
-         FROM sklad_user_roles_s sur
-         JOIN roles_s r ON r.id = sur.role_id
-         WHERE sur.user_id = $1`,
-        [dUser.id]
-      );
-      if (!roleRes.rows.length) {
-        return res.status(403).json({ error: 'У вас нет доступа к складу. Обратитесь к администратору.' });
+      // Для разрешённых — нужна роль склада. Для blocked — роль не нужна,
+      // они получают пустые permissions и экран «вы уволены».
+      let role = null;
+      if (isAllowed) {
+        const roleRes = await client.query(
+          `SELECT sur.role_id, r.name AS role_name, r.permissions
+           FROM sklad_user_roles_s sur
+           JOIN roles_s r ON r.id = sur.role_id
+           WHERE sur.user_id = $1`,
+          [dUser.id]
+        );
+        if (!roleRes.rows.length) {
+          return res.status(403).json({ error: 'У вас нет доступа к складу. Обратитесь к администратору.' });
+        }
+        role = roleRes.rows[0];
       }
-      const role = roleRes.rows[0];
 
-      // Найти/создать теневую users_s
+      // Найти/создать теневую users_s (даже для blocked — нужна для JWT sub)
       await client.query('BEGIN');
       let usId;
       try {
         usId = await findOrCreateShadowUserS(client, dUser);
-        // Синхронизировать username и role_id (вдруг изменились на сайте сотрудников или admin поменял роль склада)
-        await client.query(
-          `UPDATE users_s SET username = $1, role_id = $2, role = $3, active = true WHERE id = $4`,
-          [dUser.login, role.role_id, role.role_name === 'Администратор' ? 'admin' : 'employee', usId]
-        );
+        if (isAllowed) {
+          await client.query(
+            `UPDATE users_s SET username = $1, role_id = $2, role = $3, active = true WHERE id = $4`,
+            [dUser.login, role.role_id, role.role_name === 'Администратор' ? 'admin' : 'employee', usId]
+          );
+        } else {
+          // blocked — username синхронизируем, роль не трогаем (если была — пусть остаётся),
+          // active=true (чтобы middleware не отдал 401), но permissions будут пустые
+          await client.query(
+            `UPDATE users_s SET username = $1, active = true WHERE id = $2`,
+            [dUser.login, usId]
+          );
+        }
         await client.query('COMMIT');
       } catch (e) {
         await client.query('ROLLBACK');
         throw e;
       }
 
-      // Достать финальную карточку
       const finalRes = await client.query(
         `SELECT u.id, u.username, u.role, u.role_id, u.employee_id,
                 e.full_name AS employee_name,
@@ -129,18 +143,28 @@ router.post('/login', async (req, res) => {
       );
       const u = finalRes.rows[0];
       const token = signToken({ sub: u.id, source: 'd', role: u.role });
+
+      const blockedMessages = {
+        fired: 'Вы уволены. Доступ к складу закрыт.',
+        pending_fired: 'Вы уволены. Доступ к складу закрыт.',
+        rejected: 'Вам отказано в трудоустройстве. Доступ к складу закрыт.',
+      };
+
       return res.json({
         token,
         user: {
           id: u.id,
           username: u.username,
-          role: u.role,
-          role_id: u.role_id,
-          role_name: u.role_name,
-          permissions: u.permissions || [],
+          role: isBlocked ? 'employee' : u.role,
+          role_id: isBlocked ? null : u.role_id,
+          role_name: isBlocked ? null : u.role_name,
+          permissions: isBlocked ? [] : (u.permissions || []),
           employee_id: u.employee_id,
-          employee_name: u.employee_name,
+          employee_name: u.employee_name || dUser.full_name,
           gra_balance: Number(u.gra_balance || 0),
+          employee_status: dUser.status,
+          is_blocked: isBlocked,
+          blocked_message: isBlocked ? blockedMessages[dUser.status] : null,
         },
       });
     }

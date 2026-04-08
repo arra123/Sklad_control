@@ -47,10 +47,14 @@ async function requireAuth(req, res, next) {
       const result = await pool.query(
         `SELECT u.id, u.username, u.role, u.employee_id, u.users_d_id, u.active,
                 COALESCE(sur.role_id, u.role_id) AS effective_role_id,
-                r.name AS role_name, r.permissions AS role_permissions
+                r.name AS role_name, r.permissions AS role_permissions,
+                ed.status AS employee_status,
+                ed.full_name AS d_full_name
          FROM users_s u
          LEFT JOIN sklad_user_roles_s sur ON sur.user_id = u.users_d_id
          LEFT JOIN roles_s r ON r.id = COALESCE(sur.role_id, u.role_id)
+         LEFT JOIN users_d ud ON ud.id = u.users_d_id
+         LEFT JOIN employees_d ed ON ed.id = ud.employee_id
          WHERE u.id = $1`,
         [payload.sub]
       );
@@ -59,20 +63,31 @@ async function requireAuth(req, res, next) {
       }
       const row = result.rows[0];
 
-      // Для users_d-аккаунтов проверяем, что у них всё ещё есть роль склада.
-      if (row.users_d_id && !row.effective_role_id) {
+      const BLOCKED_STATUSES = ['fired', 'pending_fired', 'rejected'];
+      const isBlocked = row.users_d_id && BLOCKED_STATUSES.includes(row.employee_status);
+      const blockedMessages = {
+        fired: 'Вы уволены. Доступ к складу закрыт.',
+        pending_fired: 'Вы уволены. Доступ к складу закрыт.',
+        rejected: 'Вам отказано в трудоустройстве. Доступ к складу закрыт.',
+      };
+
+      // Для users_d-аккаунтов с разрешённым статусом проверяем роль склада.
+      if (row.users_d_id && !isBlocked && !row.effective_role_id) {
         return res.status(403).json({ error: 'Доступ к складу отозван' });
       }
 
       user = {
         id: row.id,
         username: row.username,
-        role: row.role_name === 'Администратор' ? 'admin' : (row.role || 'employee'),
-        role_id: row.effective_role_id,
-        role_name: row.role_name,
+        role: isBlocked ? 'employee' : (row.role_name === 'Администратор' ? 'admin' : (row.role || 'employee')),
+        role_id: isBlocked ? null : row.effective_role_id,
+        role_name: isBlocked ? null : row.role_name,
         employee_id: row.employee_id,
         users_d_id: row.users_d_id,
-        permissions: row.role_permissions || [],
+        permissions: isBlocked ? [] : (row.role_permissions || []),
+        employee_status: row.employee_status || null,
+        is_blocked: isBlocked,
+        blocked_message: isBlocked ? blockedMessages[row.employee_status] : null,
       };
       setCachedUser(payload.sub, user);
     }

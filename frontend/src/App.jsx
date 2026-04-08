@@ -10,6 +10,7 @@ import { PageLoader } from './components/ui/Spinner';
 
 import AdminLayout from './components/layout/AdminLayout';
 import EmployeeLayout from './components/layout/EmployeeLayout';
+import BlockedScreen from './components/BlockedScreen';
 
 // Lazy-loaded pages for code splitting
 const LoginPage = lazy(() => import('./pages/LoginPage'));
@@ -78,6 +79,7 @@ function AdminRoute({ children }) {
   const { user, loading } = useAuth();
   if (loading) return <PageLoader />;
   if (!user) return <Navigate to="/login" replace />;
+  if (user.is_blocked) return <BlockedScreen />;
   if (!hasAdminAccess(user)) return <Navigate to="/employee/tasks" replace />;
   return <AdminLayout>{children}</AdminLayout>;
 }
@@ -86,6 +88,7 @@ function EmployeeRoute({ children }) {
   const { user, loading } = useAuth();
   if (loading) return <PageLoader />;
   if (!user) return <Navigate to="/login" replace />;
+  if (user.is_blocked) return <BlockedScreen />;
   return <EmployeeLayout>{children}</EmployeeLayout>;
 }
 
@@ -93,6 +96,7 @@ function RootRedirect() {
   const { user, loading } = useAuth();
   if (loading) return <PageLoader />;
   if (!user) return <Navigate to="/login" replace />;
+  if (user.is_blocked) return <BlockedScreen />;
   if (hasAdminAccess(user)) return <Navigate to="/admin" replace />;
   return <Navigate to="/employee/tasks" replace />;
 }
