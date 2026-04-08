@@ -304,6 +304,7 @@ router.post('/:id/scan-pick', requireAuth, async (req, res) => {
     const task = await client.query('SELECT * FROM inventory_tasks_s WHERE id = $1 AND task_type = $2', [req.params.id, 'bundle_assembly']);
     if (!task.rows.length) { await client.query('ROLLBACK'); client.release(); return res.status(404).json({ error: 'Задача не найдена' }); }
     if (task.rows[0].status !== 'in_progress') { await client.query('ROLLBACK'); client.release(); return res.status(400).json({ error: 'Задача не начата. Нажмите «Начать забор»' }); }
+    if (task.rows[0].paused_at) { await client.query('ROLLBACK'); client.release(); return res.status(400).json({ error: 'Задача на паузе. Дождитесь возобновления администратором.' }); }
     if (task.rows[0].assembly_phase !== 'picking') { await client.query('ROLLBACK'); client.release(); return res.status(400).json({ error: 'Задача не в фазе забора' }); }
     // Check employee break
     if (task.rows[0].employee_id) {
@@ -441,6 +442,7 @@ router.post('/:id/start-assembling', requireAuth, async (req, res) => {
   try {
     const task = await pool.query('SELECT * FROM inventory_tasks_s WHERE id = $1 AND task_type = $2', [req.params.id, 'bundle_assembly']);
     if (!task.rows.length) return res.status(404).json({ error: 'Задача не найдена' });
+    if (task.rows[0].paused_at) return res.status(400).json({ error: 'Задача на паузе. Дождитесь возобновления администратором.' });
     if (task.rows[0].assembly_phase !== 'picking') return res.status(400).json({ error: 'Задача не в фазе забора' });
 
     // Verify all components are fully picked
@@ -498,6 +500,7 @@ router.post('/:id/scan-component', requireAuth, async (req, res) => {
   try {
     const task = await pool.query('SELECT * FROM inventory_tasks_s WHERE id = $1 AND task_type = $2', [req.params.id, 'bundle_assembly']);
     if (!task.rows.length) return res.status(404).json({ error: 'Задача не найдена' });
+    if (task.rows[0].paused_at) return res.status(400).json({ error: 'Задача на паузе. Дождитесь возобновления администратором.' });
     if (task.rows[0].assembly_phase !== 'assembling') return res.status(400).json({ error: 'Задача не в фазе сборки' });
     // Check employee break
     if (task.rows[0].employee_id) {
@@ -599,6 +602,7 @@ router.post('/:id/confirm-bundle', requireAuth, async (req, res) => {
   try {
     const task = await pool.query('SELECT * FROM inventory_tasks_s WHERE id = $1 AND task_type = $2', [req.params.id, 'bundle_assembly']);
     if (!task.rows.length) return res.status(404).json({ error: 'Задача не найдена' });
+    if (task.rows[0].paused_at) return res.status(400).json({ error: 'Задача на паузе. Дождитесь возобновления администратором.' });
     if (task.rows[0].assembly_phase !== 'assembling') return res.status(400).json({ error: 'Задача не в фазе сборки' });
 
     // Verify barcode belongs to the bundle product
@@ -661,6 +665,10 @@ router.post('/:id/scan-place', requireAuth, async (req, res) => {
     const task = await client.query('SELECT * FROM inventory_tasks_s WHERE id = $1 AND task_type = $2', [req.params.id, 'bundle_assembly']);
     if (!task.rows.length) { await client.query('ROLLBACK'); client.release(); return res.status(404).json({ error: 'Задача не найдена' }); }
 
+    if (task.rows[0].paused_at) {
+      await client.query('ROLLBACK'); client.release();
+      return res.status(400).json({ error: 'Задача на паузе. Дождитесь возобновления администратором.' });
+    }
     if (task.rows[0].assembly_phase !== 'placing') {
       await client.query('ROLLBACK'); client.release();
       return res.status(400).json({ error: 'Задача не в фазе размещения' });
