@@ -353,15 +353,30 @@ router.post('/:id/scan-pick', requireAuth, async (req, res) => {
 
     // Decrease quantity from source
     if (box_id) {
-      const upd = await client.query(
-        'UPDATE box_items_s SET quantity = quantity - 1 WHERE box_id = $1 AND product_id = $2 AND quantity > 0 RETURNING quantity',
-        [box_id, product.id]);
-      if (!upd.rows.length) { await client.query('ROLLBACK'); client.release(); return res.status(400).json({ error: 'В этой коробке закончился товар. Нажмите «Сменить коробку»', hint: 'source_empty' }); }
-      const boxInfo = await client.query('SELECT pallet_id FROM boxes_s WHERE id = $1', [box_id]);
-      await client.query(
-        `INSERT INTO movements_s (movement_type, product_id, quantity, from_box_id, from_pallet_id, performed_by, source, notes)
-         VALUES ('bundle_pick', $1, 1, $2, $3, $4, 'task', $5)`,
-        [product.id, box_id, boxInfo.rows[0]?.pallet_id, req.user.id, `task:${req.params.id}`]);
+      // box_id может быть полочной (shelf_boxes_s) или паллетной (boxes_s) коробкой
+      const isShelfBox = await client.query('SELECT shelf_id FROM shelf_boxes_s WHERE id = $1', [box_id]);
+      if (isShelfBox.rows.length) {
+        const upd = await client.query(
+          'UPDATE shelf_box_items_s SET quantity = quantity - 1, updated_at = NOW() WHERE shelf_box_id = $1 AND product_id = $2 AND quantity > 0 RETURNING quantity',
+          [box_id, product.id]);
+        if (!upd.rows.length) { await client.query('ROLLBACK'); client.release(); return res.status(400).json({ error: 'В этой коробке закончился товар. Нажмите «Сменить коробку»', hint: 'source_empty' }); }
+        await client.query('UPDATE shelf_boxes_s SET quantity = GREATEST(0, quantity - 1) WHERE id = $1', [box_id]);
+        await client.query(
+          `INSERT INTO movements_s (movement_type, product_id, quantity, from_shelf_box_id, from_shelf_id, performed_by, source, notes)
+           VALUES ('bundle_pick', $1, 1, $2, $3, $4, 'task', $5)`,
+          [product.id, box_id, isShelfBox.rows[0].shelf_id || null, req.user.id, `task:${req.params.id}`]);
+      } else {
+        const upd = await client.query(
+          'UPDATE box_items_s SET quantity = quantity - 1 WHERE box_id = $1 AND product_id = $2 AND quantity > 0 RETURNING quantity',
+          [box_id, product.id]);
+        if (!upd.rows.length) { await client.query('ROLLBACK'); client.release(); return res.status(400).json({ error: 'В этой коробке закончился товар. Нажмите «Сменить коробку»', hint: 'source_empty' }); }
+        const boxInfo = await client.query('SELECT pallet_id FROM boxes_s WHERE id = $1', [box_id]);
+        await client.query('UPDATE boxes_s SET quantity = GREATEST(0, quantity - 1) WHERE id = $1', [box_id]);
+        await client.query(
+          `INSERT INTO movements_s (movement_type, product_id, quantity, from_box_id, from_pallet_id, performed_by, source, notes)
+           VALUES ('bundle_pick', $1, 1, $2, $3, $4, 'task', $5)`,
+          [product.id, box_id, boxInfo.rows[0]?.pallet_id, req.user.id, `task:${req.params.id}`]);
+      }
     } else if (shelf_id) {
       const upd = await client.query(
         'UPDATE shelf_items_s SET quantity = quantity - 1 WHERE shelf_id = $1 AND product_id = $2 AND quantity > 0 RETURNING quantity',
@@ -709,11 +724,28 @@ router.post('/:id/scan-place', requireAuth, async (req, res) => {
     }
 
     // Log movement
-    const boxPalletId = box_id ? (await client.query('SELECT pallet_id FROM boxes_s WHERE id=$1', [box_id])).rows[0]?.pallet_id : null;
+    // box_id может быть shelf_box (полочная коробка, FK shelf_boxes_s) или
+    // pallet box (FK boxes_s). Они кладутся в РАЗНЫЕ колонки movements_s,
+    // иначе FK violation. Поэтому сначала определяем тип.
+    let toShelfBoxId = null, toPalletBoxId = null, computedShelfId = shelf_id || null, computedPalletId = pallet_id || null;
+    if (box_id) {
+      const sb = await client.query('SELECT shelf_id FROM shelf_boxes_s WHERE id = $1', [box_id]);
+      if (sb.rows.length) {
+        // Полочная коробка
+        toShelfBoxId = box_id;
+        if (!computedShelfId) computedShelfId = sb.rows[0].shelf_id || null;
+      } else {
+        const pb = await client.query('SELECT pallet_id FROM boxes_s WHERE id = $1', [box_id]);
+        if (pb.rows.length) {
+          toPalletBoxId = box_id;
+          if (!computedPalletId) computedPalletId = pb.rows[0].pallet_id || null;
+        }
+      }
+    }
     await client.query(
-      `INSERT INTO movements_s (movement_type, product_id, quantity, to_shelf_id, to_pallet_id, to_box_id, performed_by, source, notes)
-       VALUES ('bundle_place', $1, 1, $2, $3, $4, $5, 'task', $6)`,
-      [productId, shelf_id || null, pallet_id || boxPalletId || null, box_id || null, req.user.id, `task:${req.params.id}`]);
+      `INSERT INTO movements_s (movement_type, product_id, quantity, to_shelf_id, to_pallet_id, to_box_id, to_shelf_box_id, performed_by, source, notes)
+       VALUES ('bundle_place', $1, 1, $2, $3, $4, $5, $6, 'task', $7)`,
+      [productId, computedShelfId, computedPalletId, toPalletBoxId, toShelfBoxId, req.user.id, `task:${req.params.id}`]);
 
     // Record scan and award GRA for placement
     const placeScan = await client.query(
@@ -819,12 +851,17 @@ router.delete('/:id', requireAuth, requirePermission('tasks.create'), async (req
       const placed = task.rows[0].placed_count;
       // Remove from movements and reverse shelf/pallet additions
       const placements = await client.query(
-        `SELECT to_shelf_id, to_pallet_id, to_box_id, SUM(quantity) as qty FROM movements_s
+        `SELECT to_shelf_id, to_pallet_id, to_box_id, to_shelf_box_id, SUM(quantity) as qty FROM movements_s
          WHERE product_id = $1 AND movement_type = 'bundle_place' AND source = 'task'
            AND notes LIKE $2
-         GROUP BY to_shelf_id, to_pallet_id, to_box_id`, [bundleProductId, `task:${req.params.id}`]);
+         GROUP BY to_shelf_id, to_pallet_id, to_box_id, to_shelf_box_id`, [bundleProductId, `task:${req.params.id}`]);
       for (const p of placements.rows) {
-        if (p.to_box_id) {
+        if (p.to_shelf_box_id) {
+          await client.query('UPDATE shelf_box_items_s SET quantity = GREATEST(0, quantity - $1) WHERE shelf_box_id = $2 AND product_id = $3',
+            [Number(p.qty), p.to_shelf_box_id, bundleProductId]);
+          await client.query('UPDATE shelf_boxes_s SET quantity = GREATEST(0, quantity - $1) WHERE id = $2',
+            [Number(p.qty), p.to_shelf_box_id]);
+        } else if (p.to_box_id) {
           await client.query('UPDATE box_items_s SET quantity = GREATEST(0, quantity - $1) WHERE box_id = $2 AND product_id = $3',
             [Number(p.qty), p.to_box_id, bundleProductId]);
           await client.query('UPDATE boxes_s SET quantity = GREATEST(0, quantity - $1) WHERE id = $2',
