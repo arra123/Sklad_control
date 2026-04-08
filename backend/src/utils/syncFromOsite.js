@@ -84,6 +84,21 @@ async function syncEmployeesFromOsite() {
     `);
     if (fixedUsers > 0) console.log(`[Sync] Fixed ${fixedUsers} stale user accounts`);
 
+    // Авто-роль склада: каждому новому users_d (у кого активный сотрудник)
+    // выдаём по умолчанию роль "Сотрудник" (role_id = 3) на складе.
+    // users_d НЕ модифицируется — пишем только в нашу sklad_user_roles_s.
+    // Идемпотентно: ON CONFLICT DO NOTHING.
+    const { rowCount: autoGranted } = await pool.query(`
+      INSERT INTO sklad_user_roles_s (user_id, role_id)
+      SELECT u.id, 3
+      FROM users_d u
+      JOIN employees_d e ON e.id = u.employee_id
+      WHERE e.status IN ('active','internship','pending_employment')
+        AND NOT EXISTS (SELECT 1 FROM sklad_user_roles_s sur WHERE sur.user_id = u.id)
+      ON CONFLICT (user_id) DO NOTHING
+    `);
+    if (autoGranted > 0) console.log(`[Sync] Auto-granted Сотрудник role to ${autoGranted} new users_d`);
+
     console.log(`[Sync] Created ${created}, updated ${updated}, deactivated ${deactivated}`);
   } catch (err) {
     console.error('[Sync] Error:', err.message);
