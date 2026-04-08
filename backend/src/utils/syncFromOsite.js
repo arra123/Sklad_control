@@ -1,16 +1,16 @@
 const pool = require('../db/pool');
 const externalPool = require('../db/externalPool');
-const { hashPassword } = require('./password');
 
 /**
- * Sync employees from external o_site DB into local c_site DB.
+ * Sync employees from external (employees_d) into local employees_s mirror.
  *
  * Rules:
  * - Only sync employees with external_employee_id link
  * - Never touch local-only users (no external link)
- * - Only update password if password_plain actually changed
- * - Never deactivate admin/manager users
  * - Reactivate employees that reappear on external site
+ *
+ * Пароли/логины больше НЕ мирроятся: аутентификация читает users_d напрямую
+ * (см. routes/auth.js). Теневая users_s создаётся при первом логине.
  */
 async function syncEmployeesFromOsite() {
   try {
@@ -54,38 +54,9 @@ async function syncEmployeesFromOsite() {
         created++;
       }
 
-      // Sync user account
-      if (ext.login) {
-        const existingUser = await pool.query(
-          'SELECT id, password_plain FROM users_s WHERE employee_id = $1',
-          [empId]
-        );
-
-        if (existingUser.rows.length > 0) {
-          const localPlain = existingUser.rows[0].password_plain;
-          // Only rehash if password actually changed
-          if (ext.password_plain && ext.password_plain !== localPlain) {
-            const hash = await hashPassword(ext.password_plain);
-            await pool.query(
-              `UPDATE users_s SET username=$1, password_hash=$2, password_plain=$3 WHERE employee_id=$4`,
-              [ext.login, hash, ext.password_plain, empId]
-            );
-          } else {
-            // Just update username in case it changed
-            await pool.query(`UPDATE users_s SET username=$1 WHERE employee_id=$2`, [ext.login, empId]);
-          }
-        } else {
-          // Create new user
-          if (ext.password_plain) {
-            const hash = await hashPassword(ext.password_plain);
-            await pool.query(
-              `INSERT INTO users_s (username, password_hash, password_plain, role, employee_id, active)
-               VALUES ($1, $2, $3, 'employee', $4, true)`,
-              [ext.login, hash, ext.password_plain, empId]
-            );
-          }
-        }
-      }
+      // NOTE: пароли/логины больше не мирроятся.
+      // Аутентификация склада читает users_d напрямую (см. routes/auth.js).
+      // Теневая users_s создаётся при первом успешном логине.
     }
 
     // Deactivate linked employees no longer active on external site

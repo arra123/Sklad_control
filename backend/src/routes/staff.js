@@ -5,6 +5,14 @@ const { requireAuth, requirePermission } = require('../middleware/auth');
 const { hashPassword } = require('../utils/password');
 const { syncEmployeesFromOsite } = require('../utils/syncFromOsite');
 
+// Lazy-refresh: дёргать sync перед отдачей списка. Без cooldown — каждое открытие
+// страницы даёт максимально свежие данные. Основной механизм — LISTEN/NOTIFY
+// в externalListener.js, lazy-sync остаётся как страховка.
+async function lazySync() {
+  try { await syncEmployeesFromOsite(); }
+  catch (err) { console.error('[Sync] Lazy sync failed:', err.message); }
+}
+
 // POST /api/staff/sync — trigger sync from external site
 router.post('/sync', requireAuth, requirePermission('staff.view', 'staff.edit'), async (_req, res) => {
   try {
@@ -17,9 +25,12 @@ router.post('/sync', requireAuth, requirePermission('staff.view', 'staff.edit'),
 
 router.get('/employees', requireAuth, requirePermission('staff.view', 'staff.edit', 'tasks.create', 'tasks.view'), async (req, res) => {
   try {
+    await lazySync();
     const result = await pool.query(
       `SELECT DISTINCT ON (e.id) e.*,
-        u.id as user_id, u.username, u.password_plain, u.role, u.role_id, u.active as user_active,
+        u.id as user_id, u.username,
+        CASE WHEN u.users_d_id IS NOT NULL THEN NULL ELSE u.password_plain END as password_plain,
+        u.role, u.role_id, u.active as user_active, u.users_d_id,
         r.name as role_name,
         (SELECT COALESCE(json_agg(json_build_object(
           'product_id', ei.product_id, 'product_name', p.name, 'quantity', ei.quantity
@@ -192,6 +203,86 @@ router.delete('/roles/:id', requireAuth, requirePermission('roles.manage'), asyn
     res.json({ success: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
+
+// ─── Доступ к складу через общие учётки users_d ──────────────────────────────
+//
+// users_d живёт в той же БД (это таблица сайта сотрудников). Auth склада
+// читает её напрямую (см. routes/auth.js). Здесь — управление ролью склада
+// для конкретного users_d.id (sklad_user_roles_s).
+
+// GET /api/staff/sklad-d-users — список users_d с их статусом доступа к складу
+router.get('/sklad-d-users', requireAuth, requirePermission('staff.view', 'staff.edit'), async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT u.id, u.login, u.employee_id AS d_employee_id,
+              e.full_name, e.status, p.name AS position, d.name AS department,
+              sur.role_id AS sklad_role_id, r.name AS sklad_role_name,
+              sur.granted_at AS sklad_role_granted_at, sur.last_active_at
+       FROM users_d u
+       LEFT JOIN employees_d e ON e.id = u.employee_id
+       LEFT JOIN positions_d p ON p.id = e.position_id
+       LEFT JOIN departments_d d ON d.id = e.department_id
+       LEFT JOIN sklad_user_roles_s sur ON sur.user_id = u.id
+       LEFT JOIN roles_s r ON r.id = sur.role_id
+       ORDER BY e.full_name`
+    );
+    res.json(result.rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// POST /api/staff/sklad-roles — выдать роль склада users_d-юзеру
+router.post('/sklad-roles', requireAuth, requirePermission('staff.edit'), async (req, res) => {
+  const { user_id, role_id } = req.body;
+  if (!user_id || !role_id) return res.status(400).json({ error: 'user_id и role_id обязательны' });
+  try {
+    // Проверка, что user_id существует в users_d
+    const u = await pool.query('SELECT id FROM users_d WHERE id = $1', [user_id]);
+    if (!u.rows.length) return res.status(404).json({ error: 'Пользователь не найден в users_d' });
+    // Проверка роли
+    const r = await pool.query('SELECT id FROM roles_s WHERE id = $1', [role_id]);
+    if (!r.rows.length) return res.status(404).json({ error: 'Роль не найдена' });
+
+    await pool.query(
+      `INSERT INTO sklad_user_roles_s (user_id, role_id, granted_by)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (user_id) DO UPDATE SET role_id = EXCLUDED.role_id, granted_at = NOW(), granted_by = EXCLUDED.granted_by`,
+      [user_id, role_id, req.user.users_d_id || null]
+    );
+    invalidateCacheForDUser(user_id).catch(() => {});
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// PUT /api/staff/sklad-roles/:user_id — сменить роль
+router.put('/sklad-roles/:user_id', requireAuth, requirePermission('staff.edit'), async (req, res) => {
+  const { role_id } = req.body;
+  if (!role_id) return res.status(400).json({ error: 'role_id обязателен' });
+  try {
+    const r = await pool.query(
+      'UPDATE sklad_user_roles_s SET role_id = $1, granted_at = NOW(), granted_by = $2 WHERE user_id = $3 RETURNING *',
+      [role_id, req.user.users_d_id || null, req.params.user_id]
+    );
+    if (!r.rows.length) return res.status(404).json({ error: 'Доступ к складу не выдан' });
+    invalidateCacheForDUser(req.params.user_id).catch(() => {});
+    res.json(r.rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// DELETE /api/staff/sklad-roles/:user_id — отозвать доступ к складу
+router.delete('/sklad-roles/:user_id', requireAuth, requirePermission('staff.edit'), async (req, res) => {
+  try {
+    await pool.query('DELETE FROM sklad_user_roles_s WHERE user_id = $1', [req.params.user_id]);
+    invalidateCacheForDUser(req.params.user_id).catch(() => {});
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Хелпер: инвалидация кэша users_s, привязанной к данному users_d.id
+async function invalidateCacheForDUser(usersDId) {
+  const { invalidateUserCache } = require('../middleware/auth');
+  const r = await pool.query('SELECT id FROM users_s WHERE users_d_id = $1', [usersDId]);
+  if (r.rows[0]) invalidateUserCache(r.rows[0].id);
+}
 
 // ─── Users ────────────────────────────────────────────────────────────────────
 

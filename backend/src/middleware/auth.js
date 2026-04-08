@@ -1,7 +1,7 @@
 const { verifyToken } = require('../utils/jwt');
 const pool = require('../db/pool');
 
-// Short-lived user cache (TTL 30s) to avoid DB hit on every request
+// Кэш юзера на 30 секунд — чтобы не дёргать БД на каждый запрос.
 const userCache = new Map();
 const USER_CACHE_TTL = 30_000;
 
@@ -17,7 +17,6 @@ function getCachedUser(userId) {
 
 function setCachedUser(userId, user) {
   userCache.set(userId, { user, ts: Date.now() });
-  // Prevent unbounded growth — evict oldest by timestamp (LRU)
   if (userCache.size > 200) {
     let oldestKey = null, oldestTs = Infinity;
     for (const [key, entry] of userCache) {
@@ -43,19 +42,38 @@ async function requireAuth(req, res, next) {
 
     let user = getCachedUser(payload.sub);
     if (!user) {
+      // Загружаем users_s + предпочитаем role из sklad_user_roles_s, если есть линк users_d_id
+      // (так смена роли админом действует мгновенно для общих аккаунтов).
       const result = await pool.query(
-        `SELECT u.id, u.username, u.role, u.role_id, u.employee_id, u.active,
-                r.name as role_name, r.permissions as role_permissions
+        `SELECT u.id, u.username, u.role, u.employee_id, u.users_d_id, u.active,
+                COALESCE(sur.role_id, u.role_id) AS effective_role_id,
+                r.name AS role_name, r.permissions AS role_permissions
          FROM users_s u
-         LEFT JOIN roles_s r ON r.id = u.role_id
+         LEFT JOIN sklad_user_roles_s sur ON sur.user_id = u.users_d_id
+         LEFT JOIN roles_s r ON r.id = COALESCE(sur.role_id, u.role_id)
          WHERE u.id = $1`,
         [payload.sub]
       );
       if (!result.rows.length || !result.rows[0].active) {
         return res.status(401).json({ error: 'Пользователь не найден или деактивирован' });
       }
-      user = result.rows[0];
-      user.permissions = user.role_permissions || [];
+      const row = result.rows[0];
+
+      // Для users_d-аккаунтов проверяем, что у них всё ещё есть роль склада.
+      if (row.users_d_id && !row.effective_role_id) {
+        return res.status(403).json({ error: 'Доступ к складу отозван' });
+      }
+
+      user = {
+        id: row.id,
+        username: row.username,
+        role: row.role_name === 'Администратор' ? 'admin' : (row.role || 'employee'),
+        role_id: row.effective_role_id,
+        role_name: row.role_name,
+        employee_id: row.employee_id,
+        users_d_id: row.users_d_id,
+        permissions: row.role_permissions || [],
+      };
       setCachedUser(payload.sub, user);
     }
 
@@ -66,6 +84,10 @@ async function requireAuth(req, res, next) {
     if (!userCache.has(lastActiveKey) || Date.now() - (userCache.get(lastActiveKey)?.ts || 0) > 300_000) {
       userCache.set(lastActiveKey, { ts: Date.now() });
       pool.query('UPDATE users_s SET last_active_at = NOW() WHERE id = $1', [payload.sub]).catch(() => {});
+      // также обновляем last_active_at в sklad_user_roles_s, если есть линк
+      if (req.user.users_d_id) {
+        pool.query('UPDATE sklad_user_roles_s SET last_active_at = NOW() WHERE user_id = $1', [req.user.users_d_id]).catch(() => {});
+      }
     }
 
     next();

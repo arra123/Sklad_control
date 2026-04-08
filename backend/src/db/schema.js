@@ -37,6 +37,19 @@ async function createSchema(attempt = 1) {
     await client.query(`ALTER TABLE users_s ADD COLUMN IF NOT EXISTS password_plain VARCHAR(255)`);
     await client.query(`ALTER TABLE users_s ADD COLUMN IF NOT EXISTS role_id INTEGER`);
     await client.query(`ALTER TABLE users_s DROP CONSTRAINT IF EXISTS users_c_role_check`);
+    // Линк на общую users_d (таблица сайта сотрудников). Auth читает пароль
+    // из users_d, но req.user.id остаётся users_s.id для совместимости с FK
+    // на users_s.id (created_by, performed_by и т.д. — 11 таблиц).
+    await client.query(`ALTER TABLE users_s ADD COLUMN IF NOT EXISTS users_d_id INTEGER`);
+    await client.query(`
+      DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='users_s_users_d_id_fkey') THEN
+          ALTER TABLE users_s ADD CONSTRAINT users_s_users_d_id_fkey
+            FOREIGN KEY (users_d_id) REFERENCES users_d(id) ON DELETE SET NULL;
+        END IF;
+      END $$;
+    `);
+    await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_s_users_d_id ON users_s(users_d_id) WHERE users_d_id IS NOT NULL`);
 
     // Add shelf_id to scans for multi-shelf tracking
     await client.query(`ALTER TABLE inventory_task_scans_s ADD COLUMN IF NOT EXISTS shelf_id INTEGER`);
@@ -905,6 +918,43 @@ async function createSchema(attempt = 1) {
       )
     `);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_employee_breaks_emp_date ON employee_breaks_s(employee_id, started_at DESC)`);
+
+    // ─── Sklad-роли поверх users_d (общие логины с сайтом сотрудников) ──
+    // users_d живёт в этой же БД bd2 (таблица сайта сотрудников). Сюда мы пишем
+    // только своё: какой роли склада соответствует тот или иной users_d.id.
+    // Источник правды по логину/паролю — users_d, мы её не модифицируем.
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS sklad_user_roles_s (
+        user_id        INTEGER PRIMARY KEY,
+        role_id        INTEGER NOT NULL REFERENCES roles_s(id),
+        granted_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        granted_by     INTEGER,
+        last_active_at TIMESTAMPTZ
+      )
+    `);
+    await client.query(`
+      DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='sklad_user_roles_s_user_id_fkey') THEN
+          ALTER TABLE sklad_user_roles_s
+            ADD CONSTRAINT sklad_user_roles_s_user_id_fkey
+            FOREIGN KEY (user_id) REFERENCES users_d(id) ON DELETE CASCADE;
+        END IF;
+      END $$;
+    `);
+
+    // Служебные аккаунты склада, не привязанные к сотруднику (например, главный admin).
+    // Auth сначала ищет в users_d, потом — здесь.
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS sklad_service_users_s (
+        id             SERIAL PRIMARY KEY,
+        username       VARCHAR(100) NOT NULL UNIQUE,
+        password_hash  VARCHAR(255) NOT NULL,
+        role_id        INTEGER NOT NULL REFERENCES roles_s(id),
+        active         BOOLEAN NOT NULL DEFAULT true,
+        last_active_at TIMESTAMPTZ,
+        created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
 
     // Seed default GRA rates per task type
     await client.query(`INSERT INTO settings_s (key, value) VALUES ('gra_rate_inventory', '10') ON CONFLICT (key) DO NOTHING`);
