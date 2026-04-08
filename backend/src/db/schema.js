@@ -932,15 +932,11 @@ async function createSchema(attempt = 1) {
         last_active_at TIMESTAMPTZ
       )
     `);
-    await client.query(`
-      DO $$ BEGIN
-        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='sklad_user_roles_s_user_id_fkey') THEN
-          ALTER TABLE sklad_user_roles_s
-            ADD CONSTRAINT sklad_user_roles_s_user_id_fkey
-            FOREIGN KEY (user_id) REFERENCES users_d(id) ON DELETE CASCADE;
-        END IF;
-      END $$;
-    `);
+    // FK на users_d НЕ ставим: при удалении users_d на стороне сайта сотрудников
+    // запись sklad_user_roles_s остаётся как «сирота» — её можно вычистить
+    // отдельным процессом, но удаление на сотрудниках при этом не блокируется.
+    // На случай, если FK был создан в старых версиях — сносим.
+    await client.query(`ALTER TABLE sklad_user_roles_s DROP CONSTRAINT IF EXISTS sklad_user_roles_s_user_id_fkey`);
 
     // Служебные аккаунты склада, не привязанные к сотруднику (например, главный admin).
     // Auth сначала ищет в users_d, потом — здесь.

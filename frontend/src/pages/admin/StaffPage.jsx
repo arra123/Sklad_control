@@ -181,6 +181,7 @@ function UsersTable({ users, employees, onEdit, onDelete, onDrill }) {
   const [showRejected, setShowRejected] = useState(false);
   const [showNoRole, setShowNoRole] = useState(false);
   const [showApplicants, setShowApplicants] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
 
   if (users.length === 0) {
     return (
@@ -199,9 +200,11 @@ function UsersTable({ users, employees, onEdit, onDelete, onDrill }) {
   const fired = [];             // employee_status='fired'
   const rejected = [];          // employee_status='rejected'
   const applicants = [];        // pending_applicants_d (всех статусов)
+  const archived = [];          // employees_s сироты — удалены на сайте сотрудников
 
   for (const u of users) {
     const status = u.employee_status || 'active';
+    if (status === 'archived') { archived.push(u); continue; }
     if (status.startsWith('applicant_')) { applicants.push(u); continue; }
     if (status === 'fired') { fired.push(u); continue; }
     if (status === 'rejected') { rejected.push(u); continue; }
@@ -225,7 +228,7 @@ function UsersTable({ users, employees, onEdit, onDelete, onDrill }) {
     (a.employee_name || a.username || '').localeCompare(b.employee_name || b.username || '', 'ru')
   );
   for (const k of sortedRoles) sortByName(activeByRole[k]);
-  sortByName(noRole); sortByName(fired); sortByName(rejected); sortByName(applicants);
+  sortByName(noRole); sortByName(fired); sortByName(rejected); sortByName(applicants); sortByName(archived);
 
   const renderRow = (user, dim = false) => (
     <div key={user.id}
@@ -355,6 +358,24 @@ function UsersTable({ users, employees, onEdit, onDelete, onDrill }) {
             </div>
           </button>
           {showApplicants && applicants.map(u => renderRow(u, true))}
+        </div>
+      )}
+
+      {/* Архив — сотрудники, удалённые на сайте сотрудников, но история склада сохранена */}
+      {archived.length > 0 && (
+        <div className="card overflow-hidden">
+          <button onClick={() => setShowArchived(v => !v)}
+            className="w-full px-4 py-2.5 bg-gray-100 border-b border-gray-200 flex items-center justify-between hover:bg-gray-200 transition-colors">
+            <div className="flex items-center gap-2">
+              <UserCog size={14} className="text-gray-500" />
+              <span className="text-xs font-bold text-gray-600">Архив (удалены на сайте сотрудников)</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-gray-500 font-medium">{archived.length} чел.</span>
+              <ChevronDown size={14} className={`text-gray-500 transition-transform ${showArchived ? 'rotate-180' : ''}`} />
+            </div>
+          </button>
+          {showArchived && archived.map(u => renderRow(u, true))}
         </div>
       )}
     </div>

@@ -346,6 +346,32 @@ router.get('/users', requireAuth, requirePermission('staff.view', 'staff.edit'),
       )
       UNION ALL
       (
+        -- employees_s «сироты»: записи, для которых сотрудник был удалён
+        -- на сайте сотрудников. Сохраняем как архив — историю склада не теряем.
+        SELECT
+          (3000000 + es.id)                  AS id,
+          ('архив #' || es.id)               AS username,
+          NULL::varchar                      AS password_plain,
+          'employee'                         AS role,
+          NULL::int                          AS role_id,
+          false                              AS active,
+          es.id                              AS employee_id,
+          NULL::int                          AS users_d_id,
+          es.created_at                      AS created_at,
+          NULL::timestamptz                  AS last_active_at,
+          es.full_name                       AS employee_name,
+          es.position                        AS position,
+          es.department                      AS department,
+          NULL::varchar                      AS role_name,
+          NULL::jsonb                        AS role_permissions,
+          'archived'::varchar                AS employee_status,
+          'archived'::varchar                AS source
+        FROM employees_s es
+        WHERE es.external_employee_id IS NOT NULL
+          AND NOT EXISTS (SELECT 1 FROM employees_d ed WHERE ed.id = es.external_employee_id)
+      )
+      UNION ALL
+      (
         -- sklad_service_users_s: служебные аккаунты склада
         SELECT
           (1000000 + sv.id)                  AS id,
