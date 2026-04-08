@@ -604,7 +604,9 @@ export default function StaffPage() {
         api.get('/staff/users'),
       ]);
       if (emp.status === 'fulfilled') setEmployees(emp.value.data.filter(e => e.active !== false));
-      if (usr.status === 'fulfilled') setUsers(usr.value.data.filter(u => u.active !== false));
+      // НЕ фильтруем users по active — нужно показать всех (включая уволенных,
+      // не принятых, заявки и архив). UsersTable сам разнесёт их по группам.
+      if (usr.status === 'fulfilled') setUsers(usr.value.data);
     } finally {
       setLoading(false);
     }
@@ -658,8 +660,8 @@ export default function StaffPage() {
             {(() => {
               const onlineCount = users.filter(u => u.last_active_at && (Date.now() - new Date(u.last_active_at).getTime()) < 600000).length;
               return onlineCount > 0
-                ? <><span className="inline-block w-2 h-2 rounded-full bg-green-500 mr-1" />{onlineCount} онлайн · {employees.length} всего</>
-                : `${employees.length} сотрудников`;
+                ? <><span className="inline-block w-2 h-2 rounded-full bg-green-500 mr-1" />{onlineCount} онлайн · {users.length} всего</>
+                : `${users.length} сотрудников`;
             })()}
           </p>
         </div>
@@ -674,7 +676,7 @@ export default function StaffPage() {
       {canManageRoles && (
         <div className="flex gap-1 mb-5 bg-gray-50 p-1.5 rounded-2xl w-fit border border-gray-200">
           {[
-            { value: 'users', label: `Сотрудники (${employees.length})`, icon: Users, active: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
+            { value: 'users', label: `Сотрудники (${users.length})`, icon: Users, active: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
             { value: 'roles', label: 'Роли', icon: Shield, active: 'bg-amber-50 text-amber-700 border-amber-200' },
           ].map(({ value, label, icon: Icon, active }) => (
             <button
