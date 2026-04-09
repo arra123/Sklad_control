@@ -240,6 +240,16 @@ router.post('/:taskId/scan', requireAuth, async (req, res) => {
 
     await client.query('UPDATE boxes_s SET quantity=$1 WHERE id=$2', [newQty, box.id]);
 
+    // Синхронно ведём box_items_s — иначе сборка/перемещения не увидят содержимое
+    // свежесозданной коробки и выдадут "В этой коробке закончился товар".
+    await client.query(
+      `INSERT INTO box_items_s (box_id, product_id, quantity, updated_at)
+       VALUES ($1, $2, 1, NOW())
+       ON CONFLICT (box_id, product_id)
+       DO UPDATE SET quantity = box_items_s.quantity + 1, updated_at = NOW()`,
+      [box.id, prod.id]
+    );
+
     // Log scan to inventory_task_scans_s for analytics/timing
     const scanInsert = await client.query(
       'INSERT INTO inventory_task_scans_s (task_id, product_id, scanned_value, quantity_delta) VALUES ($1,$2,$3,1) RETURNING id',

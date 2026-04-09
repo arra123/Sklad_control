@@ -62,6 +62,7 @@ function buildCrumbs(pathname) {
   if (pathname.startsWith('/admin/earnings'))   return [{ label: 'Заработок' }];
   if (pathname.startsWith('/admin/move'))       return [{ label: 'Переместить' }];
   if (pathname.startsWith('/admin/errors'))     return [{ label: 'Ошибки сканирования' }];
+  if (pathname.startsWith('/admin/staff2'))     return [{ label: 'Сотрудники 2' }];
   if (pathname.startsWith('/admin/staff'))      return [{ label: 'Сотрудники' }];
   if (pathname.startsWith('/admin/settings'))   return [{ label: 'Настройки' }];
   if (pathname.startsWith('/admin/fbo'))        return [{ label: 'Паллетный склад' }];
@@ -209,6 +210,7 @@ const ALL_NAV = [
   { to: '/admin/live-monitor', icon: IconActivity, label: 'Мониторинг', perm: 'analytics' },
   { to: '/admin/move', icon: IconArrows, label: 'Переместить', perm: 'movements.edit' },
   { to: '/admin/staff', icon: IconUsers, label: 'Сотрудники', perm: 'staff.view' },
+  { to: '/admin/staff2', icon: IconUsers, label: 'Сотрудники 2', perm: 'staff.view' },
   { to: '/admin/settings', icon: IconSettings, label: 'Настройки', perm: 'settings' },
 ];
 
@@ -358,7 +360,7 @@ export default function AdminLayout({ children }) {
               <LogOut className="w-3.5 h-3.5" />
               Выйти
             </button>
-            <p className="text-[10px] text-gray-300 dark:text-gray-600">v7.18.1</p>
+            <p className="text-[10px] text-gray-300 dark:text-gray-600">v7.19.1</p>
           </div>
         </div>
       </aside>

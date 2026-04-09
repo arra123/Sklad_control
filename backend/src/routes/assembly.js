@@ -367,9 +367,27 @@ router.post('/:id/scan-pick', requireAuth, async (req, res) => {
            VALUES ('bundle_pick', $1, 1, $2, $3, $4, 'task', $5)`,
           [product.id, box_id, isShelfBox.rows[0].shelf_id || null, req.user.id, `task:${req.params.id}`]);
       } else {
-        const upd = await client.query(
+        let upd = await client.query(
           'UPDATE box_items_s SET quantity = quantity - 1 WHERE box_id = $1 AND product_id = $2 AND quantity > 0 RETURNING quantity',
           [box_id, product.id]);
+        if (!upd.rows.length) {
+          // Safety-net: коробки, созданные через packing до фикса, могут не иметь
+          // строки в box_items_s. Если в boxes_s есть остаток и это тот же товар —
+          // бэкфилим строку из boxes_s.quantity и продолжаем.
+          const boxRow = await client.query('SELECT product_id, quantity FROM boxes_s WHERE id = $1', [box_id]);
+          const br = boxRow.rows[0];
+          if (br && Number(br.quantity) > 0 && (!br.product_id || Number(br.product_id) === Number(product.id))) {
+            await client.query(
+              `INSERT INTO box_items_s (box_id, product_id, quantity, updated_at)
+               VALUES ($1, $2, $3, NOW())
+               ON CONFLICT (box_id, product_id) DO UPDATE SET quantity = EXCLUDED.quantity, updated_at = NOW()`,
+              [box_id, product.id, Number(br.quantity)]
+            );
+            upd = await client.query(
+              'UPDATE box_items_s SET quantity = quantity - 1 WHERE box_id = $1 AND product_id = $2 AND quantity > 0 RETURNING quantity',
+              [box_id, product.id]);
+          }
+        }
         if (!upd.rows.length) { await client.query('ROLLBACK'); client.release(); return res.status(400).json({ error: 'В этой коробке закончился товар. Нажмите «Сменить коробку»', hint: 'source_empty' }); }
         const boxInfo = await client.query('SELECT pallet_id FROM boxes_s WHERE id = $1', [box_id]);
         await client.query('UPDATE boxes_s SET quantity = GREATEST(0, quantity - 1) WHERE id = $1', [box_id]);

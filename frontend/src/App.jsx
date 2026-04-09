@@ -20,6 +20,7 @@ const ProductStockPage = lazy(() => import('./pages/admin/ProductStockPage'));
 const WarehousePage = lazy(() => import('./pages/admin/WarehousePage'));
 const TasksPage = lazy(() => import('./pages/admin/TasksPage'));
 const StaffPage = lazy(() => import('./pages/admin/StaffPage'));
+const StaffPage2 = lazy(() => import('./pages/admin/StaffPage2'));
 const SettingsPage = lazy(() => import('./pages/admin/SettingsPage'));
 const AnalyticsPage = lazy(() => import('./pages/admin/AnalyticsPage'));
 const EarningsPage = lazy(() => import('./pages/admin/EarningsPage'));
@@ -118,6 +119,7 @@ function AppRoutes() {
       <Route path="/admin/warehouse" element={<AdminRoute><WarehousePage /></AdminRoute>} />
       <Route path="/admin/tasks" element={<AdminRoute><TasksPage /></AdminRoute>} />
       <Route path="/admin/staff" element={<AdminRoute><StaffPage /></AdminRoute>} />
+      <Route path="/admin/staff2" element={<AdminRoute><StaffPage2 /></AdminRoute>} />
       <Route path="/admin/settings" element={<AdminRoute><SettingsPage /></AdminRoute>} />
       <Route path="/admin/analytics" element={<AdminRoute><AnalyticsPage /></AdminRoute>} />
       <Route path="/admin/earnings" element={<AdminRoute><EarningsPage /></AdminRoute>} />
