@@ -104,14 +104,43 @@ function Avatar({ name, size = 40, online }) {
 // ════════════════════════════════════════════════════════════════════════════
 // Скопировать значение (логин/пароль) — компактный inline-чип
 // ════════════════════════════════════════════════════════════════════════════
+// Копирование в буфер с фолбэком для HTTP-страниц (где navigator.clipboard недоступен)
+function copyToClipboard(text) {
+  if (navigator.clipboard && window.isSecureContext) {
+    return navigator.clipboard.writeText(text).then(() => true).catch(() => false);
+  }
+  // Fallback: hidden textarea + execCommand('copy') — работает на http://
+  return new Promise((resolve) => {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed';
+      ta.style.top = '0';
+      ta.style.left = '0';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      const ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+      resolve(ok);
+    } catch {
+      resolve(false);
+    }
+  });
+}
+
 function CopyChip({ text, label, mono = true, className = '' }) {
   const [copied, setCopied] = useState(false);
   if (!text) return null;
-  const onClick = (e) => {
+  const onClick = async (e) => {
     e.stopPropagation();
-    navigator.clipboard?.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1300);
+    const ok = await copyToClipboard(String(text));
+    if (ok) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1300);
+    }
   };
   return (
     <button
@@ -234,8 +263,8 @@ function UserRow({ user, dim, canEdit, onClick, onEdit, onDelete, view = 'list' 
         </div>
       )}
 
-      {/* Логин/пароль */}
-      <div className="hidden lg:flex items-center gap-1.5 flex-shrink-0" onClick={e => e.stopPropagation()}>
+      {/* Логин/пароль — показываем всегда, чтобы кнопки копирования были под рукой */}
+      <div className="hidden sm:flex items-center gap-1.5 flex-shrink-0 flex-wrap justify-end max-w-[260px]" onClick={e => e.stopPropagation()}>
         {user.username && <CopyChip text={user.username} label="логин" />}
         {user.password_plain && <CopyChip text={user.password_plain} label="пароль" />}
       </div>

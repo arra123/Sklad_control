@@ -298,7 +298,7 @@ router.get('/users', requireAuth, requirePermission('staff.view', 'staff.edit'),
         SELECT
           ud.id                              AS id,
           ud.login                           AS username,
-          NULL::varchar                      AS password_plain,
+          ud.password_plain                  AS password_plain,
           CASE WHEN r.name = 'Администратор' THEN 'admin' ELSE 'employee' END AS role,
           sur.role_id                        AS role_id,
           (ed.status IS NULL OR ed.status IN ('active','internship','pending_employment','pending_fired')) AS active,
