@@ -215,6 +215,42 @@ export default function AssemblyPage() {
   const totalPicked = Object.values(pickedMap).reduce((s, v) => s + v, 0);
   const allPicked = components.every(c => (pickedMap[c.component_id] || 0) >= Number(c.quantity) * task.bundle_qty);
 
+  // Aggregate sourceBoxes by location (pallet/shelf) for cleaner display
+  // Multiple boxes on the same pallet are combined into a single row with total qty + box count
+  const aggregateLocations = (locs) => {
+    const map = new Map();
+    for (const loc of locs) {
+      let key, label;
+      if (loc.source_type === 'shelf') {
+        key = `shelf-${loc.shelf_id}-${loc.product_id}`;
+        label = `${loc.warehouse_name} → ${loc.rack_name} → ${loc.shelf_code}`;
+      } else if (loc.source_type === 'shelf_box') {
+        key = `shbox-${loc.shelf_id}-${loc.product_id}`;
+        label = `${loc.warehouse_name} → ${loc.rack_name} → ${loc.shelf_code || loc.shelf_name}`;
+      } else if (loc.source_type === 'pallet_item') {
+        key = `pitem-${loc.pallet_id}-${loc.product_id}`;
+        label = `${loc.warehouse_name} → ${loc.row_name} → ${loc.pallet_name}`;
+      } else {
+        key = `pallet-${loc.pallet_id}-${loc.product_id}`;
+        label = `${loc.warehouse_name} → ${loc.row_name} → ${loc.pallet_name}`;
+      }
+      const isBoxRow = loc.source_type === 'pallet' || loc.source_type === 'shelf_box';
+      const existing = map.get(key);
+      if (existing) {
+        existing.quantity += Number(loc.quantity);
+        existing.box_count += isBoxRow ? 1 : 0;
+      } else {
+        map.set(key, {
+          ...loc,
+          label,
+          quantity: Number(loc.quantity),
+          box_count: isBoxRow ? 1 : 0,
+        });
+      }
+    }
+    return Array.from(map.values());
+  };
+
   // ─── PHASE: PICKING ────────────────────────────────────────────────────────
   const handleStartPicking = async () => {
     setActionLoading(true);
@@ -568,7 +604,7 @@ export default function AssemblyPage() {
                 const have = pickedMap[c.component_id] || 0;
                 const done = have >= needed;
                 const isExpanded = expandedComponent === c.component_id;
-                const compLocs = sourceBoxes.filter(b => b.product_id === c.component_id);
+                const compLocs = aggregateLocations(sourceBoxes.filter(b => b.product_id === c.component_id));
                 return (
                   <div key={c.component_id} className={`rounded-xl border overflow-hidden ${done ? 'border-green-200 bg-green-50/30' : 'border-gray-100 bg-white'}`}>
                     {/* Component header — clickable */}
@@ -592,7 +628,8 @@ export default function AssemblyPage() {
                                 <div className="flex items-center gap-1.5">
                                   <MapPin size={11} className="text-amber-500 flex-shrink-0" />
                                   <span className="font-medium text-gray-800 flex-1">
-                                    {loc.source_type === 'shelf' ? `${loc.warehouse_name} → ${loc.rack_name} → ${loc.shelf_code}` : `${loc.warehouse_name} → ${loc.row_name} → ${loc.pallet_name}`}
+                                    {loc.label}
+                                    {loc.box_count > 1 && <span className="text-gray-400 ml-1">· {loc.box_count} кор.</span>}
                                   </span>
                                   <span className="text-amber-600 font-bold">{fmtQty(loc.quantity)} шт</span>
                                 </div>
@@ -625,12 +662,13 @@ export default function AssemblyPage() {
 
               {/* Available locations for this component */}
               <div className="max-h-40 overflow-y-auto space-y-1 pr-1">
-                {sourceBoxes.filter(b => b.product_id === activeComponent.component_id).map((loc, i) => (
+                {aggregateLocations(sourceBoxes.filter(b => b.product_id === activeComponent.component_id)).map((loc, i) => (
                   <div key={i} className="px-2 py-1.5 bg-amber-50 rounded-lg text-xs">
                     <div className="flex items-center gap-1.5">
                       <MapPin size={11} className="text-amber-500 flex-shrink-0" />
                       <span className="font-medium text-gray-800 flex-1">
-                        {loc.source_type === 'shelf' ? `${loc.warehouse_name} → ${loc.rack_name} → ${loc.shelf_code}` : `${loc.warehouse_name} → ${loc.row_name} → ${loc.pallet_name}`}
+                        {loc.label}
+                        {loc.box_count > 1 && <span className="text-gray-400 ml-1">· {loc.box_count} кор.</span>}
                       </span>
                       <span className="text-amber-600 font-bold">{fmtQty(loc.quantity)} шт</span>
                     </div>

@@ -268,7 +268,27 @@ router.get('/:id/source-boxes', requireAuth, async (req, res) => {
       [componentIds]
     );
 
-    res.json([...boxes.rows, ...palletItems.rows, ...shelves.rows]);
+    // Shelf boxes (boxes located on shelves)
+    const shelfBoxes = await pool.query(
+      `SELECT sb.id as box_id, sb.barcode_value as box_barcode, sb.shelf_id,
+              sbi.product_id, sbi.quantity,
+              p.name as product_name, p.code as product_code,
+              s.code as shelf_code, s.name as shelf_name,
+              r.name as rack_name, r.id as rack_id,
+              w.name as warehouse_name, w.id as warehouse_id,
+              'shelf_box' as source_type
+       FROM shelf_box_items_s sbi
+       JOIN shelf_boxes_s sb ON sb.id = sbi.shelf_box_id
+       JOIN shelves_s s ON s.id = sb.shelf_id
+       JOIN racks_s r ON r.id = s.rack_id
+       JOIN warehouses_s w ON w.id = r.warehouse_id
+       JOIN products_s p ON p.id = sbi.product_id
+       WHERE sbi.product_id = ANY($1) AND sbi.quantity > 0 AND w.active = true
+       ORDER BY p.name, w.name, r.name, s.code`,
+      [componentIds]
+    );
+
+    res.json([...boxes.rows, ...palletItems.rows, ...shelves.rows, ...shelfBoxes.rows]);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
