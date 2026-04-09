@@ -740,7 +740,7 @@ function EmployeeDetailView({ employeeId, employees, onBack, thresholds, date, i
         {[
           { icon: ScanLine, label: 'Сканов', value: fmtNum(emp.scans_today), bg: 'bg-gray-50', color: 'text-gray-800' },
           { icon: Package, label: 'Заказов сборки', value: fmtNum(emp.sborka_orders_today || 0), bg: 'bg-purple-50', color: 'text-purple-700' },
-          { icon: Award, label: 'Заработок', value: fmtNum(Math.round(emp.earned_today)), bg: 'bg-green-50', color: 'text-green-700' },
+          { icon: Award, label: 'Заработок', value: `${formatRub(emp.earned_today)} ₽`, bg: 'bg-green-50', color: 'text-green-700' },
           { icon: Zap, label: 'Скорость', value: emp.avg_speed_today ? `${emp.avg_speed_today}с` : '—', bg: 'bg-blue-50', color: 'text-blue-700' },
           { icon: TrendingUp, label: 'Задач', value: emp.tasks_today, bg: 'bg-amber-50', color: 'text-amber-700' },
         ].map((s, i) => (
