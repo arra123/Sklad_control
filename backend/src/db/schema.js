@@ -733,6 +733,33 @@ async function createSchema(attempt = 1) {
         )
     `);
 
+    // Repair: для односоставных коробок (где в box_items_s ровно одна строка
+    // с тем же product_id что и в boxes_s) синхронизируем box_items_s.quantity
+    // → boxes_s.quantity. Лечит застарелую рассинхронизацию, когда старый
+    // packing.js обновлял только boxes_s.quantity, а box_items_s оставалась
+    // со стоячим (часто нулевым) значением, и сборка показывала неверное
+    // количество / "коробка пустая".
+    await client.query(`
+      UPDATE box_items_s bi
+      SET quantity = b.quantity, updated_at = NOW()
+      FROM boxes_s b
+      WHERE bi.box_id = b.id
+        AND b.product_id IS NOT NULL
+        AND b.product_id = bi.product_id
+        AND bi.quantity <> b.quantity
+        AND (SELECT COUNT(*) FROM box_items_s bii WHERE bii.box_id = b.id) = 1
+    `);
+    await client.query(`
+      UPDATE shelf_box_items_s sbi
+      SET quantity = sb.quantity, updated_at = NOW()
+      FROM shelf_boxes_s sb
+      WHERE sbi.shelf_box_id = sb.id
+        AND sb.product_id IS NOT NULL
+        AND sb.product_id = sbi.product_id
+        AND sbi.quantity <> sb.quantity
+        AND (SELECT COUNT(*) FROM shelf_box_items_s sbii WHERE sbii.shelf_box_id = sb.id) = 1
+    `);
+
     // Visual warehouse seed removed — create warehouses manually via UI
 
     // Fix old-format barcodes (SHELF-X-Y, RACK-X-Y) → use shelf/rack ID for uniqueness
