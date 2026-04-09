@@ -105,7 +105,7 @@ export default function EarningsPage() {
 
   const period = sp.get('period') || 'all';
   const employeeId = sp.get('employee');
-  const unit = sp.get('unit') === 'rub' ? 'rub' : 'gra';
+  const unit = sp.get('unit') === 'gra' ? 'gra' : 'rub';
 
   const [summary, setSummary] = useState(null);
   const [detail, setDetail] = useState(null);
@@ -154,7 +154,7 @@ export default function EarningsPage() {
     setSp(n, { replace: true });
   };
   const setPeriod = (p) => update({ period: p });
-  const setUnit = (u) => update({ unit: u === 'rub' ? 'rub' : null });
+  const setUnit = (u) => update({ unit: u === 'gra' ? 'gra' : null });
   const selectEmployee = (eid) => update({ employee: eid });
   const clearEmployee = () => update({ employee: null });
 

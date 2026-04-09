@@ -4,6 +4,7 @@ import api from '../../api/client';
 import Spinner from '../../components/ui/Spinner';
 import { ArrowLeft, RefreshCw, Zap, TrendingUp, Clock, Package, ScanLine, Award, CheckCircle2, Play, Pause, Timer, ChevronDown } from 'lucide-react';
 import { WorkerAvatar } from '../../components/ui/WarehouseIcons';
+import { formatRub, graToRub } from '../../utils/currency';
 
 const POLL_MS = 5000;
 
@@ -581,8 +582,8 @@ function ActivityTimeline({ buckets, tasks, breaks = [], thresholds }) {
                 <p className="font-semibold text-gray-800">{fmtNum(t.scan_count)}</p>
               </div>
               <div className="bg-white rounded-lg px-3 py-2">
-                <p className="text-[9px] text-gray-400 uppercase font-bold">GRA</p>
-                <p className="font-semibold text-green-700">{fmtNum(Math.round(parseFloat(t.earned)))}</p>
+                <p className="text-[9px] text-gray-400 uppercase font-bold">₽</p>
+                <p className="font-semibold text-green-700">{formatRub(t.earned)}</p>
               </div>
             </div>
             {pauses.length > 0 && (
@@ -685,7 +686,7 @@ function EmployeeDetailView({ employeeId, employees, onBack, thresholds, date, i
             )}
           </div>
           <p className="text-sm text-gray-400">
-            Баланс: {fmtNum(Math.round(emp.balance))} GRA · Последний скан: {emp.last_scan_at ? timeAgo(emp.last_scan_at) : '—'}
+            Баланс: {formatRub(emp.balance)} ₽ · Последний скан: {emp.last_scan_at ? timeAgo(emp.last_scan_at) : '—'}
           </p>
         </div>
         {/* Active break indicator + end button */}
@@ -809,7 +810,7 @@ function EmployeeDetailView({ employeeId, employees, onBack, thresholds, date, i
                         </div>
                         <div className="text-right flex-shrink-0">
                           <p className="text-xs text-gray-500">{fmtTime(t.started_at)} → {t.completed_at ? fmtTime(t.completed_at) : '...'}</p>
-                          <p className="text-xs font-bold text-green-600">+{fmtNum(Math.round(parseFloat(t.earned)))} GRA</p>
+                          <p className="text-xs font-bold text-green-600">+{formatRub(t.earned)} ₽</p>
                         </div>
                         <ChevronDown size={16} className={`text-gray-300 transition-transform flex-shrink-0 ${isExpanded ? 'rotate-180' : ''}`} />
                       </button>
@@ -832,7 +833,7 @@ function EmployeeDetailView({ employeeId, employees, onBack, thresholds, date, i
                             </div>
                             <div className="bg-green-50 rounded-lg px-3 py-2">
                               <p className="text-[9px] text-green-500 uppercase font-bold">Заработок</p>
-                              <p className="text-xs font-black text-green-700">+{fmtNum(Math.round(parseFloat(t.earned)))} GRA</p>
+                              <p className="text-xs font-black text-green-700">+{formatRub(t.earned)} ₽</p>
                             </div>
                           </div>
                           {parseInt(t.boxes_total) > 0 && (
@@ -1048,8 +1049,8 @@ function EmployeeCard({ emp, onClick }) {
           <p className="text-xs font-black text-purple-700 leading-tight mt-px truncate px-0.5">{fmtCompact(emp.sborka_orders_today || 0)}</p>
         </div>
         <div className="bg-green-50 rounded-lg py-1.5 text-center overflow-hidden">
-          <p className="text-[7px] text-green-500 uppercase font-bold">GRA</p>
-          <p className="text-xs font-black text-green-700 leading-tight mt-px truncate px-0.5">{fmtCompact(Math.round(emp.earned_today))}</p>
+          <p className="text-[7px] text-green-500 uppercase font-bold">₽</p>
+          <p className="text-xs font-black text-green-700 leading-tight mt-px truncate px-0.5">{fmtCompact(graToRub(emp.earned_today))}</p>
         </div>
         <div className="bg-blue-50 rounded-lg py-1.5 text-center overflow-hidden">
           <p className="text-[7px] text-blue-500 uppercase font-bold">Скорость</p>

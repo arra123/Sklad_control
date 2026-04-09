@@ -12,6 +12,7 @@ import { ProductIcon, ShelfIcon, PalletIcon, BoxIcon, ScanIcon } from '../../com
 import Spinner from '../../components/ui/Spinner';
 import { useToast } from '../../components/ui/Toast';
 import { playBeep, SCAN_AUTO_SUBMIT_MS } from '../../utils/audio';
+import { formatRub } from '../../utils/currency';
 
 function fmtTime(iso) {
   if (!iso) return '—';
@@ -846,8 +847,8 @@ function CompletedView({ task, scans }) {
       <p className="text-gray-500 text-sm mb-2 animate-fade-up" style={{ animationDelay: '0.4s' }}>{task.title}</p>
       {task.gra_earned > 0 && (
         <div className="animate-fade-up flex items-center gap-1.5 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2 mb-4" style={{ animationDelay: '0.45s' }}>
-          <span className="text-lg font-black text-amber-600">+{task.gra_earned}</span>
-          <span className="text-xs text-amber-500 font-semibold">GRA заработано</span>
+          <span className="text-lg font-black text-amber-600">+{formatRub(task.gra_earned)} ₽</span>
+          <span className="text-xs text-amber-500 font-semibold">заработано</span>
         </div>
       )}
 

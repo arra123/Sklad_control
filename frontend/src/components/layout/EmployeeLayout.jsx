@@ -8,14 +8,7 @@ import { useAuth } from '../../context/AuthContext';
 import { cn } from '../../utils/cn';
 import api from '../../api/client';
 import { WorkerAvatar } from '../ui/WarehouseIcons';
-
-function formatGra(value) {
-  const amount = Number(value || 0);
-  return new Intl.NumberFormat('ru-RU', {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: amount % 1 === 0 ? 0 : 3,
-  }).format(amount);
-}
+import { formatRub } from '../../utils/currency';
 
 function GraBalanceCenter({ balance, rewardFx }) {
   const [activeReward, setActiveReward] = useState(null);
@@ -36,14 +29,14 @@ function GraBalanceCenter({ balance, rewardFx }) {
 
   return (
     <div className={cn('gra-balance-widget', isAnimating && 'is-rewarding')} aria-live="polite">
-      <div className="gra-balance-coin">G</div>
+      <div className="gra-balance-coin">₽</div>
       <div className="gra-balance-copy">
         <span className="gra-balance-label">Оплата за точность</span>
-        <strong className="gra-balance-value">{formatGra(balance)} GRAcoin</strong>
+        <strong className="gra-balance-value">{formatRub(balance)} ₽</strong>
       </div>
       {activeReward && (
         <div key={activeReward.id} className="gra-balance-reward">
-          +{formatGra(activeReward.amount)} GRA
+          +{formatRub(activeReward.amount)} ₽
         </div>
       )}
     </div>

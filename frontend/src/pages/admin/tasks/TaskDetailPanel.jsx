@@ -12,6 +12,7 @@ import Spinner from '../../../components/ui/Spinner';
 import CopyBadge from '../../../components/ui/CopyBadge';
 import { useToast } from '../../../components/ui/Toast';
 import { STATUS_MAP, TASK_TYPE_ICON, fmtTime, fmtDate } from './taskConstants';
+import { formatRub } from '../../../utils/currency';
 
 export default function TaskDetailPanel({ task, onClose, onReload }) {
   const toast = useToast();
@@ -133,7 +134,7 @@ export default function TaskDetailPanel({ task, onClose, onReload }) {
       } else {
         await api.delete(`/tasks/${task.id}`, { params: { refund: refund ? '1' : '0' } });
       }
-      toast.success(refund ? 'Задача удалена, GRA списаны' : 'Задача удалена, оплата сохранена');
+      toast.success(refund ? 'Задача удалена, оплата списана' : 'Задача удалена, оплата сохранена');
       onClose();
       onReload();
     } catch { toast.error('Ошибка удаления'); }
@@ -238,11 +239,11 @@ export default function TaskDetailPanel({ task, onClose, onReload }) {
           )}
         </div>
 
-        {/* GRA earned badge */}
+        {/* Earned badge (in rubles) */}
         {graEarned > 0 && (
           <div className="mx-4 mt-2 flex items-center gap-1.5">
-            <GRACoinIcon size={14} />
-            <span className="text-xs font-bold text-amber-600">+{graEarned.toLocaleString('ru-RU')} GRA</span>
+            <span className="text-xs font-black text-amber-600">₽</span>
+            <span className="text-xs font-bold text-amber-600">+{formatRub(graEarned)} ₽</span>
           </div>
         )}
 
@@ -843,15 +844,15 @@ export default function TaskDetailPanel({ task, onClose, onReload }) {
                   <div className="w-12 h-12 rounded-full bg-amber-50 flex items-center justify-center mx-auto mb-3">
                     <GRACoinIcon size={24} className="text-amber-500" />
                   </div>
-                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">Начисленные GRA</h3>
-                  <p className="text-sm text-gray-500 mt-2">Списать GRA, начисленные за эту задачу, с баланса сотрудника?</p>
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">Начисленная оплата</h3>
+                  <p className="text-sm text-gray-500 mt-2">Списать оплату, начисленную за эту задачу, с баланса сотрудника?</p>
                 </div>
                 <div className="px-6 py-4 flex flex-col gap-2">
                   <Button variant="danger" size="md" className="w-full" onClick={() => handleDeleteExecute(true)}>
-                    Списать GRA и удалить
+                    Списать оплату и удалить
                   </Button>
                   <Button variant="outline" size="md" className="w-full" onClick={() => handleDeleteExecute(false)}>
-                    Оставить GRA, удалить задачу
+                    Оставить оплату, удалить задачу
                   </Button>
                   <Button variant="ghost" size="sm" className="w-full" onClick={() => setDeleteConfirm(null)}>
                     Отмена

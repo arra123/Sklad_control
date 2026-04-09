@@ -3,6 +3,7 @@ import { ChevronDown, Clock, ScanLine, TrendingUp } from 'lucide-react';
 import api from '../../api/client';
 import Spinner from '../../components/ui/Spinner';
 import { GRACoinIcon } from '../../components/ui/WarehouseIcons';
+import { formatRub } from '../../utils/currency';
 
 function fmtNum(n) {
   return Number(n || 0).toLocaleString('ru-RU');
@@ -69,7 +70,7 @@ export default function MyEarningsPage() {
         </div>
         <div>
           <h1 className="text-lg font-bold text-gray-900">Мой заработок</h1>
-          <p className="text-xs text-gray-400">GRAcoin за выполненные задачи</p>
+          <p className="text-xs text-gray-400">Рубли за выполненные задачи</p>
         </div>
       </div>
 
@@ -95,9 +96,9 @@ export default function MyEarningsPage() {
           {/* Summary cards */}
           <div className="grid grid-cols-3 gap-2 mb-5">
             <div className="bg-green-50 rounded-2xl p-3 text-center border border-green-100">
-              <div className="flex justify-center mb-1"><GRACoinIcon size={18} /></div>
-              <p className="text-xl font-black text-green-700">{fmtNum(Math.round(parseFloat(data.summary.total_earned)))}</p>
-              <p className="text-[9px] uppercase font-semibold text-green-500 mt-0.5">GRA</p>
+              <div className="flex justify-center mb-1 text-green-600 font-black text-lg leading-none">₽</div>
+              <p className="text-xl font-black text-green-700">{formatRub(data.summary.total_earned)}</p>
+              <p className="text-[9px] uppercase font-semibold text-green-500 mt-0.5">Рубли</p>
             </div>
             <div className="bg-gray-50 rounded-2xl p-3 text-center border border-gray-100">
               <ScanLine size={18} className="mx-auto mb-1 text-gray-500 opacity-60" />
@@ -143,7 +144,7 @@ export default function MyEarningsPage() {
                         <p className="text-sm font-medium text-gray-900 truncate">{t.title}</p>
                       </div>
                       <div className="text-right flex-shrink-0">
-                        <p className="text-sm font-black text-green-700">+{fmtNum(Math.round(parseFloat(t.earned)))}</p>
+                        <p className="text-sm font-black text-green-700">+{formatRub(t.earned)} ₽</p>
                         <p className="text-[10px] text-gray-400">{fmtNum(parseInt(t.total_scans || t.scans || 0))} пиков</p>
                       </div>
                       <ChevronDown size={16} className={`text-gray-300 transition-transform flex-shrink-0 ${isExpanded ? 'rotate-180' : ''}`} />
@@ -175,7 +176,7 @@ export default function MyEarningsPage() {
                           </div>
                           <div className="bg-green-50 rounded-lg px-3 py-2">
                             <p className="text-[9px] text-green-500 uppercase font-bold">Заработок</p>
-                            <p className="text-xs font-black text-green-700">+{fmtNum(Math.round(parseFloat(t.earned)))} GRA</p>
+                            <p className="text-xs font-black text-green-700">+{formatRub(t.earned)} ₽</p>
                           </div>
                         </div>
                       </div>
