@@ -3,7 +3,7 @@ import {
   Package, Boxes, ChevronLeft, ChevronRight,
   MapPin, ArrowUp, ArrowDown, Warehouse, Search, X, Pencil, Users, ArrowLeft, Clock
 } from 'lucide-react';
-import { ProductIcon, BundleIcon, WarehouseIcon } from '../../components/ui/WarehouseIcons';
+import { ProductIcon, BundleIcon, WarehouseIcon, NavStockIcon } from '../../components/ui/WarehouseIcons';
 import { useSearchParams } from 'react-router-dom';
 import api from '../../api/client';
 import Button from '../../components/ui/Button';
@@ -775,8 +775,8 @@ export default function ProductStockPage() {
           {stats && (
             <div className="grid grid-cols-2 gap-3 mb-5">
               <div className="bg-white/50 backdrop-blur-xl border border-white/75 rounded-[14px] px-5 py-3 flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-primary-50 flex items-center justify-center">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="text-primary-500"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+                <div className="w-10 h-10 rounded-xl bg-primary-50 flex items-center justify-center flex-shrink-0">
+                  <ProductIcon size={26} />
                 </div>
                 <div>
                   <p className="text-xl font-extrabold text-gray-900">{total.toLocaleString('ru-RU')}</p>
@@ -784,8 +784,8 @@ export default function ProductStockPage() {
                 </div>
               </div>
               <div className="bg-white/50 backdrop-blur-xl border border-white/75 rounded-[14px] px-5 py-3 flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-500"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center flex-shrink-0">
+                  <NavStockIcon size={26} />
                 </div>
                 <div>
                   <p className="text-xl font-extrabold text-gray-900">{Math.round(Number(stats.warehouse_total || 0)).toLocaleString('ru-RU')}</p>

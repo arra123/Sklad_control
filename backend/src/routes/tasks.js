@@ -2339,6 +2339,12 @@ router.get('/:id/analytics', requireAuth, async (req, res) => {
 router.post('/', requireAuth, (req, res, next) => {
   // Returns tasks can be created by any employee (auto-created from ReturnsPage)
   if (req.body.task_type === 'returns') return next();
+  // Self-created packaging tasks (from MovePage button) — любой сотрудник
+  // создаёт задачу оприходования на себя.
+  if (req.body.task_type === 'packaging' && req.body.self_create && req.user.employee_id) {
+    req.body.employee_id = req.user.employee_id;
+    return next();
+  }
   return requirePermission('tasks.create')(req, res, next);
 }, async (req, res) => {
   const {

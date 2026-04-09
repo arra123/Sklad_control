@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Check, ArrowLeft, ScanLine, Layers, ArrowRightLeft, Package, Settings2, ChevronDown, RotateCcw } from 'lucide-react';
+import { Check, ArrowLeft, ScanLine, Layers, ArrowRightLeft, Package, Settings2, ChevronDown, RotateCcw, PackagePlus, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../api/client';
 import { PalletIcon, BoxIcon, TransferIcon, ReturnsIcon, PieceScanIcon, PourBoxIcon, MoveBoxIcon, AdminClipboardIcon } from '../../components/ui/WarehouseIcons';
@@ -302,6 +302,198 @@ function AdminTransfer({ onBack, onDone }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// PACKAGING CREATE — создание задачи оприходования (packaging) на себя
+// ═══════════════════════════════════════════════════════════════════════════
+
+function PackagingCreate({ onBack }) {
+  const { user } = useAuth();
+  const toast = useToast();
+  const navigate = useNavigate();
+
+  const [productSearch, setProductSearch] = useState('');
+  const [productResults, setProductResults] = useState([]);
+  const [selectedProduct, setSelectedProduct] = useState(null);
+
+  const [fboWarehouses, setFboWarehouses] = useState([]);
+  const [selectedWarehouseId, setSelectedWarehouseId] = useState('');
+  const [pallets, setPallets] = useState([]);
+  const [selectedPalletId, setSelectedPalletId] = useState('');
+
+  const [boxSize, setBoxSize] = useState('50');
+  const [notes, setNotes] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  // Загрузка паллетных складов
+  useEffect(() => {
+    api.get('/fbo/warehouses').then(r => setFboWarehouses(r.data || [])).catch(() => {});
+  }, []);
+
+  // Загрузка паллет при смене склада
+  useEffect(() => {
+    if (!selectedWarehouseId) { setPallets([]); setSelectedPalletId(''); return; }
+    api.get('/fbo/pallets-list', { params: { warehouse_id: selectedWarehouseId } })
+      .then(r => setPallets(r.data || []))
+      .catch(() => setPallets([]));
+    setSelectedPalletId('');
+  }, [selectedWarehouseId]);
+
+  // Поиск товара (debounce)
+  useEffect(() => {
+    if (!productSearch.trim() || productSearch.trim().length < 2) { setProductResults([]); return; }
+    const t = setTimeout(() => {
+      api.get('/products', { params: { search: productSearch, entity_type: 'product', limit: 8 } })
+        .then(r => setProductResults(r.data?.items || []))
+        .catch(() => setProductResults([]));
+    }, 300);
+    return () => clearTimeout(t);
+  }, [productSearch]);
+
+  const handleCreate = async () => {
+    setError('');
+    if (!selectedProduct) { setError('Выберите товар'); return; }
+    if (!selectedPalletId) { setError('Выберите паллет'); return; }
+    const bs = parseInt(boxSize, 10);
+    if (!bs || bs < 1) { setError('Укажите количество штук в коробке'); return; }
+    if (!user?.employee_id) { setError('Ваш аккаунт не связан с сотрудником'); return; }
+
+    setLoading(true);
+    try {
+      const res = await api.post('/tasks', {
+        title: `Оприходование: ${selectedProduct.name}`,
+        task_type: 'packaging',
+        product_id: selectedProduct.id,
+        box_size: bs,
+        target_pallet_id: parseInt(selectedPalletId, 10),
+        notes: notes || null,
+        self_create: true,
+      });
+      const taskId = res.data?.id;
+      if (!taskId) throw new Error('Сервер не вернул id задачи');
+      playBeep(true);
+      toast.success('Задача оприходования создана');
+      navigate(`/employee/packaging/${taskId}`);
+    } catch (err) {
+      playBeep(false);
+      setError(err.response?.data?.error || err.message || 'Ошибка создания задачи');
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="p-4 max-w-md mx-auto animate-fade-in">
+      <button onClick={onBack} className="flex items-center gap-1 text-sm text-gray-400 mb-3">
+        <ArrowLeft size={16} /> Назад
+      </button>
+
+      <div className="bg-indigo-50 rounded-2xl p-5 mb-5 text-center">
+        <div className="w-16 h-16 rounded-2xl bg-indigo-100 text-indigo-600 ring-4 ring-indigo-200 flex items-center justify-center mx-auto mb-3">
+          <PackagePlus size={32} />
+        </div>
+        <h2 className="text-lg font-bold text-gray-900">Оприходование</h2>
+        <p className="text-xs text-gray-500 mt-1">Задача создаётся на вас. Дальше — создаёте новые коробки и сканируете товар</p>
+      </div>
+
+      <ErrorBanner message={error} />
+
+      {/* Товар */}
+      <div className="mb-3">
+        <label className="text-xs font-medium text-gray-500 mb-1 block">Товар</label>
+        {selectedProduct ? (
+          <div className="flex items-center gap-3 p-3 bg-primary-50 rounded-xl border border-primary-100">
+            <Package size={16} className="text-primary-500 flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-gray-900 truncate">{selectedProduct.name}</p>
+              {selectedProduct.code && <p className="text-xs text-gray-400 truncate">{selectedProduct.code}</p>}
+            </div>
+            <button type="button"
+              onClick={() => { setSelectedProduct(null); setProductSearch(''); setProductResults([]); }}
+              className="text-gray-400 hover:text-rose-500 flex-shrink-0">
+              <X size={16} />
+            </button>
+          </div>
+        ) : (
+          <div className="relative">
+            <input
+              value={productSearch}
+              onChange={e => setProductSearch(e.target.value)}
+              placeholder="Поиск товара..."
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-sm focus:border-primary-400 focus:ring-2 focus:ring-primary-100 outline-none"
+            />
+            {productResults.length > 0 && (
+              <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden max-h-56 overflow-y-auto">
+                {productResults.map(p => (
+                  <button key={p.id} type="button"
+                    onClick={() => { setSelectedProduct(p); setProductSearch(''); setProductResults([]); }}
+                    className="w-full text-left px-3 py-2.5 hover:bg-gray-50 text-sm">
+                    <p className="font-medium truncate">{p.name}</p>
+                    {p.code && <p className="text-xs text-gray-400 truncate">{p.code}</p>}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Паллетный склад */}
+      <StyledSelect
+        label="Паллетный склад"
+        value={selectedWarehouseId}
+        onChange={v => setSelectedWarehouseId(v || '')}
+        options={fboWarehouses.map(w => ({ value: String(w.id), label: w.name }))}
+        placeholder="Выберите склад..."
+      />
+
+      {/* Паллет */}
+      {selectedWarehouseId && (
+        <StyledSelect
+          label="Паллет назначения"
+          value={selectedPalletId}
+          onChange={v => setSelectedPalletId(v || '')}
+          options={pallets.map(p => ({
+            value: String(p.id),
+            label: `Р${p.row_number ?? p.row_name ?? '?'}П${p.number ?? '?'}${p.name ? ' — ' + p.name : ''}`,
+          }))}
+          placeholder={pallets.length ? 'Выберите паллет...' : 'На складе нет паллет'}
+          disabled={!pallets.length}
+        />
+      )}
+
+      {/* Количество в коробке */}
+      <div className="mb-3">
+        <label className="text-xs font-medium text-gray-500 mb-1 block">Штук в коробке</label>
+        <input
+          type="number" min="1" max="1000"
+          value={boxSize}
+          onChange={e => setBoxSize(e.target.value)}
+          className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-sm font-medium focus:border-primary-400 focus:ring-2 focus:ring-primary-100 outline-none"
+        />
+      </div>
+
+      {/* Примечание */}
+      <div className="mb-4">
+        <label className="text-xs font-medium text-gray-500 mb-1 block">Примечание</label>
+        <input
+          value={notes}
+          onChange={e => setNotes(e.target.value)}
+          placeholder="Необязательно..."
+          className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-sm focus:border-primary-400 focus:ring-2 focus:ring-primary-100 outline-none"
+        />
+      </div>
+
+      <button
+        onClick={handleCreate}
+        disabled={loading || !selectedProduct || !selectedPalletId}
+        className="w-full py-3.5 rounded-2xl bg-indigo-500 text-white font-bold text-sm hover:bg-indigo-600 disabled:opacity-50 transition-all shadow-lg shadow-indigo-200 active:scale-[0.98]"
+      >
+        {loading ? <Spinner size="sm" className="mx-auto" /> : 'Создать задачу и начать'}
+      </button>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // MAIN PAGE
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -407,6 +599,19 @@ export default function MovePage() {
               </div>
             </button>
           )}
+
+          <button onClick={() => { setMode('packaging'); }}
+            className="w-full bg-indigo-50/80 border border-indigo-100 rounded-2xl p-5 text-left hover:shadow-md hover:bg-indigo-50 transition-all active:scale-[0.98]">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-xl bg-indigo-100 border border-indigo-200 flex items-center justify-center">
+                <PackagePlus size={32} className="text-indigo-600" />
+              </div>
+              <div>
+                <p className="font-bold text-base text-gray-900">Оприходование</p>
+                <p className="text-xs text-gray-500 mt-0.5">Создать коробки и заполнить — задача на меня</p>
+              </div>
+            </div>
+          </button>
         </div>
 
         {/* Возвраты — визуально отделён */}
@@ -437,6 +642,13 @@ export default function MovePage() {
   }
   if (mode === 'admin_done') {
     return <SuccessScreen message={success} onReset={reset} />;
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // PACKAGING MODE — создание задачи оприходования на себя
+  // ═══════════════════════════════════════════════════════════════════════
+  if (mode === 'packaging') {
+    return <PackagingCreate onBack={reset} />;
   }
 
   // ═══════════════════════════════════════════════════════════════════════
