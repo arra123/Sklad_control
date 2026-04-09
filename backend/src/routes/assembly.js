@@ -43,9 +43,13 @@ router.get('/source-locations', requireAuth, async (req, res) => {
   if (ids.length === 0) return res.json([]);
 
   try {
-    // Find in pallet boxes
+    // Find in pallet boxes (with GREATEST fallback for boxes_s.quantity + legacy union)
     const boxLocs = await pool.query(
-      `SELECT bi.product_id, bi.quantity, b.id as box_id, b.barcode_value as box_barcode,
+      `(SELECT bi.product_id,
+              CASE WHEN b.product_id = bi.product_id
+                   THEN GREATEST(bi.quantity, COALESCE(b.quantity, 0))
+                   ELSE bi.quantity END as quantity,
+              b.id as box_id, b.barcode_value as box_barcode,
               pa.id as pallet_id, pa.name as pallet_name,
               pr.id as row_id, pr.name as row_name,
               w.id as warehouse_id, w.name as warehouse_name,
@@ -56,8 +60,22 @@ router.get('/source-locations', requireAuth, async (req, res) => {
        JOIN pallet_rows_s pr ON pr.id = pa.row_id
        JOIN warehouses_s w ON w.id = pr.warehouse_id
        JOIN products_s p ON p.id = bi.product_id
-       WHERE bi.product_id = ANY($1) AND bi.quantity > 0 AND b.status = 'closed' AND w.active = true
-       ORDER BY p.name, w.name, pr.name, pa.name`, [ids]);
+       WHERE bi.product_id = ANY($1) AND bi.quantity > 0 AND b.status = 'closed' AND w.active = true)
+       UNION ALL
+       (SELECT b.product_id, b.quantity,
+              b.id as box_id, b.barcode_value as box_barcode,
+              pa.id as pallet_id, pa.name as pallet_name,
+              pr.id as row_id, pr.name as row_name,
+              w.id as warehouse_id, w.name as warehouse_name,
+              p.name as product_name
+       FROM boxes_s b
+       JOIN pallets_s pa ON pa.id = b.pallet_id
+       JOIN pallet_rows_s pr ON pr.id = pa.row_id
+       JOIN warehouses_s w ON w.id = pr.warehouse_id
+       JOIN products_s p ON p.id = b.product_id
+       WHERE b.product_id = ANY($1) AND b.quantity > 0 AND b.status = 'closed' AND w.active = true
+         AND NOT EXISTS (SELECT 1 FROM box_items_s bi WHERE bi.box_id = b.id AND bi.product_id = b.product_id AND bi.quantity > 0))
+       ORDER BY product_name, warehouse_name, row_name, pallet_name`, [ids]);
 
     // Find on shelves
     const shelfLocs = await pool.query(
@@ -215,20 +233,48 @@ router.get('/:id/source-boxes', requireAuth, async (req, res) => {
     const componentIds = comps.rows.map(c => c.component_id);
     if (componentIds.length === 0) return res.json([]);
 
-    // Pallet boxes
+    // Pallet boxes: box_items_s + fallback boxes where quantity is only in boxes_s
+    // Многие коробки (созданные через packing) хранят количество только в boxes_s,
+    // без строк в box_items_s, или с устаревшими малыми qty в box_items_s.
     const boxes = await pool.query(
-      `SELECT b.id as box_id, b.barcode_value as box_barcode, b.pallet_id, bi.product_id, bi.quantity,
-              p.name as product_name, p.code as product_code,
-              pa.name as pallet_name, pa.barcode_value as pallet_barcode, pr.name as row_name, w.name as warehouse_name,
-              'pallet' as source_type
-       FROM box_items_s bi
-       JOIN boxes_s b ON b.id = bi.box_id
-       JOIN products_s p ON p.id = bi.product_id
-       LEFT JOIN pallets_s pa ON pa.id = b.pallet_id
-       LEFT JOIN pallet_rows_s pr ON pr.id = pa.row_id
-       LEFT JOIN warehouses_s w ON w.id = pr.warehouse_id
-       WHERE bi.product_id = ANY($1) AND bi.quantity > 0 AND b.status = 'closed' AND w.active = true
-       ORDER BY p.name, w.name, pa.name`,
+      `(
+        -- Коробки с детальным трекингом через box_items_s
+        -- Если boxes_s.product_id совпадает, берём GREATEST для защиты от рассинхрона
+        SELECT b.id as box_id, b.barcode_value as box_barcode, b.pallet_id, bi.product_id,
+               CASE WHEN b.product_id = bi.product_id
+                    THEN GREATEST(bi.quantity, COALESCE(b.quantity, 0))
+                    ELSE bi.quantity END as quantity,
+               p.name as product_name, p.code as product_code,
+               pa.name as pallet_name, pa.barcode_value as pallet_barcode, pr.name as row_name, w.name as warehouse_name,
+               'pallet' as source_type
+        FROM box_items_s bi
+        JOIN boxes_s b ON b.id = bi.box_id
+        JOIN products_s p ON p.id = bi.product_id
+        LEFT JOIN pallets_s pa ON pa.id = b.pallet_id
+        LEFT JOIN pallet_rows_s pr ON pr.id = pa.row_id
+        LEFT JOIN warehouses_s w ON w.id = pr.warehouse_id
+        WHERE bi.product_id = ANY($1) AND bi.quantity > 0 AND b.status = 'closed' AND w.active = true
+      )
+      UNION ALL
+      (
+        -- Legacy-коробки: product_id + quantity в boxes_s, но нет строки в box_items_s
+        SELECT b.id as box_id, b.barcode_value as box_barcode, b.pallet_id, b.product_id,
+               b.quantity,
+               p.name as product_name, p.code as product_code,
+               pa.name as pallet_name, pa.barcode_value as pallet_barcode, pr.name as row_name, w.name as warehouse_name,
+               'pallet' as source_type
+        FROM boxes_s b
+        JOIN products_s p ON p.id = b.product_id
+        LEFT JOIN pallets_s pa ON pa.id = b.pallet_id
+        LEFT JOIN pallet_rows_s pr ON pr.id = pa.row_id
+        LEFT JOIN warehouses_s w ON w.id = pr.warehouse_id
+        WHERE b.product_id = ANY($1) AND b.quantity > 0 AND b.status = 'closed' AND w.active = true
+          AND NOT EXISTS (
+            SELECT 1 FROM box_items_s bi
+            WHERE bi.box_id = b.id AND bi.product_id = b.product_id AND bi.quantity > 0
+          )
+      )
+      ORDER BY product_name, warehouse_name, pallet_name`,
       [componentIds]
     );
 
@@ -387,27 +433,32 @@ router.post('/:id/scan-pick', requireAuth, async (req, res) => {
            VALUES ('bundle_pick', $1, 1, $2, $3, $4, 'task', $5)`,
           [product.id, box_id, isShelfBox.rows[0].shelf_id || null, req.user.id, `task:${req.params.id}`]);
       } else {
+        // ─── Проактивная синхронизация box_items_s ← boxes_s ──────────
+        // Многие коробки (из packing) хранят реальное количество только в
+        // boxes_s.quantity, а box_items_s пуста или содержит заниженное число.
+        // Синхронизируем ПЕРЕД декрементом, чтобы не блокировать пики.
+        const boxRow = await client.query('SELECT product_id, quantity FROM boxes_s WHERE id = $1', [box_id]);
+        if (boxRow.rows.length) {
+          const br = boxRow.rows[0];
+          const boxQty = Number(br.quantity || 0);
+          if (boxQty > 0 && (!br.product_id || Number(br.product_id) === Number(product.id))) {
+            const biRow = await client.query(
+              'SELECT quantity FROM box_items_s WHERE box_id = $1 AND product_id = $2', [box_id, product.id]);
+            const biQty = biRow.rows.length ? Number(biRow.rows[0].quantity) : 0;
+            if (boxQty > biQty) {
+              // boxes_s знает больше — подтягиваем box_items_s до актуального значения
+              await client.query(
+                `INSERT INTO box_items_s (box_id, product_id, quantity, updated_at)
+                 VALUES ($1, $2, $3, NOW())
+                 ON CONFLICT (box_id, product_id) DO UPDATE SET quantity = GREATEST(box_items_s.quantity, $3), updated_at = NOW()`,
+                [box_id, product.id, boxQty]);
+            }
+          }
+        }
+
         let upd = await client.query(
           'UPDATE box_items_s SET quantity = quantity - 1 WHERE box_id = $1 AND product_id = $2 AND quantity > 0 RETURNING quantity',
           [box_id, product.id]);
-        if (!upd.rows.length) {
-          // Safety-net: коробки, созданные через packing до фикса, могут не иметь
-          // строки в box_items_s. Если в boxes_s есть остаток и это тот же товар —
-          // бэкфилим строку из boxes_s.quantity и продолжаем.
-          const boxRow = await client.query('SELECT product_id, quantity FROM boxes_s WHERE id = $1', [box_id]);
-          const br = boxRow.rows[0];
-          if (br && Number(br.quantity) > 0 && (!br.product_id || Number(br.product_id) === Number(product.id))) {
-            await client.query(
-              `INSERT INTO box_items_s (box_id, product_id, quantity, updated_at)
-               VALUES ($1, $2, $3, NOW())
-               ON CONFLICT (box_id, product_id) DO UPDATE SET quantity = EXCLUDED.quantity, updated_at = NOW()`,
-              [box_id, product.id, Number(br.quantity)]
-            );
-            upd = await client.query(
-              'UPDATE box_items_s SET quantity = quantity - 1 WHERE box_id = $1 AND product_id = $2 AND quantity > 0 RETURNING quantity',
-              [box_id, product.id]);
-          }
-        }
         if (!upd.rows.length) { await client.query('ROLLBACK'); client.release(); return res.status(400).json({ error: 'В этой коробке закончился товар. Нажмите «Сменить коробку»', hint: 'source_empty' }); }
         const boxInfo = await client.query('SELECT pallet_id FROM boxes_s WHERE id = $1', [box_id]);
         await client.query('UPDATE boxes_s SET quantity = GREATEST(0, quantity - 1) WHERE id = $1', [box_id]);
