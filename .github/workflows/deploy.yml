@@ -68,10 +68,11 @@ jobs:
             sleep 1
             pm2 start src/server.js --name c-site --cwd /var/www/bem-dev.ru/sklad/backend
             pm2 save
-            echo "=== DIAG: messenger.conf ==="
-            cat /etc/nginx/sites-enabled/messenger.conf 2>&1
-            echo "=== DIAG: default_server location ==="
-            grep -nE "default_server|listen.*80|server_name" /etc/nginx/sites-enabled/messenger.conf /etc/nginx/sites-enabled/bem-dev.ru 2>&1
+            echo "=== DIAG: bak files /sklad ==="
+            for f in /etc/nginx/sites-enabled/messenger.conf.bak* /etc/nginx/sites-enabled/bem-dev.ru.bak*; do
+              echo "--- $f ---"
+              grep -nE "server_name|location.*sklad|listen.*80" "$f" 2>&1
+            done
             echo "=== DIAG: var/www/bem-dev.ru/sklad/frontend/dist ==="
             ls -la /var/www/bem-dev.ru/sklad/frontend/dist/ 2>&1 | head -20
             echo "=== DIAG: opt/sklad ==="
