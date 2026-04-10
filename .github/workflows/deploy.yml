@@ -68,3 +68,14 @@ jobs:
             sleep 1
             pm2 start src/server.js --name c-site --cwd /var/www/bem-dev.ru/sklad/backend
             pm2 save
+            echo "=== DIAG: nginx sklad config ==="
+            grep -rEn "sklad" /etc/nginx/sites-enabled/ /etc/nginx/conf.d/ 2>/dev/null || echo "no sklad in nginx"
+            echo "=== DIAG: var/www/bem-dev.ru/sklad/frontend/dist ==="
+            ls -la /var/www/bem-dev.ru/sklad/frontend/dist/ 2>&1 | head -20
+            echo "=== DIAG: opt/sklad ==="
+            ls -la /opt/sklad/ 2>&1 | head -20
+            ls -la /opt/sklad/frontend/dist/ 2>&1 | head -20
+            echo "=== DIAG: nginx test ==="
+            nginx -t 2>&1
+            echo "=== DIAG: pm2 c-site logs ==="
+            pm2 logs c-site --lines 20 --nostream 2>&1 | tail -40
