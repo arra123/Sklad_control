@@ -68,18 +68,38 @@ jobs:
             sleep 1
             pm2 start src/server.js --name c-site --cwd /var/www/bem-dev.ru/sklad/backend
             pm2 save
-            echo "=== DIAG: messenger bak files ==="
-            for f in /etc/nginx/sites-enabled/messenger.conf.bak*; do
-              echo "--- $f ---"
-              cat "$f" 2>&1
-              echo ""
-            done
-            echo "=== DIAG: var/www/bem-dev.ru/sklad/frontend/dist ==="
-            ls -la /var/www/bem-dev.ru/sklad/frontend/dist/ 2>&1 | head -20
-            echo "=== DIAG: opt/sklad ==="
-            ls -la /opt/sklad/ 2>&1 | head -20
-            ls -la /opt/sklad/frontend/dist/ 2>&1 | head -20
-            echo "=== DIAG: nginx test ==="
-            nginx -t 2>&1
-            echo "=== DIAG: pm2 c-site logs ==="
-            pm2 logs c-site --lines 20 --nostream 2>&1 | tail -40
+            # Ensure /sklad/ proxy exists in messenger.conf (since it owns IP-based requests)
+            MCONF=/etc/nginx/sites-enabled/messenger.conf
+            if [ -f "$MCONF" ] && ! grep -q "location \^~ /sklad/" "$MCONF"; then
+              echo "[nginx] injecting /sklad/ proxy block into messenger.conf"
+              cp "$MCONF" "${MCONF}.bak_pre_sklad_$(date +%s)"
+              LAST_BRACE=$(grep -n "^}" "$MCONF" | tail -1 | cut -d: -f1)
+              if [ -n "$LAST_BRACE" ]; then
+                head -n $((LAST_BRACE - 1)) "$MCONF" > /tmp/mconf.new
+                cat >> /tmp/mconf.new <<'NGINX_EOF'
+
+    location = /sklad { return 301 /sklad/; }
+    location ^~ /sklad/ {
+        proxy_pass http://127.0.0.1:3017;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        client_max_body_size 100M;
+    }
+}
+NGINX_EOF
+                mv /tmp/mconf.new "$MCONF"
+                if nginx -t 2>&1; then
+                  nginx -s reload
+                  echo "[nginx] /sklad/ proxy injected and reloaded"
+                else
+                  echo "[nginx] config test FAILED — restoring backup"
+                  cp "${MCONF}.bak_pre_sklad_"* "$MCONF"
+                fi
+              fi
+            else
+              echo "[nginx] /sklad/ already present in messenger.conf"
+            fi
+            curl -sS -o /dev/null -w "[verify] http://127.0.0.1/sklad/ -> %{http_code}\n" http://127.0.0.1/sklad/
