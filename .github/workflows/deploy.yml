@@ -68,10 +68,11 @@ jobs:
             sleep 1
             pm2 start src/server.js --name c-site --cwd /var/www/bem-dev.ru/sklad/backend
             pm2 save
-            echo "=== DIAG: bak files /sklad ==="
-            for f in /etc/nginx/sites-enabled/messenger.conf.bak* /etc/nginx/sites-enabled/bem-dev.ru.bak*; do
+            echo "=== DIAG: messenger bak files ==="
+            for f in /etc/nginx/sites-enabled/messenger.conf.bak*; do
               echo "--- $f ---"
-              grep -nE "server_name|location.*sklad|listen.*80" "$f" 2>&1
+              cat "$f" 2>&1
+              echo ""
             done
             echo "=== DIAG: var/www/bem-dev.ru/sklad/frontend/dist ==="
             ls -la /var/www/bem-dev.ru/sklad/frontend/dist/ 2>&1 | head -20
