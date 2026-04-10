@@ -69,7 +69,11 @@ jobs:
             pm2 start src/server.js --name c-site --cwd /var/www/bem-dev.ru/sklad/backend
             pm2 save
             echo "=== DIAG: nginx sklad config ==="
-            sed -n '140,200p' /etc/nginx/sites-enabled/bem-dev.ru 2>&1
+            grep -nE "listen|server_name|root|location.*sklad" /etc/nginx/sites-enabled/bem-dev.ru 2>&1
+            echo "--- files in sites-enabled ---"
+            ls -la /etc/nginx/sites-enabled/ 2>&1
+            echo "--- default server check ---"
+            grep -lE "default_server" /etc/nginx/sites-enabled/* 2>&1
             echo "=== DIAG: var/www/bem-dev.ru/sklad/frontend/dist ==="
             ls -la /var/www/bem-dev.ru/sklad/frontend/dist/ 2>&1 | head -20
             echo "=== DIAG: opt/sklad ==="
