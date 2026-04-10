@@ -31,7 +31,7 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           password: ${{ secrets.SSH_PASSWORD }}
-          script: rm -rf /opt/sklad/frontend/dist/assets/*
+          script: rm -rf /var/www/bem-dev.ru/sklad/frontend/dist/assets/*
 
       - name: Upload backend files
         uses: appleboy/scp-action@v0.1.7
@@ -40,7 +40,7 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           password: ${{ secrets.SSH_PASSWORD }}
           source: "backend/src/,backend/package.json,backend/package-lock.json"
-          target: /opt/sklad/
+          target: /var/www/bem-dev.ru/sklad/
           overwrite: true
 
       - name: Upload frontend dist
@@ -50,7 +50,7 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           password: ${{ secrets.SSH_PASSWORD }}
           source: "frontend/dist/"
-          target: /opt/sklad/
+          target: /var/www/bem-dev.ru/sklad/
           overwrite: true
 
       - name: Install deps and restart
@@ -60,7 +60,11 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           password: ${{ secrets.SSH_PASSWORD }}
           script: |
-            cd /opt/sklad/backend
+            cd /var/www/bem-dev.ru/sklad/backend
             npm install --production
-            pm2 restart c-site 2>/dev/null || pm2 start src/server.js --name c-site --cwd /opt/sklad/backend
+            pm2 delete c-site 2>/dev/null || true
+            sleep 1
+            fuser -k 3017/tcp 2>/dev/null || true
+            sleep 1
+            pm2 start src/server.js --name c-site --cwd /var/www/bem-dev.ru/sklad/backend
             pm2 save
