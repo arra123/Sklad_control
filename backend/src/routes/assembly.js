@@ -441,12 +441,27 @@ router.post('/:id/scan-pick', requireAuth, async (req, res) => {
         if (boxRow.rows.length) {
           const br = boxRow.rows[0];
           const boxQty = Number(br.quantity || 0);
-          if (boxQty > 0 && (!br.product_id || Number(br.product_id) === Number(product.id))) {
+          if (boxQty > 0) {
+            // Есть ли вообще строки в box_items_s для этой коробки?
+            const anyBi = await client.query(
+              'SELECT COALESCE(SUM(quantity), 0)::int as total, COUNT(*)::int as cnt FROM box_items_s WHERE box_id = $1', [box_id]);
+            const biTotal = Number(anyBi.rows[0]?.total || 0);
+            const biCnt = Number(anyBi.rows[0]?.cnt || 0);
+            // Кейс 1: box_items_s вообще пуста → коробка legacy, доверяем boxes_s.quantity
+            // и привязываем всё количество к отсканированному товару (он уже провалидирован как компонент).
+            // Кейс 2: есть строка именно для product.id, но её qty < boxes_s.quantity → подтягиваем.
+            //   Это безопасно только если в коробке нет других товаров (biTotal <= biQty).
             const biRow = await client.query(
               'SELECT quantity FROM box_items_s WHERE box_id = $1 AND product_id = $2', [box_id, product.id]);
             const biQty = biRow.rows.length ? Number(biRow.rows[0].quantity) : 0;
-            if (boxQty > biQty) {
-              // boxes_s знает больше — подтягиваем box_items_s до актуального значения
+
+            const isLegacyEmpty = biCnt === 0;
+            const isSingleProductDesync = biCnt > 0
+              && biTotal <= biQty
+              && boxQty > biQty
+              && (!br.product_id || Number(br.product_id) === Number(product.id));
+
+            if (isLegacyEmpty || isSingleProductDesync) {
               await client.query(
                 `INSERT INTO box_items_s (box_id, product_id, quantity, updated_at)
                  VALUES ($1, $2, $3, NOW())

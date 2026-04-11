@@ -316,14 +316,57 @@ export default function AssemblyPage() {
     }
   };
 
-  const handleScanPickBox = (barcode) => {
+  const handleScanPickBox = async (barcode) => {
+    // 1. Быстрый путь — локальный поиск в sourceBoxes
     const box = sourceBoxes.find(b => b.box_barcode === barcode && (!scannedPallet || b.pallet_id === scannedPallet.pallet_id));
     if (box) {
       setScannedBox(box);
       playBeep(true);
       setPickStep('items');
       toast.success(`Коробка: ${box.product_name} · ${fmtQty(box.quantity)} шт`);
-    } else {
+      return;
+    }
+
+    // 2. Fallback через /movements/scan — коробка физически может быть на паллете,
+    // но не попадать в source-boxes из-за рассинхрона box_items_s / boxes_s.
+    // scan-pick на бэке всё равно валидирует принадлежность товара комплекту.
+    try {
+      const res = await api.post('/movements/scan', { barcode });
+      const d = res.data;
+      if (d.type !== 'box') {
+        playBeep(false);
+        toast.error('Отсканирован не штрих-код коробки');
+        return;
+      }
+      // Сравниваем pallet_id (movements/scan возвращает location с "Паллет #id" — недостаточно,
+      // нужно поле pallet_id; для shelf_box его нет). Поэтому проверяем сам объект.
+      // Для пеллетной коробки структура {type:'box',id,contents}, pallet_id отсутствует
+      // в ответе, но мы проверяем через contents.source === 'box' (пеллетный) vs 'shelf_box'.
+      const isPalletBox = (d.contents || []).some(c => c.source === 'box');
+      const isShelfBox = (d.contents || []).some(c => c.source === 'shelf_box');
+      if (scannedPallet?.pallet_id && !isPalletBox && !isShelfBox) {
+        // Пустая коробка без contents — всё равно пробуем: scan-pick проверит содержимое.
+      }
+      if (scannedPallet?.pallet_id && isShelfBox) {
+        playBeep(false);
+        toast.error('Эта коробка на полке, а не на паллете');
+        return;
+      }
+      // Принимаем коробку — scan-pick на бэке проверит и товар, и принадлежность комплекту
+      const firstContent = (d.contents || [])[0];
+      const productName = firstContent?.product_name || 'Коробка';
+      const qty = firstContent?.quantity || 0;
+      setScannedBox({
+        box_id: d.id,
+        box_barcode: barcode,
+        pallet_id: scannedPallet?.pallet_id || null,
+        product_name: productName,
+        quantity: qty,
+      });
+      playBeep(true);
+      setPickStep('items');
+      toast.success(`Коробка: ${productName}${qty ? ' · ' + fmtQty(qty) + ' шт' : ''}`);
+    } catch {
       playBeep(false);
       toast.error('Коробка не найдена на этом паллете');
     }
