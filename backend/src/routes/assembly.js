@@ -230,7 +230,25 @@ router.get('/:id/source-boxes', requireAuth, async (req, res) => {
 
     const comps = await pool.query(
       'SELECT component_id FROM bundle_components_s WHERE bundle_id = $1', [task.rows[0].bundle_product_id]);
-    const componentIds = comps.rows.map(c => c.component_id);
+    const baseComponentIds = comps.rows.map(c => c.component_id).filter(Boolean);
+    if (baseComponentIds.length === 0) return res.json([]);
+
+    // Расширяем список по дубликатам products_s: один и тот же реальный товар может
+    // быть импортирован/создан несколько раз с разными id. Связываем по external_id,
+    // production_barcode, code и совпадающим значениям в barcode_list.
+    const expanded = await pool.query(
+      `SELECT DISTINCT p2.id
+       FROM products_s p1
+       JOIN products_s p2 ON (
+         p2.id = p1.id
+         OR (p2.external_id IS NOT NULL AND p2.external_id = p1.external_id)
+         OR (p2.production_barcode IS NOT NULL AND p2.production_barcode = p1.production_barcode)
+         OR (p2.code IS NOT NULL AND p1.code IS NOT NULL AND p2.code = p1.code)
+       )
+       WHERE p1.id = ANY($1)`,
+      [baseComponentIds]
+    );
+    const componentIds = expanded.rows.map(r => r.id);
     if (componentIds.length === 0) return res.json([]);
 
     // Pallet boxes: box_items_s + fallback boxes where quantity is only in boxes_s
@@ -403,15 +421,50 @@ router.post('/:id/scan-pick', requireAuth, async (req, res) => {
       }
     }
 
-    // Check product is a component of this bundle
+    // Check product is a component of this bundle.
+    // Толерантно к дубликатам products_s: один реальный товар может иметь несколько
+    // записей в products_s (разные импорты), а bundle_components_s ссылается только
+    // на одну из них. Сопоставляем по external_id / production_barcode / code.
     const comp = await client.query(
-      'SELECT * FROM bundle_components_s WHERE bundle_id = $1 AND component_id = $2',
+      `SELECT bc.*
+       FROM bundle_components_s bc
+       JOIN products_s pc ON pc.id = bc.component_id
+       JOIN products_s ps ON ps.id = $2
+       WHERE bc.bundle_id = $1
+         AND (
+           bc.component_id = $2
+           OR (pc.external_id IS NOT NULL AND pc.external_id = ps.external_id)
+           OR (pc.production_barcode IS NOT NULL AND pc.production_barcode = ps.production_barcode)
+           OR (pc.code IS NOT NULL AND ps.code IS NOT NULL AND pc.code = ps.code)
+         )
+       LIMIT 1`,
       [task.rows[0].bundle_product_id, product.id]);
     if (!comp.rows.length) { await client.query('ROLLBACK'); client.release(); return res.status(400).json({ error: `${product.name} не входит в состав комплекта` }); }
+    // Используем component_id из bundle_components_s для последующего учёта —
+    // так прогресс и assembly_items_s остаются консистентными с составом комплекта.
+    const canonicalComponentId = comp.rows[0].component_id;
+
+    // Класс эквивалентности product.id: другие records products_s, которые
+    // соответствуют тому же реальному товару (дубликаты импорта). Используем
+    // для декремента из box_items_s / shelf_items_s — на складе фактически
+    // может лежать любой из дубликатов.
+    const equiv = await client.query(
+      `SELECT DISTINCT p2.id
+       FROM products_s p1
+       JOIN products_s p2 ON (
+         p2.id = p1.id
+         OR (p2.external_id IS NOT NULL AND p2.external_id = p1.external_id)
+         OR (p2.production_barcode IS NOT NULL AND p2.production_barcode = p1.production_barcode)
+         OR (p2.code IS NOT NULL AND p1.code IS NOT NULL AND p2.code = p1.code)
+       )
+       WHERE p1.id = ANY($1)`,
+      [[product.id, canonicalComponentId]]
+    );
+    const equivProductIds = equiv.rows.map(r => r.id);
 
     // Check if already picked enough of this component
     const alreadyPicked = await client.query(
-      'SELECT COUNT(*) as cnt FROM assembly_items_s WHERE task_id = $1 AND product_id = $2', [req.params.id, product.id]);
+      'SELECT COUNT(*) as cnt FROM assembly_items_s WHERE task_id = $1 AND product_id = ANY($2)', [req.params.id, equivProductIds]);
     const needed = Number(comp.rows[0].quantity) * task.rows[0].bundle_qty;
     if (Number(alreadyPicked.rows[0].cnt) >= needed) {
       await client.query('ROLLBACK'); client.release();
@@ -423,9 +476,13 @@ router.post('/:id/scan-pick', requireAuth, async (req, res) => {
       // box_id может быть полочной (shelf_boxes_s) или паллетной (boxes_s) коробкой
       const isShelfBox = await client.query('SELECT shelf_id FROM shelf_boxes_s WHERE id = $1', [box_id]);
       if (isShelfBox.rows.length) {
+        // Ищем строку с любым эквивалентным product_id — коробка может хранить
+        // дубликат products_s (не совпадающий с scanned product.id).
         const upd = await client.query(
-          'UPDATE shelf_box_items_s SET quantity = quantity - 1, updated_at = NOW() WHERE shelf_box_id = $1 AND product_id = $2 AND quantity > 0 RETURNING quantity',
-          [box_id, product.id]);
+          `UPDATE shelf_box_items_s SET quantity = quantity - 1, updated_at = NOW()
+           WHERE shelf_box_id = $1 AND product_id = ANY($2) AND quantity > 0
+           RETURNING product_id, quantity`,
+          [box_id, equivProductIds]);
         if (!upd.rows.length) { await client.query('ROLLBACK'); client.release(); return res.status(400).json({ error: 'В этой коробке закончился товар. Нажмите «Сменить коробку»', hint: 'source_empty' }); }
         await client.query('UPDATE shelf_boxes_s SET quantity = GREATEST(0, quantity - 1) WHERE id = $1', [box_id]);
         await client.query(
@@ -447,33 +504,38 @@ router.post('/:id/scan-pick', requireAuth, async (req, res) => {
               'SELECT COALESCE(SUM(quantity), 0)::int as total, COUNT(*)::int as cnt FROM box_items_s WHERE box_id = $1', [box_id]);
             const biTotal = Number(anyBi.rows[0]?.total || 0);
             const biCnt = Number(anyBi.rows[0]?.cnt || 0);
-            // Кейс 1: box_items_s вообще пуста → коробка legacy, доверяем boxes_s.quantity
-            // и привязываем всё количество к отсканированному товару (он уже провалидирован как компонент).
-            // Кейс 2: есть строка именно для product.id, но её qty < boxes_s.quantity → подтягиваем.
-            //   Это безопасно только если в коробке нет других товаров (biTotal <= biQty).
+            // Ищем любую эквивалентную строку (product.id или дубликат)
             const biRow = await client.query(
-              'SELECT quantity FROM box_items_s WHERE box_id = $1 AND product_id = $2', [box_id, product.id]);
+              'SELECT product_id, quantity FROM box_items_s WHERE box_id = $1 AND product_id = ANY($2) LIMIT 1',
+              [box_id, equivProductIds]);
             const biQty = biRow.rows.length ? Number(biRow.rows[0].quantity) : 0;
+            // product_id, под которым коробка фактически хранит остаток
+            // (может совпадать с boxes_s.product_id или с эквивалентом)
+            const targetPid = biRow.rows.length
+              ? biRow.rows[0].product_id
+              : (br.product_id && equivProductIds.includes(Number(br.product_id)) ? br.product_id : product.id);
 
             const isLegacyEmpty = biCnt === 0;
             const isSingleProductDesync = biCnt > 0
               && biTotal <= biQty
               && boxQty > biQty
-              && (!br.product_id || Number(br.product_id) === Number(product.id));
+              && (!br.product_id || equivProductIds.includes(Number(br.product_id)));
 
             if (isLegacyEmpty || isSingleProductDesync) {
               await client.query(
                 `INSERT INTO box_items_s (box_id, product_id, quantity, updated_at)
                  VALUES ($1, $2, $3, NOW())
                  ON CONFLICT (box_id, product_id) DO UPDATE SET quantity = GREATEST(box_items_s.quantity, $3), updated_at = NOW()`,
-                [box_id, product.id, boxQty]);
+                [box_id, targetPid, boxQty]);
             }
           }
         }
 
         let upd = await client.query(
-          'UPDATE box_items_s SET quantity = quantity - 1 WHERE box_id = $1 AND product_id = $2 AND quantity > 0 RETURNING quantity',
-          [box_id, product.id]);
+          `UPDATE box_items_s SET quantity = quantity - 1
+           WHERE box_id = $1 AND product_id = ANY($2) AND quantity > 0
+           RETURNING product_id, quantity`,
+          [box_id, equivProductIds]);
         if (!upd.rows.length) { await client.query('ROLLBACK'); client.release(); return res.status(400).json({ error: 'В этой коробке закончился товар. Нажмите «Сменить коробку»', hint: 'source_empty' }); }
         const boxInfo = await client.query('SELECT pallet_id FROM boxes_s WHERE id = $1', [box_id]);
         await client.query('UPDATE boxes_s SET quantity = GREATEST(0, quantity - 1) WHERE id = $1', [box_id]);
@@ -484,8 +546,9 @@ router.post('/:id/scan-pick', requireAuth, async (req, res) => {
       }
     } else if (shelf_id) {
       const upd = await client.query(
-        'UPDATE shelf_items_s SET quantity = quantity - 1 WHERE shelf_id = $1 AND product_id = $2 AND quantity > 0 RETURNING quantity',
-        [shelf_id, product.id]);
+        `UPDATE shelf_items_s SET quantity = quantity - 1
+         WHERE shelf_id = $1 AND product_id = ANY($2) AND quantity > 0 RETURNING product_id, quantity`,
+        [shelf_id, equivProductIds]);
       if (!upd.rows.length) { await client.query('ROLLBACK'); client.release(); return res.status(400).json({ error: 'На полке закончился товар. Нажмите «Сменить коробку / источник»', hint: 'source_empty' }); }
       await client.query(
         `INSERT INTO movements_s (movement_type, product_id, quantity, from_shelf_id, performed_by, source, notes)
@@ -493,8 +556,9 @@ router.post('/:id/scan-pick', requireAuth, async (req, res) => {
         [product.id, shelf_id, req.user.id, `task:${req.params.id}`]);
     } else if (pallet_id) {
       const upd = await client.query(
-        'UPDATE pallet_items_s SET quantity = quantity - 1 WHERE pallet_id = $1 AND product_id = $2 AND quantity > 0 RETURNING quantity',
-        [pallet_id, product.id]);
+        `UPDATE pallet_items_s SET quantity = quantity - 1
+         WHERE pallet_id = $1 AND product_id = ANY($2) AND quantity > 0 RETURNING product_id, quantity`,
+        [pallet_id, equivProductIds]);
       if (!upd.rows.length) { await client.query('ROLLBACK'); client.release(); return res.status(400).json({ error: 'На паллете закончился товар. Нажмите «Сменить коробку / источник»', hint: 'source_empty' }); }
       await client.query(
         `INSERT INTO movements_s (movement_type, product_id, quantity, from_pallet_id, performed_by, source, notes)
@@ -502,17 +566,18 @@ router.post('/:id/scan-pick', requireAuth, async (req, res) => {
         [product.id, pallet_id, req.user.id, `task:${req.params.id}`]);
     }
 
-    // Record picked item
+    // Record picked item — используем canonicalComponentId, чтобы прогресс
+    // считался корректно даже при дубликатах products_s.
     await client.query(
       `INSERT INTO assembly_items_s (task_id, product_id, source_box_id, source_pallet_id, source_shelf_id, scanned_barcode)
        VALUES ($1, $2, $3, $4, $5, $6)`,
-      [req.params.id, product.id, box_id || null, pallet_id || null, shelf_id || null, barcode]);
+      [req.params.id, canonicalComponentId, box_id || null, pallet_id || null, shelf_id || null, barcode]);
 
     // Also record in task_scans for chronology
     const scanInsert = await client.query(
       `INSERT INTO inventory_task_scans_s (task_id, product_id, scanned_value, quantity_delta, shelf_id)
        VALUES ($1, $2, $3, 1, $4) RETURNING id`,
-      [req.params.id, product.id, barcode, shelf_id || null]);
+      [req.params.id, canonicalComponentId, barcode, shelf_id || null]);
     await client.query('UPDATE inventory_tasks_s SET scans_count = scans_count + 1 WHERE id = $1', [req.params.id]);
 
     // Award GRACoin for scan

@@ -366,9 +366,14 @@ export default function AssemblyPage() {
       playBeep(true);
       setPickStep('items');
       toast.success(`Коробка: ${productName}${qty ? ' · ' + fmtQty(qty) + ' шт' : ''}`);
-    } catch {
+    } catch (err) {
       playBeep(false);
-      toast.error('Коробка не найдена на этом паллете');
+      const status = err?.response?.status;
+      if (status === 404) {
+        toast.error(`ШК ${barcode} не найден в системе. Проверьте наклейку на коробке.`);
+      } else {
+        toast.error(err?.response?.data?.error || `Коробка ${barcode} не найдена на этом паллете`);
+      }
     }
   };
 
