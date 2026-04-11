@@ -840,6 +840,76 @@ router.delete('/:id/barcode', requireAuth, requirePermission('products.edit'), a
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// PUT /api/products/:id/barcode — rename a barcode in any field, preserving status/type
+router.put('/:id/barcode', requireAuth, requirePermission('products.edit'), async (req, res) => {
+  const { oldValue, newValue } = req.body;
+  if (!oldValue?.trim() || !newValue?.trim()) return res.status(400).json({ error: 'Не указан штрих-код' });
+  const oldBc = oldValue.trim();
+  const newBc = newValue.trim();
+  if (oldBc === newBc) return res.json({ ok: true });
+  try {
+    const product = await pool.query('SELECT barcode_list, production_barcode, marketplace_barcodes_json FROM products_s WHERE id=$1', [req.params.id]);
+    if (!product.rows.length) return res.status(404).json({ error: 'Товар не найден' });
+    const p = product.rows[0];
+
+    // Check uniqueness inside the same product
+    const existing = new Set();
+    if (p.production_barcode) existing.add(p.production_barcode);
+    (p.barcode_list || '').split(';').map(s => s.trim()).filter(Boolean).forEach(b => existing.add(b));
+    const mbjArr = Array.isArray(p.marketplace_barcodes_json) ? p.marketplace_barcodes_json : [];
+    mbjArr.forEach(b => { if (b.value) existing.add(b.value); });
+    if (existing.has(newBc)) return res.status(400).json({ error: 'Такой штрих-код уже есть у этого товара' });
+
+    // Check global uniqueness across other products
+    const dup = await pool.query(
+      `SELECT id FROM products_s
+       WHERE id <> $2 AND (
+         production_barcode = $1
+         OR $1 = ANY(string_to_array(barcode_list, ';'))
+         OR marketplace_barcodes_json @> jsonb_build_array(jsonb_build_object('value', $1))
+       ) LIMIT 1`,
+      [newBc, req.params.id]
+    );
+    if (dup.rows.length) return res.status(400).json({ error: 'Штрих-код уже принадлежит другому товару' });
+
+    const sets = [];
+    const params = [];
+    let idx = 1;
+    let touched = false;
+
+    if (p.production_barcode === oldBc) {
+      sets.push(`production_barcode = $${idx++}`);
+      params.push(newBc);
+      touched = true;
+    }
+
+    const list = (p.barcode_list || '').split(';').map(s => s.trim()).filter(Boolean);
+    if (list.includes(oldBc)) {
+      const replaced = list.map(b => b === oldBc ? newBc : b);
+      sets.push(`barcode_list = $${idx++}`);
+      params.push(replaced.length > 0 ? replaced.join(';') : null);
+      touched = true;
+    }
+
+    const mbjReplaced = mbjArr.map(b => b.value === oldBc ? { ...b, value: newBc } : b);
+    if (mbjArr.some(b => b.value === oldBc)) {
+      sets.push(`marketplace_barcodes_json = $${idx++}`);
+      params.push(JSON.stringify(mbjReplaced));
+      touched = true;
+    }
+
+    if (!touched) return res.status(404).json({ error: 'Штрих-код не найден у этого товара' });
+
+    sets.push(`updated_at = NOW()`);
+    params.push(req.params.id);
+    const result = await pool.query(
+      `UPDATE products_s SET ${sets.join(', ')} WHERE id = $${idx} RETURNING *`,
+      params
+    );
+    res.json(result.rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // POST /api/products — create product
 router.post('/', requireAuth, requirePermission('products.edit'), async (req, res) => {
   const { name, code, article, entity_type = 'product', barcode_list, production_barcode, stock = 0, reserve = 0 } = req.body;

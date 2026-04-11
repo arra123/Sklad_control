@@ -98,8 +98,21 @@ function matIcon(m, size = 16) {
   return <I size={size} />;
 }
 
-function BarcodeRow({ label, value, kind, isSystem, onDelete, onSetSystem }) {
+function BarcodeRow({ label, value, kind, isSystem, onDelete, onSetSystem, onEdit }) {
   const colors = MARKETPLACE_COLORS[kind] || MARKETPLACE_COLORS.unknown;
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  useEffect(() => { setDraft(value); }, [value]);
+
+  const startEdit = () => { setDraft(value); setEditing(true); };
+  const cancelEdit = () => { setDraft(value); setEditing(false); };
+  const saveEdit = async () => {
+    const v = draft.trim();
+    if (!v || v === value) { setEditing(false); return; }
+    const ok = await onEdit?.(value, v);
+    if (ok !== false) setEditing(false);
+  };
+
   return (
     <div className={cn('flex items-center gap-2 px-3 py-2 rounded-xl border group', isSystem ? 'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800' : colors.bg, !isSystem && colors.border)}>
       <div className="w-24 flex-shrink-0">
@@ -107,18 +120,53 @@ function BarcodeRow({ label, value, kind, isSystem, onDelete, onSetSystem }) {
           : label ? <span className={cn('text-xs font-semibold', colors.text)}>{label}</span>
           : <span className="text-xs text-gray-300 italic">—</span>}
       </div>
-      <CopyBadge value={value} variant="ghost" className="flex-1 min-w-0" />
-      {!isSystem && onSetSystem && (
-        <button onClick={() => onSetSystem(value)} title="Сделать системным"
-          className="flex-shrink-0 opacity-0 group-hover:opacity-100 text-gray-300 hover:text-green-500 transition-all">
-          <Star size={14} />
-        </button>
+      {editing ? (
+        <input
+          autoFocus
+          type="text"
+          value={draft}
+          onChange={e => setDraft(e.target.value)}
+          onKeyDown={e => {
+            if (e.key === 'Enter') { e.preventDefault(); saveEdit(); }
+            else if (e.key === 'Escape') { e.preventDefault(); cancelEdit(); }
+          }}
+          className="flex-1 min-w-0 px-2 py-1 text-xs font-mono rounded-lg border border-primary-300 focus:outline-none focus:ring-2 focus:ring-primary-400 bg-white dark:bg-gray-800"
+        />
+      ) : (
+        <CopyBadge value={value} variant="ghost" className="flex-1 min-w-0" />
       )}
-      {onDelete && (
-        <button onClick={() => onDelete(value)}
-          className="flex-shrink-0 opacity-0 group-hover:opacity-100 text-rose-300 hover:text-rose-500 transition-all">
-          <X size={14} />
-        </button>
+      {editing ? (
+        <>
+          <button onClick={saveEdit} title="Сохранить"
+            className="flex-shrink-0 text-emerald-500 hover:text-emerald-600 transition-colors">
+            <Check size={14} />
+          </button>
+          <button onClick={cancelEdit} title="Отменить"
+            className="flex-shrink-0 text-gray-400 hover:text-gray-600 transition-colors">
+            <X size={14} />
+          </button>
+        </>
+      ) : (
+        <>
+          {!isSystem && onSetSystem && (
+            <button onClick={() => onSetSystem(value)} title="Сделать системным"
+              className="flex-shrink-0 opacity-0 group-hover:opacity-100 text-gray-300 hover:text-green-500 transition-all">
+              <Star size={14} />
+            </button>
+          )}
+          {onEdit && (
+            <button onClick={startEdit} title="Изменить штрих-код"
+              className="flex-shrink-0 opacity-0 group-hover:opacity-100 text-gray-300 hover:text-primary-500 transition-all">
+              <Pencil size={14} />
+            </button>
+          )}
+          {onDelete && (
+            <button onClick={() => onDelete(value)} title="Удалить"
+              className="flex-shrink-0 opacity-0 group-hover:opacity-100 text-rose-300 hover:text-rose-500 transition-all">
+              <X size={14} />
+            </button>
+          )}
+        </>
       )}
     </div>
   );
@@ -631,6 +679,19 @@ export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
     } catch (err) { toast.error(err.response?.data?.error || 'Ошибка'); }
   };
 
+  const handleEditBarcode = async (oldValue, newValue) => {
+    try {
+      await api.put(`/products/${productId}/barcode`, { oldValue, newValue });
+      toast.success('Штрих-код изменён');
+      loadProduct();
+      onEdit?.();
+      return true;
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Ошибка');
+      return false;
+    }
+  };
+
   const handleSetSystemBarcode = async (value) => {
     try {
       await api.put(`/products/${productId}/system-barcode`, { value });
@@ -812,7 +873,7 @@ export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
                 {barcodes.length > 0 ? (
                   <div className="space-y-1 max-h-48 overflow-y-auto">
                     {barcodes.map((bc, i) => (
-                      <BarcodeRow key={i} {...bc} onDelete={handleDeleteBarcode} onSetSystem={handleSetSystemBarcode} />
+                      <BarcodeRow key={i} {...bc} onDelete={handleDeleteBarcode} onSetSystem={handleSetSystemBarcode} onEdit={handleEditBarcode} />
                     ))}
                   </div>
                 ) : <p className="text-sm text-gray-300 text-center py-3">Нет штрихкодов</p>}
