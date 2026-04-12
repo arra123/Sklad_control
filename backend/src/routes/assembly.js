@@ -520,8 +520,15 @@ router.post('/:id/scan-pick', requireAuth, async (req, res) => {
               && biTotal <= biQty
               && boxQty > biQty
               && (!br.product_id || equivProductIds.includes(Number(br.product_id)));
+            // Коробка имеет строки в box_items_s для ДРУГИХ товаров, но boxes_s
+            // хранит наш product_id — нужно добавить запись для нашего компонента.
+            const isProductMissing = biCnt > 0
+              && biQty === 0
+              && boxQty > 0
+              && br.product_id
+              && equivProductIds.includes(Number(br.product_id));
 
-            if (isLegacyEmpty || isSingleProductDesync) {
+            if (isLegacyEmpty || isSingleProductDesync || isProductMissing) {
               await client.query(
                 `INSERT INTO box_items_s (box_id, product_id, quantity, updated_at)
                  VALUES ($1, $2, $3, NOW())
@@ -536,6 +543,26 @@ router.post('/:id/scan-pick', requireAuth, async (req, res) => {
            WHERE box_id = $1 AND product_id = ANY($2) AND quantity > 0
            RETURNING product_id, quantity`,
           [box_id, equivProductIds]);
+        // Fallback: box_items_s не имеет нужного товара, но boxes_s.quantity > 0 —
+        // принудительно создаём запись и повторяем декремент.
+        if (!upd.rows.length) {
+          const fbBox = await client.query('SELECT product_id, quantity FROM boxes_s WHERE id = $1', [box_id]);
+          const fbQty = Number(fbBox.rows[0]?.quantity || 0);
+          if (fbQty > 0) {
+            const fbPid = fbBox.rows[0]?.product_id && equivProductIds.includes(Number(fbBox.rows[0].product_id))
+              ? fbBox.rows[0].product_id : product.id;
+            await client.query(
+              `INSERT INTO box_items_s (box_id, product_id, quantity, updated_at)
+               VALUES ($1, $2, $3, NOW())
+               ON CONFLICT (box_id, product_id) DO UPDATE SET quantity = $3, updated_at = NOW()`,
+              [box_id, fbPid, fbQty]);
+            upd = await client.query(
+              `UPDATE box_items_s SET quantity = quantity - 1
+               WHERE box_id = $1 AND product_id = ANY($2) AND quantity > 0
+               RETURNING product_id, quantity`,
+              [box_id, equivProductIds]);
+          }
+        }
         if (!upd.rows.length) { await client.query('ROLLBACK'); client.release(); return res.status(400).json({ error: 'В этой коробке закончился товар. Нажмите «Сменить коробку»', hint: 'source_empty' }); }
         const boxInfo = await client.query('SELECT pallet_id FROM boxes_s WHERE id = $1', [box_id]);
         await client.query('UPDATE boxes_s SET quantity = GREATEST(0, quantity - 1) WHERE id = $1', [box_id]);
