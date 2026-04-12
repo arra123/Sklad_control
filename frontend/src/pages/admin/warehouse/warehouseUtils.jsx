@@ -123,7 +123,7 @@ export function groupMovements(rows) {
   const map = new Map();
   for (const raw of rows) {
     const r = normalizeMovement(raw);
-    const key = `${r.task_id ?? 'null'}|${r.product_id}|${r.shelf_id ?? r.to_shelf_id ?? r.from_shelf_id ?? 'null'}|${r.operation_type}`;
+    const key = `${r.task_id ?? 'null'}|${r.product_id}|${r.shelf_id ?? r.to_shelf_id ?? r.from_shelf_id ?? 'null'}|${r.operation_type}|${r.employee_name ?? r.from_employee_name ?? r.to_employee_name ?? 'null'}`;
     if (!map.has(key)) map.set(key, { ...r, quantity_delta: 0, rows: [] });
     const g = map.get(key);
     g.quantity_delta += r.quantity_delta;
@@ -214,6 +214,9 @@ export function LocationHistory({ movements, mode, onModeChange, title }) {
                 {/* Quantity info */}
                 <div className="flex flex-col items-end flex-shrink-0 gap-0.5">
                   <div className="flex items-center gap-1.5">
+                    {mode === 'grouped' && r.rows?.length > 1 && (
+                      <span className="text-[10px] text-gray-400 bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded">{r.rows.length}×</span>
+                    )}
                     {mode === 'detailed' && hasQtyChange && (
                       <span className="text-[10px] font-mono text-gray-400">{qty(r.quantity_before)}→{qty(r.quantity_after)}</span>
                     )}

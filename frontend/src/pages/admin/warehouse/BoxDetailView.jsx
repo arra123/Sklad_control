@@ -26,7 +26,7 @@ export function BoxDetailView({ boxId, boxType, onClose, onChanged }) {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [movements, setMovements] = useState([]);
-  const [movMode, setMovMode] = useState('detailed');
+  const [movMode, setMovMode] = useState('grouped');
 
   const isShelfBox = boxType === 'shelf';
   const isStandalone = boxType === 'standalone';
@@ -274,7 +274,7 @@ export function BoxDetailView({ boxId, boxType, onClose, onChanged }) {
         open={editing}
         onClose={() => setEditing(false)}
         box={box}
-        title="Заполнить коробку"
+        title={box.product_id || box.items?.length > 0 ? 'Редактировать коробку' : 'Заполнить коробку'}
         onSave={handleSave}
         loading={saving}
       />

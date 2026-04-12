@@ -238,11 +238,19 @@ export function BoxEditorModal({ open, onClose, box, title, onSave, loading }) {
     setProducts([]);
     setQty(String(Number(box.quantity || 0)));
     setBoxSize(String(Number(box.box_size || 50)));
+    // Предвыбираем товар: из box.product_id или из первого элемента items
+    const firstItem = box.items?.[0];
     if (box.product_id) {
       setSelected({
         id: box.product_id,
         name: box.product_name,
         code: box.product_code,
+      });
+    } else if (firstItem?.product_id) {
+      setSelected({
+        id: firstItem.product_id,
+        name: firstItem.product_name,
+        code: firstItem.product_code,
       });
     } else {
       setSelected(null);

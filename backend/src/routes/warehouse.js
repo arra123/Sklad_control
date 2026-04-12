@@ -395,7 +395,9 @@ router.get('/shelves/:id', requireAuth, async (req, res) => {
     );
 
     const boxes = await pool.query(
-      `SELECT sb.id, sb.shelf_id, sb.position, sb.name, sb.barcode_value, sb.product_id, sb.quantity,
+      `SELECT sb.id, sb.shelf_id, sb.position, sb.name, sb.barcode_value, sb.product_id,
+              -- Используем реальную сумму из shelf_box_items_s, если она > 0; иначе sb.quantity
+              CASE WHEN COALESCE(agg.items_total, 0) > 0 THEN agg.items_total ELSE sb.quantity END as quantity,
               sb.box_size, sb.status, sb.confirmed, sb.created_at, sb.closed_at,
               agg.products_count,
               p.name as product_name, p.code as product_code
@@ -403,7 +405,8 @@ router.get('/shelves/:id', requireAuth, async (req, res) => {
        LEFT JOIN LATERAL (
          SELECT
            COUNT(*) FILTER (WHERE quantity > 0) as products_count,
-           MIN(product_id) FILTER (WHERE quantity > 0) as first_product_id
+           MIN(product_id) FILTER (WHERE quantity > 0) as first_product_id,
+           COALESCE(SUM(quantity) FILTER (WHERE quantity > 0), 0)::int as items_total
          FROM shelf_box_items_s
          WHERE shelf_box_id = sb.id
        ) agg ON TRUE
@@ -584,7 +587,14 @@ router.get('/shelf-boxes/:id', requireAuth, async (req, res) => {
        ORDER BY p.name`,
       [req.params.id]
     );
-    res.json({ ...result.rows[0], items: items.rows });
+    // Проактивная синхронизация: shelf_boxes_s.quantity ← SUM(shelf_box_items_s.quantity)
+    const box = result.rows[0];
+    const itemsTotal = items.rows.reduce((s, r) => s + Number(r.quantity), 0);
+    if (itemsTotal > 0 && Number(box.quantity) !== itemsTotal) {
+      await pool.query('UPDATE shelf_boxes_s SET quantity = $1 WHERE id = $2', [itemsTotal, req.params.id]);
+      box.quantity = itemsTotal;
+    }
+    res.json({ ...box, items: items.rows });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
