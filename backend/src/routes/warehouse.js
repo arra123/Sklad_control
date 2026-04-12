@@ -395,8 +395,10 @@ router.get('/shelves/:id', requireAuth, async (req, res) => {
     );
 
     const boxes = await pool.query(
-      `SELECT sb.id, sb.shelf_id, sb.position, sb.name, sb.barcode_value, sb.product_id,
-              -- Используем реальную сумму из shelf_box_items_s, если она > 0; иначе sb.quantity
+      `SELECT sb.id, sb.shelf_id, sb.position, sb.name, sb.barcode_value,
+              -- product_id: берём из shelf_box_items_s если единственный товар, иначе из sb
+              COALESCE(sb.product_id, CASE WHEN COALESCE(agg.products_count, 0) = 1 THEN agg.first_product_id END) as product_id,
+              -- quantity: реальная сумма из shelf_box_items_s, если > 0; иначе sb.quantity
               CASE WHEN COALESCE(agg.items_total, 0) > 0 THEN agg.items_total ELSE sb.quantity END as quantity,
               sb.box_size, sb.status, sb.confirmed, sb.created_at, sb.closed_at,
               agg.products_count,

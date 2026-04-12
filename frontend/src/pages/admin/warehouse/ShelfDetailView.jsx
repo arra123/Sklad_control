@@ -330,7 +330,7 @@ export function ShelfDetailView({ shelfId, rackId, onClose, initialBoxId }) {
         open={!!editingBox}
         onClose={() => setEditingBox(null)}
         box={editingBox}
-        title="Заполнить коробку"
+        title={editingBox?.product_id || editingBox?.product_name ? 'Редактировать коробку' : 'Заполнить коробку'}
         onSave={saveShelfBox}
         loading={boxSaving}
       />
