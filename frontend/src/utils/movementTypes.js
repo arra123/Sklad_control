@@ -45,6 +45,8 @@ export const TYPE_META = {
   box_create:               { label: 'Создание коробки',        cls: 'bg-green-100 text-green-700' },
   box_delete:               { label: 'Удаление коробки',        cls: 'bg-rose-100 text-rose-700' },
   box_product_change:       { label: 'Замена товара',           cls: 'bg-amber-100 text-amber-700' },
+  // Сборка
+  bundle_pick:              { label: 'Сборка (забор)',           cls: 'bg-orange-100 text-orange-700' },
   // Прочее
   manual_correction:        { label: 'Ручная коррекция',        cls: 'bg-amber-100 text-amber-700' },
   // shelf_movements_s operation types

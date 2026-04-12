@@ -906,14 +906,20 @@ router.get('/movements', requireAuth, async (req, res) => {
         if (e.message.includes('deadlock')) { shelfResult = await runQuery(); } else throw e;
       }
 
-      // Also get movements_s records for this shelf (box create/edit/delete)
+      // Also get movements_s records for this shelf (box operations, bundle picks, etc.)
+      // Exclude types that duplicate shelf_movements_s entries (manual edits, moves via /move endpoint)
       let boxRows = [];
       try {
         const params2 = [shelfIdInt];
-        // Exclude edit_add_to_shelf/edit_remove_from_shelf — they duplicate shelf_movements_s entries
         const conditions2 = [
           '(m.to_shelf_id = $1 OR m.from_shelf_id = $1)',
-          "m.movement_type NOT IN ('edit_add_to_shelf', 'edit_remove_from_shelf')"
+          `m.movement_type NOT IN (
+            'edit_add_to_shelf', 'edit_remove_from_shelf',
+            'shelf_to_employee', 'employee_to_shelf',
+            'shelf_to_pallet', 'pallet_to_shelf',
+            'shelf_to_box', 'box_to_shelf',
+            'shelf_to_shelf'
+          )`
         ];
         if (product_id) { params2.push(parseInt(product_id)); conditions2.push(`m.product_id = $${params2.length}`); }
         params2.push(lim);
@@ -924,6 +930,7 @@ router.get('/movements', requireAuth, async (req, res) => {
             m.from_employee_id, m.to_employee_id,
             m.performed_by, m.source, m.notes, m.created_at,
             m.quantity_before, m.quantity_after,
+            CASE WHEN m.from_shelf_id = $1 THEN -m.quantity ELSE m.quantity END as quantity_delta,
             p.name as product_name, p.code as product_code,
             e.full_name as employee_name,
             sb.name as box_name,

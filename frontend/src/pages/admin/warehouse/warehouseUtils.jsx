@@ -84,6 +84,8 @@ export const OP_LABELS = {
   shelf_to_box:           { label: 'Полка → Коробка',      color: 'text-fuchsia-600', bg: 'bg-fuchsia-50', icon: '📦' },
   pallet_to_box:          { label: 'Паллет → Коробка',     color: 'text-fuchsia-600', bg: 'bg-fuchsia-50', icon: '📦' },
   box_transfer:           { label: 'Перенос коробки',      color: 'text-indigo-600',  bg: 'bg-indigo-50',  icon: '📦🔄' },
+  // сборка
+  bundle_pick:            { label: 'Сборка (забор)',       color: 'text-orange-600',  bg: 'bg-orange-50',  icon: '📦' },
   // external / admin
   external_to_shelf:      { label: 'Приход на полку',      color: 'text-emerald-600', bg: 'bg-emerald-50', icon: '📥' },
   external_to_pallet:     { label: 'Приход на паллет',     color: 'text-emerald-600', bg: 'bg-emerald-50', icon: '📥' },
@@ -203,6 +205,9 @@ export function LocationHistory({ movements, mode, onModeChange, title }) {
                     )}
                     {route.length === 1 && (
                       <span className="text-[10px] text-gray-400">{route[0].label}</span>
+                    )}
+                    {!route.length && r.notes && r.notes !== 'Перемещение' && (
+                      <span className="text-[10px] text-gray-400">{r.notes}</span>
                     )}
                   </div>
                 </div>

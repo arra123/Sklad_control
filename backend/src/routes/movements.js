@@ -180,22 +180,44 @@ router.post('/move', requireAuth, async (req, res) => {
         [dest_id, product_id, qty]);
     }
 
-    // Log shelf_movements_s for shelf source/dest
+    // Log shelf_movements_s for shelf source/dest (with destination/source info in notes)
     if (source_type === 'shelf') {
       const cur = await client.query('SELECT COALESCE(quantity,0) as quantity FROM shelf_items_s WHERE shelf_id=$1 AND product_id=$2', [source_id, product_id]);
       const afterQty = cur.rows.length ? parseFloat(cur.rows[0].quantity) : 0;
+      // Include destination info in notes so shelf history shows where items went
+      let destLabel = 'Перемещение';
+      if (dest_type === 'employee') {
+        const emp = await client.query('SELECT full_name FROM employees_s WHERE id=$1', [dest_id]);
+        destLabel = emp.rows[0]?.full_name ? `→ ${emp.rows[0].full_name}` : 'Перемещение';
+      } else if (dest_type === 'pallet') {
+        const pal = await client.query('SELECT name FROM pallets_s WHERE id=$1', [dest_id]);
+        destLabel = pal.rows[0]?.name ? `→ ${pal.rows[0].name}` : '→ Паллет';
+      } else if (dest_type === 'box') {
+        destLabel = '→ Коробка';
+      }
       await client.query(
         `INSERT INTO shelf_movements_s (shelf_id, product_id, operation_type, quantity_before, quantity_after, quantity_delta, user_id, notes)
-         VALUES ($1,$2,'stock_out',$3,$4,$5,$6,'Перемещение')`,
-        [source_id, product_id, afterQty + qty, afterQty, -qty, req.user.id]);
+         VALUES ($1,$2,'stock_out',$3,$4,$5,$6,$7)`,
+        [source_id, product_id, afterQty + qty, afterQty, -qty, req.user.id, destLabel]);
     }
     if (dest_type === 'shelf') {
       const cur = await client.query('SELECT COALESCE(quantity,0) as quantity FROM shelf_items_s WHERE shelf_id=$1 AND product_id=$2', [dest_id, product_id]);
       const afterQty = cur.rows.length ? parseFloat(cur.rows[0].quantity) : 0;
+      // Include source info in notes
+      let srcLabel = 'Перемещение';
+      if (source_type === 'employee') {
+        const emp = await client.query('SELECT full_name FROM employees_s WHERE id=$1', [source_id]);
+        srcLabel = emp.rows[0]?.full_name ? `← ${emp.rows[0].full_name}` : 'Перемещение';
+      } else if (source_type === 'pallet') {
+        const pal = await client.query('SELECT name FROM pallets_s WHERE id=$1', [source_id]);
+        srcLabel = pal.rows[0]?.name ? `← ${pal.rows[0].name}` : '← Паллет';
+      } else if (source_type === 'box') {
+        srcLabel = '← Коробка';
+      }
       await client.query(
         `INSERT INTO shelf_movements_s (shelf_id, product_id, operation_type, quantity_before, quantity_after, quantity_delta, user_id, notes)
-         VALUES ($1,$2,'stock_in',$3,$4,$5,$6,'Перемещение')`,
-        [dest_id, product_id, afterQty - qty, afterQty, qty, req.user.id]);
+         VALUES ($1,$2,'stock_in',$3,$4,$5,$6,$7)`,
+        [dest_id, product_id, afterQty - qty, afterQty, qty, req.user.id, srcLabel]);
     }
 
     // Log movement (check shelf boxes to avoid FK violation on boxes_s)
