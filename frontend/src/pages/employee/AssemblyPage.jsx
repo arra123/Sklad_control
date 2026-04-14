@@ -360,6 +360,7 @@ export default function AssemblyPage() {
         box_id: d.id,
         box_barcode: barcode,
         pallet_id: scannedPallet?.pallet_id || null,
+        source_type: isPalletBox ? 'pallet' : isShelfBox ? 'shelf' : (scannedPallet?.pallet_id ? 'pallet' : null),
         product_name: productName,
         quantity: qty,
       });
@@ -390,6 +391,7 @@ export default function AssemblyPage() {
       const res = await api.post(`/assembly/${id}/scan-pick`, {
         barcode,
         box_id: scannedBox?.box_id || null,
+        box_source: scannedBox?.source_type || (scannedBox?.pallet_id ? 'pallet' : null),
         shelf_id: scannedPallet?.shelf_id || null,
         pallet_id: (!scannedBox && scannedPallet?.pallet_id && !scannedPallet?.shelf_id) ? scannedPallet.pallet_id : null,
       });

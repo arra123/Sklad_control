@@ -379,7 +379,7 @@ router.post('/:id/start-picking', requireAuth, async (req, res) => {
 
 // ─── POST /:id/scan-pick — Scan item from pallet box or shelf ───────────────
 router.post('/:id/scan-pick', requireAuth, async (req, res) => {
-  const { barcode, box_id, shelf_id, pallet_id } = req.body;
+  const { barcode, box_id, shelf_id, pallet_id, box_source } = req.body;
   if (!barcode) return res.status(400).json({ error: 'barcode обязателен' });
 
   const client = await pool.connect();
@@ -473,8 +473,10 @@ router.post('/:id/scan-pick', requireAuth, async (req, res) => {
 
     // Decrease quantity from source
     if (box_id) {
-      // box_id может быть полочной (shelf_boxes_s) или паллетной (boxes_s) коробкой
-      const isShelfBox = await client.query('SELECT shelf_id FROM shelf_boxes_s WHERE id = $1', [box_id]);
+      // box_id может быть полочной (shelf_boxes_s) или паллетной (boxes_s) коробкой.
+      // box_source='pallet' — фронт точно знает, что это паллетная коробка, пропускаем shelf_boxes_s.
+      const isShelfBox = box_source === 'pallet' ? { rows: [] }
+        : await client.query('SELECT shelf_id FROM shelf_boxes_s WHERE id = $1', [box_id]);
       if (isShelfBox.rows.length) {
         // Ищем строку с любым эквивалентным product_id — коробка может хранить
         // дубликат products_s (не совпадающий с scanned product.id).
@@ -483,7 +485,14 @@ router.post('/:id/scan-pick', requireAuth, async (req, res) => {
            WHERE shelf_box_id = $1 AND product_id = ANY($2) AND quantity > 0
            RETURNING product_id, quantity`,
           [box_id, equivProductIds]);
-        if (!upd.rows.length) { await client.query('ROLLBACK'); client.release(); return res.status(400).json({ error: 'В этой коробке закончился товар. Нажмите «Сменить коробку»', hint: 'source_empty' }); }
+        if (!upd.rows.length) {
+          console.error('[ASSEMBLY] shelf_box source_empty:', JSON.stringify({
+            task_id: req.params.id, box_id, box_source, product_id: product.id, equivProductIds,
+            note: 'ID коллизия? box_id найден в shelf_boxes_s, но товар не найден в shelf_box_items_s'
+          }));
+          await client.query('ROLLBACK'); client.release();
+          return res.status(400).json({ error: 'В этой коробке закончился товар. Нажмите «Сменить коробку»', hint: 'source_empty' });
+        }
         await client.query('UPDATE shelf_boxes_s SET quantity = GREATEST(0, quantity - 1) WHERE id = $1', [box_id]);
         await client.query(
           `INSERT INTO movements_s (movement_type, product_id, quantity, from_shelf_box_id, from_shelf_id, performed_by, source, notes)
@@ -572,7 +581,26 @@ router.post('/:id/scan-pick', requireAuth, async (req, res) => {
               [box_id, equivProductIds]);
           }
         }
-        if (!upd.rows.length) { await client.query('ROLLBACK'); client.release(); return res.status(400).json({ error: 'В этой коробке закончился товар. Нажмите «Сменить коробку»', hint: 'source_empty' }); }
+        if (!upd.rows.length) {
+          // Диагностика: логируем полное состояние для отладки
+          const diagBox = await client.query('SELECT id, product_id, quantity, barcode_value, status FROM boxes_s WHERE id = $1', [box_id]);
+          const diagBi = await client.query('SELECT product_id, quantity FROM box_items_s WHERE box_id = $1', [box_id]);
+          const diagSb = await client.query('SELECT id, shelf_id FROM shelf_boxes_s WHERE id = $1', [box_id]);
+          console.error('[ASSEMBLY] source_empty диагностика:', JSON.stringify({
+            task_id: req.params.id, box_id, box_source,
+            barcode, product_id: product.id, product_name: product.name,
+            equivProductIds,
+            boxes_s: diagBox.rows[0] || null,
+            box_items_s: diagBi.rows,
+            shelf_boxes_s_collision: diagSb.rows.length > 0,
+          }));
+          await client.query('ROLLBACK'); client.release();
+          return res.status(400).json({
+            error: 'В этой коробке закончился товар. Нажмите «Сменить коробку»',
+            hint: 'source_empty',
+            _debug: { box_id, box_source, hasBoxesS: !!diagBox.rows.length, hasSbCollision: diagSb.rows.length > 0 }
+          });
+        }
         const boxInfo = await client.query('SELECT pallet_id FROM boxes_s WHERE id = $1', [box_id]);
         await client.query('UPDATE boxes_s SET quantity = GREATEST(0, quantity - 1) WHERE id = $1', [box_id]);
         await client.query(
