@@ -409,10 +409,14 @@ export default function AssemblyPage() {
       playBeep(false);
       const hint = err.response?.data?.hint;
       if (hint === 'source_empty') {
-        // Auto-reset source so employee can pick another box/location
+        // Сбрасываем коробку, но оставляем паллет — чтобы не пересканировать
         toast.error(err.response.data.error);
         setScannedBox(null);
-        setPickStep('location');
+        if (scannedPallet?.pallet_id) {
+          setPickStep('box'); // выбрать другую коробку на том же паллете
+        } else {
+          setPickStep('location');
+        }
         return;
       }
       toast.error(err.response?.data?.error || 'Ошибка');

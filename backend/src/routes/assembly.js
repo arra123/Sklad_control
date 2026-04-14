@@ -527,8 +527,12 @@ router.post('/:id/scan-pick', requireAuth, async (req, res) => {
               && boxQty > 0
               && br.product_id
               && equivProductIds.includes(Number(br.product_id));
+            // Обобщённый случай: в box_items_s нет строки для нужного товара
+            // (biQty === 0), но boxes_s.quantity > 0 — всегда синхронизируем,
+            // даже если boxes_s.product_id не совпадает с equivProductIds или NULL.
+            const isGeneralMissing = biQty === 0 && boxQty > 0;
 
-            if (isLegacyEmpty || isSingleProductDesync || isProductMissing) {
+            if (isLegacyEmpty || isSingleProductDesync || isProductMissing || isGeneralMissing) {
               await client.query(
                 `INSERT INTO box_items_s (box_id, product_id, quantity, updated_at)
                  VALUES ($1, $2, $3, NOW())
@@ -548,14 +552,19 @@ router.post('/:id/scan-pick', requireAuth, async (req, res) => {
         if (!upd.rows.length) {
           const fbBox = await client.query('SELECT product_id, quantity FROM boxes_s WHERE id = $1', [box_id]);
           const fbQty = Number(fbBox.rows[0]?.quantity || 0);
-          if (fbQty > 0) {
+          // Используем boxes_s.quantity если > 0, иначе проверяем общий остаток box_items_s
+          const effectiveQty = fbQty > 0 ? fbQty : Number(
+            (await client.query('SELECT COALESCE(SUM(quantity), 0)::int as total FROM box_items_s WHERE box_id = $1', [box_id])).rows[0]?.total || 0
+          );
+          if (effectiveQty > 0) {
             const fbPid = fbBox.rows[0]?.product_id && equivProductIds.includes(Number(fbBox.rows[0].product_id))
               ? fbBox.rows[0].product_id : product.id;
+            const insertQty = fbQty > 0 ? fbQty : effectiveQty;
             await client.query(
               `INSERT INTO box_items_s (box_id, product_id, quantity, updated_at)
                VALUES ($1, $2, $3, NOW())
-               ON CONFLICT (box_id, product_id) DO UPDATE SET quantity = $3, updated_at = NOW()`,
-              [box_id, fbPid, fbQty]);
+               ON CONFLICT (box_id, product_id) DO UPDATE SET quantity = GREATEST(box_items_s.quantity, $3), updated_at = NOW()`,
+              [box_id, fbPid, insertQty]);
             upd = await client.query(
               `UPDATE box_items_s SET quantity = quantity - 1
                WHERE box_id = $1 AND product_id = ANY($2) AND quantity > 0
