@@ -188,6 +188,9 @@ function ActivityTimeline({ buckets, tasks, breaks = [], thresholds }) {
     if (breakBuckets.has(b)) return 'break';
     if (taskPauseBuckets.has(b) && !(bucketMap[b] > 0)) return 'pause';
     if (bucketMap[b] > 0) return 'active';
+    // Если в бакете идёт активная задача (отбор, сборка, инвентаризация) —
+    // это работа, а не простой (сотрудник перемещается между точками).
+    if (bucketTaskMap[b]) return 'active';
     return 'idle';
   };
   const regionMap = {};
@@ -227,7 +230,7 @@ function ActivityTimeline({ buckets, tasks, breaks = [], thresholds }) {
       else techBucketCount++;
     }
     else if (taskPauseBuckets.has(i) && !bucketMap[i]) taskPauseCount++;
-    else if (bucketMap[i]) activeBuckets++;
+    else if (bucketMap[i] || bucketTaskMap[i]) activeBuckets++;
   }
   const elapsedBuckets = Math.max(0, countUpTo - minBucket);
   const activeMinutes = activeBuckets * 5;
@@ -334,7 +337,7 @@ function ActivityTimeline({ buckets, tasks, breaks = [], thresholds }) {
               : (isHovered ? 'bg-amber-400' : 'bg-amber-300')
               : isTaskPause
               ? (isHovered ? 'bg-rose-300' : 'bg-rose-200')
-              : scans <= 0 ? (isHovered ? 'bg-gray-200' : 'bg-gray-100')
+              : scans <= 0 && !bucketTaskMap[bNum] ? (isHovered ? 'bg-gray-200' : 'bg-gray-100')
               : scans <= T1 ? (isHovered ? 'bg-green-300' : 'bg-green-100')
               : scans <= T2 ? (isHovered ? 'bg-green-400' : 'bg-green-200')
               : scans <= T3 ? (isHovered ? 'bg-green-400' : 'bg-green-300')
@@ -394,6 +397,8 @@ function ActivityTimeline({ buckets, tasks, breaks = [], thresholds }) {
                     <p className="text-green-300 mt-0.5">{bucketTaskMap[bNum] || 'Работа'}</p>
                     <p className="mt-0.5">{scans} {scans === 1 ? 'скан' : scans < 5 ? 'скана' : 'сканов'}</p>
                   </>
+                ) : bucketTaskMap[bNum] ? (
+                  <p className="text-green-300 mt-0.5">{bucketTaskMap[bNum]} (перемещение)</p>
                 ) : (
                   <p className="text-gray-400 mt-0.5">Простой</p>
                 )}
