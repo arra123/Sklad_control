@@ -204,7 +204,7 @@ function EditUserModal({ open, onClose, user, onSuccess, employees }) {
         active: form.active,
       };
       if (form.password.trim()) payload.password = form.password.trim();
-      await api.put(`/staff/users/${user.id}`, payload);
+      await api.put(`/staff/users/${user.id}`, { ...payload, source: user.source });
       toast.success('Пользователь обновлён');
       onSuccess();
       onClose();
