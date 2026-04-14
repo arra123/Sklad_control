@@ -98,7 +98,7 @@ function mergeBuckets(activity = [], sborka = []) {
   return [...map.values()].sort((a, b) => a.bucket - b.bucket);
 }
 
-function ActivityTimeline({ buckets, tasks, breaks = [], thresholds }) {
+function ActivityTimeline({ buckets, tasks, breaks = [], thresholds, sborkaEvents = [] }) {
   const T1 = thresholds?.t1 || 3;
   const T2 = thresholds?.t2 || 6;
   const T3 = thresholds?.t3 || 10;
@@ -181,6 +181,35 @@ function ActivityTimeline({ buckets, tasks, breaks = [], thresholds }) {
       bucketTaskMap[i] = taskTypeLabel(t.task_type);
       bucketTaskType[i] = t.task_type;
     }
+  }
+
+  // Сборка заказов (sborka) — группируем события в сессии по gap 5 мин,
+  // заполняем bucketTaskMap чтобы время внутри сессий считалось работой.
+  if (sborkaEvents && sborkaEvents.length > 0) {
+    const sorted = [...sborkaEvents].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    let sesStart = new Date(sorted[0].created_at);
+    let sesEnd = new Date(sorted[0].created_at);
+    const flushSession = () => {
+      const sB = Math.floor((sesStart - todayStart) / 300000);
+      const eB = Math.floor((sesEnd - todayStart) / 300000);
+      for (let i = Math.max(minBucket, sB); i <= Math.min(maxBucket, eB); i++) {
+        if (!bucketTaskMap[i]) {
+          bucketTaskMap[i] = 'Сборка заказов';
+          bucketTaskType[i] = 'sborka';
+        }
+      }
+    };
+    for (let j = 1; j < sorted.length; j++) {
+      const t = new Date(sorted[j].created_at);
+      if (t - sesEnd <= 5 * 60 * 1000) {
+        sesEnd = t;
+      } else {
+        flushSession();
+        sesStart = t;
+        sesEnd = t;
+      }
+    }
+    flushSession();
   }
 
   // Pre-compute contiguous regions for range tooltips
@@ -762,7 +791,7 @@ function EmployeeDetailView({ employeeId, employees, onBack, thresholds, date, i
         <div className="flex justify-center py-10"><Spinner size="lg" /></div>
       ) : timeline ? (
         <>
-          <ActivityTimeline buckets={mergeBuckets(timeline.activity_buckets, timeline.sborka_buckets)} tasks={timeline.tasks} breaks={timeline.breaks} thresholds={thresholds} />
+          <ActivityTimeline buckets={mergeBuckets(timeline.activity_buckets, timeline.sborka_buckets)} tasks={timeline.tasks} breaks={timeline.breaks} thresholds={thresholds} sborkaEvents={timeline.sborka_events} />
 
           {/* Tasks list */}
           <div className="mt-5">
