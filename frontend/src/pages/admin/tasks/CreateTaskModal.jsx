@@ -62,7 +62,7 @@ export default function CreateTaskModal({ open, onClose, onSuccess }) {
       api.get('/fbo/warehouses'),
       api.get('/tasks/busy-targets').catch(() => ({ data: { shelves: {}, pallets: {}, pallet_boxes: {}, shelf_boxes: {} } })),
     ]).then(([emp, wh, fbo, busy]) => {
-      setEmployees(emp.data);
+      setEmployees((emp.data || []).filter(e => e.active !== false));
       setWarehouses(wh.data);
       setFboWarehouses(fbo.data);
       setBusyTargets(busy.data || { shelves: {}, pallets: {}, pallet_boxes: {}, shelf_boxes: {} });

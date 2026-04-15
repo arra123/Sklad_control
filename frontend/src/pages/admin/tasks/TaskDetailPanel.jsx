@@ -143,7 +143,7 @@ export default function TaskDetailPanel({ task, onClose, onReload }) {
   // Load employees for assignment
   useEffect(() => {
     if (showAssign && employees.length === 0) {
-      api.get('/employees').then(r => setEmployees(r.data.filter(e => e.status === 'active'))).catch(() => {});
+      api.get('/staff/employees').then(r => setEmployees(r.data.filter(e => e.active !== false))).catch(() => {});
     }
   }, [showAssign, employees.length]);
 
