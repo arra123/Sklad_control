@@ -118,6 +118,101 @@ router.post('/:taskId/open-box', requireAuth, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// POST /api/packing/:taskId/reuse-box — scan existing (partial) box to continue filling it
+router.post('/:taskId/reuse-box', requireAuth, async (req, res) => {
+  const { box_barcode } = req.body;
+  if (!box_barcode?.trim()) return res.status(400).json({ error: 'Отсканируйте штрих-код коробки' });
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const taskRes = await client.query(
+      'SELECT * FROM inventory_tasks_s WHERE id=$1 AND task_type=\'packaging\'',
+      [req.params.taskId]
+    );
+    if (!taskRes.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Задача не найдена' }); }
+    const t = taskRes.rows[0];
+    if (req.user.role !== 'admin' && !(req.user.permissions || []).includes('tasks.view') && !(req.user.permissions || []).includes('tasks.create') && t.employee_id !== req.user.employee_id) {
+      await client.query('ROLLBACK');
+      return res.status(403).json({ error: 'Нет доступа' });
+    }
+    if (t.status !== 'in_progress') { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Сначала начните задачу' }); }
+
+    const alreadyOpen = await client.query(
+      'SELECT id FROM boxes_s WHERE task_id=$1 AND status=\'open\'',
+      [req.params.taskId]
+    );
+    if (alreadyOpen.rows.length) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Уже есть открытая коробка' }); }
+
+    const boxRes = await client.query('SELECT * FROM boxes_s WHERE barcode_value=$1', [box_barcode.trim()]);
+    if (!boxRes.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Коробка с таким штрих-кодом не найдена' }); }
+    const b = boxRes.rows[0];
+
+    if (t.product_id && b.product_id && b.product_id !== t.product_id) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'В этой коробке другой товар — сканируйте коробку с нужным товаром или откройте новую' });
+    }
+
+    const boxSize = b.box_size || t.box_size || 50;
+    if (parseInt(b.quantity) >= parseInt(boxSize)) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Коробка уже заполнена — откройте новую' });
+    }
+
+    if (b.status === 'open' && b.task_id && b.task_id !== parseInt(req.params.taskId)) {
+      const other = await client.query('SELECT status FROM inventory_tasks_s WHERE id=$1', [b.task_id]);
+      if (other.rows.length && other.rows[0].status === 'in_progress') {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Эта коробка уже используется в другой активной задаче' });
+      }
+    }
+
+    if (b.is_remainder && b.remainder_shelf_id && parseInt(b.quantity) > 0 && b.product_id) {
+      const cur = await client.query(
+        'SELECT quantity FROM shelf_items_s WHERE shelf_id=$1 AND product_id=$2',
+        [b.remainder_shelf_id, b.product_id]
+      );
+      const prevQty = cur.rows.length ? parseFloat(cur.rows[0].quantity) : 0;
+      const delta = parseInt(b.quantity);
+      const newQty = Math.max(0, prevQty - delta);
+      if (cur.rows.length) {
+        await client.query(
+          'UPDATE shelf_items_s SET quantity=$1, updated_by=$2, updated_at=NOW() WHERE shelf_id=$3 AND product_id=$4',
+          [newQty, req.user.id, b.remainder_shelf_id, b.product_id]
+        );
+      }
+      await client.query(
+        `INSERT INTO shelf_movements_s (shelf_id, product_id, operation_type, quantity_before, quantity_after, quantity_delta, user_id, task_id)
+         VALUES ($1,$2,'stock_out',$3,$4,$5,$6,$7)`,
+        [b.remainder_shelf_id, b.product_id, prevQty, newQty, -delta, req.user.id, req.params.taskId]
+      );
+    }
+
+    const prodId = b.product_id || t.product_id;
+    const result = await client.query(
+      `UPDATE boxes_s SET
+         status='open',
+         confirmed=true,
+         is_remainder=false,
+         remainder_shelf_id=NULL,
+         closed_at=NULL,
+         task_id=$2,
+         pallet_id=$3,
+         product_id=$4,
+         box_size=$5
+       WHERE id=$1 RETURNING *`,
+      [b.id, req.params.taskId, t.target_pallet_id, prodId, boxSize]
+    );
+
+    await client.query('COMMIT');
+    res.json({ success: true, box: result.rows[0] });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: err.message });
+  } finally { client.release(); }
+});
+
 // POST /api/packing/:taskId/confirm-box — employee scans box label to confirm
 router.post('/:taskId/confirm-box', requireAuth, async (req, res) => {
   const { scanned_barcode } = req.body;

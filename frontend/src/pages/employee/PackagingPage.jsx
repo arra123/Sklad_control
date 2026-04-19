@@ -119,10 +119,18 @@ function StepScanPallet({ task, onSuccess }) {
   );
 }
 
-// ─── Шаг 2: Открыть новую коробку ─────────────────────────────────────────────
-function StepOpenBox({ task, stats, onOpen }) {
+// ─── Шаг 2: Открыть новую коробку или переоткрыть существующую ────────────────
+function StepOpenBox({ task, stats, onOpen, onReused }) {
   const [loading, setLoading] = useState(false);
   const toast = useToast();
+  const { settings } = useAppSettings();
+  const playBeep = makePlayBeep(settings);
+
+  const reuseInputRef = useRef(null);
+  const reuseTimerRef = useRef(null);
+  const [reuseValue, setReuseValue] = useState('');
+  const [reuseLoading, setReuseLoading] = useState(false);
+  const [reuseError, setReuseError] = useState('');
 
   const palletLabel = task.row_number && task.pallet_number
     ? `Р${task.row_number}П${task.pallet_number}` : task.pallet_name || '—';
@@ -131,6 +139,28 @@ function StepOpenBox({ task, stats, onOpen }) {
     setLoading(true);
     try { await onOpen(); }
     catch (err) { toast.error(err.response?.data?.error || 'Ошибка'); setLoading(false); }
+  };
+
+  const doReuse = useCallback(async (val) => {
+    if (!val.trim() || reuseLoading) return;
+    setReuseLoading(true); setReuseError('');
+    try {
+      const res = await api.post(`/packing/${task.id}/reuse-box`, { box_barcode: val.trim() });
+      playBeep(true);
+      toast.success(`Коробка открыта: ${res.data.box.quantity} / ${res.data.box.box_size} шт.`);
+      onReused();
+    } catch (err) {
+      playBeep(false);
+      setReuseError(err.response?.data?.error || 'Ошибка');
+      setReuseValue('');
+      setTimeout(() => reuseInputRef.current?.focus(), 100);
+    } finally { setReuseLoading(false); }
+  }, [task.id, reuseLoading]);
+
+  const handleReuseChange = (e) => {
+    const v = e.target.value; setReuseValue(v);
+    if (reuseTimerRef.current) clearTimeout(reuseTimerRef.current);
+    if (v.trim().length >= 4) reuseTimerRef.current = setTimeout(() => doReuse(v), SCAN_AUTO_SUBMIT_MS);
   };
 
   return (
@@ -149,7 +179,7 @@ function StepOpenBox({ task, stats, onOpen }) {
       )}
 
       <div className="card p-5 space-y-4">
-        <p className="text-sm font-bold text-gray-700 uppercase tracking-wide">Что делать</p>
+        <p className="text-sm font-bold text-gray-700 uppercase tracking-wide">Новая коробка</p>
         <Step num={1} active text="Возьмите пустую коробку" />
         <Step num={2} text="Нажмите кнопку ниже — система создаст этикетку" />
         <Step num={3} text="Распечатайте этикетку, наклейте на коробку" />
@@ -160,6 +190,40 @@ function StepOpenBox({ task, stats, onOpen }) {
         <Box size={20} />
         Открыть новую коробку
       </Button>
+
+      <div className="relative py-1">
+        <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200" /></div>
+        <div className="relative flex justify-center">
+          <span className="bg-gray-50 px-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">или</span>
+        </div>
+      </div>
+
+      <div className="card p-5 space-y-3">
+        <div className="flex items-center gap-2 mb-1">
+          <ScanLine size={18} className="text-primary-500" />
+          <p className="font-semibold text-gray-800">Продолжить старую коробку</p>
+        </div>
+        <p className="text-xs text-gray-500 leading-relaxed">
+          Если есть незаполненная коробка с тем же товаром — отсканируйте её штрих-код,
+          чтобы дозаполнить. Остаток с полки ФБС будет списан автоматически.
+        </p>
+        <input
+          ref={reuseInputRef}
+          type="text" value={reuseValue}
+          onChange={handleReuseChange}
+          onKeyDown={e => { if (e.key === 'Enter') { if (reuseTimerRef.current) clearTimeout(reuseTimerRef.current); doReuse(reuseValue); } }}
+          placeholder="Отсканируйте ШК существующей коробки..."
+          className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-base
+            placeholder:text-gray-400 focus:border-primary-400 focus:ring-2 focus:ring-primary-100 focus:outline-none"
+          disabled={reuseLoading} autoComplete="off"
+        />
+        {reuseError && (
+          <div className="flex items-start gap-2 p-3 bg-rose-50 rounded-xl text-sm text-rose-700">
+            <AlertCircle size={16} className="flex-shrink-0 mt-0.5" />
+            <p>{reuseError}</p>
+          </div>
+        )}
+      </div>
 
       <Button variant="success" size="lg" className="w-full" onClick={() => {
         if (confirm('Завершить задачу? Все коробки будут закрыты.')) {
@@ -926,7 +990,7 @@ export default function PackagingPage() {
         ) : step === 'scan_pallet' ? (
           <StepScanPallet task={task} onSuccess={fetchData} />
         ) : step === 'open_box' ? (
-          <StepOpenBox task={task} stats={stats} onOpen={handleOpenBox} />
+          <StepOpenBox task={task} stats={stats} onOpen={handleOpenBox} onReused={fetchData} />
         ) : step === 'confirm_box' ? (
           <StepConfirmBox task={task} box={open_box} onConfirmed={fetchData} />
         ) : step === 'fill_box' ? (
