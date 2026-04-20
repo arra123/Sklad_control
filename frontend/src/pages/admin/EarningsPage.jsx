@@ -55,7 +55,7 @@ const IconTrend = () => (
 );
 
 /* ─── Stat Card ─────────────────────────────────────────────────────────── */
-function Stat({ icon, label, value, color }) {
+function Stat({ icon, label, value, color, hint }) {
   return (
     <div className="bg-white/50 backdrop-blur-xl border border-white/75 rounded-[14px] px-4 py-3 flex items-center gap-3 min-w-0">
       <div className={`w-8 h-8 rounded-lg ${color || 'bg-primary-50 text-primary-600'} flex items-center justify-center flex-shrink-0`}>
@@ -63,7 +63,8 @@ function Stat({ icon, label, value, color }) {
       </div>
       <div className="min-w-0">
         <p className="text-lg font-extrabold text-gray-900 truncate">{value}</p>
-        <p className="text-[10px] text-gray-400 uppercase tracking-wider">{label}</p>
+        <p className="text-[10px] text-gray-400 uppercase tracking-wider truncate">{label}</p>
+        {hint && <p className="text-[10px] text-gray-500 mt-0.5 truncate">{hint}</p>}
       </div>
     </div>
   );
@@ -368,7 +369,8 @@ function Leaderboard({ leaders, adjustments, unit, onSelect }) {
               <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Сотрудник</th>
               <th className="px-4 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Сканы</th>
               <th className="px-4 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Склад</th>
-              <th className="px-4 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Сборка</th>
+              <th className="px-4 py-2.5 text-right text-xs font-semibold text-purple-500 uppercase tracking-wide" title="external_order_pick — сборка товара">Товар</th>
+              <th className="px-4 py-2.5 text-right text-xs font-semibold text-fuchsia-500 uppercase tracking-wide" title="external_order_collect — сборка заказов">Заказы</th>
               <th className="px-4 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Текущий баланс</th>
               <th className="w-8"></th>
             </tr>
@@ -393,7 +395,8 @@ function Leaderboard({ leaders, adjustments, unit, onSelect }) {
                 <td className="px-4 py-3 font-medium text-gray-900">{emp.full_name}</td>
                 <td className="px-4 py-3 text-right font-mono text-gray-600">{fmt(emp.rewarded_scans)}</td>
                 <td className="px-4 py-3 text-right text-primary-600 font-semibold">{fmt(convert(emp.total_awarded, unit))}</td>
-                <td className="px-4 py-3 text-right text-purple-600 font-semibold">{fmt(convert(emp.sborka_amount, unit))}</td>
+                <td className="px-4 py-3 text-right text-purple-600 font-semibold" title={`${fmt(emp.sborka_pick_units)} позиций`}>{fmt(convert(emp.sborka_pick_amount, unit))}</td>
+                <td className="px-4 py-3 text-right text-fuchsia-600 font-semibold" title={`${fmt(emp.sborka_collect_units)} позиций`}>{fmt(convert(emp.sborka_collect_amount, unit))}</td>
                 <td className="px-4 py-3 text-right font-bold text-green-600">{fmt(convert(emp.current_balance, unit))}</td>
                 <td className="pr-3 text-gray-300 group-hover:text-primary-500 transition-colors">
                   <ChevronRight size={16} />
@@ -456,6 +459,7 @@ function EmployeeDetail({ detail, unit = 'gra' }) {
     const ensure = (date) => {
       if (!byDate[date]) byDate[date] = {
         date, scans: 0, tasks: 0, warehouse: 0, sborka: 0,
+        pickAmount: 0, collectAmount: 0, pickUnits: 0, collectUnits: 0,
         pickCount: 0, orderCount: 0,
         taskItems: [], sborkaItems: [], liveOrders: [], livePicks: [],
       };
@@ -474,10 +478,16 @@ function EmployeeDetail({ detail, unit = 'gra' }) {
     sborka.forEach(s => {
       const date = s.created_at ? new Date(s.created_at).toLocaleDateString('ru-RU') : 'Без даты';
       const d = ensure(date);
-      d.sborka += Number(s.amount_delta || 0);
+      const delta = Number(s.amount_delta || 0);
+      const units = Number(s.reward_units || 0);
+      d.sborka += delta;
       d.sborkaItems.push(s);
-      // Count orders from collects (authoritative source — more complete than live_events)
-      if (s.event_type === 'external_order_collect') {
+      if (s.event_type === 'external_order_pick') {
+        d.pickAmount += delta;
+        d.pickUnits += units;
+      } else if (s.event_type === 'external_order_collect') {
+        d.collectAmount += delta;
+        d.collectUnits += units;
         d.orderCount += 1;
       }
     });
@@ -502,6 +512,12 @@ function EmployeeDetail({ detail, unit = 'gra' }) {
   }, [tasks, sborka, liveEvents]);
 
   const totalSborka = Number(emp?.sborka_amount || 0);
+  const pickAmount = Number(emp?.sborka_pick_amount || 0);
+  const collectAmount = Number(emp?.sborka_collect_amount || 0);
+  const pickUnits = Number(emp?.sborka_pick_units || 0);
+  const collectUnits = Number(emp?.sborka_collect_units || 0);
+  const wbAmount = Number(emp?.sborka_wb_amount || 0);
+  const ozonAmount = Number(emp?.sborka_ozon_amount || 0);
   const totalOrders = sborka.filter(s => s.event_type === 'external_order_collect').length;
 
   return (
@@ -511,13 +527,21 @@ function EmployeeDetail({ detail, unit = 'gra' }) {
         <p className="text-xs text-gray-400">Статистика за выбранный период</p>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-5">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
         <Stat icon={<IconCoin />} label={`Текущий баланс ${unitLabel(unit)}`} value={fmt(convert(emp?.current_balance, unit))} color="bg-green-50 text-green-600" />
-        <Stat icon={<IconScan />} label="Сканов" value={fmt(emp?.rewarded_scans)} color="bg-blue-50 text-blue-600" />
+        <Stat icon={<IconScan />} label="Сканов склада" value={fmt(emp?.rewarded_scans)} color="bg-blue-50 text-blue-600" />
         <Stat icon={<IconTrend />} label={`Склад ${unitLabel(unit)}`} value={fmt(convert(emp?.total_awarded, unit))} color="bg-primary-50 text-primary-600" />
-        <Stat icon={<IconCoin />} label={`Сборка ${unitLabel(unit)}`} value={fmt(convert(totalSborka, unit))} color="bg-purple-50 text-purple-600" />
-        <Stat icon={<IconScan />} label="Заказов собрано" value={fmt(totalOrders)} color="bg-fuchsia-50 text-fuchsia-600" />
+        <Stat icon={<IconCoin />} label={`Сборка всего ${unitLabel(unit)}`} value={fmt(convert(totalSborka, unit))} color="bg-indigo-50 text-indigo-600" />
       </div>
+
+      {(totalSborka > 0 || pickAmount > 0 || collectAmount > 0) && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+          <Stat icon={<IconCoin />} label={`Товар (picker) ${unitLabel(unit)}`} value={fmt(convert(pickAmount, unit))} hint={`${fmt(pickUnits)} позиций`} color="bg-purple-50 text-purple-600" />
+          <Stat icon={<IconScan />} label={`Заказы (packer) ${unitLabel(unit)}`} value={fmt(convert(collectAmount, unit))} hint={`${fmt(collectUnits)} позиций · ${fmt(totalOrders)} заказов`} color="bg-fuchsia-50 text-fuchsia-600" />
+          <Stat icon={<IconCoin />} label={`WB ${unitLabel(unit)}`} value={fmt(convert(wbAmount, unit))} color="bg-violet-50 text-violet-600" />
+          <Stat icon={<IconCoin />} label={`Ozon ${unitLabel(unit)}`} value={fmt(convert(ozonAmount, unit))} color="bg-sky-50 text-sky-600" />
+        </div>
+      )}
 
       {dailyData.length > 0 && (
         <div className="bg-white rounded-[18px] border border-gray-100 overflow-hidden mb-5">
@@ -533,7 +557,8 @@ function EmployeeDetail({ detail, unit = 'gra' }) {
                 <th className="px-3 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Задачи</th>
                 <th className="px-3 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Заказов</th>
                 <th className="px-3 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Склад</th>
-                <th className="px-3 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Сборка</th>
+                <th className="px-3 py-2.5 text-right text-xs font-semibold text-purple-500 uppercase tracking-wide" title="external_order_pick">Товар</th>
+                <th className="px-3 py-2.5 text-right text-xs font-semibold text-fuchsia-500 uppercase tracking-wide" title="external_order_collect">Заказы</th>
                 <th className="px-3 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Итого</th>
               </tr>
             </thead>
@@ -552,9 +577,10 @@ function EmployeeDetail({ detail, unit = 'gra' }) {
                       <td className="px-4 py-3 font-medium text-gray-900">{day.date}</td>
                       <td className="px-3 py-3 text-right font-mono text-gray-600">{fmt(day.scans)}</td>
                       <td className="px-3 py-3 text-right text-gray-600">{day.tasks}</td>
-                      <td className="px-3 py-3 text-right text-purple-600 font-semibold">{day.orderCount || 0}</td>
+                      <td className="px-3 py-3 text-right text-fuchsia-600 font-semibold">{day.orderCount || 0}</td>
                       <td className="px-3 py-3 text-right text-primary-600 font-semibold">{fmt(convert(day.warehouse, unit))}</td>
-                      <td className="px-3 py-3 text-right text-purple-600 font-semibold">{fmt(convert(day.sborka, unit))}</td>
+                      <td className="px-3 py-3 text-right text-purple-600 font-semibold" title={`${fmt(day.pickUnits)} позиций`}>{fmt(convert(day.pickAmount, unit))}</td>
+                      <td className="px-3 py-3 text-right text-fuchsia-600 font-semibold" title={`${fmt(day.collectUnits)} позиций`}>{fmt(convert(day.collectAmount, unit))}</td>
                       <td className="px-3 py-3 text-right font-bold text-gray-900">{fmt(convert(day.warehouse + day.sborka, unit))}</td>
                     </tr>
                     {isOpen && (

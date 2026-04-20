@@ -577,8 +577,6 @@ async function createSchema(attempt = 1) {
     await client.query(`ALTER TABLE shelf_boxes_s ADD COLUMN IF NOT EXISTS confirmed BOOLEAN NOT NULL DEFAULT false`);
     await client.query(`ALTER TABLE shelf_boxes_s ADD COLUMN IF NOT EXISTS closed_at TIMESTAMPTZ`);
     await client.query(`ALTER TABLE inventory_tasks_s ADD COLUMN IF NOT EXISTS target_shelf_box_id INTEGER REFERENCES shelf_boxes_s(id) ON DELETE SET NULL`);
-    // Если остаток упаковочной коробки положили в коробку на полке ФБС
-    await client.query(`ALTER TABLE boxes_s ADD COLUMN IF NOT EXISTS remainder_shelf_box_id INTEGER REFERENCES shelf_boxes_s(id) ON DELETE SET NULL`);
 
     // Multi-product contents for pallet boxes
     await client.query(`
@@ -691,6 +689,18 @@ async function createSchema(attempt = 1) {
     `);
     await client.query(`ALTER TABLE employee_earnings_s ADD CONSTRAINT employee_earnings_s_event_type_check CHECK (event_type IN ('inventory_scan', 'manual_adjustment', 'external_order_pick', 'external_order_collect'))`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_employee_earnings_source ON employee_earnings_s(source) WHERE source IS NOT NULL`);
+
+    // Split-roles fields (sborka contract 2026-04-20): picker/packer identity,
+    // session tracking, redistribute-safe dedup. Только ALTER COLUMN здесь —
+    // безопасно, не конфликтует с существующими объектами прод-БД.
+    // Индексы и sborka_live_events_s заведём отдельной миграцией после аудита
+    // прод-схемы (sborka пишет в sborka_live_events_s напрямую, таблица уже
+    // есть на проде с возможно другой сигнатурой).
+    await client.query(`ALTER TABLE employee_earnings_s ADD COLUMN IF NOT EXISTS source_session_id VARCHAR(100)`);
+    await client.query(`ALTER TABLE employee_earnings_s ADD COLUMN IF NOT EXISTS source_item_id VARCHAR(100)`);
+    await client.query(`ALTER TABLE employee_earnings_s ADD COLUMN IF NOT EXISTS source_item_key VARCHAR(255)`);
+    await client.query(`ALTER TABLE employee_earnings_s ADD COLUMN IF NOT EXISTS source_order_ref VARCHAR(255)`);
+    await client.query(`ALTER TABLE employee_earnings_s ADD COLUMN IF NOT EXISTS source_marketplace_code_kind VARCHAR(50)`);
 
     // Performance indexes
     await client.query(`CREATE INDEX IF NOT EXISTS idx_shelf_items_shelf_qty ON shelf_items_s(shelf_id, product_id) WHERE quantity > 0`);
