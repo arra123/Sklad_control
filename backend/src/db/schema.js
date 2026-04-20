@@ -577,8 +577,6 @@ async function createSchema(attempt = 1) {
     await client.query(`ALTER TABLE shelf_boxes_s ADD COLUMN IF NOT EXISTS confirmed BOOLEAN NOT NULL DEFAULT false`);
     await client.query(`ALTER TABLE shelf_boxes_s ADD COLUMN IF NOT EXISTS closed_at TIMESTAMPTZ`);
     await client.query(`ALTER TABLE inventory_tasks_s ADD COLUMN IF NOT EXISTS target_shelf_box_id INTEGER REFERENCES shelf_boxes_s(id) ON DELETE SET NULL`);
-    // Если остаток упаковочной коробки положили в коробку на полке ФБС
-    await client.query(`ALTER TABLE boxes_s ADD COLUMN IF NOT EXISTS remainder_shelf_box_id INTEGER REFERENCES shelf_boxes_s(id) ON DELETE SET NULL`);
 
     // Multi-product contents for pallet boxes
     await client.query(`
@@ -691,6 +689,38 @@ async function createSchema(attempt = 1) {
     `);
     await client.query(`ALTER TABLE employee_earnings_s ADD CONSTRAINT employee_earnings_s_event_type_check CHECK (event_type IN ('inventory_scan', 'manual_adjustment', 'external_order_pick', 'external_order_collect'))`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_employee_earnings_source ON employee_earnings_s(source) WHERE source IS NOT NULL`);
+
+    // Split-roles fields (sborka contract 2026-04-20): picker/packer identity,
+    // session tracking, redistribute-safe dedup
+    await client.query(`ALTER TABLE employee_earnings_s ADD COLUMN IF NOT EXISTS source_session_id VARCHAR(100)`);
+    await client.query(`ALTER TABLE employee_earnings_s ADD COLUMN IF NOT EXISTS source_item_id VARCHAR(100)`);
+    await client.query(`ALTER TABLE employee_earnings_s ADD COLUMN IF NOT EXISTS source_item_key VARCHAR(255)`);
+    await client.query(`ALTER TABLE employee_earnings_s ADD COLUMN IF NOT EXISTS source_order_ref VARCHAR(255)`);
+    await client.query(`ALTER TABLE employee_earnings_s ADD COLUMN IF NOT EXISTS source_marketplace_code_kind VARCHAR(50)`);
+    // Идемпотентность: повторные POST/sync того же pick-события (redistribute,
+    // retry) не должны создавать дубль денег. Уникальный ключ в рамках источника.
+    await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_employee_earnings_unique_item_key ON employee_earnings_s(source, source_item_key) WHERE source IS NOT NULL AND source_item_key IS NOT NULL`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_employee_earnings_marketplace ON employee_earnings_s(source_marketplace) WHERE source_marketplace IS NOT NULL`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_employee_earnings_store ON employee_earnings_s(source_store_id) WHERE source_store_id IS NOT NULL`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_employee_earnings_session ON employee_earnings_s(source_session_id) WHERE source_session_id IS NOT NULL`);
+
+    // sborka_live_events_s — sborka пишет сюда напрямую для live-монитора склада
+    // (документировано в docs/Интеграции/Сборка-Live-Интеграция.md)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS sborka_live_events_s (
+        id BIGSERIAL PRIMARY KEY,
+        employee_id INTEGER,
+        event_type VARCHAR(50) NOT NULL,
+        order_id VARCHAR(100),
+        product_name TEXT,
+        barcode VARCHAR(255),
+        quantity NUMERIC(12,3),
+        marketplace VARCHAR(50),
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_sborka_live_events_emp_created ON sborka_live_events_s(employee_id, created_at DESC)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_sborka_live_events_type ON sborka_live_events_s(event_type, created_at DESC)`);
 
     // Performance indexes
     await client.query(`CREATE INDEX IF NOT EXISTS idx_shelf_items_shelf_qty ON shelf_items_s(shelf_id, product_id) WHERE quantity > 0`);
