@@ -107,6 +107,8 @@ export default function EarningsPage() {
   const period = sp.get('period') || 'all';
   const employeeId = sp.get('employee');
   const unit = sp.get('unit') === 'gra' ? 'gra' : 'rub';
+  const tab = sp.get('tab') || 'summary'; // 'summary' | 'assembly'
+  const marketplace = sp.get('mp') || ''; // '' | 'wb' | 'ozon'
 
   const [summary, setSummary] = useState(null);
   const [detail, setDetail] = useState(null);
@@ -156,6 +158,8 @@ export default function EarningsPage() {
   };
   const setPeriod = (p) => update({ period: p });
   const setUnit = (u) => update({ unit: u === 'gra' ? 'gra' : null });
+  const setTab = (t) => update({ tab: t === 'summary' ? null : t, employee: null });
+  const setMarketplace = (m) => update({ mp: m || null });
   const selectEmployee = (eid) => update({ employee: eid });
   const clearEmployee = () => update({ employee: null });
 
@@ -168,8 +172,25 @@ export default function EarningsPage() {
     <div className="p-6 max-w-7xl mx-auto">
 
       {/* ─── Header ─────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between gap-4 mb-5 flex-wrap">
-        <h1 className="text-2xl font-bold text-gray-900">Заработок</h1>
+      <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-bold text-gray-900">Заработок</h1>
+          {/* Tabs */}
+          <div className="flex items-center bg-white/50 backdrop-blur-xl border border-gray-200 rounded-[12px] p-0.5 ml-2">
+            {[
+              { k: 'summary', label: 'Сводка' },
+              { k: 'assembly', label: 'Сборки' },
+            ].map(t => (
+              <button
+                key={t.k}
+                onClick={() => setTab(t.k)}
+                className={`px-3 py-1 rounded-[9px] text-xs font-semibold transition-all ${
+                  tab === t.k ? 'bg-primary-600/15 text-primary-700 shadow-sm' : 'text-gray-400 hover:text-gray-600'
+                }`}
+              >{t.label}</button>
+            ))}
+          </div>
+        </div>
 
         <div className="flex items-center gap-1.5 flex-wrap">
           {PERIODS.map(p => (
@@ -208,7 +229,9 @@ export default function EarningsPage() {
         </div>
       </div>
 
-      {loading ? (
+      {tab === 'assembly' ? (
+        <AssembliesView period={period} unit={unit} marketplace={marketplace} setMarketplace={setMarketplace} />
+      ) : loading ? (
         <div className="flex justify-center py-20"><Spinner /></div>
       ) : ov ? (
         <>
@@ -692,6 +715,166 @@ function EmployeeDetail({ detail, unit = 'gra' }) {
           <p className="text-lg font-semibold mb-1">Нет данных</p>
           <p className="text-sm">За выбранный период нет начислений</p>
         </div>
+      )}
+    </>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ASSEMBLIES VIEW (Phase 2 — части сборок маркетплейсов)
+   ═══════════════════════════════════════════════════════════════════════════ */
+const MARKETPLACE_META = {
+  wb:   { label: 'WB',   bg: 'bg-violet-50',  text: 'text-violet-700',  ring: 'ring-violet-200' },
+  ozon: { label: 'Ozon', bg: 'bg-sky-50',     text: 'text-sky-700',     ring: 'ring-sky-200' },
+};
+const MODE_META = {
+  pick_pack: { label: 'Один сотрудник', bg: 'bg-indigo-50',  text: 'text-indigo-700' },
+  split:     { label: 'Split (2 роли)', bg: 'bg-amber-50',   text: 'text-amber-700' },
+  unknown:   { label: '—',              bg: 'bg-gray-50',    text: 'text-gray-400' },
+};
+const STATUS_META = {
+  picking:      { label: 'Идёт сборка товара', bg: 'bg-purple-50',  text: 'text-purple-700' },
+  packing:      { label: 'Идёт упаковка',      bg: 'bg-fuchsia-50', text: 'text-fuchsia-700' },
+  packing_only: { label: 'Только упаковка',    bg: 'bg-rose-50',    text: 'text-rose-700' },
+  done:         { label: 'Готово',             bg: 'bg-green-50',   text: 'text-green-700' },
+  empty:        { label: '—',                  bg: 'bg-gray-50',    text: 'text-gray-400' },
+};
+
+function AssembliesView({ period, unit, marketplace, setMarketplace }) {
+  const toast = useToast();
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState(null);
+
+  const fetchData = useCallback(async () => {
+    setLoading(true); setErr(null);
+    try {
+      const params = { period };
+      if (marketplace) params.marketplace = marketplace;
+      const { data } = await api.get('/earnings/assemblies', { params });
+      setRows(data);
+    } catch (e) {
+      setErr(e.response?.data?.error || 'Ошибка загрузки');
+      toast.error('Ошибка загрузки сборок');
+    } finally { setLoading(false); }
+  }, [period, marketplace, toast]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Агрегированные stat-карточки
+  const totals = useMemo(() => {
+    const t = { parts: rows.length, pickSum: 0, collectSum: 0, ordersSum: 0, splitCount: 0, pickPackCount: 0, redistributed: 0 };
+    rows.forEach(r => {
+      t.pickSum    += Number(r.pick_amount || 0);
+      t.collectSum += Number(r.collect_amount || 0);
+      t.ordersSum  += Number(r.orders_count || 0);
+      if (r.mode === 'split') t.splitCount++;
+      else if (r.mode === 'pick_pack') t.pickPackCount++;
+      if (r.redistributed) t.redistributed++;
+    });
+    return t;
+  }, [rows]);
+
+  return (
+    <>
+      {/* Stats */}
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
+        <Stat icon={<IconCoin />} label="Частей" value={totals.parts} color="bg-primary-50 text-primary-600" />
+        <Stat icon={<IconCoin />} label={`Товар (pick) ${unitLabel(unit)}`} value={fmt(convert(totals.pickSum, unit))} color="bg-purple-50 text-purple-600" />
+        <Stat icon={<IconCoin />} label={`Заказы (collect) ${unitLabel(unit)}`} value={fmt(convert(totals.collectSum, unit))} color="bg-fuchsia-50 text-fuchsia-600" />
+        <Stat icon={<IconUsers />} label="Split / One" value={`${totals.splitCount} / ${totals.pickPackCount}`} color="bg-amber-50 text-amber-600" />
+        <Stat icon={<IconUsers />} label="Redistribute" value={totals.redistributed} color="bg-rose-50 text-rose-600" hint={totals.redistributed > 0 ? 'Смена ответственного' : undefined} />
+      </div>
+
+      {/* Marketplace filter */}
+      <div className="flex items-center gap-2 mb-3">
+        <span className="text-xs text-gray-400 font-semibold uppercase">Маркетплейс:</span>
+        {[{ k: '', label: 'Все' }, { k: 'wb', label: 'WB' }, { k: 'ozon', label: 'Ozon' }].map(m => (
+          <button key={m.k || 'all'} onClick={() => setMarketplace(m.k)}
+            className={`px-3 py-1 rounded-full text-xs font-medium border transition-all ${
+              (marketplace || '') === m.k ? 'bg-primary-50 text-primary-700 border-primary-200' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
+            }`}>{m.label}</button>
+        ))}
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center py-20"><Spinner /></div>
+      ) : err ? (
+        <div className="bg-rose-50 border border-rose-200 rounded-2xl p-6 text-center text-rose-700">
+          <p className="text-sm font-semibold mb-1">Ошибка загрузки</p>
+          <p className="text-xs">{err}</p>
+        </div>
+      ) : rows.length === 0 ? (
+        <div className="text-center text-gray-400 py-16">
+          <p className="text-lg font-semibold mb-1">Нет частей сборок</p>
+          <p className="text-sm">За выбранный период или фильтр нет активности</p>
+        </div>
+      ) : (
+        <div className="bg-white rounded-[18px] border border-gray-100 overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-gray-50 border-b border-gray-100">
+                <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Маркет</th>
+                <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Магазин · часть</th>
+                <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Режим</th>
+                <th className="px-3 py-2.5 text-left text-xs font-semibold text-purple-500 uppercase tracking-wide">Сборщик товара</th>
+                <th className="px-3 py-2.5 text-left text-xs font-semibold text-fuchsia-500 uppercase tracking-wide">Упаковщик</th>
+                <th className="px-3 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Прогресс</th>
+                <th className="px-3 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Заказов</th>
+                <th className="px-3 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Итого {unitLabel(unit)}</th>
+                <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Статус</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r, i) => {
+                const mp = MARKETPLACE_META[r.marketplace] || { label: r.marketplace || '—', bg: 'bg-gray-50', text: 'text-gray-500' };
+                const mode = MODE_META[r.mode] || MODE_META.unknown;
+                const status = STATUS_META[r.status] || STATUS_META.empty;
+                const total = Number(r.pick_amount || 0) + Number(r.collect_amount || 0);
+                return (
+                  <tr key={`${r.marketplace}-${r.task_id}-${r.entity_id}-${i}`} className="border-b border-gray-50 hover:bg-primary-50/30 transition-colors">
+                    <td className="px-3 py-2.5">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold ${mp.bg} ${mp.text}`}>{mp.label}</span>
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <p className="font-medium text-gray-900 text-sm truncate max-w-[240px]" title={r.entity_name}>{r.entity_name}</p>
+                      <p className="text-[11px] text-gray-400 truncate">{r.store_name || `store #${r.store_id || '—'}`} · task {r.task_id}</p>
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold ${mode.bg} ${mode.text}`}>{mode.label}</span>
+                      {r.redistributed && (
+                        <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200" title="Была смена ответственного без повторного начисления">re-dist</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2.5 text-gray-700 truncate max-w-[160px]">
+                      {r.picker_name || <span className="text-gray-300">—</span>}
+                    </td>
+                    <td className="px-3 py-2.5 text-gray-700 truncate max-w-[160px]">
+                      {r.packer_name || <span className="text-gray-300">—</span>}
+                    </td>
+                    <td className="px-3 py-2.5 text-right font-mono text-xs text-gray-600">
+                      <span className="text-purple-600 font-semibold">{r.pick_units || 0}</span>
+                      <span className="text-gray-300 mx-1">→</span>
+                      <span className="text-fuchsia-600 font-semibold">{r.collect_units || 0}</span>
+                    </td>
+                    <td className="px-3 py-2.5 text-right text-gray-700 font-semibold">{r.orders_count || 0}</td>
+                    <td className="px-3 py-2.5 text-right font-bold text-gray-900">{fmt(convert(total, unit))}</td>
+                    <td className="px-3 py-2.5">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold ${status.bg} ${status.text}`}>{status.label}</span>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {rows.length > 0 && (
+        <p className="text-[11px] text-gray-400 text-center mt-3">
+          Режим определяется по наличию разных сотрудников-picker/packer · прогресс = собрано_товара → собрано_заказов<br />
+          Агрегация из employee_earnings_s (handoff и стол не пишутся в склад — видны в sborka-сайте)
+        </p>
       )}
     </>
   );

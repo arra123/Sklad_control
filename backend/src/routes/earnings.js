@@ -195,7 +195,13 @@ router.get('/my', requireAuth, async (req, res) => {
           (SELECT COUNT(*) FROM inventory_task_scans_s sc
            JOIN inventory_tasks_s t ON t.id = sc.task_id AND t.employee_id = $1
            WHERE sc.product_id IS NOT NULL AND sc.created_at >= CURRENT_DATE) as total_scans,
-          COUNT(DISTINCT ee.task_id) FILTER (WHERE ee.task_id IS NOT NULL) as tasks_count
+          COUNT(DISTINCT ee.task_id) FILTER (WHERE ee.task_id IS NOT NULL) as tasks_count,
+          COALESCE(SUM(ee.amount_delta) FILTER (WHERE ee.event_type = 'inventory_scan'), 0) as warehouse_earned,
+          COALESCE(SUM(ee.amount_delta) FILTER (WHERE ee.event_type = 'external_order_pick'), 0) as sborka_pick_amount,
+          COALESCE(SUM(ee.reward_units) FILTER (WHERE ee.event_type = 'external_order_pick'), 0) as sborka_pick_units,
+          COALESCE(SUM(ee.amount_delta) FILTER (WHERE ee.event_type = 'external_order_collect'), 0) as sborka_collect_amount,
+          COALESCE(SUM(ee.reward_units) FILTER (WHERE ee.event_type = 'external_order_collect'), 0) as sborka_collect_units,
+          COUNT(DISTINCT ee.source_order_ref) FILTER (WHERE ee.event_type = 'external_order_collect' AND ee.source_order_ref IS NOT NULL) as sborka_orders_count
         FROM employee_earnings_s ee
         WHERE ee.employee_id = $1
           AND ee.event_type IN ('inventory_scan','external_order_pick','external_order_collect')
@@ -684,6 +690,116 @@ router.post('/backfill-assembly', requireAuth, requirePermission('settings'), as
 
     res.json({ success: true, backfilled, rate: graRate });
   } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ─── Sborka assemblies (split-roles view) ──────────────────────────────────
+// Агрегируем части сборок из employee_earnings_s. Не зависит от sborka-таблиц
+// (supply_assignment_parts и т.п.) — всё что нужно уже пишется в earnings.
+// Часть = (source_marketplace, source_task_id, source_entity_id).
+router.get('/assemblies', requireAuth, requirePermission('analytics', 'staff.view'), async (req, res) => {
+  try {
+    const period = req.query.period || 'today';
+    const marketplace = req.query.marketplace; // 'wb' | 'ozon' | undefined
+    const storeId = req.query.store_id;
+
+    let periodFilter = '';
+    if (period === 'today') periodFilter = `AND ee.created_at >= CURRENT_DATE`;
+    else if (period === 'week') periodFilter = `AND ee.created_at >= CURRENT_DATE - INTERVAL '7 days'`;
+    else if (period === 'month') periodFilter = `AND ee.created_at >= CURRENT_DATE - INTERVAL '30 days'`;
+    else if (/^\d{4}-\d{2}-\d{2}$/.test(period)) periodFilter = `AND ee.created_at >= '${period}'::date AND ee.created_at < '${period}'::date + INTERVAL '1 day'`;
+
+    const params = [];
+    let extraWhere = '';
+    if (marketplace === 'wb' || marketplace === 'ozon') {
+      params.push(marketplace);
+      extraWhere += ` AND ee.source_marketplace = $${params.length}`;
+    }
+    if (storeId) {
+      params.push(String(storeId));
+      extraWhere += ` AND ee.source_store_id = $${params.length}`;
+    }
+
+    // GROUP by (marketplace, task_id, entity_id) — это «часть сборки».
+    // picker_id  = employee_id записей с external_order_pick    (берём любой; при redistribute их может быть несколько — первый)
+    // packer_id  = employee_id записей с external_order_collect
+    // mode       = split если picker_id != packer_id, иначе pick_pack
+    const sql = `
+      WITH parts AS (
+        SELECT
+          ee.source_marketplace,
+          ee.source_task_id,
+          ee.source_entity_id,
+          COALESCE(ee.source_entity_name, '—')       AS entity_name,
+          MAX(ee.source_store_id)                    AS store_id,
+          MAX(ee.source_store_name)                  AS store_name,
+          MIN(ee.created_at)                         AS first_at,
+          MAX(ee.created_at)                         AS last_at,
+          COUNT(*) FILTER (WHERE ee.event_type = 'external_order_pick')    AS pick_units,
+          COUNT(*) FILTER (WHERE ee.event_type = 'external_order_collect') AS collect_units,
+          SUM(ee.amount_delta) FILTER (WHERE ee.event_type = 'external_order_pick')    AS pick_amount,
+          SUM(ee.amount_delta) FILTER (WHERE ee.event_type = 'external_order_collect') AS collect_amount,
+          COUNT(DISTINCT ee.source_order_ref) FILTER (WHERE ee.event_type = 'external_order_collect' AND ee.source_order_ref IS NOT NULL) AS orders_count,
+          COUNT(DISTINCT ee.employee_id) FILTER (WHERE ee.event_type = 'external_order_pick')    AS pickers_distinct,
+          COUNT(DISTINCT ee.employee_id) FILTER (WHERE ee.event_type = 'external_order_collect') AS packers_distinct,
+          (ARRAY_AGG(ee.employee_id ORDER BY ee.created_at) FILTER (WHERE ee.event_type = 'external_order_pick'))[1]    AS picker_id,
+          (ARRAY_AGG(ee.employee_id ORDER BY ee.created_at) FILTER (WHERE ee.event_type = 'external_order_collect'))[1] AS packer_id,
+          (ARRAY_AGG(ee.source_session_id ORDER BY ee.created_at) FILTER (WHERE ee.event_type = 'external_order_pick'))[1]    AS pick_session_id,
+          (ARRAY_AGG(ee.source_session_id ORDER BY ee.created_at) FILTER (WHERE ee.event_type = 'external_order_collect'))[1] AS collect_session_id
+        FROM employee_earnings_s ee
+        WHERE ee.source = 'sborka-site'
+          AND ee.event_type IN ('external_order_pick', 'external_order_collect')
+          AND ee.source_task_id IS NOT NULL
+          AND ee.source_entity_id IS NOT NULL
+          ${periodFilter}
+          ${extraWhere}
+        GROUP BY ee.source_marketplace, ee.source_task_id, ee.source_entity_id, ee.source_entity_name
+      )
+      SELECT
+        p.source_marketplace         AS marketplace,
+        p.source_task_id             AS task_id,
+        p.source_entity_id           AS entity_id,
+        p.entity_name,
+        p.store_id,
+        p.store_name,
+        p.first_at,
+        p.last_at,
+        p.pick_units,
+        p.collect_units,
+        COALESCE(p.pick_amount, 0)    AS pick_amount,
+        COALESCE(p.collect_amount, 0) AS collect_amount,
+        p.orders_count,
+        p.pickers_distinct,
+        p.packers_distinct,
+        p.picker_id,
+        p.packer_id,
+        p.pick_session_id,
+        p.collect_session_id,
+        pe.full_name AS picker_name,
+        pa.full_name AS packer_name,
+        CASE
+          WHEN p.picker_id IS NOT NULL AND p.packer_id IS NOT NULL AND p.picker_id <> p.packer_id THEN 'split'
+          WHEN p.picker_id IS NOT NULL OR p.packer_id IS NOT NULL THEN 'pick_pack'
+          ELSE 'unknown'
+        END AS mode,
+        CASE
+          WHEN p.pick_units > 0 AND p.collect_units = 0 THEN 'picking'
+          WHEN p.pick_units > 0 AND p.collect_units > 0 AND p.collect_units < p.pick_units THEN 'packing'
+          WHEN p.pick_units > 0 AND p.collect_units >= p.pick_units THEN 'done'
+          WHEN p.pick_units = 0 AND p.collect_units > 0 THEN 'packing_only'
+          ELSE 'empty'
+        END AS status,
+        CASE WHEN p.pickers_distinct > 1 OR p.packers_distinct > 1 THEN true ELSE false END AS redistributed
+      FROM parts p
+      LEFT JOIN employees_s pe ON pe.id = p.picker_id
+      LEFT JOIN employees_s pa ON pa.id = p.packer_id
+      ORDER BY p.last_at DESC
+      LIMIT 500
+    `;
+    const { rows } = await pool.query(sql, params);
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 module.exports = router;

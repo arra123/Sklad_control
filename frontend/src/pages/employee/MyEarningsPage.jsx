@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { ChevronDown, Clock, ScanLine, TrendingUp } from 'lucide-react';
+import { ChevronDown, Clock, ScanLine, TrendingUp, Package, ShoppingBag } from 'lucide-react';
 import api from '../../api/client';
 import Spinner from '../../components/ui/Spinner';
 import { GRACoinIcon } from '../../components/ui/WarehouseIcons';
@@ -94,23 +94,44 @@ export default function MyEarningsPage() {
       ) : data ? (
         <>
           {/* Summary cards */}
-          <div className="grid grid-cols-3 gap-2 mb-5">
+          <div className="grid grid-cols-3 gap-2 mb-3">
             <div className="bg-green-50 rounded-2xl p-3 text-center border border-green-100">
               <div className="flex justify-center mb-1 text-green-600 font-black text-lg leading-none">₽</div>
               <p className="text-xl font-black text-green-700">{formatRub(data.summary.total_earned)}</p>
-              <p className="text-[9px] uppercase font-semibold text-green-500 mt-0.5">Рубли</p>
+              <p className="text-[9px] uppercase font-semibold text-green-500 mt-0.5">Итого</p>
             </div>
             <div className="bg-gray-50 rounded-2xl p-3 text-center border border-gray-100">
               <ScanLine size={18} className="mx-auto mb-1 text-gray-500 opacity-60" />
               <p className="text-xl font-black text-gray-800">{fmtNum(Math.round(parseFloat(data.summary.total_scans)))}</p>
               <p className="text-[9px] uppercase font-semibold text-gray-400 mt-0.5">Пиков</p>
             </div>
-            <div className="bg-purple-50 rounded-2xl p-3 text-center border border-purple-100">
-              <TrendingUp size={18} className="mx-auto mb-1 text-purple-500 opacity-60" />
-              <p className="text-xl font-black text-purple-700">{data.summary.tasks_count}</p>
-              <p className="text-[9px] uppercase font-semibold text-purple-400 mt-0.5">Задач</p>
+            <div className="bg-primary-50 rounded-2xl p-3 text-center border border-primary-100">
+              <TrendingUp size={18} className="mx-auto mb-1 text-primary-500 opacity-60" />
+              <p className="text-xl font-black text-primary-700">{data.summary.tasks_count}</p>
+              <p className="text-[9px] uppercase font-semibold text-primary-400 mt-0.5">Задач</p>
             </div>
           </div>
+
+          {/* Sborka breakdown: pick (товар) + collect (заказы) */}
+          {(Number(data.summary.sborka_pick_amount || 0) > 0 || Number(data.summary.sborka_collect_amount || 0) > 0) && (
+            <div className="grid grid-cols-3 gap-2 mb-5">
+              <div className="bg-indigo-50 rounded-2xl p-3 text-center border border-indigo-100">
+                <div className="flex justify-center mb-1 text-indigo-600 font-black text-base leading-none">🏭</div>
+                <p className="text-lg font-black text-indigo-700">{formatRub(data.summary.warehouse_earned)}</p>
+                <p className="text-[9px] uppercase font-semibold text-indigo-500 mt-0.5">Склад</p>
+              </div>
+              <div className="bg-purple-50 rounded-2xl p-3 text-center border border-purple-100">
+                <Package size={18} className="mx-auto mb-1 text-purple-500 opacity-70" />
+                <p className="text-lg font-black text-purple-700">{formatRub(data.summary.sborka_pick_amount)}</p>
+                <p className="text-[9px] uppercase font-semibold text-purple-500 mt-0.5">Товар · {fmtNum(data.summary.sborka_pick_units)} ед.</p>
+              </div>
+              <div className="bg-fuchsia-50 rounded-2xl p-3 text-center border border-fuchsia-100">
+                <ShoppingBag size={18} className="mx-auto mb-1 text-fuchsia-500 opacity-70" />
+                <p className="text-lg font-black text-fuchsia-700">{formatRub(data.summary.sborka_collect_amount)}</p>
+                <p className="text-[9px] uppercase font-semibold text-fuchsia-500 mt-0.5">Заказы · {fmtNum(data.summary.sborka_orders_count)} шт.</p>
+              </div>
+            </div>
+          )}
 
           {/* Tasks list */}
           {data.tasks.length === 0 ? (

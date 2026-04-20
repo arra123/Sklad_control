@@ -1,5 +1,18 @@
 # Changelog
 
+## v7.29.0
+
+### Sborka split-roles · Phase 2 — экран «Сборки» и мой заработок
+
+- Новая вкладка **«Сборки»** в /admin/earnings?tab=assembly: таблица частей сборок с колонками: маркет, магазин/часть, режим (Split/Один), сборщик товара (picker), упаковщик (packer), прогресс `pick_units → collect_units`, заказов, итого, статус (picking/packing/done), пометка `re-dist` при смене ответственного
+- Фильтр по маркетплейсу (WB/Ozon/все) + период
+- Stat-карточки: частей, товар/заказы в рублях, Split/One, Redistribute count
+- Agregation без зависимости от sborka-таблиц: GROUP BY source_marketplace + source_task_id + source_entity_id в employee_earnings_s
+- Режим `split` определяется автоматически: если picker_id ≠ packer_id
+- Новый endpoint GET /api/earnings/assemblies (period, marketplace, store_id)
+- MyEarningsPage (ЛК сотрудника): три отдельные карточки — Склад / Товар (pick) / Заказы (collect), с кол-вом единиц/заказов
+- /earnings/my расширен: summary.warehouse_earned, sborka_pick_amount/units, sborka_collect_amount/units, sborka_orders_count
+
 ## v7.28.0
 
 ### Sborka split-roles · Phase 1 (Контракт 2026-04-20)
