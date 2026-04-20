@@ -554,6 +554,7 @@ export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
         setEditForm({
           name: r.data.name || '', code: r.data.code || '', article: r.data.article || '',
           entity_type: r.data.entity_type || 'product', honest_sign: !!r.data.honest_sign,
+          folder_path: r.data.folder_path || '', notes: r.data.notes || '',
           stock: r.data.stock !== undefined ? fmtQty(r.data.stock) : '',
           reserve: r.data.reserve !== undefined ? fmtQty(r.data.reserve) : '',
           sale_price: r.data.sale_price != null ? String(parseFloat(r.data.sale_price)) : (() => {
@@ -831,12 +832,12 @@ export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
                     <span className="text-[11px] text-gray-400 font-medium">Честный знак</span>
                     {editForm?.honest_sign && <span className="text-[10px] text-green-600 font-semibold">Да</span>}
                   </label>
-                  {product.folder_path && (
-                    <div className="px-3 py-2 bg-gray-50 dark:bg-gray-800 rounded-xl">
-                      <p className="text-[10px] text-gray-400">Папка</p>
-                      <p className="text-xs text-gray-600 dark:text-gray-300">{product.folder_path}</p>
-                    </div>
-                  )}
+                  <label className="block"><span className="text-[11px] text-gray-400 font-medium">Папка</span>
+                    <input value={editForm?.folder_path || ''} onChange={e => set('folder_path', e.target.value)} placeholder="Наш бренд/Производство" className={FORM_INPUT} /></label>
+                  <label className="block"><span className="text-[11px] text-gray-400 font-medium">Заметка</span>
+                    <textarea value={editForm?.notes || ''} onChange={e => set('notes', e.target.value)} rows={2}
+                      placeholder="Например: на складе должен называться..."
+                      className={`${FORM_INPUT} resize-y min-h-[60px]`} /></label>
                 </div>
               </FormSection>
 

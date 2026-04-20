@@ -131,15 +131,11 @@ async function importCatalog() {
                 folder_path, archived, source_json)
              VALUES ($1,$2,$3,$4,'product',$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
              ON CONFLICT (external_id) DO UPDATE SET
-               name = EXCLUDED.name,
-               code = EXCLUDED.code,
-               article = EXCLUDED.article,
                barcode_list = EXCLUDED.barcode_list,
                stock = EXCLUDED.stock,
                reserve = EXCLUDED.reserve,
                in_transit = EXCLUDED.in_transit,
                quantity = EXCLUDED.quantity,
-               folder_path = EXCLUDED.folder_path,
                archived = EXCLUDED.archived,
                source_json = EXCLUDED.source_json`,
             [
@@ -179,11 +175,7 @@ async function importCatalog() {
                 marketplace_barcodes_json, folder_path, archived, source_json)
              VALUES ($1,$2,$3,$4,'bundle',$5,$6,$7,$8,$9,$10)
              ON CONFLICT (external_id) DO UPDATE SET
-               name = EXCLUDED.name,
-               code = EXCLUDED.code,
-               article = EXCLUDED.article,
                barcode_list = EXCLUDED.barcode_list,
-               folder_path = EXCLUDED.folder_path,
                archived = EXCLUDED.archived,
                source_json = EXCLUDED.source_json`,
             [

@@ -928,22 +928,26 @@ router.post('/', requireAuth, requirePermission('products.edit'), async (req, re
 
 // PUT /api/products/:id — update product
 router.put('/:id', requireAuth, requirePermission('products.edit'), async (req, res) => {
-  const { name, code, article, entity_type, barcode_list, stock, reserve, archived, sale_price, cost_price, honest_sign } = req.body;
+  const { name, code, article, entity_type, barcode_list, stock, reserve, archived, sale_price, cost_price, honest_sign, folder_path, notes } = req.body;
+  if (!name || !String(name).trim()) return res.status(400).json({ error: 'Название обязательно' });
   try {
     const result = await pool.query(
       `UPDATE products_s SET
          name = $1, code = $2, article = $3, entity_type = $4,
          barcode_list = $5,
          stock = $6, reserve = $7, archived = $8,
-         sale_price = $9, cost_price = $10, honest_sign = $11, updated_at = NOW()
-       WHERE id = $12 RETURNING *`,
-      [name, code || null, article || null, entity_type || 'product',
+         sale_price = $9, cost_price = $10, honest_sign = $11,
+         folder_path = $12, notes = $13, updated_at = NOW()
+       WHERE id = $14 RETURNING *`,
+      [String(name).trim(), code || null, article || null, entity_type || 'product',
        barcode_list || null,
        parseFloat(stock) || 0, parseFloat(reserve) || 0,
        archived === true,
        sale_price != null ? parseFloat(sale_price) || null : null,
        cost_price != null ? parseFloat(cost_price) || null : null,
        honest_sign === true,
+       folder_path != null ? (String(folder_path).trim() || null) : null,
+       notes != null ? (String(notes).trim() || null) : null,
        req.params.id]
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Товар не найден' });
