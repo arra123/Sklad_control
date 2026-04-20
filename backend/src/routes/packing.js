@@ -168,25 +168,58 @@ router.post('/:taskId/reuse-box', requireAuth, async (req, res) => {
       }
     }
 
-    if (b.is_remainder && b.remainder_shelf_id && parseInt(b.quantity) > 0 && b.product_id) {
-      const cur = await client.query(
-        'SELECT quantity FROM shelf_items_s WHERE shelf_id=$1 AND product_id=$2',
-        [b.remainder_shelf_id, b.product_id]
-      );
-      const prevQty = cur.rows.length ? parseFloat(cur.rows[0].quantity) : 0;
+    if (b.is_remainder && parseInt(b.quantity) > 0 && b.product_id) {
       const delta = parseInt(b.quantity);
-      const newQty = Math.max(0, prevQty - delta);
-      if (cur.rows.length) {
+      if (b.remainder_shelf_box_id) {
+        // Остаток хранится внутри коробки на полке ФБС — списываем оттуда
+        const cur = await client.query(
+          'SELECT quantity FROM shelf_box_items_s WHERE shelf_box_id=$1 AND product_id=$2',
+          [b.remainder_shelf_box_id, b.product_id]
+        );
+        const prevQty = cur.rows.length ? parseFloat(cur.rows[0].quantity) : 0;
+        const newQty = Math.max(0, prevQty - delta);
+        if (newQty <= 0) {
+          await client.query('DELETE FROM shelf_box_items_s WHERE shelf_box_id=$1 AND product_id=$2', [b.remainder_shelf_box_id, b.product_id]);
+        } else {
+          await client.query('UPDATE shelf_box_items_s SET quantity=$1, updated_at=NOW() WHERE shelf_box_id=$2 AND product_id=$3',
+            [newQty, b.remainder_shelf_box_id, b.product_id]);
+        }
+        await client.query('UPDATE shelf_boxes_s SET quantity = GREATEST(0, quantity - $1) WHERE id=$2', [delta, b.remainder_shelf_box_id]);
+        if (b.remainder_shelf_id) {
+          const shelfTotalRes = await client.query(
+            `SELECT COALESCE(SUM(sbi.quantity),0) AS qty
+               FROM shelf_boxes_s sb
+               JOIN shelf_box_items_s sbi ON sbi.shelf_box_id = sb.id
+              WHERE sb.shelf_id = $1 AND sbi.product_id = $2`,
+            [b.remainder_shelf_id, b.product_id]
+          );
+          const newShelfQty = parseFloat(shelfTotalRes.rows[0].qty || 0);
+          await client.query(
+            `INSERT INTO shelf_movements_s (shelf_id, product_id, operation_type, quantity_before, quantity_after, quantity_delta, user_id, task_id, notes)
+             VALUES ($1,$2,'stock_out',$3,$4,$5,$6,$7,$8)`,
+            [b.remainder_shelf_id, b.product_id, newShelfQty + delta, newShelfQty, -delta, req.user.id, req.params.taskId, 'Реюз коробки из остатка']
+          );
+        }
+      } else if (b.remainder_shelf_id) {
+        // Легаси: остаток был положен россыпью на полку
+        const cur = await client.query(
+          'SELECT quantity FROM shelf_items_s WHERE shelf_id=$1 AND product_id=$2',
+          [b.remainder_shelf_id, b.product_id]
+        );
+        const prevQty = cur.rows.length ? parseFloat(cur.rows[0].quantity) : 0;
+        const newQty = Math.max(0, prevQty - delta);
+        if (cur.rows.length) {
+          await client.query(
+            'UPDATE shelf_items_s SET quantity=$1, updated_by=$2, updated_at=NOW() WHERE shelf_id=$3 AND product_id=$4',
+            [newQty, req.user.id, b.remainder_shelf_id, b.product_id]
+          );
+        }
         await client.query(
-          'UPDATE shelf_items_s SET quantity=$1, updated_by=$2, updated_at=NOW() WHERE shelf_id=$3 AND product_id=$4',
-          [newQty, req.user.id, b.remainder_shelf_id, b.product_id]
+          `INSERT INTO shelf_movements_s (shelf_id, product_id, operation_type, quantity_before, quantity_after, quantity_delta, user_id, task_id)
+           VALUES ($1,$2,'stock_out',$3,$4,$5,$6,$7)`,
+          [b.remainder_shelf_id, b.product_id, prevQty, newQty, -delta, req.user.id, req.params.taskId]
         );
       }
-      await client.query(
-        `INSERT INTO shelf_movements_s (shelf_id, product_id, operation_type, quantity_before, quantity_after, quantity_delta, user_id, task_id)
-         VALUES ($1,$2,'stock_out',$3,$4,$5,$6,$7)`,
-        [b.remainder_shelf_id, b.product_id, prevQty, newQty, -delta, req.user.id, req.params.taskId]
-      );
     }
 
     const prodId = b.product_id || t.product_id;
@@ -196,6 +229,7 @@ router.post('/:taskId/reuse-box', requireAuth, async (req, res) => {
          confirmed=true,
          is_remainder=false,
          remainder_shelf_id=NULL,
+         remainder_shelf_box_id=NULL,
          closed_at=NULL,
          task_id=$2,
          pallet_id=$3,
@@ -404,10 +438,13 @@ router.post('/:taskId/close-box', requireAuth, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// POST /api/packing/:taskId/close-remainder — остаток: закрыть коробку и положить на полку ФБС
+// POST /api/packing/:taskId/close-remainder — остаток: закрыть коробку и положить в коробку на полке ФБС
+// Принимает box_barcode (новый флоу — кладём в коробку) или shelf_barcode (старый флоу — россыпью).
 router.post('/:taskId/close-remainder', requireAuth, async (req, res) => {
-  const { shelf_barcode } = req.body;
-  if (!shelf_barcode?.trim()) return res.status(400).json({ error: 'Отсканируйте штрих-код полки' });
+  const { box_barcode, shelf_barcode } = req.body;
+  const scanBox = (box_barcode || '').trim();
+  const scanShelf = (shelf_barcode || '').trim();
+  if (!scanBox && !scanShelf) return res.status(400).json({ error: 'Отсканируйте штрих-код коробки' });
 
   const client = await pool.connect();
   try {
@@ -420,53 +457,118 @@ router.post('/:taskId/close-remainder', requireAuth, async (req, res) => {
     if (!task.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Задача не найдена' }); }
     const t = task.rows[0];
 
-    // Find shelf by barcode
-    const shelfRes = await client.query(
-      `SELECT s.*, r.name as rack_name FROM shelves_s s
-       JOIN racks_s r ON r.id = s.rack_id
-       WHERE s.barcode_value = $1`,
-      [shelf_barcode.trim()]
-    );
-    if (!shelfRes.rows.length) {
-      await client.query('ROLLBACK');
-      return res.status(400).json({ error: 'Полка с таким штрих-кодом не найдена' });
-    }
-    const shelf = shelfRes.rows[0];
-
     // Get open box quantity
-    const boxRes = await client.query(
+    const openBoxRes = await client.query(
       'SELECT * FROM boxes_s WHERE task_id=$1 AND status=\'open\' ORDER BY created_at DESC LIMIT 1',
       [req.params.taskId]
     );
-    const boxQty = boxRes.rows.length ? parseInt(boxRes.rows[0].quantity) : 0;
+    const boxQty = openBoxRes.rows.length ? parseInt(openBoxRes.rows[0].quantity) : 0;
 
-    // Save to FBS shelf if there are items
-    if (boxQty > 0 && t.product_id) {
-      const current = await client.query(
-        'SELECT quantity FROM shelf_items_s WHERE shelf_id=$1 AND product_id=$2',
-        [shelf.id, t.product_id]
-      );
-      const prevQty = current.rows.length ? parseFloat(current.rows[0].quantity) : 0;
-      const newQty = prevQty + boxQty;
+    let shelf = null;
+    let shelfBox = null;
 
-      await client.query(
-        `INSERT INTO shelf_items_s (shelf_id, product_id, quantity, updated_by, updated_at)
-         VALUES ($1,$2,$3,$4,NOW())
-         ON CONFLICT (shelf_id, product_id) DO UPDATE SET quantity=$3, updated_by=$4, updated_at=NOW()`,
-        [shelf.id, t.product_id, newQty, req.user.id]
+    if (scanBox) {
+      // Новый флоу: остаток → коробка на полке ФБС
+      const sbRes = await client.query(
+        `SELECT sb.*, s.id AS shelf_id, s.code AS shelf_code, s.name AS shelf_name, s.barcode_value AS shelf_barcode,
+                r.name AS rack_name, w.warehouse_type
+         FROM shelf_boxes_s sb
+         JOIN shelves_s s ON s.id = sb.shelf_id
+         JOIN racks_s r ON r.id = s.rack_id
+         JOIN warehouses_s w ON w.id = r.warehouse_id
+         WHERE sb.barcode_value = $1`,
+        [scanBox]
       );
-      await client.query(
-        `INSERT INTO shelf_movements_s (shelf_id, product_id, operation_type, quantity_before, quantity_after, quantity_delta, user_id, task_id)
-         VALUES ($1,$2,'stock_in',$3,$4,$5,$6,$7)`,
-        [shelf.id, t.product_id, prevQty, newQty, boxQty, req.user.id, req.params.taskId]
+      if (!sbRes.rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Коробка с таким штрих-кодом не найдена' });
+      }
+      shelfBox = sbRes.rows[0];
+      if (!['fbs', 'both', 'visual'].includes(shelfBox.warehouse_type)) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Коробка не на складе ФБС' });
+      }
+      if (shelfBox.product_id && t.product_id && shelfBox.product_id !== t.product_id) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'В этой коробке другой товар — отсканируйте коробку с нужным товаром' });
+      }
+      shelf = { id: shelfBox.shelf_id, code: shelfBox.shelf_code, name: shelfBox.shelf_name };
+
+      if (boxQty > 0 && t.product_id) {
+        // Обновить содержимое коробки на полке
+        await client.query(
+          `INSERT INTO shelf_box_items_s (shelf_box_id, product_id, quantity, updated_at)
+           VALUES ($1,$2,$3,NOW())
+           ON CONFLICT (shelf_box_id, product_id)
+           DO UPDATE SET quantity = shelf_box_items_s.quantity + $3, updated_at = NOW()`,
+          [shelfBox.id, t.product_id, boxQty]
+        );
+        await client.query(
+          `UPDATE shelf_boxes_s
+             SET quantity = quantity + $1,
+                 product_id = COALESCE(product_id, $2),
+                 status = 'closed',
+                 confirmed = true
+           WHERE id = $3`,
+          [boxQty, t.product_id, shelfBox.id]
+        );
+        // Лог движения — на уровне полки, чтобы шкала/аналитика видели приход
+        const shelfTotalRes = await client.query(
+          `SELECT COALESCE(SUM(sbi.quantity),0) AS qty
+             FROM shelf_boxes_s sb
+             JOIN shelf_box_items_s sbi ON sbi.shelf_box_id = sb.id
+            WHERE sb.shelf_id = $1 AND sbi.product_id = $2`,
+          [shelfBox.shelf_id, t.product_id]
+        );
+        const newShelfQty = parseFloat(shelfTotalRes.rows[0].qty || 0);
+        await client.query(
+          `INSERT INTO shelf_movements_s (shelf_id, product_id, operation_type, quantity_before, quantity_after, quantity_delta, user_id, task_id, notes)
+           VALUES ($1,$2,'stock_in',$3,$4,$5,$6,$7,$8)`,
+          [shelfBox.shelf_id, t.product_id, Math.max(0, newShelfQty - boxQty), newShelfQty, boxQty, req.user.id, req.params.taskId, `Остаток в коробке ${shelfBox.barcode_value}`]
+        );
+      }
+    } else {
+      // Старый флоу (fallback): россыпью на полку
+      const shelfRes = await client.query(
+        `SELECT s.*, r.name as rack_name FROM shelves_s s
+         JOIN racks_s r ON r.id = s.rack_id
+         WHERE s.barcode_value = $1`,
+        [scanShelf]
       );
+      if (!shelfRes.rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Полка с таким штрих-кодом не найдена' });
+      }
+      shelf = shelfRes.rows[0];
+
+      if (boxQty > 0 && t.product_id) {
+        const current = await client.query(
+          'SELECT quantity FROM shelf_items_s WHERE shelf_id=$1 AND product_id=$2',
+          [shelf.id, t.product_id]
+        );
+        const prevQty = current.rows.length ? parseFloat(current.rows[0].quantity) : 0;
+        const newQty = prevQty + boxQty;
+
+        await client.query(
+          `INSERT INTO shelf_items_s (shelf_id, product_id, quantity, updated_by, updated_at)
+           VALUES ($1,$2,$3,$4,NOW())
+           ON CONFLICT (shelf_id, product_id) DO UPDATE SET quantity=$3, updated_by=$4, updated_at=NOW()`,
+          [shelf.id, t.product_id, newQty, req.user.id]
+        );
+        await client.query(
+          `INSERT INTO shelf_movements_s (shelf_id, product_id, operation_type, quantity_before, quantity_after, quantity_delta, user_id, task_id)
+           VALUES ($1,$2,'stock_in',$3,$4,$5,$6,$7)`,
+          [shelf.id, t.product_id, prevQty, newQty, boxQty, req.user.id, req.params.taskId]
+        );
+      }
     }
 
     // Close all open boxes (mark as remainder) and complete task
     await client.query(
-      `UPDATE boxes_s SET status='closed', closed_at=NOW(), is_remainder=true, remainder_shelf_id=$2
+      `UPDATE boxes_s SET status='closed', closed_at=NOW(), is_remainder=true,
+                         remainder_shelf_id=$2, remainder_shelf_box_id=$3
        WHERE task_id=$1 AND status='open'`,
-      [req.params.taskId, shelf.id]
+      [req.params.taskId, shelf.id, shelfBox ? shelfBox.id : null]
     );
     await client.query(
       `UPDATE inventory_tasks_s SET status='completed', completed_at=NOW(), packing_phase='done' WHERE id=$1`,
@@ -474,7 +576,13 @@ router.post('/:taskId/close-remainder', requireAuth, async (req, res) => {
     );
 
     await client.query('COMMIT');
-    res.json({ success: true, shelf_code: shelf.code, qty: boxQty });
+    res.json({
+      success: true,
+      shelf_code: shelf.code,
+      qty: boxQty,
+      shelf_box_barcode: shelfBox ? shelfBox.barcode_value : null,
+      shelf_box_name: shelfBox ? (shelfBox.name || `Коробка ${shelfBox.barcode_value}`) : null,
+    });
   } catch (err) {
     await client.query('ROLLBACK');
     res.status(500).json({ error: err.message });
@@ -539,6 +647,48 @@ router.get('/:taskId/remainder-shelf', requireAuth, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// GET /api/packing/:taskId/remainder-box — рекомендуемая коробка на полке ФБС для остатка
+router.get('/:taskId/remainder-box', requireAuth, async (req, res) => {
+  try {
+    const task = await pool.query('SELECT * FROM inventory_tasks_s WHERE id=$1 AND task_type=\'packaging\'', [req.params.taskId]);
+    if (!task.rows.length) return res.status(404).json({ error: 'Задача не найдена' });
+    const t = task.rows[0];
+    if (!t.product_id) return res.json({ box: null });
+
+    // 1) Коробка с тем же товаром на полке ФБС (максимальное количество)
+    const withProduct = await pool.query(`
+      SELECT sb.id AS shelf_box_id, sb.barcode_value AS box_barcode, sb.name AS box_name,
+             sb.quantity AS box_quantity, sb.box_size,
+             s.id AS shelf_id, s.code AS shelf_code, s.name AS shelf_name, s.barcode_value AS shelf_barcode,
+             r.name AS rack_name, w.name AS warehouse_name, w.id AS warehouse_id
+      FROM shelf_boxes_s sb
+      JOIN shelves_s s ON s.id = sb.shelf_id
+      JOIN racks_s r ON r.id = s.rack_id
+      JOIN warehouses_s w ON w.id = r.warehouse_id
+      WHERE sb.product_id = $1
+        AND w.warehouse_type IN ('fbs','both','visual')
+      ORDER BY sb.quantity DESC LIMIT 1
+    `, [t.product_id]);
+    if (withProduct.rows.length) return res.json({ box: withProduct.rows[0] });
+
+    // 2) Пустая коробка на ФБС
+    const empty = await pool.query(`
+      SELECT sb.id AS shelf_box_id, sb.barcode_value AS box_barcode, sb.name AS box_name,
+             sb.quantity AS box_quantity, sb.box_size,
+             s.id AS shelf_id, s.code AS shelf_code, s.name AS shelf_name, s.barcode_value AS shelf_barcode,
+             r.name AS rack_name, w.name AS warehouse_name, w.id AS warehouse_id
+      FROM shelf_boxes_s sb
+      JOIN shelves_s s ON s.id = sb.shelf_id
+      JOIN racks_s r ON r.id = s.rack_id
+      JOIN warehouses_s w ON w.id = r.warehouse_id
+      WHERE sb.product_id IS NULL AND COALESCE(sb.quantity,0) = 0
+        AND w.warehouse_type IN ('fbs','both','visual')
+      ORDER BY sb.id LIMIT 1
+    `);
+    res.json({ box: empty.rows[0] || null });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // GET /api/packing/:taskId/boxes — list all boxes with placement info
 router.get('/:taskId/boxes', requireAuth, async (req, res) => {
   try {
@@ -556,7 +706,10 @@ router.get('/:taskId/boxes', requireAuth, async (req, res) => {
         s.code    AS shelf_code,
         s.name    AS shelf_name,
         r.name    AS rack_name,
-        wfbs.name AS fbs_warehouse_name
+        wfbs.name AS fbs_warehouse_name,
+        -- если остаток ушёл в коробку на полке ФБС
+        sb.barcode_value AS shelf_box_barcode,
+        sb.name          AS shelf_box_name
       FROM boxes_s b
       LEFT JOIN pallets_s   pa   ON pa.id  = b.pallet_id
       LEFT JOIN pallet_rows_s pr  ON pr.id  = pa.row_id
@@ -564,6 +717,7 @@ router.get('/:taskId/boxes', requireAuth, async (req, res) => {
       LEFT JOIN shelves_s     s    ON s.id   = b.remainder_shelf_id
       LEFT JOIN racks_s       r    ON r.id   = s.rack_id
       LEFT JOIN warehouses_s  wfbs ON wfbs.id = r.warehouse_id
+      LEFT JOIN shelf_boxes_s sb   ON sb.id  = b.remainder_shelf_box_id
       WHERE b.task_id = $1
       ORDER BY b.created_at
     `, [req.params.taskId]);

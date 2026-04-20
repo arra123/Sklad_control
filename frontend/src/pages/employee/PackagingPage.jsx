@@ -513,8 +513,8 @@ function StepFillBox({ task, box, onRefresh, onDone, onRemainder }) {
             <p className="text-sm font-semibold text-amber-800">Товар закончился раньше?</p>
             <p className="text-xs text-amber-700 mt-0.5 leading-relaxed">
               Если в коробке {qty(box.quantity)} шт. и больше товара нет — это остаток.
-              Его нельзя отправить на паллет ФБО, нужно отнести на полку склада ФБС,
-              где уже хранится этот товар.
+              Его нельзя отправить на паллет ФБО, нужно отнести на склад ФБС
+              и положить в коробку с этим товаром.
             </p>
           </div>
         </div>
@@ -603,22 +603,22 @@ function StepTransferBox({ task, box, onSuccess }) {
   );
 }
 
-// ─── Шаг 6а: Информация об остатке ───────────────────────────────────────────
+// ─── Шаг 6а: Информация об остатке + сканирование коробки ФБС ─────────────────
 function StepRemainderInfo({ task, box, onConfirmShelf, onBack }) {
   const toast = useToast();
   const { settings } = useAppSettings();
   const playBeep = makePlayBeep(settings);
   const inputRef = useRef(null);
   const timerRef = useRef(null);
-  const [shelf, setShelf] = useState(null);
+  const [recBox, setRecBox] = useState(null);
   const [loading, setLoading] = useState(true);
   const [scanValue, setScanValue] = useState('');
   const [scanning, setScanning] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    api.get(`/packing/${task.id}/remainder-shelf`)
-      .then(r => setShelf(r.data.shelf))
+    api.get(`/packing/${task.id}/remainder-box`)
+      .then(r => setRecBox(r.data.box))
       .catch(() => {})
       .finally(() => setLoading(false));
     setTimeout(() => inputRef.current?.focus(), 150);
@@ -628,9 +628,10 @@ function StepRemainderInfo({ task, box, onConfirmShelf, onBack }) {
     if (!val.trim() || scanning) return;
     setScanning(true); setError('');
     try {
-      const res = await api.post(`/packing/${task.id}/close-remainder`, { shelf_barcode: val.trim() });
+      const res = await api.post(`/packing/${task.id}/close-remainder`, { box_barcode: val.trim() });
       playBeep(true);
-      toast.success(`Остаток ${res.data.qty} шт. записан на полку ${res.data.shelf_code}`);
+      const boxLabel = res.data.shelf_box_barcode || val.trim();
+      toast.success(`Остаток ${res.data.qty} шт. положен в коробку ${boxLabel} (полка ${res.data.shelf_code})`);
       onConfirmShelf();
     } catch (err) {
       playBeep(false);
@@ -647,12 +648,13 @@ function StepRemainderInfo({ task, box, onConfirmShelf, onBack }) {
   };
 
   const confirmRecommended = async () => {
-    if (!shelf) return;
+    if (!recBox?.box_barcode) return;
     setScanning(true); setError('');
     try {
-      const res = await api.post(`/packing/${task.id}/close-remainder`, { shelf_barcode: shelf.barcode_value });
+      const res = await api.post(`/packing/${task.id}/close-remainder`, { box_barcode: recBox.box_barcode });
       playBeep(true);
-      toast.success(`Остаток ${res.data.qty} шт. записан на полку ${res.data.shelf_code}`);
+      const boxLabel = res.data.shelf_box_barcode || recBox.box_barcode;
+      toast.success(`Остаток ${res.data.qty} шт. положен в коробку ${boxLabel} (полка ${res.data.shelf_code})`);
       onConfirmShelf();
     } catch (err) {
       playBeep(false);
@@ -671,24 +673,24 @@ function StepRemainderInfo({ task, box, onConfirmShelf, onBack }) {
             <p className="font-bold text-amber-900">Остаток: {qty(box.quantity)} шт.</p>
             <p className="text-sm text-amber-800 mt-1 leading-relaxed">
               Эти {qty(box.quantity)} шт. не помещаются в полную коробку для ФБО паллета.
-              Их нужно отнести на склад ФБС на рекомендуемую полку.
+              Отнесите на склад ФБС и отсканируйте ШК коробки — остаток уйдёт в неё.
             </p>
           </div>
         </div>
       </div>
 
-      {/* Сканировать полку — основное действие */}
+      {/* Сканировать коробку — основное действие */}
       <div className="card p-5 space-y-3">
         <div className="flex items-center gap-2 mb-1">
           <ScanLine size={18} className="text-primary-500" />
-          <p className="font-semibold text-gray-800">Отсканируйте полку ФБС</p>
+          <p className="font-semibold text-gray-800">Отсканируйте коробку ФБС</p>
         </div>
         <input
           ref={inputRef}
           type="text" value={scanValue}
           onChange={handleChange}
           onKeyDown={e => { if (e.key === 'Enter') { if (timerRef.current) clearTimeout(timerRef.current); doScan(scanValue); } }}
-          placeholder="Поднесите сканер к полке..."
+          placeholder="Поднесите сканер к коробке..."
           className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-base placeholder:text-gray-400 focus:border-primary-400 focus:ring-2 focus:ring-primary-100 focus:outline-none"
           disabled={scanning} autoComplete="off"
         />
@@ -699,26 +701,29 @@ function StepRemainderInfo({ task, box, onConfirmShelf, onBack }) {
           </div>
         )}
         <Button variant="primary-solid" size="lg" className="w-full" loading={scanning} onClick={() => doScan(scanValue)}>
-          Подтвердить полку
+          Подтвердить коробку
         </Button>
       </div>
 
-      {/* Рекомендуемая полка — подсказка */}
+      {/* Рекомендуемая коробка — подсказка */}
       {loading ? (
         <div className="card p-4 flex items-center justify-center h-16"><Spinner size="sm" /></div>
-      ) : shelf ? (
+      ) : recBox ? (
         <button
           onClick={confirmRecommended}
           disabled={scanning}
           className="w-full card p-4 flex items-center gap-3 bg-primary-50 border-primary-200 hover:bg-primary-100 active:scale-[0.99] transition-all text-left"
         >
           <div className="w-11 h-11 rounded-xl bg-white/60 flex items-center justify-center flex-shrink-0 shadow-sm">
-            <ShelfIcon size={26} />
+            <BoxIcon size={26} />
           </div>
           <div className="flex-1">
-            <p className="text-xs text-primary-500 font-medium">Рекомендуемая полка — нажмите для быстрого подтверждения</p>
-            <p className="font-bold text-primary-900 text-lg">{shelf.shelf_code}</p>
-            <p className="text-xs text-primary-600">{shelf.rack_name} · {shelf.warehouse_name}</p>
+            <p className="text-xs text-primary-500 font-medium">Рекомендуемая коробка — нажмите для быстрого подтверждения</p>
+            <p className="font-bold text-primary-900 text-lg">{recBox.box_name || `Коробка ${recBox.box_barcode}`}</p>
+            <p className="text-xs text-primary-600">
+              Полка {recBox.shelf_code} · {recBox.rack_name} · {recBox.warehouse_name}
+              {Number(recBox.box_quantity) > 0 ? ` · ${qty(recBox.box_quantity)} шт. уже внутри` : ' · пустая'}
+            </p>
           </div>
           <ChevronRight size={20} className="text-primary-400 flex-shrink-0" />
         </button>
@@ -748,9 +753,10 @@ function StepRemainderShelf({ task, box, onSuccess }) {
     if (!val.trim() || loading) return;
     setLoading(true); setError('');
     try {
-      const res = await api.post(`/packing/${task.id}/close-remainder`, { shelf_barcode: val.trim() });
+      const res = await api.post(`/packing/${task.id}/close-remainder`, { box_barcode: val.trim() });
       playBeep(true);
-      toast.success(`Остаток ${res.data.qty} шт. записан на полку ${res.data.shelf_code}`);
+      const boxLabel = res.data.shelf_box_barcode || val.trim();
+      toast.success(`Остаток ${res.data.qty} шт. положен в коробку ${boxLabel} (полка ${res.data.shelf_code})`);
       onSuccess();
     } catch (err) {
       playBeep(false);
@@ -772,20 +778,20 @@ function StepRemainderShelf({ task, box, onSuccess }) {
         <p className="text-sm font-bold text-gray-700 uppercase tracking-wide">Что делать</p>
         <Step num={1} done text={`Возьмите ${qty(box.quantity)} шт. остатка`} />
         <Step num={2} done text="Пришли на склад ФБС" />
-        <Step num={3} active text="Положите товар на полку и отсканируйте её штрих-код" />
+        <Step num={3} active text="Положите товар в коробку и отсканируйте ШК коробки" />
       </div>
 
       <div className="card p-5 space-y-3">
         <div className="flex items-center gap-2">
           <ScanLine size={18} className="text-primary-500" />
-          <p className="font-semibold text-gray-800">Сканируйте полку ФБС</p>
+          <p className="font-semibold text-gray-800">Сканируйте коробку ФБС</p>
         </div>
         <input
           ref={inputRef}
           type="text" value={value}
           onChange={handleChange}
           onKeyDown={e => { if (e.key === 'Enter') { if (timerRef.current) clearTimeout(timerRef.current); doScan(value); } }}
-          placeholder="Поднесите сканер к полке..."
+          placeholder="Поднесите сканер к коробке..."
           className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-base
             placeholder:text-gray-400 focus:border-primary-400 focus:ring-2 focus:ring-primary-100 focus:outline-none"
           disabled={loading} autoComplete="off"

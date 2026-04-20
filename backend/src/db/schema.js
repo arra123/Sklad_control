@@ -576,6 +576,8 @@ async function createSchema(attempt = 1) {
     await client.query(`ALTER TABLE shelf_boxes_s ADD COLUMN IF NOT EXISTS confirmed BOOLEAN NOT NULL DEFAULT false`);
     await client.query(`ALTER TABLE shelf_boxes_s ADD COLUMN IF NOT EXISTS closed_at TIMESTAMPTZ`);
     await client.query(`ALTER TABLE inventory_tasks_s ADD COLUMN IF NOT EXISTS target_shelf_box_id INTEGER REFERENCES shelf_boxes_s(id) ON DELETE SET NULL`);
+    // Если остаток упаковочной коробки положили в коробку на полке ФБС
+    await client.query(`ALTER TABLE boxes_s ADD COLUMN IF NOT EXISTS remainder_shelf_box_id INTEGER REFERENCES shelf_boxes_s(id) ON DELETE SET NULL`);
 
     // Multi-product contents for pallet boxes
     await client.query(`

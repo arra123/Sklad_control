@@ -21,6 +21,7 @@ async function nullifyShelfBoxRefs(client, sboxIds) {
   await client.query('UPDATE employee_earnings_s SET shelf_box_id=NULL WHERE shelf_box_id=ANY($1)', [sboxIds]);
   await client.query('UPDATE movements_s SET from_shelf_box_id=NULL WHERE from_shelf_box_id=ANY($1)', [sboxIds]);
   await client.query('UPDATE movements_s SET to_shelf_box_id=NULL WHERE to_shelf_box_id=ANY($1)', [sboxIds]);
+  await client.query('UPDATE boxes_s SET remainder_shelf_box_id=NULL WHERE remainder_shelf_box_id=ANY($1)', [sboxIds]);
 }
 
 function parseBoolean(value, fallback = false) {
