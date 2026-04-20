@@ -247,12 +247,6 @@ router.get('/employees', requireAuth, requirePermission('analytics', 'staff.view
         agg.rewarded_tasks_count,
         agg.sborka_amount,
         agg.sborka_units,
-        agg.sborka_pick_amount,
-        agg.sborka_pick_units,
-        agg.sborka_collect_amount,
-        agg.sborka_collect_units,
-        agg.sborka_wb_amount,
-        agg.sborka_ozon_amount,
         agg.last_earned_at
       FROM employees_s e
       JOIN (
@@ -264,12 +258,6 @@ router.get('/employees', requireAuth, requirePermission('analytics', 'staff.view
           COUNT(DISTINCT task_id) FILTER (WHERE event_type = 'inventory_scan' AND task_id IS NOT NULL) as rewarded_tasks_count,
           COALESCE(SUM(amount_delta) FILTER (WHERE event_type IN ('external_order_pick','external_order_collect') AND source = 'sborka-site'), 0) as sborka_amount,
           COALESCE(SUM(reward_units) FILTER (WHERE event_type IN ('external_order_pick','external_order_collect') AND source = 'sborka-site'), 0) as sborka_units,
-          COALESCE(SUM(amount_delta) FILTER (WHERE event_type = 'external_order_pick' AND source = 'sborka-site'), 0) as sborka_pick_amount,
-          COALESCE(SUM(reward_units) FILTER (WHERE event_type = 'external_order_pick' AND source = 'sborka-site'), 0) as sborka_pick_units,
-          COALESCE(SUM(amount_delta) FILTER (WHERE event_type = 'external_order_collect' AND source = 'sborka-site'), 0) as sborka_collect_amount,
-          COALESCE(SUM(reward_units) FILTER (WHERE event_type = 'external_order_collect' AND source = 'sborka-site'), 0) as sborka_collect_units,
-          COALESCE(SUM(amount_delta) FILTER (WHERE event_type IN ('external_order_pick','external_order_collect') AND source = 'sborka-site' AND source_marketplace = 'wb'), 0) as sborka_wb_amount,
-          COALESCE(SUM(amount_delta) FILTER (WHERE event_type IN ('external_order_pick','external_order_collect') AND source = 'sborka-site' AND source_marketplace = 'ozon'), 0) as sborka_ozon_amount,
           MAX(created_at) as last_earned_at
         FROM employee_earnings_s
         GROUP BY employee_id
@@ -314,12 +302,6 @@ router.get('/employees/:employeeId', requireAuth, requirePermission('analytics',
           COUNT(DISTINCT ee.task_id) FILTER (WHERE ee.event_type = 'inventory_scan' AND ee.task_id IS NOT NULL) as rewarded_tasks_count,
           COALESCE(SUM(CASE WHEN ee.event_type IN ('external_order_pick','external_order_collect') AND ee.source = 'sborka-site' THEN ee.amount_delta ELSE 0 END), 0) as sborka_amount,
           COALESCE(SUM(CASE WHEN ee.event_type IN ('external_order_pick','external_order_collect') AND ee.source = 'sborka-site' THEN ee.reward_units ELSE 0 END), 0) as sborka_units,
-          COALESCE(SUM(CASE WHEN ee.event_type = 'external_order_pick' AND ee.source = 'sborka-site' THEN ee.amount_delta ELSE 0 END), 0) as sborka_pick_amount,
-          COALESCE(SUM(CASE WHEN ee.event_type = 'external_order_pick' AND ee.source = 'sborka-site' THEN ee.reward_units ELSE 0 END), 0) as sborka_pick_units,
-          COALESCE(SUM(CASE WHEN ee.event_type = 'external_order_collect' AND ee.source = 'sborka-site' THEN ee.amount_delta ELSE 0 END), 0) as sborka_collect_amount,
-          COALESCE(SUM(CASE WHEN ee.event_type = 'external_order_collect' AND ee.source = 'sborka-site' THEN ee.reward_units ELSE 0 END), 0) as sborka_collect_units,
-          COALESCE(SUM(CASE WHEN ee.event_type IN ('external_order_pick','external_order_collect') AND ee.source = 'sborka-site' AND ee.source_marketplace = 'wb' THEN ee.amount_delta ELSE 0 END), 0) as sborka_wb_amount,
-          COALESCE(SUM(CASE WHEN ee.event_type IN ('external_order_pick','external_order_collect') AND ee.source = 'sborka-site' AND ee.source_marketplace = 'ozon' THEN ee.amount_delta ELSE 0 END), 0) as sborka_ozon_amount,
           MAX(ee.created_at) as last_earned_at
         FROM employees_s e
         LEFT JOIN employee_earnings_s ee ON ee.employee_id = e.id ${periodFilter}
@@ -382,21 +364,13 @@ router.get('/employees/:employeeId', requireAuth, requirePermission('analytics',
           ee.reward_units,
           ee.rate_per_unit,
           ee.source_marketplace,
-          ee.source_store_id,
           ee.source_store_name,
-          ee.source_entity_type,
-          ee.source_entity_id,
           ee.source_entity_name,
           ee.source_article,
           ee.source_product_name,
           ee.source_marketplace_code,
-          ee.source_marketplace_code_kind,
           ee.source_scanned_code,
-          ee.source_task_id,
-          ee.source_session_id,
-          ee.source_item_id,
-          ee.source_item_key,
-          ee.source_order_ref
+          ee.source_task_id
         FROM employee_earnings_s ee
         WHERE ee.employee_id = $1
           AND ee.event_type IN ('external_order_pick', 'external_order_collect')

@@ -1,23 +1,5 @@
 # Changelog
 
-## v7.27.0
-
-### Sborka split-roles · Phase 1 (Контракт 2026-04-20)
-
-- Schema employee_earnings_s: +5 полей (source_session_id, source_item_id, source_item_key, source_order_ref, source_marketplace_code_kind)
-- Уникальный индекс `(source, source_item_key)` — идемпотентность при redistribute/retry: повторная запись того же события не создаёт дубль денег
-- Индексы на source_marketplace / source_store_id / source_session_id для быстрой агрегации
-- Таблица sborka_live_events_s теперь создаётся миграцией (раньше была только в docs)
-- API /earnings/employees и /earnings/employees/:id возвращают отдельно sborka_pick_amount / sborka_pick_units / sborka_collect_amount / sborka_collect_units / sborka_wb_amount / sborka_ozon_amount (обратная совместимость: sborka_amount остался)
-- sborka_picks отдаёт полный набор полей контракта (session_id, item_id, item_key, order_ref, marketplace_code_kind, entity_type, entity_id, store_id)
-- EarningsPage: leaderboard разделён на «Товар (picker)» и «Заказы (packer)»
-- Детали сотрудника: карточки pick/collect + WB/Ozon, таблица «по дням» разбита на Товар/Заказы
-
-### В работе (Phase 2)
-- Новый экран «Сборки» с частями (picker/packer/стол/handoff/прогресс)
-- Подсветка redistribute в истории
-- LiveMonitor: разделение picker/packer, кто ждёт стол
-
 ## v7.26.0
 
 ### Карточка товара
@@ -25,6 +7,17 @@
 - Папка стала редактируемой (раньше read-only)
 - Добавлено поле «Заметка» (products_s.notes)
 - Валидация: название обязательно, пустое — 400
+
+## v7.25.0
+
+### Оприходование · Остаток → коробка ФБС
+- На шаге «Это остаток» теперь запрашивается ШК коробки на полке ФБС (раньше — полки, товар ложился россыпью)
+- Остаток атомарно кладётся в `shelf_boxes_s` / `shelf_box_items_s`, обновляется quantity коробки и product_id
+- Новый endpoint GET `/api/packing/:taskId/remainder-box` рекомендует коробку с тем же товаром (или пустую)
+- Поле `boxes_s.remainder_shelf_box_id` — обратная ссылка на коробку с остатком (для reuse-box)
+- `/reuse-box` при повторном открытии списывает остаток из коробки ФБС (`shelf_box_items_s`), а не с полки россыпью
+- Проверка: нельзя класть в коробку с другим товаром или вне складов ФБС/Visual
+- Старый флоу со сканом полки сохранён как fallback (обратная совместимость)
 
 ## v7.24.0
 
