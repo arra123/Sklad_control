@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { ChevronRight, ChevronDown, RefreshCw, Search, Download, Calendar } from 'lucide-react';
+import { ChevronRight, ChevronDown, RefreshCw, Search, Download, Calendar, Wallet, X } from 'lucide-react';
 import api from '../../api/client';
 import Spinner from '../../components/ui/Spinner';
 import { useToast } from '../../components/ui/Toast';
@@ -433,7 +433,7 @@ export default function EarningsPage() {
                 ) : null
               ) : (
                 <>
-                  <PayrollSummary payroll={summary?.payroll || []} unit={unit} />
+                  <PayrollSummary payroll={summary?.payroll || []} unit={unit} onRefresh={fetchSummary} />
                   <Leaderboard
                     leaders={leaders}
                     adjustments={summary?.recent_adjustments || []}
@@ -451,9 +451,81 @@ export default function EarningsPage() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
+   PAYOUT-ALL MODAL
+   ═══════════════════════════════════════════════════════════════════════════ */
+function PayoutAllModal({ open, onClose, totalGra, count, unit, onSuccess }) {
+  const toast = useToast();
+  const [notes, setNotes] = useState(() => {
+    const now = new Date();
+    const months = ['январь','февраль','март','апрель','май','июнь','июль','август','сентябрь','октябрь','ноябрь','декабрь'];
+    return `Выплачено за ${months[now.getMonth()]} ${now.getFullYear()}`;
+  });
+  const [loading, setLoading] = useState(false);
+  if (!open) return null;
+
+  const submit = async () => {
+    if (!notes.trim()) { toast.error('Укажите причину'); return; }
+    if (!window.confirm(`Обнулить балансы ${count} сотрудникам? Сумма: ${fmt(convert(totalGra, unit))} ${unitLabel(unit)}. Действие записывается в аудит.`)) return;
+    setLoading(true);
+    try {
+      const { data } = await api.post('/earnings/payout-all', { notes: notes.trim() });
+      toast.success(`Выплачено ${data.count} сотрудникам на ${fmt(convert(data.total_paid, unit))} ${unitLabel(unit)}`);
+      onSuccess?.();
+      onClose();
+    } catch (e) {
+      toast.error(e.response?.data?.error || 'Ошибка выплаты');
+    } finally { setLoading(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-[20px] w-full max-w-md p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
+        <div className="flex items-start justify-between mb-4">
+          <div>
+            <h3 className="text-lg font-bold text-gray-900">Выплатить всем</h3>
+            <p className="text-xs text-gray-500 mt-0.5">Обнуляет балансы всех с balance &gt; 0. Записывает manual_adjustment в аудит.</p>
+          </div>
+          <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100 text-gray-400"><X size={18} /></button>
+        </div>
+
+        <div className="bg-amber-50 border border-amber-200 rounded-[12px] px-4 py-3 mb-4">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-amber-700 uppercase tracking-wider">Будет выплачено</span>
+            <span className="text-base font-extrabold text-amber-700">{fmt(convert(totalGra, unit))} {unitLabel(unit)}</span>
+          </div>
+          <p className="text-[11px] text-amber-600 mt-1">{count} сотрудников с положительным балансом</p>
+        </div>
+
+        <label className="block text-xs font-semibold text-gray-600 mb-1.5">Причина (попадёт в аудит)</label>
+        <input
+          type="text"
+          value={notes}
+          onChange={e => setNotes(e.target.value)}
+          placeholder="Например: Выплачено за апрель 2026"
+          className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-[10px] text-sm focus:outline-none focus:border-primary-400 focus:bg-white mb-4"
+        />
+
+        <div className="flex items-center justify-end gap-2">
+          <button onClick={onClose} disabled={loading} className="px-4 py-2 rounded-[10px] text-sm font-semibold text-gray-500 hover:bg-gray-50">Отмена</button>
+          <button
+            onClick={submit}
+            disabled={loading || !notes.trim() || totalGra <= 0}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-[10px] text-sm font-bold bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Wallet size={14} />
+            {loading ? 'Выплачиваю…' : 'Выплатить всем'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
    PAYROLL SUMMARY
    ═══════════════════════════════════════════════════════════════════════════ */
-function PayrollSummary({ payroll, unit }) {
+function PayrollSummary({ payroll, unit, onRefresh }) {
+  const [modalOpen, setModalOpen] = useState(false);
   if (!payroll.length) return null;
 
   const active = payroll.filter(e => e.active);
@@ -463,6 +535,7 @@ function PayrollSummary({ payroll, unit }) {
   const totalActive = sumGra(active);
   const totalFired = sumGra(fired);
   const grandTotal = totalActive + totalFired;
+  const totalCount = active.length + fired.length;
 
   const sections = [
     { key: 'active', label: 'Активные сотрудники', employees: active, total: totalActive, color: 'text-green-600', bg: 'bg-green-50' },
@@ -471,9 +544,27 @@ function PayrollSummary({ payroll, unit }) {
 
   return (
     <div className="bg-white rounded-[18px] border border-gray-100 overflow-hidden mb-4">
-      <div className="px-4 py-3 border-b border-gray-100 bg-gray-50/50 flex items-center justify-between">
+      <PayoutAllModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        totalGra={grandTotal}
+        count={totalCount}
+        unit={unit}
+        onSuccess={onRefresh}
+      />
+      <div className="px-4 py-3 border-b border-gray-100 bg-gray-50/50 flex items-center justify-between gap-3">
         <h3 className="text-sm font-semibold text-gray-700">Расчёт выплат</h3>
-        <span className="text-sm font-bold text-gray-900">{fmt(convert(grandTotal, unit))} {unitLabel(unit)}</span>
+        <div className="flex items-center gap-3">
+          <span className="text-sm font-bold text-gray-900">{fmt(convert(grandTotal, unit))} {unitLabel(unit)}</span>
+          <button
+            onClick={() => setModalOpen(true)}
+            disabled={grandTotal <= 0}
+            title="Обнулить балансы всем — записать как выплачено"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] text-xs font-bold bg-green-600 text-white hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+          >
+            <Wallet size={13} /> Выплатить всем
+          </button>
+        </div>
       </div>
       <div className="divide-y divide-gray-50">
         {sections.map(sec => (

@@ -660,6 +660,80 @@ router.post('/employees/:employeeId/set-balance', requireAuth, requirePermission
   }
 });
 
+// POST /api/earnings/payout-all — массовая выплата: обнуляем все положительные балансы
+// одной транзакцией. На каждого сотрудника пишется manual_adjustment с amount_delta = -balance.
+// Body: { notes: 'Выплачено за апрель 2026', employee_ids?: number[] }
+//   notes — обязательно, идёт в notes каждого начисления (для аудита)
+//   employee_ids — опционально, если нужно обнулить только указанных. Без поля — обнуляются ВСЕ с balance > 0.
+router.post('/payout-all', requireAuth, requirePermission('staff.edit'), async (req, res) => {
+  const notes = String(req.body?.notes || '').trim();
+  if (!notes) return res.status(400).json({ error: 'Укажите причину (notes)' });
+
+  const restrictIds = Array.isArray(req.body?.employee_ids)
+    ? req.body.employee_ids.map(Number).filter(Number.isFinite)
+    : null;
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query("SET LOCAL lock_timeout = '10s'");
+
+    const params = [];
+    let where = 'COALESCE(gra_balance, 0) > 0';
+    if (restrictIds && restrictIds.length) {
+      params.push(restrictIds);
+      where += ` AND id = ANY($${params.length}::int[])`;
+    }
+
+    const empResult = await client.query(
+      `SELECT id, full_name, COALESCE(gra_balance, 0) AS gra_balance
+       FROM employees_s
+       WHERE ${where}
+       ORDER BY id
+       FOR UPDATE NOWAIT`,
+      params
+    );
+
+    const processed = [];
+    let totalPaid = 0;
+    for (const emp of empResult.rows) {
+      const balanceBefore = Number(emp.gra_balance || 0);
+      if (balanceBefore <= 0) continue;
+      const amountDelta = -balanceBefore;
+
+      await client.query(
+        `INSERT INTO employee_earnings_s (
+           employee_id, event_type, reward_units, rate_per_unit, amount_delta,
+           balance_before, balance_after, notes, created_by_user_id
+         )
+         VALUES ($1, 'manual_adjustment', 0, 0, $2, $3, 0, $4, $5)`,
+        [emp.id, amountDelta, balanceBefore, notes, req.user.id]
+      );
+      await client.query(
+        'UPDATE employees_s SET gra_balance = 0, updated_at = NOW() WHERE id = $1',
+        [emp.id]
+      );
+
+      processed.push({ employee_id: emp.id, full_name: emp.full_name, paid: balanceBefore });
+      totalPaid += balanceBefore;
+    }
+
+    await client.query('COMMIT');
+    res.json({
+      success: true,
+      count: processed.length,
+      total_paid: totalPaid,
+      notes,
+      employees: processed,
+    });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
 // POST /api/earnings/backfill-assembly — one-time backfill GRA for assembly scans
 router.post('/backfill-assembly', requireAuth, requirePermission('settings'), async (_req, res) => {
   try {
