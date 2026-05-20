@@ -1,10 +1,26 @@
 const router = require('express').Router();
+const ExcelJS = require('exceljs');
 const pool = require('../db/pool');
 const { requireAuth, requirePermission } = require('../middleware/auth');
 
 function parseNumeric(value, fallback = 0) {
   const parsed = Number.parseFloat(String(value ?? '').replace(',', '.'));
   return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+// Сборка period-фильтра. Поддерживает: today, week, month, all, YYYY-MM-DD, YYYY-MM
+function buildPeriodFilter(period, alias = 'ee') {
+  const col = `${alias}.created_at`;
+  if (period === 'today') return `AND ${col} >= CURRENT_DATE`;
+  if (period === 'week') return `AND ${col} >= CURRENT_DATE - INTERVAL '7 days'`;
+  if (period === 'month') return `AND ${col} >= CURRENT_DATE - INTERVAL '30 days'`;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(period)) {
+    return `AND ${col} >= '${period}'::date AND ${col} < '${period}'::date + INTERVAL '1 day'`;
+  }
+  if (/^\d{4}-\d{2}$/.test(period)) {
+    return `AND ${col} >= '${period}-01'::date AND ${col} < ('${period}-01'::date + INTERVAL '1 month')`;
+  }
+  return '';
 }
 
 function formatScopeLabel(row) {
@@ -64,11 +80,7 @@ function setCache(key, data) { cache.set(key, { data, ts: Date.now() }); }
 
 router.get('/summary', requireAuth, requirePermission('analytics', 'staff.view'), async (req, res) => {
   const period = req.query.period || 'all';
-  let pf = '';
-  if (period === 'today') pf = `AND ee.created_at >= CURRENT_DATE`;
-  else if (period === 'week') pf = `AND ee.created_at >= CURRENT_DATE - INTERVAL '7 days'`;
-  else if (period === 'month') pf = `AND ee.created_at >= CURRENT_DATE - INTERVAL '30 days'`;
-  else if (/^\d{4}-\d{2}-\d{2}$/.test(period)) pf = `AND ee.created_at >= '${period}'::date AND ee.created_at < '${period}'::date + INTERVAL '1 day'`;
+  const pf = buildPeriodFilter(period, 'ee');
 
   const cacheKey = `summary_${period}`;
   const hit = cached(cacheKey, 5000);
@@ -295,18 +307,8 @@ router.get('/employees/:employeeId', requireAuth, requirePermission('analytics',
 
     // Period filter
     const period = req.query.period || 'all';
-    let periodFilter = '';
-    if (period === 'today') periodFilter = `AND ee.created_at >= CURRENT_DATE`;
-    else if (period === 'week') periodFilter = `AND ee.created_at >= CURRENT_DATE - INTERVAL '7 days'`;
-    else if (period === 'month') periodFilter = `AND ee.created_at >= CURRENT_DATE - INTERVAL '30 days'`;
-    else if (/^\d{4}-\d{2}-\d{2}$/.test(period)) periodFilter = `AND ee.created_at >= '${period}'::date AND ee.created_at < '${period}'::date + INTERVAL '1 day'`;
-
-    // Same filter for sborka_live_events_s (alias sle)
-    let liveFilter = '';
-    if (period === 'today') liveFilter = `AND sle.created_at >= CURRENT_DATE`;
-    else if (period === 'week') liveFilter = `AND sle.created_at >= CURRENT_DATE - INTERVAL '7 days'`;
-    else if (period === 'month') liveFilter = `AND sle.created_at >= CURRENT_DATE - INTERVAL '30 days'`;
-    else if (/^\d{4}-\d{2}-\d{2}$/.test(period)) liveFilter = `AND sle.created_at >= '${period}'::date AND sle.created_at < '${period}'::date + INTERVAL '1 day'`;
+    const periodFilter = buildPeriodFilter(period, 'ee');
+    const liveFilter = buildPeriodFilter(period, 'sle');
 
     const [employeeResult, tasksResult, adjustmentsResult, sborkaResult, sborkaLiveResult] = await Promise.all([
       pool.query(`
@@ -702,11 +704,7 @@ router.get('/assemblies', requireAuth, requirePermission('analytics', 'staff.vie
     const marketplace = req.query.marketplace; // 'wb' | 'ozon' | undefined
     const storeId = req.query.store_id;
 
-    let periodFilter = '';
-    if (period === 'today') periodFilter = `AND ee.created_at >= CURRENT_DATE`;
-    else if (period === 'week') periodFilter = `AND ee.created_at >= CURRENT_DATE - INTERVAL '7 days'`;
-    else if (period === 'month') periodFilter = `AND ee.created_at >= CURRENT_DATE - INTERVAL '30 days'`;
-    else if (/^\d{4}-\d{2}-\d{2}$/.test(period)) periodFilter = `AND ee.created_at >= '${period}'::date AND ee.created_at < '${period}'::date + INTERVAL '1 day'`;
+    const periodFilter = buildPeriodFilter(period, 'ee');
 
     const params = [];
     let extraWhere = '';
@@ -797,6 +795,372 @@ router.get('/assemblies', requireAuth, requirePermission('analytics', 'staff.vie
     `;
     const { rows } = await pool.query(sql, params);
     res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/earnings/months — список месяцев, в которых есть начисления
+router.get('/months', requireAuth, requirePermission('analytics', 'staff.view'), async (_req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT
+        TO_CHAR(date_trunc('month', created_at), 'YYYY-MM') AS ym,
+        MIN(created_at) AS first_at,
+        MAX(created_at) AS last_at
+      FROM employee_earnings_s
+      WHERE created_at IS NOT NULL
+      GROUP BY 1
+      ORDER BY 1 DESC
+      LIMIT 36
+    `);
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/earnings/monthly — помесячная разбивка заработка
+//   ?employee_id=N — только по одному сотруднику
+//   ?months=12     — сколько последних месяцев брать (по умолчанию 12)
+router.get('/monthly', requireAuth, requirePermission('analytics', 'staff.view'), async (req, res) => {
+  try {
+    const monthsBack = Math.max(1, Math.min(36, Number(req.query.months) || 12));
+    const employeeId = req.query.employee_id ? Number(req.query.employee_id) : null;
+
+    const params = [monthsBack];
+    let where = `ee.created_at >= date_trunc('month', CURRENT_DATE) - ((${'$1'}::int - 1) * INTERVAL '1 month')`;
+    if (Number.isFinite(employeeId)) {
+      params.push(employeeId);
+      where += ` AND ee.employee_id = $${params.length}`;
+    }
+
+    const { rows } = await pool.query(`
+      SELECT
+        ee.employee_id,
+        e.full_name,
+        e.position,
+        e.active,
+        COALESCE(e.gra_balance, 0)                                          AS current_balance,
+        TO_CHAR(date_trunc('month', ee.created_at), 'YYYY-MM')              AS ym,
+        COALESCE(SUM(ee.amount_delta) FILTER (
+          WHERE ee.event_type = 'inventory_scan'), 0)                       AS warehouse_amount,
+        COALESCE(SUM(ee.reward_units) FILTER (
+          WHERE ee.event_type = 'inventory_scan'), 0)                       AS warehouse_scans,
+        COALESCE(SUM(ee.amount_delta) FILTER (
+          WHERE ee.event_type = 'external_order_pick'
+            AND ee.source = 'sborka-site'), 0)                              AS pick_amount,
+        COALESCE(SUM(ee.amount_delta) FILTER (
+          WHERE ee.event_type = 'external_order_collect'
+            AND ee.source = 'sborka-site'), 0)                              AS collect_amount,
+        COALESCE(SUM(ee.amount_delta) FILTER (
+          WHERE ee.event_type = 'manual_adjustment'), 0)                    AS adjustments_amount,
+        COALESCE(SUM(ee.amount_delta), 0)                                   AS total_amount
+      FROM employee_earnings_s ee
+      JOIN employees_s e ON e.id = ee.employee_id
+      WHERE ${where}
+      GROUP BY ee.employee_id, e.full_name, e.position, e.active, e.gra_balance,
+               date_trunc('month', ee.created_at)
+      ORDER BY e.full_name ASC, ym ASC
+    `, params);
+
+    res.json({ months_back: monthsBack, rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/earnings/export.xlsx — красивый цветной Excel: сотрудники × месяцы
+router.get('/export.xlsx', requireAuth, requirePermission('analytics', 'staff.view'), async (req, res) => {
+  try {
+    const monthsBack = Math.max(1, Math.min(24, Number(req.query.months) || 6));
+    const unit = req.query.unit === 'rub' ? 'rub' : 'gra';
+    const GRA_TO_RUB = 0.01;
+    const conv = (v) => unit === 'rub' ? Number(v || 0) * GRA_TO_RUB : Number(v || 0);
+    const unitLabel = unit === 'rub' ? '₽' : 'GRA';
+
+    // Последние N месяцев в порядке возрастания (YYYY-MM)
+    const monthsCols = [];
+    const now = new Date();
+    for (let i = monthsBack - 1; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      monthsCols.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+    }
+    const MONTH_LABELS_RU = ['Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя','Дек'];
+    const monthLabel = (ym) => {
+      const [y, m] = ym.split('-');
+      return `${MONTH_LABELS_RU[Number(m) - 1]} ${y}`;
+    };
+
+    // Данные по сотрудникам и месяцам
+    const { rows: monthly } = await pool.query(`
+      SELECT
+        ee.employee_id,
+        e.full_name,
+        e.position,
+        e.active,
+        COALESCE(e.gra_balance, 0)                              AS current_balance,
+        TO_CHAR(date_trunc('month', ee.created_at), 'YYYY-MM')  AS ym,
+        COALESCE(SUM(ee.amount_delta), 0)                       AS total_amount
+      FROM employee_earnings_s ee
+      JOIN employees_s e ON e.id = ee.employee_id
+      WHERE ee.created_at >= date_trunc('month', CURRENT_DATE) - (($1::int - 1) * INTERVAL '1 month')
+      GROUP BY ee.employee_id, e.full_name, e.position, e.active, e.gra_balance,
+               date_trunc('month', ee.created_at)
+      ORDER BY e.full_name ASC
+    `, [monthsBack]);
+
+    // Также включаем сотрудников с балансом, у которых нет начислений за период
+    const { rows: allEmps } = await pool.query(`
+      SELECT id AS employee_id, full_name, position, active, COALESCE(gra_balance, 0) AS current_balance
+      FROM employees_s
+      WHERE COALESCE(gra_balance, 0) <> 0 OR active = true
+      ORDER BY full_name ASC
+    `);
+
+    // Свод по сотрудникам
+    const empMap = new Map();
+    for (const e of allEmps) {
+      empMap.set(e.employee_id, {
+        employee_id: e.employee_id,
+        full_name: e.full_name,
+        position: e.position || '',
+        active: e.active,
+        current_balance: Number(e.current_balance || 0),
+        months: {},
+      });
+    }
+    for (const r of monthly) {
+      if (!empMap.has(r.employee_id)) {
+        empMap.set(r.employee_id, {
+          employee_id: r.employee_id,
+          full_name: r.full_name,
+          position: r.position || '',
+          active: r.active,
+          current_balance: Number(r.current_balance || 0),
+          months: {},
+        });
+      }
+      const emp = empMap.get(r.employee_id);
+      emp.months[r.ym] = Number(r.total_amount || 0);
+    }
+
+    // Книга Excel
+    const wb = new ExcelJS.Workbook();
+    wb.creator = 'GRA Склад';
+    wb.created = new Date();
+    const ws = wb.addWorksheet('Заработок по месяцам', {
+      views: [{ state: 'frozen', xSplit: 2, ySplit: 4 }],
+    });
+
+    // ─── Заголовок-баннер ───────────────────────────────────────
+    ws.mergeCells(1, 1, 1, 4 + monthsCols.length);
+    const titleCell = ws.getCell(1, 1);
+    titleCell.value = `GRA Склад — Заработок сотрудников (${unitLabel})`;
+    titleCell.font = { name: 'Segoe UI', size: 16, bold: true, color: { argb: 'FFFFFFFF' } };
+    titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
+    titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF5B5BF5' } };
+    ws.getRow(1).height = 32;
+
+    ws.mergeCells(2, 1, 2, 4 + monthsCols.length);
+    const subCell = ws.getCell(2, 1);
+    const periodLabel = `${monthLabel(monthsCols[0])} — ${monthLabel(monthsCols[monthsCols.length - 1])}`;
+    subCell.value = `Период: ${periodLabel}   ·   Сформировано: ${new Date().toLocaleString('ru-RU')}`;
+    subCell.font = { name: 'Segoe UI', size: 10, italic: true, color: { argb: 'FF6B7280' } };
+    subCell.alignment = { vertical: 'middle', horizontal: 'center' };
+    ws.getRow(2).height = 20;
+
+    // Пустая строка-разделитель
+    ws.getRow(3).height = 6;
+
+    // ─── Заголовки таблицы ──────────────────────────────────────
+    const headerRowIdx = 4;
+    const headers = ['#', 'Сотрудник', 'Должность', 'Статус', ...monthsCols.map(monthLabel), `Итого ${unitLabel}`, `Баланс ${unitLabel}`];
+    const headerRow = ws.getRow(headerRowIdx);
+    headers.forEach((h, i) => {
+      const cell = headerRow.getCell(i + 1);
+      cell.value = h;
+      cell.font = { name: 'Segoe UI', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+      cell.alignment = { vertical: 'middle', horizontal: i < 4 ? 'left' : 'center', wrapText: true };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F2937' } };
+      cell.border = {
+        top: { style: 'thin', color: { argb: 'FF374151' } },
+        left: { style: 'thin', color: { argb: 'FF374151' } },
+        bottom: { style: 'medium', color: { argb: 'FF5B5BF5' } },
+        right: { style: 'thin', color: { argb: 'FF374151' } },
+      };
+    });
+    headerRow.height = 28;
+
+    // Ширины колонок
+    ws.getColumn(1).width = 5;
+    ws.getColumn(2).width = 28;
+    ws.getColumn(3).width = 18;
+    ws.getColumn(4).width = 12;
+    for (let i = 0; i < monthsCols.length; i++) ws.getColumn(5 + i).width = 14;
+    ws.getColumn(5 + monthsCols.length).width = 16;
+    ws.getColumn(6 + monthsCols.length).width = 16;
+
+    // ─── Тело таблицы ───────────────────────────────────────────
+    const employees = Array.from(empMap.values()).sort((a, b) => {
+      // активные первыми, по убыванию суммарного итога
+      if (a.active !== b.active) return a.active ? -1 : 1;
+      const sa = monthsCols.reduce((s, m) => s + (a.months[m] || 0), 0);
+      const sb = monthsCols.reduce((s, m) => s + (b.months[m] || 0), 0);
+      return sb - sa;
+    });
+
+    // Палитра для тепловой раскраски — от очень светлого к насыщенному
+    const COLOR_SCALE = [
+      'FFFFFFFF', // 0
+      'FFEEF2FF', // tiny
+      'FFDDE7FF',
+      'FFC7D6FF',
+      'FFA9C0FF',
+      'FF85A6FF',
+      'FF5B8DFF',
+      'FF3D78FF',
+    ];
+
+    // Найдём максимум для шкалы
+    let maxMonthValue = 0;
+    for (const e of employees) {
+      for (const m of monthsCols) maxMonthValue = Math.max(maxMonthValue, conv(e.months[m] || 0));
+    }
+    const colorFor = (val) => {
+      if (!maxMonthValue || val <= 0) return COLOR_SCALE[0];
+      const ratio = val / maxMonthValue;
+      const idx = Math.min(COLOR_SCALE.length - 1, Math.max(1, Math.ceil(ratio * (COLOR_SCALE.length - 1))));
+      return COLOR_SCALE[idx];
+    };
+
+    let r = headerRowIdx + 1;
+    let totalSum = 0;
+    const monthTotals = Object.fromEntries(monthsCols.map(m => [m, 0]));
+
+    employees.forEach((emp, idx) => {
+      const row = ws.getRow(r);
+      const zebra = r % 2 === 0 ? 'FFFAFAFA' : 'FFFFFFFF';
+      let rowSum = 0;
+
+      const baseAlign = { vertical: 'middle', horizontal: 'left' };
+      const num = (v) => Math.round(conv(v) * 100) / 100;
+
+      row.getCell(1).value = idx + 1;
+      row.getCell(1).alignment = { vertical: 'middle', horizontal: 'center' };
+      row.getCell(1).font = { name: 'Segoe UI', size: 10, color: { argb: 'FF9CA3AF' } };
+
+      row.getCell(2).value = emp.full_name;
+      row.getCell(2).alignment = baseAlign;
+      row.getCell(2).font = { name: 'Segoe UI', size: 11, bold: true, color: { argb: 'FF111827' } };
+
+      row.getCell(3).value = emp.position || '—';
+      row.getCell(3).alignment = baseAlign;
+      row.getCell(3).font = { name: 'Segoe UI', size: 10, color: { argb: 'FF6B7280' } };
+
+      const statusCell = row.getCell(4);
+      statusCell.value = emp.active ? 'Активен' : 'Уволен';
+      statusCell.alignment = { vertical: 'middle', horizontal: 'center' };
+      statusCell.font = {
+        name: 'Segoe UI', size: 10, bold: true,
+        color: { argb: emp.active ? 'FF059669' : 'FFDC2626' },
+      };
+      statusCell.fill = {
+        type: 'pattern', pattern: 'solid',
+        fgColor: { argb: emp.active ? 'FFD1FAE5' : 'FFFEE2E2' },
+      };
+
+      monthsCols.forEach((m, mi) => {
+        const cellIdx = 5 + mi;
+        const val = num(emp.months[m] || 0);
+        const cell = row.getCell(cellIdx);
+        cell.value = val;
+        cell.numFmt = '#,##0.00;[Red]-#,##0.00;""';
+        cell.alignment = { vertical: 'middle', horizontal: 'right' };
+        cell.font = { name: 'Segoe UI', size: 10, color: { argb: val > 0 ? 'FF111827' : 'FFD1D5DB' } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colorFor(val) } };
+        rowSum += val;
+        monthTotals[m] += val;
+      });
+
+      const totalCell = row.getCell(5 + monthsCols.length);
+      totalCell.value = Math.round(rowSum * 100) / 100;
+      totalCell.numFmt = '#,##0.00';
+      totalCell.alignment = { vertical: 'middle', horizontal: 'right' };
+      totalCell.font = { name: 'Segoe UI', size: 11, bold: true, color: { argb: 'FF1E3A8A' } };
+      totalCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0E7FF' } };
+      totalSum += rowSum;
+
+      const balCell = row.getCell(6 + monthsCols.length);
+      const balVal = Math.round(num(emp.current_balance) * 100) / 100;
+      balCell.value = balVal;
+      balCell.numFmt = '#,##0.00';
+      balCell.alignment = { vertical: 'middle', horizontal: 'right' };
+      balCell.font = { name: 'Segoe UI', size: 11, bold: true, color: { argb: balVal > 0 ? 'FF047857' : 'FF9CA3AF' } };
+      balCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: balVal > 0 ? 'FFD1FAE5' : 'FFF3F4F6' } };
+
+      // Зебра для нейтральных колонок
+      [1, 2, 3].forEach(ci => {
+        const c = row.getCell(ci);
+        if (!c.fill || c.fill.fgColor?.argb === undefined) {
+          c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: zebra } };
+        }
+      });
+
+      // Тонкие границы
+      for (let ci = 1; ci <= 6 + monthsCols.length; ci++) {
+        row.getCell(ci).border = {
+          top: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+          bottom: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+          left: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+          right: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+        };
+      }
+      row.height = 22;
+      r++;
+    });
+
+    // ─── Итоговая строка ────────────────────────────────────────
+    const totalRow = ws.getRow(r);
+    totalRow.getCell(1).value = '';
+    const totalLabel = totalRow.getCell(2);
+    totalLabel.value = 'ИТОГО';
+    totalLabel.font = { name: 'Segoe UI', size: 12, bold: true, color: { argb: 'FFFFFFFF' } };
+    totalLabel.alignment = { vertical: 'middle', horizontal: 'right' };
+    ws.mergeCells(r, 1, r, 4);
+    totalLabel.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F2937' } };
+
+    monthsCols.forEach((m, mi) => {
+      const cell = totalRow.getCell(5 + mi);
+      cell.value = Math.round(monthTotals[m] * 100) / 100;
+      cell.numFmt = '#,##0.00';
+      cell.alignment = { vertical: 'middle', horizontal: 'right' };
+      cell.font = { name: 'Segoe UI', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF5B5BF5' } };
+    });
+    const totalGrand = totalRow.getCell(5 + monthsCols.length);
+    totalGrand.value = Math.round(totalSum * 100) / 100;
+    totalGrand.numFmt = '#,##0.00';
+    totalGrand.alignment = { vertical: 'middle', horizontal: 'right' };
+    totalGrand.font = { name: 'Segoe UI', size: 12, bold: true, color: { argb: 'FFFFFFFF' } };
+    totalGrand.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E3A8A' } };
+
+    const totalBalCell = totalRow.getCell(6 + monthsCols.length);
+    const balSum = employees.reduce((s, e) => s + (Number(e.current_balance) || 0) * (unit === 'rub' ? GRA_TO_RUB : 1), 0);
+    totalBalCell.value = Math.round(balSum * 100) / 100;
+    totalBalCell.numFmt = '#,##0.00';
+    totalBalCell.alignment = { vertical: 'middle', horizontal: 'right' };
+    totalBalCell.font = { name: 'Segoe UI', size: 12, bold: true, color: { argb: 'FFFFFFFF' } };
+    totalBalCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF047857' } };
+
+    totalRow.height = 30;
+
+    // Поток
+    const fname = `earnings_${monthsCols[0]}_${monthsCols[monthsCols.length - 1]}.xlsx`;
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${fname}"`);
+    await wb.xlsx.write(res);
+    res.end();
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

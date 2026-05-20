@@ -1,9 +1,29 @@
-import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { ChevronRight, ChevronDown, RefreshCw, Search } from 'lucide-react';
+import { ChevronRight, ChevronDown, RefreshCw, Search, Download, Calendar } from 'lucide-react';
 import api from '../../api/client';
 import Spinner from '../../components/ui/Spinner';
 import { useToast } from '../../components/ui/Toast';
+
+/* ─── Месяцы ────────────────────────────────────────────────────────────── */
+const MONTH_LABELS_RU = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+const MONTH_SHORT_RU  = ['Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя','Дек'];
+function isMonthPeriod(p) { return typeof p === 'string' && /^\d{4}-\d{2}$/.test(p); }
+function monthLabel(ym, full = true) {
+  if (!isMonthPeriod(ym)) return '';
+  const [y, m] = ym.split('-');
+  const arr = full ? MONTH_LABELS_RU : MONTH_SHORT_RU;
+  return `${arr[Number(m) - 1]} ${y}`;
+}
+function buildRecentMonths(count = 12) {
+  const arr = [];
+  const now = new Date();
+  for (let i = 0; i < count; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    arr.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+  }
+  return arr;
+}
 
 /* ─── Formatters ────────────────────────────────────────────────────────── */
 function fmt(v) {
@@ -97,6 +117,70 @@ function RatesBar({ rates, unit }) {
   );
 }
 
+/* ─── Month Picker ──────────────────────────────────────────────────────── */
+function MonthPicker({ value, onChange }) {
+  const [open, setOpen] = useState(false);
+  const [months, setMonths] = useState(buildRecentMonths(12));
+  const ref = useRef(null);
+
+  // Подгружаем реальные месяцы с данными — но не блокируем UI
+  useEffect(() => {
+    let cancelled = false;
+    api.get('/earnings/months').then(({ data }) => {
+      if (cancelled || !Array.isArray(data) || data.length === 0) return;
+      const fromDb = data.map(r => r.ym);
+      const merged = Array.from(new Set([...fromDb, ...buildRecentMonths(12)])).sort().reverse().slice(0, 24);
+      setMonths(merged);
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [open]);
+
+  const active = isMonthPeriod(value);
+  const label = active ? monthLabel(value) : 'Выбрать месяц';
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-[12px] text-sm font-medium transition-all border ${
+          active
+            ? 'text-violet-700 bg-violet-500/10 border-violet-500/25 shadow-sm backdrop-blur-xl'
+            : 'text-gray-500 bg-white/50 border-transparent hover:bg-white/70 hover:text-gray-700'
+        }`}
+      >
+        <Calendar size={14} />
+        {label}
+        <ChevronDown size={12} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="absolute right-0 mt-1 z-30 w-56 max-h-80 overflow-y-auto bg-white border border-gray-100 rounded-[14px] shadow-xl p-1">
+          {months.map(m => (
+            <button
+              key={m}
+              onClick={() => { onChange(m); setOpen(false); }}
+              className={`w-full text-left px-3 py-2 rounded-[10px] text-sm transition-colors ${
+                value === m
+                  ? 'bg-violet-50 text-violet-700 font-semibold'
+                  : 'text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              {monthLabel(m)}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════
    MAIN PAGE
    ═══════════════════════════════════════════════════════════════════════════ */
@@ -114,6 +198,7 @@ export default function EarningsPage() {
   const [detail, setDetail] = useState(null);
   const [loading, setLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [search, setSearch] = useState('');
 
   /* ─── Fetch summary ─────────────────────────────────────────────────── */
@@ -163,6 +248,33 @@ export default function EarningsPage() {
   const selectEmployee = (eid) => update({ employee: eid });
   const clearEmployee = () => update({ employee: null });
 
+  /* ─── Excel export ──────────────────────────────────────────────────── */
+  const downloadExcel = useCallback(async () => {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      const res = await api.get('/earnings/export.xlsx', {
+        params: { months: 6, unit },
+        responseType: 'blob',
+      });
+      const blob = new Blob([res.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = window.URL.createObjectURL(blob);
+      const now = new Date();
+      const stamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Заработок_сотрудников_${stamp}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (e) {
+      toast.error('Не удалось сформировать Excel');
+    } finally {
+      setExporting(false);
+    }
+  }, [exporting, unit, toast]);
+
   const ov = summary?.overview;
   const leaders = summary?.leaders || [];
   const rates = summary?.settings?.rates;
@@ -207,6 +319,9 @@ export default function EarningsPage() {
             </button>
           ))}
 
+          {/* Конкретный месяц */}
+          <MonthPicker value={period} onChange={setPeriod} />
+
           {/* GRA ⇄ ₽ */}
           <div className="ml-2 flex items-center bg-white/50 backdrop-blur-xl border border-gray-200 rounded-[12px] p-0.5">
             <button
@@ -222,6 +337,16 @@ export default function EarningsPage() {
               }`}
             >₽</button>
           </div>
+
+          <button
+            onClick={downloadExcel}
+            disabled={exporting}
+            title="Скачать Excel: сотрудники × месяцы"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[12px] text-sm font-semibold transition-all border border-green-600/20 bg-green-50 text-green-700 hover:bg-green-100 disabled:opacity-60 disabled:cursor-wait"
+          >
+            <Download size={14} />
+            {exporting ? 'Готовлю…' : 'Excel'}
+          </button>
 
           <button onClick={() => { fetchSummary(); if (employeeId) fetchDetail(employeeId); }} className="p-2 rounded-xl text-gray-400 hover:text-primary-600 hover:bg-white/70 transition-all">
             <RefreshCw size={16} />
@@ -304,7 +429,7 @@ export default function EarningsPage() {
                 detailLoading ? (
                   <div className="flex justify-center py-20"><Spinner /></div>
                 ) : detail ? (
-                  <EmployeeDetail detail={detail} unit={unit} />
+                  <EmployeeDetail detail={detail} unit={unit} onSelectMonth={setPeriod} currentPeriod={period} />
                 ) : null
               ) : (
                 <>
@@ -469,13 +594,33 @@ function taskLocation(t) {
   return '—';
 }
 
-function EmployeeDetail({ detail, unit = 'gra' }) {
+function EmployeeDetail({ detail, unit = 'gra', onSelectMonth, currentPeriod }) {
   const emp = detail.employee;
   const tasks = detail.tasks || [];
   const adjustments = detail.adjustments || [];
   const sborka = detail.sborka_picks || [];
   const liveEvents = detail.sborka_live_events || [];
   const [expandedDay, setExpandedDay] = useState(null);
+  const [monthly, setMonthly] = useState(null);
+
+  // Помесячная разбивка за 6 месяцев
+  useEffect(() => {
+    if (!emp?.employee_id) { setMonthly(null); return; }
+    let cancelled = false;
+    api.get('/earnings/monthly', { params: { employee_id: emp.employee_id, months: 6 } })
+      .then(({ data }) => { if (!cancelled) setMonthly(data?.rows || []); })
+      .catch(() => { if (!cancelled) setMonthly([]); });
+    return () => { cancelled = true; };
+  }, [emp?.employee_id]);
+
+  const monthsBack = 6;
+  const recentMonths = useMemo(() => buildRecentMonths(monthsBack).reverse(), []);
+  const byMonth = useMemo(() => {
+    const map = Object.fromEntries(recentMonths.map(m => [m, 0]));
+    (monthly || []).forEach(r => { if (map[r.ym] != null) map[r.ym] = Number(r.total_amount || 0); });
+    return map;
+  }, [monthly, recentMonths]);
+  const maxByMonth = useMemo(() => Math.max(0, ...Object.values(byMonth)), [byMonth]);
 
   const dailyData = useMemo(() => {
     const byDate = {};
@@ -547,7 +692,11 @@ function EmployeeDetail({ detail, unit = 'gra' }) {
     <>
       <div className="mb-4">
         <h2 className="text-xl font-bold text-gray-900">{emp?.full_name}</h2>
-        <p className="text-xs text-gray-400">Статистика за выбранный период</p>
+        <p className="text-xs text-gray-400">
+          {isMonthPeriod(currentPeriod)
+            ? `Статистика за ${monthLabel(currentPeriod)}`
+            : 'Статистика за выбранный период'}
+        </p>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
@@ -565,6 +714,56 @@ function EmployeeDetail({ detail, unit = 'gra' }) {
           <Stat icon={<IconCoin />} label={`Ozon ${unitLabel(unit)}`} value={fmt(convert(ozonAmount, unit))} color="bg-sky-50 text-sky-600" />
         </div>
       )}
+
+      {/* ─── Помесячный график (за 6 месяцев) ─────────────── */}
+      <div className="bg-white rounded-[18px] border border-gray-100 overflow-hidden mb-4">
+        <div className="px-4 py-3 border-b border-gray-100 bg-gray-50/50 flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-gray-700">По месяцам · 6 мес</h3>
+          {isMonthPeriod(currentPeriod) && (
+            <button
+              onClick={() => onSelectMonth && onSelectMonth('all')}
+              className="text-[11px] font-semibold text-gray-400 hover:text-primary-600"
+            >
+              Сбросить месяц
+            </button>
+          )}
+        </div>
+        <div className="p-4 flex items-end gap-2 h-40">
+          {recentMonths.map(m => {
+            const val = byMonth[m] || 0;
+            const ratio = maxByMonth > 0 ? val / maxByMonth : 0;
+            const isActive = currentPeriod === m;
+            return (
+              <button
+                key={m}
+                onClick={() => onSelectMonth && onSelectMonth(m)}
+                className="flex-1 flex flex-col items-center justify-end h-full group"
+                title={`${monthLabel(m)} — ${fmt(convert(val, unit))} ${unitLabel(unit)}`}
+              >
+                <span className={`text-[10px] mb-1 ${isActive ? 'text-violet-700 font-bold' : 'text-gray-400 group-hover:text-gray-600'}`}>
+                  {val > 0 ? fmt(convert(val, unit)) : ''}
+                </span>
+                <div
+                  className={`w-full rounded-t-md transition-all ${
+                    isActive
+                      ? 'bg-violet-500'
+                      : val > 0
+                        ? 'bg-primary-400 group-hover:bg-primary-500'
+                        : 'bg-gray-100'
+                  }`}
+                  style={{ height: `${Math.max(3, ratio * 100)}%`, minHeight: '4px' }}
+                />
+                <span className={`text-[10px] mt-1 ${isActive ? 'text-violet-700 font-semibold' : 'text-gray-400'}`}>
+                  {monthLabel(m, false)}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        <p className="px-4 pb-3 text-[10px] text-gray-400">
+          Нажмите на столбец, чтобы посмотреть детали выбранного месяца
+        </p>
+      </div>
 
       {dailyData.length > 0 && (
         <div className="bg-white rounded-[18px] border border-gray-100 overflow-hidden mb-5">
