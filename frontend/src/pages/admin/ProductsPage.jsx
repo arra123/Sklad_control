@@ -269,9 +269,12 @@ function SearchWithSuggestions({ value, onChange, onSearch, entityType }) {
                 <p className="truncate font-medium">{item.name}</p>
                 {item.code && <p className="text-xs text-gray-400 truncate">{item.code}</p>}
               </div>
-              {Number(item.stock) > 0 && (
-                <span className="text-xs text-green-600 font-semibold flex-shrink-0">{fmtQty(item.stock)} шт.</span>
-              )}
+              {(() => {
+                const qty = Number(item.warehouse_qty || item.stock || 0);
+                return qty > 0 ? (
+                  <span className="text-xs text-green-600 font-semibold flex-shrink-0">{fmtQty(qty)} шт.</span>
+                ) : null;
+              })()}
             </button>
           ))}
         </div>
