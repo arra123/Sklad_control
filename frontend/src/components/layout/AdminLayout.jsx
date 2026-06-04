@@ -37,6 +37,9 @@ const IconActivity = ({ className }) => (
 const IconArrows = ({ className }) => (
   <svg className={className || "w-[18px] h-[18px]"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>
 );
+const IconHistory = ({ className }) => (
+  <svg className={className || "w-[18px] h-[18px]"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>
+);
 const IconUsers = ({ className }) => (
   <svg className={className || "w-[18px] h-[18px]"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
 );
@@ -61,6 +64,8 @@ function buildCrumbs(pathname) {
   if (pathname.startsWith('/admin/analytics'))  return [{ label: 'Аналитика' }];
   if (pathname.startsWith('/admin/earnings'))   return [{ label: 'Заработок' }];
   if (pathname.startsWith('/admin/move'))       return [{ label: 'Переместить' }];
+  if (pathname.startsWith('/admin/product-movements')) return [{ label: 'Движение товара' }];
+  if (pathname.startsWith('/admin/live-monitor')) return [{ label: 'Мониторинг' }];
   if (pathname.startsWith('/admin/errors'))     return [{ label: 'Ошибки сканирования' }];
   if (pathname.startsWith('/admin/staff'))      return [{ label: 'Сотрудники' }];
   if (pathname.startsWith('/admin/settings'))   return [{ label: 'Настройки' }];
@@ -208,6 +213,7 @@ const ALL_NAV = [
   { to: '/admin/earnings', icon: IconCoins, label: 'Заработок', perm: 'analytics' },
   { to: '/admin/live-monitor', icon: IconActivity, label: 'Мониторинг', perm: 'analytics' },
   { to: '/admin/move', icon: IconArrows, label: 'Переместить', perm: 'movements.edit' },
+  { to: '/admin/product-movements', icon: IconHistory, label: 'Движение товара', perm: 'movements.view' },
   { to: '/admin/staff', icon: IconUsers, label: 'Сотрудники', perm: 'staff.view' },
   { to: '/admin/settings', icon: IconSettings, label: 'Настройки', perm: 'settings' },
 ];
@@ -358,7 +364,7 @@ export default function AdminLayout({ children }) {
               <LogOut className="w-3.5 h-3.5" />
               Выйти
             </button>
-            <p className="text-[10px] text-gray-300 dark:text-gray-600">v7.31.2</p>
+            <p className="text-[10px] text-gray-300 dark:text-gray-600">v7.32.0</p>
           </div>
         </div>
       </aside>

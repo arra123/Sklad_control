@@ -36,6 +36,7 @@ const FBOPage = lazy(() => import('./pages/admin/FBOPage'));
 // MovementsPage removed — history view no longer in nav
 const MaterialsPage = lazy(() => import('./pages/admin/MaterialsPage'));
 const LiveMonitorPage = lazy(() => import('./pages/admin/LiveMonitorPage'));
+const ProductMovementsPage = lazy(() => import('./pages/admin/ProductMovementsPage'));
 
 class ChunkErrorBoundary extends Component {
   constructor(props) { super(props); this.state = { hasError: false }; }
@@ -125,6 +126,7 @@ function AppRoutes() {
       <Route path="/admin/fbo" element={<AdminRoute><FBOPage /></AdminRoute>} />
       <Route path="/admin/move" element={<AdminRoute><MovePage /></AdminRoute>} />
       <Route path="/admin/live-monitor" element={<AdminRoute><LiveMonitorPage /></AdminRoute>} />
+      <Route path="/admin/product-movements" element={<AdminRoute><ProductMovementsPage /></AdminRoute>} />
 
       {/* Employee routes */}
       <Route path="/employee/tasks" element={<EmployeeRoute><MyTasksPage /></EmployeeRoute>} />
