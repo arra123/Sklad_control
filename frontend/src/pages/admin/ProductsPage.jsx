@@ -844,15 +844,6 @@ export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
                 </div>
               </FormSection>
 
-              <FormSection title="Остатки (МС)" icon={<span className="text-gray-400 text-sm">📊</span>}>
-                <div className="grid grid-cols-2 gap-3">
-                  <label className="block"><span className="text-[11px] text-gray-400 font-medium">Остаток</span>
-                    <input type="number" min="0" step="0.001" value={editForm?.stock || ''} onChange={e => set('stock', e.target.value)} className={FORM_INPUT} /></label>
-                  <label className="block"><span className="text-[11px] text-gray-400 font-medium">Резерв</span>
-                    <input type="number" min="0" step="0.001" value={editForm?.reserve || ''} onChange={e => set('reserve', e.target.value)} className={FORM_INPUT} /></label>
-                </div>
-              </FormSection>
-
               {/* Цены */}
               <FormSection title="Цены" icon={<span className="text-gray-400 text-sm">₽</span>}>
                 <div className="grid grid-cols-2 gap-3 mb-3">
