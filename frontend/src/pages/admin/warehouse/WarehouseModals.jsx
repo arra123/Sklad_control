@@ -25,8 +25,8 @@ export function WarehouseModal({ open, onClose, warehouse, onSuccess }) {
 
   useEffect(() => {
     setForm(warehouse
-      ? { name: warehouse.name, notes: warehouse.notes || '', warehouse_type: warehouse.warehouse_type || 'fbs', active: warehouse.active !== false }
-      : { name: '', notes: '', warehouse_type: 'fbs', active: true });
+      ? { name: warehouse.name, notes: warehouse.notes || '', warehouse_type: warehouse.warehouse_type || 'fbs', active: warehouse.active !== false, exclude_from_suggestions: !!warehouse.exclude_from_suggestions }
+      : { name: '', notes: '', warehouse_type: 'fbs', active: true, exclude_from_suggestions: false });
   }, [warehouse, open]);
 
   const handleSubmit = async (e) => {
@@ -70,6 +70,15 @@ export function WarehouseModal({ open, onClose, warehouse, onSuccess }) {
             </div>
           </label>
         )}
+        <label className="flex items-center gap-3 px-4 py-3 rounded-xl border border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors">
+          <input type="checkbox" checked={!!form.exclude_from_suggestions}
+            onChange={() => setForm(f => ({ ...f, exclude_from_suggestions: !f.exclude_from_suggestions }))}
+            className="w-4 h-4 rounded border-gray-300 text-amber-500 focus:ring-amber-400" />
+          <div>
+            <p className="text-sm font-medium text-gray-700">Исключить из автоподсказок</p>
+            <p className="text-xs text-gray-400">Не подсказывать полки этого склада при сканировании (например, удалённый склад «Москва»)</p>
+          </div>
+        </label>
         {!warehouse && (
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Структура склада</label>

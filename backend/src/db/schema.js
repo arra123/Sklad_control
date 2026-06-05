@@ -488,6 +488,7 @@ async function createSchema(attempt = 1) {
     // Warehouse type for FBO support
     await client.query(`ALTER TABLE warehouses_s ADD COLUMN IF NOT EXISTS warehouse_type VARCHAR(20) NOT NULL DEFAULT 'fbs'`);
     await client.query(`ALTER TABLE warehouses_s ALTER COLUMN warehouse_type TYPE VARCHAR(20)`);
+    await client.query(`ALTER TABLE warehouses_s ADD COLUMN IF NOT EXISTS exclude_from_suggestions BOOLEAN NOT NULL DEFAULT false`);
 
     // FBO: Rows (analogous to racks)
     await client.query(`

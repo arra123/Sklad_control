@@ -133,12 +133,12 @@ router.get('/warehouses/:id', requireAuth, async (req, res) => {
 
 // POST /api/warehouse/warehouses
 router.post('/warehouses', requireAuth, requirePermission('warehouse.edit'), async (req, res) => {
-  const { name, external_id, notes, warehouse_type } = req.body;
+  const { name, external_id, notes, warehouse_type, exclude_from_suggestions } = req.body;
   if (!name) return res.status(400).json({ error: 'Название обязательно' });
   try {
     const result = await pool.query(
-      'INSERT INTO warehouses_s (name, external_id, notes, warehouse_type) VALUES ($1,$2,$3,$4) RETURNING *',
-      [name, external_id || null, notes || null, warehouse_type || 'fbs']
+      'INSERT INTO warehouses_s (name, external_id, notes, warehouse_type, exclude_from_suggestions) VALUES ($1,$2,$3,$4,$5) RETURNING *',
+      [name, external_id || null, notes || null, warehouse_type || 'fbs', !!exclude_from_suggestions]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -148,11 +148,11 @@ router.post('/warehouses', requireAuth, requirePermission('warehouse.edit'), asy
 
 // PUT /api/warehouse/warehouses/:id
 router.put('/warehouses/:id', requireAuth, requirePermission('warehouse.edit'), async (req, res) => {
-  const { name, active, notes } = req.body;
+  const { name, active, notes, exclude_from_suggestions } = req.body;
   try {
     const result = await pool.query(
-      'UPDATE warehouses_s SET name=COALESCE($1,name), active=COALESCE($2,active), notes=COALESCE($3,notes) WHERE id=$4 RETURNING *',
-      [name, active, notes, req.params.id]
+      'UPDATE warehouses_s SET name=COALESCE($1,name), active=COALESCE($2,active), notes=COALESCE($3,notes), exclude_from_suggestions=COALESCE($4,exclude_from_suggestions) WHERE id=$5 RETURNING *',
+      [name, active, notes, typeof exclude_from_suggestions === 'boolean' ? exclude_from_suggestions : null, req.params.id]
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Склад не найден' });
     res.json(result.rows[0]);
@@ -1165,9 +1165,12 @@ router.get('/visual-fbs/:warehouseId', requireAuth, async (req, res) => {
 });
 
 // GET /api/warehouse/find-product?product_id=X — find shelf boxes containing this product
+// По умолчанию скрывает склады с exclude_from_suggestions=true.
+// include_excluded=1 — вернуть все (для админских мест).
 router.get('/find-product', requireAuth, async (req, res) => {
-  const { product_id } = req.query;
+  const { product_id, include_excluded } = req.query;
   if (!product_id) return res.status(400).json({ error: 'product_id обязателен' });
+  const includeExcluded = include_excluded === '1' || include_excluded === 'true';
   try {
     const result = await pool.query(`
       SELECT sbi.shelf_box_id, sbi.quantity,
@@ -1181,6 +1184,7 @@ router.get('/find-product', requireAuth, async (req, res) => {
       JOIN racks_s r ON r.id = s.rack_id
       JOIN warehouses_s w ON w.id = r.warehouse_id
       WHERE sbi.product_id = $1 AND sbi.quantity > 0
+        ${includeExcluded ? '' : 'AND w.exclude_from_suggestions = false'}
       ORDER BY sbi.quantity DESC
       LIMIT 10
     `, [parseInt(product_id)]);
