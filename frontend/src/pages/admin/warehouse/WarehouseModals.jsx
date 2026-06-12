@@ -308,6 +308,18 @@ export function BoxEditorModal({ open, onClose, box, title, onSave, loading }) {
           <p className="text-xs font-mono text-gray-500 mt-0.5">{box?.barcode_value}</p>
         </div>
 
+        <div>
+          <Input
+            label="Макс. вместимость (размер коробки)"
+            type="number"
+            min="1"
+            step="1"
+            value={boxSize}
+            onChange={e => setBoxSize(e.target.value)}
+          />
+          <p className="text-xs text-gray-400 mt-1">Сколько единиц вмещает коробка — например, 100 или 200</p>
+        </div>
+
         {!selected ? (
           <div className="space-y-3">
             <Input
@@ -346,25 +358,15 @@ export function BoxEditorModal({ open, onClose, box, title, onSave, loading }) {
                 <X size={14} />
               </button>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <Input
-                label="Количество"
-                type="number"
-                min="0"
-                step="1"
-                value={qty}
-                onChange={e => setQty(e.target.value)}
-                autoFocus
-              />
-              <Input
-                label="Макс. вместимость"
-                type="number"
-                min="1"
-                step="1"
-                value={boxSize}
-                onChange={e => setBoxSize(e.target.value)}
-              />
-            </div>
+            <Input
+              label="Количество"
+              type="number"
+              min="0"
+              step="1"
+              value={qty}
+              onChange={e => setQty(e.target.value)}
+              autoFocus
+            />
           </div>
         )}
       </div>
