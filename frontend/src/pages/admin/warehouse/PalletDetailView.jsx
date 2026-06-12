@@ -135,7 +135,7 @@ export function PalletDetailView({ pallet, onClose, initialBoxId }) {
   const handlePrintAllPalletBoxes = () => {
     const result = printPalletBoxesBarcodes(data?.boxes || [], data || pallet);
     if (result.blocked) {
-      toast.error('Браузер заблокировал окно печати');
+      toast.error('Браузер заблокировал открытие PDF (отключите блокировщик всплывающих окон)');
       return;
     }
     if (!result.printed) {
@@ -143,10 +143,10 @@ export function PalletDetailView({ pallet, onClose, initialBoxId }) {
       return;
     }
     if (result.skipped > 0) {
-      toast.success(`Открыта печать ${result.printed} коробок, ${result.skipped} пропущено без штрих-кода`);
+      toast.success(`Открыт PDF на ${result.printed} коробок, ${result.skipped} пропущено без штрих-кода`);
       return;
     }
-    toast.success(`Открыта печать ${result.printed} коробок`);
+    toast.success(`Открыт PDF на ${result.printed} коробок`);
   };
 
   const handleDownloadAllPalletBoxes = async () => {

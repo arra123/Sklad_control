@@ -658,6 +658,10 @@ async function createSchema(attempt = 1) {
     // Covering index for /earnings/employees aggregation query
     await client.query(`CREATE INDEX IF NOT EXISTS idx_employee_earnings_agg ON employee_earnings_s(employee_id, event_type, source) INCLUDE (amount_delta, reward_units, task_id, created_at)`);
     await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_employee_earnings_unique_scan ON employee_earnings_s(task_scan_id) WHERE task_scan_id IS NOT NULL`);
+    // FK по полкам/коробкам — нужны для каскадного удаления (таблица >1M строк, иначе Seq Scan → таймаут)
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_earnings_shelf_id ON employee_earnings_s(shelf_id) WHERE shelf_id IS NOT NULL`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_earnings_shelf_box_id ON employee_earnings_s(shelf_box_id) WHERE shelf_box_id IS NOT NULL`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_earnings_box_id ON employee_earnings_s(box_id) WHERE box_id IS NOT NULL`);
 
     // External earnings fields (sborka site)
     await client.query(`ALTER TABLE employee_earnings_s ADD COLUMN IF NOT EXISTS task_title VARCHAR(500)`);
@@ -853,6 +857,9 @@ async function createSchema(attempt = 1) {
     await client.query(`CREATE INDEX IF NOT EXISTS idx_movements_s_to_shelf_box ON movements_s(to_shelf_box_id) WHERE to_shelf_box_id IS NOT NULL`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_movements_s_from_pallet ON movements_s(from_pallet_id) WHERE from_pallet_id IS NOT NULL`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_movements_s_to_pallet ON movements_s(to_pallet_id) WHERE to_pallet_id IS NOT NULL`);
+    // FK по полкам — нужны для каскадного удаления полок/складов (иначе Seq Scan)
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_movements_from_shelf ON movements_s(from_shelf_id) WHERE from_shelf_id IS NOT NULL`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_movements_to_shelf ON movements_s(to_shelf_id) WHERE to_shelf_id IS NOT NULL`);
 
     // ─── Roles ─────────────────────────────────────────────────────
     await client.query(`

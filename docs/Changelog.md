@@ -1,5 +1,15 @@
 # Changelog
 
+## v7.34.0
+
+### Склад · исправлены удаления (таймаут) + лаги, печать этикеток → PDF
+
+- **Удаление коробок/полок/складов снова работает.** Падало с ошибкой из-за таймаута: каждое удаление через `nullifyShelf*Refs` делало `UPDATE employee_earnings_s SET shelf_id/shelf_box_id/box_id=NULL` — а на этой таблице (**1,17 млн строк / 1 ГБ**) не было индексов по этим колонкам → полный Seq Scan под нагрузкой упирался в `statement_timeout 30s`. То же сканирование тормозило раздел «Заработок» и общую отзывчивость.
+- Добавлены partial-индексы (созданы на проде через `CREATE INDEX CONCURRENTLY`, без блокировки таблицы, и закреплены в `schema.js`): `idx_earnings_shelf_id`, `idx_earnings_shelf_box_id`, `idx_earnings_box_id` на `employee_earnings_s`; `idx_movements_from_shelf`, `idx_movements_to_shelf` на `movements_s`. План перешёл с Seq Scan (cost 58599) на Bitmap Index Scan (cost 2158), каскад удаления ускорился в разы.
+- **Печать этикеток теперь открывает настоящий PDF** в новой вкладке вместо popup с авто-`window.print()`. Раньше окно само вызывало печать и закрывалось, штрихкод грузился с CDN внутри popup (гонка/блокировщики) — отсюда «баги при печати». Теперь штрихкод рисуется на canvas, собирается в jsPDF и открывается как обычный PDF: можно посмотреть, сохранить и распечатать когда удобно. Работает и для одной этикетки (полка/коробка/паллет), и для пачки коробок.
+- Новый общий модуль `frontend/src/utils/barcodePdf.js` (`openLabelsPdf` / `downloadLabelsPdf`); `printBarcode.js` и `printBarcodesBatch` переведены на него.
+- Файлы: `backend/src/db/schema.js`, `frontend/src/utils/barcodePdf.js`, `frontend/src/utils/printBarcode.js`, `frontend/src/pages/admin/warehouse/warehouseUtils.jsx`, `ShelfDetailView.jsx`, `PalletDetailView.jsx`.
+
 ## v7.33.0
 
 ### Склады · флаг «Исключить из автоподсказок»

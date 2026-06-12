@@ -127,7 +127,7 @@ export function ShelfDetailView({ shelfId, rackId, onClose, initialBoxId }) {
   const handlePrintAllShelfBoxes = () => {
     const result = printShelfBoxesBarcodes(shelf?.boxes || [], shelf);
     if (result.blocked) {
-      toast.error('Браузер заблокировал окно печати');
+      toast.error('Браузер заблокировал открытие PDF (отключите блокировщик всплывающих окон)');
       return;
     }
     if (!result.printed) {
@@ -135,10 +135,10 @@ export function ShelfDetailView({ shelfId, rackId, onClose, initialBoxId }) {
       return;
     }
     if (result.skipped > 0) {
-      toast.success(`Открыта печать ${result.printed} коробок, ${result.skipped} пропущено без штрих-кода`);
+      toast.success(`Открыт PDF на ${result.printed} коробок, ${result.skipped} пропущено без штрих-кода`);
       return;
     }
-    toast.success(`Открыта печать ${result.printed} коробок`);
+    toast.success(`Открыт PDF на ${result.printed} коробок`);
   };
 
   const handleDownloadAllShelfBoxes = async () => {

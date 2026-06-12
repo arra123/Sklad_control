@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { printBarcode } from '../../../utils/printBarcode';
+import { openLabelsPdf, downloadLabelsPdf } from '../../../utils/barcodePdf';
 import { qty } from '../../../utils/fmt';
 import {
   Pencil, Trash2, Plus, Search,
@@ -260,227 +261,42 @@ export function getPalletBoxLabel(box, pallet) {
   return 'Коробка';
 }
 
-export function escapePrintHtml(value = '') {
-  return String(value ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
-let barcodePdfDepsPromise = null;
-
-export function loadExternalScript(src, isReady) {
-  if (isReady()) return Promise.resolve();
-  return new Promise((resolve, reject) => {
-    const script = document.createElement('script');
-    script.src = src;
-    script.async = true;
-    script.onload = () => {
-      if (isReady()) resolve();
-      else reject(new Error(`Скрипт ${src} загрузился, но зависимость недоступна`));
-    };
-    script.onerror = () => reject(new Error(`Не удалось загрузить ${src}`));
-    document.head.appendChild(script);
-  });
-}
-
-async function ensureBarcodePdfDeps() {
-  if (window.jspdf?.jsPDF && window.JsBarcode) {
-    return { jsPDF: window.jspdf.jsPDF, JsBarcode: window.JsBarcode };
-  }
-  if (!barcodePdfDepsPromise) {
-    barcodePdfDepsPromise = (async () => {
-      await loadExternalScript('https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js', () => !!window.jspdf?.jsPDF);
-      await loadExternalScript('https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js', () => !!window.JsBarcode);
-      return { jsPDF: window.jspdf.jsPDF, JsBarcode: window.JsBarcode };
-    })().catch((error) => {
-      barcodePdfDepsPromise = null;
-      throw error;
-    });
-  }
-  return barcodePdfDepsPromise;
-}
-
-export function sanitizePdfFilename(value = 'etiketki') {
-  const name = String(value ?? 'etiketki')
-    .replace(/[<>:"/\\|?*\x00-\x1F]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-  return `${name || 'etiketki'}.pdf`;
-}
-
-export function printBarcodesBatch(items, title = 'Этикетки') {
+export function printBarcodesBatch(items, _title = 'Этикетки') {
   const printable = (items || []).filter(item => item?.barcodeValue);
   if (!printable.length) {
     return { printed: 0, skipped: Array.isArray(items) ? items.length : 0, blocked: false };
   }
-
-  const pages = printable.map((item, index) => `\
-<section class="page">
-  <div class="left"><span>${escapePrintHtml(item.labelText)}</span></div>
-  <div class="right">
-    <svg id="bc-${index}" data-value="${escapePrintHtml(item.barcodeValue)}"></svg>
-    ${item.subText ? `<p class="sub">${escapePrintHtml(item.subText)}</p>` : ''}
-  </div>
-</section>`).join('');
-
-  const html = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <title>${escapePrintHtml(title)}</title>
-  <style>
-    @page { size: 6in 4in; margin: 0; }
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body { background: #fff; }
-    body { width: 6in; }
-    .page {
-      width: 6in;
-      height: 4in;
-      display: flex;
-      flex-direction: row;
-      align-items: stretch;
-      background: #fff;
-      overflow: hidden;
-      page-break-after: always;
-      break-after: page;
-    }
-    .page:last-child {
-      page-break-after: auto;
-      break-after: auto;
-    }
-    .left {
-      width: 0.75in;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      border-right: 2px solid #000;
-    }
-    .left span {
-      transform: rotate(-90deg);
-      white-space: nowrap;
-      font-family: Arial Black, Arial, sans-serif;
-      font-weight: 900;
-      font-size: 32px;
-      letter-spacing: 1px;
-      color: #000;
-      user-select: none;
-    }
-    .right {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 0.15in 0.25in;
-      gap: 6px;
-    }
-    .right svg { width: 100%; }
-    .sub {
-      font-family: Arial, sans-serif;
-      font-size: 15px;
-      color: #333;
-      text-align: center;
-      letter-spacing: 0.5px;
-    }
-  </style>
-</head>
-<body>
-  ${pages}
-  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
-  <script>
-    document.querySelectorAll('svg[data-value]').forEach(function(node) {
-      JsBarcode(node, node.dataset.value, {
-        format: 'CODE128',
-        width: 3.5,
-        height: 130,
-        displayValue: true,
-        fontSize: 20,
-        margin: 8,
-        background: '#ffffff',
-        lineColor: '#000000'
-      });
-    });
-    window.onload = function() {
-      window.print();
-      window.onafterprint = function() { window.close(); };
-    };
-  </script>
-</body>
-</html>`;
-
-  const win = window.open('', '_blank', 'width=640,height=460');
+  // Вкладку открываем синхронно (до await внутри openLabelsPdf) — иначе блокировщик popup.
+  const win = window.open('', '_blank');
   if (!win) {
     return { printed: 0, skipped: Array.isArray(items) ? items.length : 0, blocked: true };
   }
-  win.document.open();
-  win.document.write(html);
-  win.document.close();
+  openLabelsPdf(printable, { win }).catch((err) => {
+    console.error('[printBarcodesBatch] не удалось сформировать PDF:', err);
+    if (win && !win.closed) win.close();
+  });
   return { printed: printable.length, skipped: (items?.length || 0) - printable.length, blocked: false };
 }
 
 export async function downloadBarcodesPdfBatch(items, filename = 'etiketki.pdf') {
+  return downloadLabelsPdf(items, filename);
+}
+
+/** Открыть пачку этикеток как PDF в новой вкладке (просмотр/сохранение). */
+export function openBarcodesPdfBatch(items, _filename = 'etiketki.pdf') {
   const printable = (items || []).filter(item => item?.barcodeValue);
   if (!printable.length) {
-    return { downloaded: 0, skipped: Array.isArray(items) ? items.length : 0 };
+    return { opened: 0, skipped: Array.isArray(items) ? items.length : 0, blocked: false };
   }
-
-  const { jsPDF, JsBarcode } = await ensureBarcodePdfDeps();
-  const pdf = new jsPDF({ orientation: 'landscape', unit: 'in', format: [4, 6] });
-
-  printable.forEach((item, index) => {
-    if (index > 0) pdf.addPage([4, 6], 'landscape');
-
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const pageHeight = pdf.internal.pageSize.getHeight();
-    const leftWidth = 0.75;
-    const canvas = document.createElement('canvas');
-
-    JsBarcode(canvas, item.barcodeValue, {
-      format: 'CODE128',
-      width: 3.5,
-      height: 130,
-      displayValue: true,
-      fontSize: 20,
-      margin: 8,
-      background: '#ffffff',
-      lineColor: '#000000',
-    });
-
-    pdf.setDrawColor(0, 0, 0);
-    pdf.setLineWidth(0.02);
-    pdf.line(leftWidth, 0, leftWidth, pageHeight);
-
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(28);
-    pdf.text(String(item.labelText || ''), leftWidth / 2, pageHeight - 0.2, { angle: 90, align: 'center' });
-
-    pdf.addImage(
-      canvas.toDataURL('image/png'),
-      'PNG',
-      leftWidth + 0.2,
-      0.5,
-      pageWidth - leftWidth - 0.4,
-      2.45,
-      undefined,
-      'FAST'
-    );
-
-    if (item.subText) {
-      pdf.setFont('helvetica', 'normal');
-      pdf.setFontSize(14);
-      pdf.text(String(item.subText), leftWidth + ((pageWidth - leftWidth) / 2), 3.55, {
-        align: 'center',
-        maxWidth: pageWidth - leftWidth - 0.5,
-      });
-    }
+  const win = window.open('', '_blank');
+  if (!win) {
+    return { opened: 0, skipped: Array.isArray(items) ? items.length : 0, blocked: true };
+  }
+  openLabelsPdf(printable, { win }).catch((err) => {
+    console.error('[openBarcodesPdfBatch] не удалось сформировать PDF:', err);
+    if (win && !win.closed) win.close();
   });
-
-  pdf.save(sanitizePdfFilename(filename.replace(/\.pdf$/i, '')));
-  return { downloaded: printable.length, skipped: (items?.length || 0) - printable.length };
+  return { opened: printable.length, skipped: (items?.length || 0) - printable.length, blocked: false };
 }
 
 export function printShelfBoxBarcode(box, shelf) {
