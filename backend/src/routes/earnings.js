@@ -124,6 +124,7 @@ router.get('/summary', requireAuth, requirePermission('analytics', 'staff.view')
         SELECT
           e.id as employee_id,
           e.full_name,
+          e.active,
           COALESCE(e.gra_balance, 0) as current_balance,
           COALESCE(SUM(CASE WHEN ee.event_type = 'inventory_scan' THEN ee.amount_delta ELSE 0 END), 0) as total_awarded,
           COALESCE(SUM(CASE WHEN ee.event_type = 'inventory_scan' THEN ee.reward_units ELSE 0 END), 0) as rewarded_scans,
@@ -133,11 +134,12 @@ router.get('/summary', requireAuth, requirePermission('analytics', 'staff.view')
           MAX(ee.created_at) as last_earned_at
         FROM employees_s e
         JOIN employee_earnings_s ee ON ee.employee_id = e.id
-        WHERE e.active = true ${pf}
-        GROUP BY e.id, e.full_name, e.gra_balance
+        WHERE 1=1 ${pf}
+        GROUP BY e.id, e.full_name, e.active, e.gra_balance
         HAVING COUNT(ee.id) > 0
-        ORDER BY COALESCE(SUM(CASE WHEN ee.event_type = 'inventory_scan' THEN ee.amount_delta ELSE 0 END), 0) DESC, rewarded_scans DESC
-        LIMIT 12
+        -- Уволенные приходят, но в конце списка (active DESC); фронт прячет их по умолчанию
+        ORDER BY e.active DESC, COALESCE(SUM(CASE WHEN ee.event_type = 'inventory_scan' THEN ee.amount_delta ELSE 0 END), 0) DESC, rewarded_scans DESC
+        LIMIT 30
       `),
       pool.query(`
         SELECT

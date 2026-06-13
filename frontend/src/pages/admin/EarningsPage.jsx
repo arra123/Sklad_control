@@ -210,6 +210,7 @@ export default function EarningsPage() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [search, setSearch] = useState('');
+  const [showFired, setShowFired] = useState(false); // показывать уволенных в списках
 
   /* ─── Fetch summary ─────────────────────────────────────────────────── */
   const fetchSummary = useCallback(async () => {
@@ -287,6 +288,9 @@ export default function EarningsPage() {
 
   const ov = summary?.overview;
   const leaders = summary?.leaders || [];
+  // Уволенных прячем по умолчанию (переключатель «Показать уволенных»)
+  const firedCount = leaders.filter(e => e.active === false).length;
+  const visibleLeaders = showFired ? leaders : leaders.filter(e => e.active !== false);
   const rates = summary?.settings?.rates;
 
   /* ═══ RENDER ═══ */
@@ -407,27 +411,42 @@ export default function EarningsPage() {
                   </button>
                 )}
               </div>
+              {firedCount > 0 && (
+                <button
+                  onClick={() => setShowFired(v => !v)}
+                  className="px-4 py-2 border-b border-gray-100 flex items-center justify-between text-[11px] font-semibold text-gray-400 hover:text-rose-500 hover:bg-rose-50/40 transition-colors"
+                >
+                  <span>{showFired ? 'Скрыть уволенных' : `Показать уволенных (${firedCount})`}</span>
+                  {showFired ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+                </button>
+              )}
               <div className="overflow-y-auto flex-1">
-                {leaders
+                {visibleLeaders
                   .filter(emp => emp.full_name.toLowerCase().includes(search.toLowerCase()))
-                  .map(emp => (
+                  .map(emp => {
+                    const isFired = emp.active === false;
+                    return (
                     <button
                       key={emp.employee_id}
                       onClick={() => selectEmployee(emp.employee_id)}
                       className={`w-full text-left px-4 py-3 border-b border-gray-50 transition-colors ${
                         String(employeeId) === String(emp.employee_id)
                           ? 'bg-primary-50 border-l-2 border-l-primary-500'
-                          : 'hover:bg-gray-50 border-l-2 border-l-transparent'
+                          : `hover:bg-gray-50 border-l-2 border-l-transparent ${isFired ? 'bg-rose-50/30' : ''}`
                       }`}
                     >
-                      <p className="text-sm font-semibold text-gray-900 truncate">{emp.full_name}</p>
+                      <p className="text-sm font-semibold text-gray-900 truncate flex items-center gap-1.5">
+                        {emp.full_name}
+                        {isFired && <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-rose-100 text-rose-600 flex-shrink-0">уволен</span>}
+                      </p>
                       <div className="flex items-center justify-between mt-0.5">
                         <span className="text-[11px] text-gray-400">{fmt(emp.rewarded_scans)} сканов</span>
-                        <span className="text-xs font-bold text-green-600">{fmt(convert(emp.current_balance, unit))} {unitLabel(unit)}</span>
+                        <span className={`text-xs font-bold ${isFired ? 'text-rose-400' : 'text-green-600'}`}>{fmt(convert(emp.current_balance, unit))} {unitLabel(unit)}</span>
                       </div>
                     </button>
-                  ))}
-                {leaders.length === 0 && (
+                    );
+                  })}
+                {visibleLeaders.length === 0 && (
                   <p className="text-center text-sm text-gray-400 py-8">Нет данных</p>
                 )}
               </div>
@@ -445,7 +464,7 @@ export default function EarningsPage() {
                 <>
                   <PayrollSummary payroll={summary?.payroll || []} unit={unit} period={period} onRefresh={fetchSummary} />
                   <Leaderboard
-                    leaders={leaders}
+                    leaders={visibleLeaders}
                     adjustments={summary?.recent_adjustments || []}
                     unit={unit}
                     onSelect={selectEmployee}
