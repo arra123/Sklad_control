@@ -95,6 +95,7 @@ router.get('/summary', requireAuth, requirePermission('analytics', 'staff.view')
           SELECT
             e.id,
             e.full_name,
+            e.active,
             COALESCE(e.gra_balance, 0) as current_balance,
             COUNT(ee.id) as events_count,
             COALESCE(SUM(CASE WHEN ee.event_type = 'inventory_scan' THEN ee.amount_delta ELSE 0 END), 0) as total_awarded,
@@ -104,17 +105,19 @@ router.get('/summary', requireAuth, requirePermission('analytics', 'staff.view')
             COALESCE(SUM(CASE WHEN ee.event_type IN ('external_order_pick','external_order_collect') AND ee.source = 'sborka-site' THEN ee.reward_units ELSE 0 END), 0) as sborka_order_units
           FROM employees_s e
           LEFT JOIN employee_earnings_s ee ON ee.employee_id = e.id ${pf}
-          GROUP BY e.id, e.full_name, e.gra_balance
+          GROUP BY e.id, e.full_name, e.active, e.gra_balance
         )
         SELECT
-          COUNT(*) FILTER (WHERE events_count > 0 OR current_balance <> 0) as employees_with_activity,
-          COUNT(*) FILTER (WHERE current_balance > 0) as employees_with_positive_balance,
-          COALESCE(SUM(current_balance) FILTER (WHERE events_count > 0 OR current_balance <> 0), 0) as total_current_balance,
-          COALESCE(SUM(total_awarded), 0) as total_awarded,
-          COALESCE(SUM(total_manual_adjustments), 0) as total_manual_adjustments,
-          COALESCE(SUM(rewarded_scans), 0) as rewarded_scans,
-          COALESCE(SUM(sborka_order_amount), 0) as total_sborka_amount,
-          COALESCE(SUM(sborka_order_units), 0) as total_sborka_units
+          -- Все агрегаты считаем ТОЛЬКО по работающим сотрудникам (active=true).
+          -- Уволенные исключены из тоталов целиком (см. редизайн «Заработок» v7.35).
+          COUNT(*) FILTER (WHERE active AND (events_count > 0 OR current_balance <> 0)) as employees_with_activity,
+          COUNT(*) FILTER (WHERE active AND current_balance > 0) as employees_with_positive_balance,
+          COALESCE(SUM(current_balance) FILTER (WHERE active AND (events_count > 0 OR current_balance <> 0)), 0) as total_current_balance,
+          COALESCE(SUM(total_awarded) FILTER (WHERE active), 0) as total_awarded,
+          COALESCE(SUM(total_manual_adjustments) FILTER (WHERE active), 0) as total_manual_adjustments,
+          COALESCE(SUM(rewarded_scans) FILTER (WHERE active), 0) as rewarded_scans,
+          COALESCE(SUM(sborka_order_amount) FILTER (WHERE active), 0) as total_sborka_amount,
+          COALESCE(SUM(sborka_order_units) FILTER (WHERE active), 0) as total_sborka_units
         FROM employee_stats
       `),
       pool.query(`
@@ -130,7 +133,7 @@ router.get('/summary', requireAuth, requirePermission('analytics', 'staff.view')
           MAX(ee.created_at) as last_earned_at
         FROM employees_s e
         JOIN employee_earnings_s ee ON ee.employee_id = e.id
-        WHERE 1=1 ${pf}
+        WHERE e.active = true ${pf}
         GROUP BY e.id, e.full_name, e.gra_balance
         HAVING COUNT(ee.id) > 0
         ORDER BY COALESCE(SUM(CASE WHEN ee.event_type = 'inventory_scan' THEN ee.amount_delta ELSE 0 END), 0) DESC, rewarded_scans DESC
@@ -158,13 +161,25 @@ router.get('/summary', requireAuth, requirePermission('analytics', 'staff.view')
 
     const allRates = await getAllGraRates(pool);
 
-    // Payroll summary — all employees with positive balance
+    // Payroll summary — привязка к выбранному периоду (месяцу).
+    // earned_period — начислено за выбранный период (сканы + сборка),
+    // gra_balance   — текущий невыплаченный баланс (к выплате).
+    // Уволенных (active=false) фронт показывает отдельным свёрнутым блоком
+    // и НЕ учитывает в итоговой сумме к выплате.
     const payrollResult = await pool.query(`
       SELECT e.id, e.full_name, e.position, e.active,
-        COALESCE(e.gra_balance, 0) as gra_balance
+        COALESCE(e.gra_balance, 0) as gra_balance,
+        COALESCE(SUM(ee.amount_delta) FILTER (
+          WHERE ee.event_type IN ('inventory_scan','external_order_pick','external_order_collect')), 0) as earned_period,
+        COALESCE(SUM(ee.amount_delta) FILTER (
+          WHERE ee.event_type = 'manual_adjustment'), 0) as adjustments_period
       FROM employees_s e
-      WHERE e.gra_balance > 0
-      ORDER BY e.gra_balance DESC
+      LEFT JOIN employee_earnings_s ee ON ee.employee_id = e.id ${pf}
+      GROUP BY e.id, e.full_name, e.position, e.active, e.gra_balance
+      HAVING COALESCE(e.gra_balance, 0) <> 0
+          OR COALESCE(SUM(ee.amount_delta) FILTER (
+               WHERE ee.event_type IN ('inventory_scan','external_order_pick','external_order_collect')), 0) <> 0
+      ORDER BY e.active DESC, earned_period DESC
     `);
 
     const result = {
@@ -192,11 +207,13 @@ router.get('/my', requireAuth, async (req, res) => {
   const employeeId = req.user.employee_id;
   if (!employeeId) return res.status(400).json({ error: 'Нет привязки к сотруднику' });
 
-  const period = req.query.period || 'today';
+  const period = req.query.period || 'this_month';
   let periodFilter = '';
   if (period === 'today') periodFilter = `AND ee.created_at >= CURRENT_DATE`;
   else if (period === 'week') periodFilter = `AND ee.created_at >= CURRENT_DATE - INTERVAL '7 days'`;
   else if (period === 'month') periodFilter = `AND ee.created_at >= CURRENT_DATE - INTERVAL '30 days'`;
+  // this_month — текущий календарный месяц (личный кабинет показывает только его)
+  else if (period === 'this_month') periodFilter = `AND ee.created_at >= date_trunc('month', CURRENT_DATE)`;
 
   try {
     const [summaryResult, tasksResult] = await Promise.all([
@@ -206,7 +223,7 @@ router.get('/my', requireAuth, async (req, res) => {
           COALESCE(SUM(ee.reward_units), 0) as rewarded_scans,
           (SELECT COUNT(*) FROM inventory_task_scans_s sc
            JOIN inventory_tasks_s t ON t.id = sc.task_id AND t.employee_id = $1
-           WHERE sc.product_id IS NOT NULL AND sc.created_at >= CURRENT_DATE) as total_scans,
+           WHERE sc.product_id IS NOT NULL AND sc.created_at >= date_trunc('month', CURRENT_DATE)) as total_scans,
           COUNT(DISTINCT ee.task_id) FILTER (WHERE ee.task_id IS NOT NULL) as tasks_count,
           COALESCE(SUM(ee.amount_delta) FILTER (WHERE ee.event_type = 'inventory_scan'), 0) as warehouse_earned,
           COALESCE(SUM(ee.amount_delta) FILTER (WHERE ee.event_type = 'external_order_pick'), 0) as sborka_pick_amount,
@@ -660,6 +677,70 @@ router.post('/employees/:employeeId/set-balance', requireAuth, requirePermission
   }
 });
 
+// POST /api/earnings/employees/:employeeId/adjust — списать/начислить сумму человеку.
+// Body: { amount, mode?, notes }
+//   amount — модуль суммы в GRA (всегда положительное число)
+//   mode   — 'deduct' (списать, по умолчанию) | 'add' (начислить)
+//   notes  — обязательная причина (идёт в аудит)
+// Пишет manual_adjustment с amount_delta = ±amount и корректирует gra_balance.
+router.post('/employees/:employeeId/adjust', requireAuth, requirePermission('staff.edit'), async (req, res) => {
+  const employeeId = Number(req.params.employeeId);
+  const amount = Math.abs(parseNumeric(req.body?.amount, NaN));
+  const mode = req.body?.mode === 'add' ? 'add' : 'deduct';
+  const notes = String(req.body?.notes || '').trim();
+
+  if (!Number.isFinite(employeeId)) return res.status(400).json({ error: 'Некорректный employeeId' });
+  if (!Number.isFinite(amount) || amount <= 0) return res.status(400).json({ error: 'Укажите сумму больше нуля' });
+  if (!notes) return res.status(400).json({ error: 'Укажите причину' });
+
+  const amountDelta = mode === 'add' ? amount : -amount;
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query("SET LOCAL lock_timeout = '5s'");
+    const employeeResult = await client.query(
+      'SELECT id, full_name, COALESCE(gra_balance, 0) as gra_balance FROM employees_s WHERE id = $1 FOR UPDATE NOWAIT',
+      [employeeId]
+    );
+    if (!employeeResult.rows.length) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Сотрудник не найден' });
+    }
+
+    const employee = employeeResult.rows[0];
+    const balanceBefore = Number(employee.gra_balance || 0);
+    const balanceAfter = balanceBefore + amountDelta;
+
+    const eventResult = await client.query(
+      `INSERT INTO employee_earnings_s (
+         employee_id, event_type, reward_units, rate_per_unit, amount_delta,
+         balance_before, balance_after, notes, created_by_user_id
+       )
+       VALUES ($1, 'manual_adjustment', 0, 0, $2, $3, $4, $5, $6)
+       RETURNING *`,
+      [employeeId, amountDelta, balanceBefore, balanceAfter, notes, req.user.id]
+    );
+
+    await client.query(
+      'UPDATE employees_s SET gra_balance = $1, updated_at = NOW() WHERE id = $2',
+      [balanceAfter, employeeId]
+    );
+
+    await client.query('COMMIT');
+    res.json({
+      employee: { employee_id: employee.id, full_name: employee.full_name, current_balance: balanceAfter },
+      event: eventResult.rows[0],
+    });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    if (err.code === '55P03' || err.code === '40P01') return res.status(409).json({ error: 'Сотрудник занят, попробуйте ещё раз' });
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
 // POST /api/earnings/payout-all — массовая выплата: обнуляем все положительные балансы
 // одной транзакцией. На каждого сотрудника пишется manual_adjustment с amount_delta = -balance.
 // Body: { notes: 'Выплачено за апрель 2026', employee_ids?: number[] }
@@ -679,8 +760,12 @@ router.post('/payout-all', requireAuth, requirePermission('staff.edit'), async (
     await client.query("SET LOCAL lock_timeout = '10s'");
 
     const params = [];
-    let where = 'COALESCE(gra_balance, 0) > 0';
+    // По умолчанию обнуляем балансы только РАБОТАЮЩИХ сотрудников.
+    // Уволенные исключены — их суммы спрятаны и в выплату не попадают.
+    let where = 'COALESCE(gra_balance, 0) > 0 AND active = true';
     if (restrictIds && restrictIds.length) {
+      // При явном списке id — игнорируем фильтр по active (точечная выплата кому угодно).
+      where = 'COALESCE(gra_balance, 0) > 0';
       params.push(restrictIds);
       where += ` AND id = ANY($${params.length}::int[])`;
     }

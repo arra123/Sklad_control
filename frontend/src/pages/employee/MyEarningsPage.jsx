@@ -39,15 +39,14 @@ function taskTypeBg(type) {
   return 'bg-indigo-100 text-indigo-700';
 }
 
-const PERIODS = [
-  { key: 'today', label: 'Сегодня' },
-  { key: 'week', label: 'Неделя' },
-  { key: 'month', label: 'Месяц' },
-  { key: 'all', label: 'Всё время' },
-];
+const MONTH_LABELS_RU = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+function currentMonthLabel() {
+  const d = new Date();
+  return `${MONTH_LABELS_RU[d.getMonth()]} ${d.getFullYear()}`;
+}
 
 export default function MyEarningsPage() {
-  const [period, setPeriod] = useState('today');
+  // Личный кабинет показывает заработок ТОЛЬКО за текущий календарный месяц
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [expandedTask, setExpandedTask] = useState(null);
@@ -55,10 +54,10 @@ export default function MyEarningsPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.get(`/earnings/my?period=${period}`);
+      const res = await api.get(`/earnings/my?period=this_month`);
       setData(res.data);
     } catch {} finally { setLoading(false); }
-  }, [period]);
+  }, []);
 
   useEffect(() => { load(); }, [load]);
 
@@ -70,23 +69,8 @@ export default function MyEarningsPage() {
         </div>
         <div>
           <h1 className="text-lg font-bold text-gray-900">Мой заработок</h1>
-          <p className="text-xs text-gray-400">Рубли за выполненные задачи</p>
+          <p className="text-xs text-gray-400">Рубли за {currentMonthLabel()}</p>
         </div>
-      </div>
-
-      {/* Period tabs */}
-      <div className="flex gap-1 mb-4 bg-gray-50 p-1.5 rounded-2xl border border-gray-200">
-        {PERIODS.map(p => (
-          <button
-            key={p.key}
-            onClick={() => setPeriod(p.key)}
-            className={`flex-1 py-1.5 rounded-xl text-xs font-medium transition-all border ${
-              period === p.key ? 'bg-white shadow-sm text-gray-900 border-gray-200' : 'text-gray-500 border-transparent'
-            }`}
-          >
-            {p.label}
-          </button>
-        ))}
       </div>
 
       {loading ? (
