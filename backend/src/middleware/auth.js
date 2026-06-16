@@ -31,6 +31,31 @@ function invalidateUserCache(userId) {
   else userCache.clear();
 }
 
+// ─── Глобальная отметка отзыва сессий ────────────────────────────────────────
+// settings_s.sessions_valid_after хранит UNIX-секунды. Любой токен с iat меньше
+// этой отметки считается отозванным (кнопка «Завершить все сессии»). Кэшируем,
+// чтобы не дёргать БД на каждый запрос.
+let globalEpochCache = { value: 0, ts: 0 };
+const GLOBAL_EPOCH_TTL = 30_000;
+
+async function getGlobalLogoutEpoch() {
+  if (globalEpochCache.ts && Date.now() - globalEpochCache.ts < GLOBAL_EPOCH_TTL) {
+    return globalEpochCache.value;
+  }
+  try {
+    const r = await pool.query(`SELECT value FROM settings_s WHERE key = 'sessions_valid_after'`);
+    const v = r.rows.length ? (parseInt(r.rows[0].value, 10) || 0) : 0;
+    globalEpochCache = { value: v, ts: Date.now() };
+    return v;
+  } catch {
+    return globalEpochCache.value; // при сбое БД не блокируем всех
+  }
+}
+
+function clearGlobalLogoutEpochCache() {
+  globalEpochCache = { value: 0, ts: 0 };
+}
+
 async function requireAuth(req, res, next) {
   const header = req.headers.authorization;
   if (!header || !header.startsWith('Bearer ')) {
@@ -39,6 +64,13 @@ async function requireAuth(req, res, next) {
   const token = header.slice(7);
   try {
     const payload = verifyToken(token);
+    const iatSec = payload.iat || 0; // момент выпуска токена (UNIX-секунды)
+
+    // Глобальный отзыв: «Завершить все сессии» в настройках.
+    const globalEpoch = await getGlobalLogoutEpoch();
+    if (globalEpoch && iatSec < globalEpoch) {
+      return res.status(401).json({ error: 'Сессия завершена. Войдите снова.', code: 'SESSION_REVOKED' });
+    }
 
     let user = getCachedUser(payload.sub);
     if (!user) {
@@ -46,6 +78,7 @@ async function requireAuth(req, res, next) {
       // (так смена роли админом действует мгновенно для общих аккаунтов).
       const result = await pool.query(
         `SELECT u.id, u.username, u.role, u.employee_id, u.users_d_id, u.active,
+                u.tokens_valid_after,
                 COALESCE(sur.role_id, u.role_id) AS effective_role_id,
                 r.name AS role_name, r.permissions AS role_permissions,
                 ed.status AS employee_status,
@@ -87,8 +120,17 @@ async function requireAuth(req, res, next) {
         employee_status: row.employee_status || null,
         is_blocked: isBlocked,
         blocked_message: isBlocked ? blockedMessages[row.employee_status] : null,
+        // секунды, в которые «протухают» все ранее выданные токены этого юзера
+        tokens_valid_after_sec: row.tokens_valid_after
+          ? Math.floor(new Date(row.tokens_valid_after).getTime() / 1000)
+          : 0,
       };
       setCachedUser(payload.sub, user);
+    }
+
+    // Пер-юзерный отзыв: смена пароля / «выкинуть этого пользователя».
+    if (user.tokens_valid_after_sec && iatSec < user.tokens_valid_after_sec) {
+      return res.status(401).json({ error: 'Сессия завершена. Войдите снова.', code: 'SESSION_REVOKED' });
     }
 
     req.user = { ...user };
@@ -136,4 +178,4 @@ function requireAdminOrManager(req, res, next) {
   return res.status(403).json({ error: 'Нет прав доступа' });
 }
 
-module.exports = { requireAuth, requireAdmin, requireAdminOrManager, requirePermission, invalidateUserCache };
+module.exports = { requireAuth, requireAdmin, requireAdminOrManager, requirePermission, invalidateUserCache, clearGlobalLogoutEpochCache };

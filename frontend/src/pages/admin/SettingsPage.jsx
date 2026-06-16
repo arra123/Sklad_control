@@ -4,7 +4,8 @@ import {
   Settings, Palette, Sun, Moon, Check, RefreshCw, Info, Search,
   Volume2, VolumeX, Zap, Package, Table2, Bell, ScanLine,
   Play, ChevronUp, ChevronDown, History, Eye, MessageSquare,
-  Bug, Lightbulb, HelpCircle, Trash2, ChevronRight, X, Coins, Save, BarChart3
+  Bug, Lightbulb, HelpCircle, Trash2, ChevronRight, X, Coins, Save, BarChart3,
+  ShieldAlert, LogOut
 } from 'lucide-react';
 const APP_VERSION = '2.90.0';
 import api from '../../api/client';
@@ -114,6 +115,18 @@ function PlayBeepButton({ freq, duration, label }) {
 
 // ─── Changelog ───────────────────────────────────────────────────────────────
 const CHANGELOG = [
+  {
+    version: '7.36.0',
+    date: '16.06.2026',
+    title: 'Отзыв сессий: «Завершить все сессии»',
+    changes: [
+      'Настройки → Безопасность → кнопка «Завершить все сессии» — выкидывает всех пользователей',
+      'Смена пароля больше не оставляет старые токены живыми: их можно аннулировать принудительно',
+      'Глобальная отметка sessions_valid_after + пер-юзерная tokens_valid_after проверяются в auth middleware',
+      'Смена пароля служебного аккаунта автоматически отзывает его сессии на других устройствах',
+      'Своя текущая сессия сохраняется (выдаётся свежий токен)',
+    ],
+  },
   {
     version: '2.89.0',
     date: '04.04.2026',
@@ -1260,6 +1273,7 @@ const TABS = [
   { key: 'gracoin', label: 'GRACoin', icon: Coins },
   { key: 'interface', label: 'Интерфейс', icon: Table2 },
   { key: 'data', label: 'Данные', icon: RefreshCw },
+  { key: 'security', label: 'Безопасность', icon: ShieldAlert },
   { key: 'feedback', label: 'Обращения', icon: MessageSquare },
   { key: 'changelog', label: 'История', icon: History },
   { key: 'about', label: 'О системе', icon: Info },
@@ -1457,6 +1471,7 @@ export default function SettingsPage() {
   const { color, setColor, mode, setMode } = useTheme();
   const { settings, updateSetting } = useAppSettings();
   const [syncLoading, setSyncLoading] = useState(false);
+  const [logoutAllLoading, setLogoutAllLoading] = useState(false);
   const [lastImport, setLastImport] = useState(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const tab = searchParams.get('tab') || 'appearance';
@@ -1489,6 +1504,19 @@ export default function SettingsPage() {
     } catch (err) {
       toast.error(err.response?.data?.error || 'Ошибка синхронизации');
     } finally { setSyncLoading(false); }
+  };
+
+  const handleLogoutAll = async () => {
+    if (!confirm('Завершить сессии ВСЕХ пользователей? Все, кто сейчас в системе (включая другие устройства), будут разлогинены и должны войти заново. Ваша текущая сессия сохранится.')) return;
+    setLogoutAllLoading(true);
+    try {
+      const res = await api.post('/auth/logout-all');
+      // Сервер выдаёт нам свежий токен, чтобы не выкинуло прямо сейчас.
+      if (res.data?.token) localStorage.setItem('auth_token', res.data.token);
+      toast.success('Все сессии завершены. Остальные пользователи будут разлогинены.');
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Ошибка');
+    } finally { setLogoutAllLoading(false); }
   };
 
   const s = settings;
@@ -1768,6 +1796,30 @@ export default function SettingsPage() {
 
           <OzonBulkCheck />
           <WbBulkCheck />
+        </div>
+      )}
+
+      {/* ═══ Security ═══ */}
+      {tab === 'security' && (
+        <div className="space-y-5">
+          <div className="card p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <ShieldAlert className="w-5 h-5 text-rose-500" />
+              <h2 className="font-semibold text-gray-900 dark:text-white">Завершить все сессии</h2>
+            </div>
+            <p className="text-sm text-gray-500 mb-2">
+              Выкидывает всех пользователей из системы — на всех устройствах и во всех вкладках.
+              При следующем действии им придётся войти заново.
+            </p>
+            <p className="text-sm text-gray-500 mb-4">
+              Используйте после смены пароля: токены входа живут до истечения срока сами по себе,
+              и смена пароля их не аннулирует. Эта кнопка аннулирует их принудительно.
+              Ваша текущая сессия сохранится.
+            </p>
+            <Button variant="danger" icon={<LogOut size={15} />} onClick={handleLogoutAll} loading={logoutAllLoading}>
+              Завершить все сессии
+            </Button>
+          </div>
         </div>
       )}
 

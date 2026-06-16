@@ -71,6 +71,10 @@ async function createSchema(attempt = 1) {
     // User activity tracking
     await client.query(`ALTER TABLE users_s ADD COLUMN IF NOT EXISTS last_active_at TIMESTAMPTZ`);
 
+    // Отзыв сессий: все JWT, выданные ДО этой отметки, считаются недействительными.
+    // Глобальный аналог — settings_s.sessions_valid_after (выкидывает вообще всех).
+    await client.query(`ALTER TABLE users_s ADD COLUMN IF NOT EXISTS tokens_valid_after TIMESTAMPTZ`);
+
     // Warehouse sort order
     await client.query(`ALTER TABLE warehouses_s ADD COLUMN IF NOT EXISTS sort_order INTEGER DEFAULT 0`);
 

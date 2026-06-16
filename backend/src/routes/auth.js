@@ -2,7 +2,7 @@ const router = require('express').Router();
 const pool = require('../db/pool');
 const { comparePassword, hashPassword } = require('../utils/password');
 const { signToken } = require('../utils/jwt');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, requireAdmin, invalidateUserCache, clearGlobalLogoutEpochCache } = require('../middleware/auth');
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Аутентификация: общий логин/пароль с сайтом сотрудников.
@@ -229,6 +229,29 @@ router.get('/me', requireAuth, async (req, res) => {
   res.json(req.user);
 });
 
+// POST /api/auth/logout-all — завершить ВСЕ сессии всех пользователей (только админ).
+// Нужна, когда сменили общий пароль на сайте сотрудников: JWT stateless и старые
+// токены живут до истечения срока, пока их явно не отозвать. Выставляем глобальную
+// отметку sessions_valid_after = текущая секунда → все ранее выданные токены 401.
+// Текущему админу выдаём свежий токен, чтобы его самого не выкинуло.
+router.post('/logout-all', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const r = await pool.query(
+      `INSERT INTO settings_s (key, value)
+       VALUES ('sessions_valid_after', EXTRACT(EPOCH FROM NOW())::bigint::text)
+       ON CONFLICT (key) DO UPDATE SET value = EXTRACT(EPOCH FROM NOW())::bigint::text, updated_at = NOW()
+       RETURNING value`
+    );
+    clearGlobalLogoutEpochCache();
+    invalidateUserCache();
+    // Свежий токен админу (его iat >= новой отметки, поэтому он не отозван).
+    const token = signToken({ sub: req.user.id, source: 'service', role: req.user.role });
+    res.json({ success: true, sessions_valid_after: Number(r.rows[0].value), token });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // POST /api/auth/change-password
 // Для users_d-юзеров — отказ (пароль управляется на сайте сотрудников).
 router.post('/change-password', requireAuth, async (req, res) => {
@@ -255,7 +278,12 @@ router.post('/change-password', requireAuth, async (req, res) => {
       'UPDATE sklad_service_users_s SET password_hash = $1 WHERE username = $2',
       [hash, us.rows[0].username]
     );
-    res.json({ success: true });
+    // Отзываем все ранее выданные токены этого аккаунта (другие устройства/вкладки),
+    // а текущему клиенту выдаём свежий токен, чтобы не выкинуло прямо сейчас.
+    await pool.query('UPDATE users_s SET tokens_valid_after = NOW() WHERE id = $1', [req.user.id]);
+    invalidateUserCache(req.user.id);
+    const token = signToken({ sub: req.user.id, source: 'service', role: req.user.role });
+    res.json({ success: true, token });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
