@@ -209,7 +209,6 @@ function UserRow({ user, dim, canEdit, onClick, onEdit, onDelete, view = 'list' 
         </div>
         <div className="flex items-center gap-1.5 flex-wrap" onClick={e => e.stopPropagation()}>
           {user.username && <CopyChip text={user.username} label="логин" />}
-          {user.password_plain && <CopyChip text={user.password_plain} label="пароль" />}
         </div>
         {canEdit && (
           <div className="flex items-center gap-1 mt-3 pt-3 border-t border-gray-50 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
@@ -263,10 +262,9 @@ function UserRow({ user, dim, canEdit, onClick, onEdit, onDelete, view = 'list' 
         </div>
       )}
 
-      {/* Логин/пароль — показываем всегда, чтобы кнопки копирования были под рукой */}
+      {/* Логин — кнопка копирования под рукой; пароль скрыт */}
       <div className="hidden sm:flex items-center gap-1.5 flex-shrink-0 flex-wrap justify-end max-w-[260px]" onClick={e => e.stopPropagation()}>
         {user.username && <CopyChip text={user.username} label="логин" />}
-        {user.password_plain && <CopyChip text={user.password_plain} label="пароль" />}
       </div>
 
       {/* Действия */}

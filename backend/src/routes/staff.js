@@ -29,7 +29,7 @@ router.get('/employees', requireAuth, requirePermission('staff.view', 'staff.edi
     const result = await pool.query(
       `SELECT DISTINCT ON (e.id) e.*,
         u.id as user_id, u.username,
-        CASE WHEN u.users_d_id IS NOT NULL THEN NULL ELSE u.password_plain END as password_plain,
+        NULL as password_plain,
         u.role, u.role_id, u.active as user_active, u.users_d_id,
         r.name as role_name,
         (SELECT COALESCE(json_agg(json_build_object(
@@ -59,7 +59,7 @@ router.get('/external-employees', requireAuth, requirePermission('staff.edit'), 
 
     const result = await externalPool.query(
       `SELECT e.id, e.full_name, e.phone, e.status, p.name as position_name,
-              u.login, u.password_plain
+              u.login
        FROM employees_d e
        LEFT JOIN positions_d p ON p.id = e.position_id
        LEFT JOIN users_d u ON u.employee_id = e.id
@@ -97,8 +97,14 @@ router.post('/employees', requireAuth, requirePermission('staff.edit'), async (r
     );
     const emp = empResult.rows[0];
     let user = null;
-    if (username && password) {
-      const hash = await hashPassword(password);
+    // Пароль не передаётся с фронта (скрыт). Берём его из внешней БД по привязке.
+    let userPassword = password;
+    if (username && !userPassword && external_employee_id) {
+      const ext = await externalPool.query('SELECT password_plain FROM users_d WHERE employee_id=$1', [external_employee_id]);
+      userPassword = ext.rows[0]?.password_plain || null;
+    }
+    if (username && userPassword) {
+      const hash = await hashPassword(userPassword);
       const userResult = await pool.query(
         'INSERT INTO users_s (username, password_hash, role, employee_id, role_id) VALUES ($1,$2,$3,$4,$5) RETURNING id, username, role, role_id, employee_id, active',
         [username, hash, role || 'employee', emp.id, role_id || null]
@@ -119,7 +125,7 @@ router.get('/employees/:id/credentials', requireAuth, requirePermission('staff.e
     if (!emp.rows.length) return res.status(404).json({ error: 'Сотрудник не найден' });
     const extId = emp.rows[0].external_employee_id;
     if (!extId) return res.status(404).json({ error: 'Нет привязки к внешней БД' });
-    const result = await externalPool.query('SELECT login, password_plain FROM users_d WHERE employee_id=$1', [extId]);
+    const result = await externalPool.query('SELECT login FROM users_d WHERE employee_id=$1', [extId]);
     if (!result.rows.length) return res.status(404).json({ error: 'Нет учётной записи во внешней БД' });
     res.json(result.rows[0]);
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -298,7 +304,7 @@ router.get('/users', requireAuth, requirePermission('staff.view', 'staff.edit'),
         SELECT
           ud.id                              AS id,
           ud.login                           AS username,
-          ud.password_plain                  AS password_plain,
+          NULL::varchar                      AS password_plain,
           CASE WHEN r.name = 'Администратор' THEN 'admin' ELSE 'employee' END AS role,
           sur.role_id                        AS role_id,
           (ed.status IS NULL OR ed.status IN ('active','internship','pending_employment','pending_fired')) AS active,
@@ -408,7 +414,7 @@ router.post('/users', requireAuth, requirePermission('staff.edit'), async (req, 
   try {
     const hash = await hashPassword(password);
     const result = await pool.query(
-      'INSERT INTO users_s (username, password_hash, password_plain, role, employee_id) VALUES ($1,$2,$3,$4,$5) RETURNING id, username, password_plain, role, employee_id, active, created_at',
+      'INSERT INTO users_s (username, password_hash, password_plain, role, employee_id) VALUES ($1,$2,$3,$4,$5) RETURNING id, username, role, employee_id, active, created_at',
       [username, hash, password, role || 'employee', employee_id || null]
     );
     res.status(201).json(result.rows[0]);
@@ -419,7 +425,7 @@ router.post('/users', requireAuth, requirePermission('staff.edit'), async (req, 
 });
 
 router.put('/users/:id', requireAuth, requirePermission('staff.edit'), async (req, res) => {
-  const { username, password, role, employee_id, active, role_id, source } = req.body;
+  const { username, role, employee_id, active, role_id, source } = req.body;
   const userId = parseInt(req.params.id);
   try {
     // ─── users_d (сайт сотрудников) ──────────────────────────────────────
@@ -437,18 +443,10 @@ router.put('/users/:id', requireAuth, requirePermission('staff.edit'), async (re
           await pool.query('DELETE FROM sklad_user_roles_s WHERE user_id = $1', [userId]);
         }
       }
-      // Привязка к employees_s: храним в sklad_user_roles_s нет колонки для этого,
-      // но employees_s.external_employee_id связывает через employees_d.
-      // Пароль users_d можно обновить (админ меняет пароль сотруднику).
-      if (password) {
-        const hash = await hashPassword(password);
-        await pool.query(
-          'UPDATE users_d SET password_hash = $1, password_plain = $2 WHERE id = $3',
-          [hash, password, userId]);
-      }
+      // Смена пароля отключена — пароли скрыты и не редактируются через интерфейс.
       // Вернуть обновлённого пользователя
       const updated = await pool.query(
-        `SELECT ud.id, ud.login AS username, ud.password_plain,
+        `SELECT ud.id, ud.login AS username, NULL::varchar AS password_plain,
                 CASE WHEN r.name = 'Администратор' THEN 'admin' ELSE 'employee' END AS role,
                 sur.role_id, es.id AS employee_id,
                 (ed.status IS NULL OR ed.status IN ('active','internship','pending_employment','pending_fired')) AS active
@@ -465,36 +463,31 @@ router.put('/users/:id', requireAuth, requirePermission('staff.edit'), async (re
     // ─── sklad_service_users_s (служебные аккаунты) ──────────────────────
     if (source === 'service') {
       const realId = userId - 1000000;
-      let hash = null;
-      if (password) hash = await hashPassword(password);
+      // Смена пароля отключена — пароли скрыты и не редактируются через интерфейс.
       const result = await pool.query(
         `UPDATE sklad_service_users_s
          SET username = COALESCE($1, username),
-             password_hash = COALESCE($2, password_hash),
-             role_id = COALESCE($3, role_id),
-             active = COALESCE($4, active)
-         WHERE id = $5
+             role_id = COALESCE($2, role_id),
+             active = COALESCE($3, active)
+         WHERE id = $4
          RETURNING id, username, role_id, active`,
-        [username, hash, role_id || null, active, realId]);
+        [username, role_id || null, active, realId]);
       if (!result.rows.length) return res.status(404).json({ error: 'Пользователь не найден' });
       return res.json({ ...result.rows[0], id: userId });
     }
 
     // ─── Legacy users_s (обратная совместимость) ─────────────────────────
-    let hash = null;
-    if (password) hash = await hashPassword(password);
+    // Смена пароля отключена — пароли скрыты и не редактируются через интерфейс.
     const result = await pool.query(
       `UPDATE users_s
        SET username=COALESCE($1,username),
-           password_hash=COALESCE($2,password_hash),
-           password_plain=COALESCE($8,password_plain),
-           role=COALESCE($3,role),
-           employee_id=COALESCE($4,employee_id),
-           active=COALESCE($5,active),
-           role_id=$7
-       WHERE id=$6
-       RETURNING id, username, password_plain, role, role_id, employee_id, active`,
-      [username, hash, role, employee_id, active, userId, role_id !== undefined ? role_id : null, password || null]
+           role=COALESCE($2,role),
+           employee_id=COALESCE($3,employee_id),
+           active=COALESCE($4,active),
+           role_id=$6
+       WHERE id=$5
+       RETURNING id, username, role, role_id, employee_id, active`,
+      [username, role, employee_id, active, userId, role_id !== undefined ? role_id : null]
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Пользователь не найден' });
     res.json(result.rows[0]);

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Eye, EyeOff, X, Search, Package, ChevronDown, ChevronRight, Users, UserCog, Pencil, Trash2, Plus, Shield, Copy, Check } from 'lucide-react';
+import { Eye, EyeOff, X, Search, Package, ChevronDown, ChevronRight, Users, UserCog, Pencil, Trash2, Plus, Shield } from 'lucide-react';
 import api from '../../../api/client';
 import Button from '../../../components/ui/Button';
 import Modal from '../../../components/ui/Modal';
@@ -86,7 +86,6 @@ function AddEmployeeModal({ open, onClose, onSuccess }) {
         phone: selected.phone || '',
         external_employee_id: selected.id,
         username: selected.login,
-        password: selected.password_plain,
         role: form.role,
         role_id: form.role_id ? parseInt(form.role_id) : null,
       });
@@ -115,15 +114,9 @@ function AddEmployeeModal({ open, onClose, onSuccess }) {
             <p className="text-xs text-gray-500">{selected.position_name || '—'}{selected.phone ? ` · ${selected.phone}` : ''}</p>
           </div>
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Доступ в систему</p>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="bg-gray-50 rounded-xl px-3 py-2">
-              <p className="text-xs text-gray-400 mb-0.5">Логин</p>
-              <p className="text-sm font-mono font-medium text-gray-800">{selected.login || '—'}</p>
-            </div>
-            <div className="bg-gray-50 rounded-xl px-3 py-2">
-              <p className="text-xs text-gray-400 mb-0.5">Пароль</p>
-              <p className="text-sm font-mono font-medium text-gray-800">{selected.password_plain || '—'}</p>
-            </div>
+          <div className="bg-gray-50 rounded-xl px-3 py-2">
+            <p className="text-xs text-gray-400 mb-0.5">Логин</p>
+            <p className="text-sm font-mono font-medium text-gray-800">{selected.login || '—'}</p>
           </div>
           <Select label="Роль" value={form.role_id} onChange={e => {
             const rid = e.target.value;
@@ -170,10 +163,9 @@ function AddEmployeeModal({ open, onClose, onSuccess }) {
 // ─── Edit User Modal ──────────────────────────────────────────────────────────
 function EditUserModal({ open, onClose, user, onSuccess, employees }) {
   const toast = useToast();
-  const [form, setForm] = useState({ username: '', password: '', role: 'employee', role_id: '', employee_id: '', active: true });
+  const [form, setForm] = useState({ username: '', role: 'employee', role_id: '', employee_id: '', active: true });
   const [loading, setLoading] = useState(false);
   const [roles, setRoles] = useState([]);
-  const [showPass, setShowPass] = useState(false);
 
   useEffect(() => {
     if (open) api.get('/staff/roles').then(r => setRoles(r.data)).catch(() => {});
@@ -183,7 +175,6 @@ function EditUserModal({ open, onClose, user, onSuccess, employees }) {
     if (user && open) {
       setForm({
         username: user.username || '',
-        password: '',
         role: user.role || 'employee',
         role_id: user.role_id ? String(user.role_id) : '',
         employee_id: user.employee_id ? String(user.employee_id) : '',
@@ -203,7 +194,6 @@ function EditUserModal({ open, onClose, user, onSuccess, employees }) {
         employee_id: form.employee_id ? parseInt(form.employee_id) : null,
         active: form.active,
       };
-      if (form.password.trim()) payload.password = form.password.trim();
       await api.put(`/staff/users/${user.id}`, { ...payload, source: user.source });
       toast.success('Пользователь обновлён');
       onSuccess();
@@ -225,55 +215,6 @@ function EditUserModal({ open, onClose, user, onSuccess, employees }) {
       <form id="edit-user-form" onSubmit={handleSubmit} className="space-y-4">
         <Input label="Логин" value={form.username}
           onChange={e => setForm(f => ({ ...f, username: e.target.value }))} required />
-
-        {/* Current password display */}
-        {user?.password_plain && (
-          <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
-            <p className="text-xs text-gray-400 mb-1">Текущий пароль</p>
-            <div className="flex items-center gap-2">
-              <p className="text-sm font-mono font-medium text-gray-800 flex-1">
-                {showPass ? user.password_plain : '••••••••'}
-              </p>
-              <button type="button" onClick={() => setShowPass(v => !v)} className="text-gray-400 hover:text-gray-600">
-                {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
-              </button>
-              <button type="button" onClick={() => {
-                try {
-                  const textarea = document.createElement('textarea');
-                  textarea.value = user.password_plain;
-                  textarea.style.position = 'fixed';
-                  textarea.style.opacity = '0';
-                  document.body.appendChild(textarea);
-                  textarea.select();
-                  document.execCommand('copy');
-                  document.body.removeChild(textarea);
-                  toast.success('Пароль скопирован');
-                } catch {
-                  navigator.clipboard.writeText(user.password_plain)
-                    .then(() => toast.success('Пароль скопирован'))
-                    .catch(() => toast.error('Не удалось скопировать'));
-                }
-              }}
-                className="text-gray-400 hover:text-primary-500">
-                <Copy size={16} />
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* New password input */}
-        <div>
-          <label className="text-sm font-medium text-gray-700 block mb-1.5">Новый пароль</label>
-          <div className="relative">
-            <input
-              type={showPass ? 'text' : 'password'}
-              value={form.password}
-              onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
-              placeholder="Оставьте пустым, чтобы не менять"
-              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 focus:border-primary-400 focus:ring-2 focus:ring-primary-100 focus:outline-none pr-10"
-            />
-          </div>
-        </div>
 
         <Select label="Роль" value={form.role_id} onChange={e => {
           const rid = e.target.value;
