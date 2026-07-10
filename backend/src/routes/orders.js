@@ -613,6 +613,33 @@ router.get('/:id(\\d+)/events', requireAuth, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// GET /orders/:id/track — подтянуть реальный статус из СДЭК и сохранить
+router.get('/:id(\\d+)/track', requireAuth, async (req, res) => {
+  try {
+    const o = await pool.query('SELECT cdek_uuid FROM orders_s WHERE id=$1', [req.params.id]);
+    if (!o.rows.length) return res.status(404).json({ error: 'Заказ не найден' });
+    const uuid = o.rows[0].cdek_uuid;
+    if (!uuid) return res.json({ tracked: false, cdek_status: null, statuses: [] });
+    if (!cdek.isConfigured()) return res.status(503).json({ error: 'СДЭК API не настроен' });
+
+    const r = await cdek.getOrder(uuid);
+    const e = r.json?.entity;
+    const statuses = (e?.statuses || []).map((s) => ({ code: s.code, name: s.name, date: s.date_time }));
+    const codes = statuses.map((s) => s.code);
+    const cancelled = !e || codes.includes('INVALID') || codes.includes('CANCELED') || codes.includes('CANCELLED');
+    const delivered = codes.includes('DELIVERED');
+    // Текущий статус СДЭК — самый свежий по дате (иначе последний в списке)
+    const latest = statuses.slice().sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))[0]
+      || statuses[statuses.length - 1] || null;
+    const cdekStatusText = e ? (latest ? latest.name : 'Создан') : 'Не найден в СДЭК';
+    const ourStatus = cancelled ? 'cancelled' : (delivered ? 'delivered' : 'shipped');
+
+    await pool.query('UPDATE orders_s SET cdek_status=$1, status=$2, updated_at=NOW() WHERE id=$3',
+      [cdekStatusText, ourStatus, req.params.id]);
+    res.json({ tracked: true, cdek_status: cdekStatusText, status: ourStatus, cancelled, statuses });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // PATCH /orders/:id — обновить мета/статус/данные СДЭК
 router.patch('/:id(\\d+)', requireAuth, async (req, res) => {
   const b = req.body || {};

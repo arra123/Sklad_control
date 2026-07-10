@@ -107,7 +107,7 @@ export default function OrderIntakePage() {
   }, [toast]);
 
   return (
-    <div className="w-full max-w-6xl mx-auto p-3 sm:p-6 lg:p-8 overflow-x-hidden">
+    <div className="w-full max-w-[1500px] mx-auto p-3 sm:p-6 lg:p-8 overflow-x-hidden">
       <h1 className="text-2xl lg:text-4xl font-bold text-gray-900 dark:text-white mb-4 lg:mb-6">Заказы</h1>
 
       {/* Вкладки */}
@@ -200,6 +200,7 @@ export default function OrderIntakePage() {
               <AssemblyChecklist result={result} />
 
               {/* Распознанные позиции — с числом баночек и предупреждением о наборах */}
+              {result.recognized.length > 0 && (
               <div className="mt-3 rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 overflow-hidden">
                 <div className="px-4 py-2.5 border-b border-gray-100 dark:border-gray-800 font-semibold text-gray-900 dark:text-white text-sm">
                   Позиции заказа ({result.recognized.length})
@@ -227,6 +228,7 @@ export default function OrderIntakePage() {
                   ))}
                 </div>
               </div>
+              )}
             </>
           )}
         </div>
@@ -601,7 +603,7 @@ function orderToResult(o) {
     order_number: null,
     recognized: o.recognized || [], picklist: o.picklist || [], total_bottles: o.total_bottles,
     collected: o.collected || {},
-    cdek_uuid: o.cdek_uuid, cdek_number: o.cdek_number, pkg: o.pkg,
+    cdek_uuid: o.cdek_uuid, cdek_number: o.cdek_number, cdek_status: o.cdek_status, pkg: o.pkg,
   };
 }
 
@@ -610,6 +612,7 @@ const STATUS_META = {
   picking: { label: 'Сборка', cls: 'bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-300' },
   assembled: { label: 'Собран', cls: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-300' },
   shipped: { label: 'Оформлен', cls: 'bg-primary-50 text-primary-600 dark:bg-primary-900/30 dark:text-primary-300' },
+  delivered: { label: 'Доставлен', cls: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-300' },
   cancelled: { label: 'Отменён', cls: 'bg-rose-50 text-rose-600 dark:bg-rose-900/30 dark:text-rose-300' },
 };
 function StatusBadge({ status }) {
@@ -650,7 +653,7 @@ function CdekPanel({ result }) {
   const [tariffs, setTariffs] = useState(null);
   const [tariff, setTariff] = useState(null);
   const [busy, setBusy] = useState('');
-  const [order, setOrder] = useState(result.cdek_uuid ? { uuid: result.cdek_uuid, number: result.order_number, cdek_number: result.cdek_number } : null);
+  const [order, setOrder] = useState(result.cdek_uuid ? { uuid: result.cdek_uuid, number: result.order_number, cdek_number: result.cdek_number, cdek_status: result.cdek_status } : null);
   const [labelUrl, setLabelUrl] = useState(null);
   const [showMap, setShowMap] = useState(false);
   const [pkg, setPkg] = useState(null); // { weight, length, width, height } — авто, редактируемо
@@ -813,16 +816,31 @@ function CdekPanel({ result }) {
     finally { setBusy(''); }
   };
 
+  // Подтянуть реальный статус из СДЭК
+  const trackStatus = async () => {
+    if (!result.id) return;
+    setBusy('track');
+    try {
+      const { data } = await api.get(`/orders/${result.id}/track`);
+      setOrder((o) => ({ ...o, cdek_status: data.cdek_status }));
+      if (data.cancelled) toast.success('Отменён в СДЭК');
+      else toast.success('Статус: ' + (data.cdek_status || '—'));
+    } catch (e) { toast.error(e.response?.data?.error || 'Не удалось получить статус'); }
+    finally { setBusy(''); }
+  };
+
   const cancelOrder = async () => {
     if (!order?.uuid) return;
     if (!window.confirm('Отменить заказ в СДЭК?')) return;
     setBusy('cancel');
+    // Запрос на отмену СДЭК может быть отклонён (заказ уже принят) — не считаем отменённым вслепую
+    try { await api.post(`/orders/cdek/cancel/${order.uuid}`); } catch { /* проверим реальный статус ниже */ }
     try {
-      await api.post(`/orders/cdek/cancel/${order.uuid}`);
-      if (result.id) api.patch(`/orders/${result.id}`, { status: 'cancelled' }).catch(() => {});
-      toast.success('Заказ отменён');
-      setOrder(null); setLabelUrl(null); setTariff(null); setTariffs(null);
-    } catch (e) { toast.error(e.response?.data?.error || 'Не удалось отменить'); }
+      const { data } = await api.get(`/orders/${result.id}/track`);
+      setOrder((o) => ({ ...o, cdek_status: data.cdek_status }));
+      if (data.cancelled) toast.success('Заказ отменён в СДЭК');
+      else toast.error(`СДЭК не отменил (статус: ${data.cdek_status || '—'})`);
+    } catch { toast.error('Не удалось получить статус отмены'); }
     finally { setBusy(''); }
   };
 
@@ -1007,6 +1025,11 @@ function CdekPanel({ result }) {
                   ? <span className="font-mono font-semibold">{order.cdek_number}</span>
                   : <span className="text-gray-400 inline-flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" /> формируется…</span>}
               </p>
+              {order.cdek_status && <p className="text-gray-600 dark:text-gray-300">Статус СДЭК: <span className="font-medium">{order.cdek_status}</span></p>}
+              <button onClick={trackStatus} disabled={busy === 'track'}
+                className="mt-1 w-full py-2 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 text-sm font-medium hover:bg-gray-200 dark:hover:bg-gray-700 flex items-center justify-center gap-2">
+                {busy === 'track' ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />} Отследить статус СДЭК
+              </button>
               <button onClick={printLabel} disabled={busy === 'print'}
                 className="mt-1 w-full py-2 rounded-xl bg-gray-900 dark:bg-gray-700 text-white text-sm font-medium hover:opacity-90 flex items-center justify-center gap-2">
                 {busy === 'print' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />}
