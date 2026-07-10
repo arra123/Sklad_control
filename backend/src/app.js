@@ -26,7 +26,7 @@ const siteRouter = express.Router();
 
 app.use(cors());
 app.use(compression());
-app.use(express.json({ limit: '1mb' }));
+app.use(express.json({ limit: '15mb' })); // 15mb — под загрузку скриншотов заказов (base64)
 
 // Request ID for tracing
 app.use((req, res, _next) => {
@@ -85,6 +85,8 @@ siteRouter.use('/api/materials', materialsRoutes);
 siteRouter.use('/api/feedback', feedbackRoutes);
 const assemblyRoutes = require('./routes/assembly');
 siteRouter.use('/api/assembly', assemblyRoutes);
+const ordersRoutes = require('./routes/orders');
+siteRouter.use('/api/orders', ordersRoutes);
 siteRouter.use('/api/uploads', express.static(path.join(__dirname, '../uploads')));
 siteRouter.use('/api', (_req, res) => {
   res.status(404).json({ error: 'Not found' });

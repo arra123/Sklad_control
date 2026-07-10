@@ -49,6 +49,9 @@ const IconSettings = ({ className }) => (
 const IconAlertTriangle = ({ className }) => (
   <svg className={className || "w-[18px] h-[18px]"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
 );
+const IconOrderScan = ({ className }) => (
+  <svg className={className || "w-[18px] h-[18px]"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M8 14h4"/><path d="M8 17h8"/></svg>
+);
 import { useAuth } from '../../context/AuthContext';
 import { cn } from '../../utils/cn';
 import { AdminAvatar, ManagerAvatar, WorkerAvatar } from '../ui/WarehouseIcons';
@@ -61,6 +64,7 @@ function buildCrumbs(pathname) {
   if (pathname.startsWith('/admin/products/stock')) return [{ label: 'Товары' }, { label: 'Остатки', to: '/admin/products/stock' }];
   if (pathname.startsWith('/admin/warehouse'))  return [{ label: 'Склады' }];
   if (pathname.startsWith('/admin/tasks'))      return [{ label: 'Задачи' }];
+  if (pathname.startsWith('/admin/order-intake')) return [{ label: 'Приём заказа' }];
   if (pathname.startsWith('/admin/analytics'))  return [{ label: 'Аналитика' }];
   if (pathname.startsWith('/admin/earnings'))   return [{ label: 'Заработок' }];
   if (pathname.startsWith('/admin/move'))       return [{ label: 'Переместить' }];
@@ -209,6 +213,7 @@ function Breadcrumb() {
 const ALL_NAV = [
   { to: '/admin/warehouse', icon: IconWarehouse, label: 'Склады', perm: 'warehouse.view' },
   { to: '/admin/tasks', icon: IconClipboard, label: 'Задачи', perm: 'tasks.view' },
+  { to: '/admin/order-intake', icon: IconOrderScan, label: 'Приём заказа', perm: 'tasks.create' },
   { to: '/admin/analytics', icon: IconBarChart, label: 'Аналитика', perm: 'analytics' },
   { to: '/admin/earnings', icon: IconCoins, label: 'Заработок', perm: 'analytics' },
   { to: '/admin/live-monitor', icon: IconActivity, label: 'Мониторинг', perm: 'analytics' },
@@ -364,7 +369,7 @@ export default function AdminLayout({ children }) {
               <LogOut className="w-3.5 h-3.5" />
               Выйти
             </button>
-            <p className="text-[10px] text-gray-300 dark:text-gray-600">v7.37.0</p>
+            <p className="text-[10px] text-gray-300 dark:text-gray-600">v7.38.0</p>
           </div>
         </div>
       </aside>

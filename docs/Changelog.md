@@ -1,5 +1,15 @@
 # Changelog
 
+## v7.38.0
+
+### Приём заказа по фото · безошибочная сборка (шаг 1) + фундамент СДЭК
+
+- Новая страница **«Приём заказа»** (`/admin/order-intake`): перетаскиваешь скриншот заказа (или Ctrl+V из буфера / выбор файла), AI-прокси (gpt-4o vision) распознаёт состав и данные получателя. Наборы **рекурсивно разворачиваются в отдельные баночки** через `bundle_components_s` (+ fallback `source_json`) — на выходе плоский пик-лист с общим счётчиком баночек. Пример из ДЭК: 2 + 2 (набор 120) + 3 (набор 180) = **7 баночек**.
+- Сопоставление позиций с каталогом — по коэффициенту Дайса (биграммы), нераспознанные подсвечиваются для ручной проверки. Картинка сжимается на клиенте (макс. 1600px, JPEG 0.85) — лёгкий payload и дешевле AI.
+- **Фундамент интеграции СДЭК**: `backend/src/utils/cdek.js` — клиент API v2 (OAuth client_credentials с кэшем токена, автоповтор при 401; методы `createOrder / getOrder / printBarcode / printReceipt / calcTariffList / deliveryPoints`). Ключи вынесены в `.env` (`CDEK_CLIENT_ID/SECRET`, `AI_PROXY_KEY`) → `config.js`. Авторизация в боевом API СДЭК проверена.
+- Бэкенд: `POST /api/orders/parse-screenshot` (`routes/orders.js`), `utils/aiProxy.js`; лимит JSON поднят до 15mb под загрузку скриншотов.
+- Файлы: `frontend/src/pages/admin/OrderIntakePage.jsx`, `App.jsx`, `components/layout/AdminLayout.jsx`, `backend/src/routes/orders.js`, `backend/src/utils/aiProxy.js`, `backend/src/utils/cdek.js`, `backend/src/app.js`, `backend/src/config.js`.
+
 ## v7.37.0
 
 ### Безопасность · пароли полностью скрыты для всех

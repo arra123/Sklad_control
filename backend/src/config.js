@@ -33,6 +33,16 @@ module.exports = {
   wbToken1: process.env.WB_TOKEN_1 || '',
   wbToken2: process.env.WB_TOKEN_2 || '',
   moySkladApiBase: 'https://api.moysklad.ru/api/remap/1.2',
+  cdek: {
+    clientId: process.env.CDEK_CLIENT_ID || '',
+    clientSecret: process.env.CDEK_CLIENT_SECRET || '',
+    apiBase: process.env.CDEK_API_BASE || 'https://api.cdek.ru',
+  },
+  aiProxy: {
+    base: process.env.AI_PROXY_BASE || 'https://api.proxyapi.ru/openai/v1',
+    key: process.env.AI_PROXY_KEY || '',
+    visionModel: process.env.AI_VISION_MODEL || 'gpt-4o',
+  },
   externalDb: {
     host: process.env.EXT_DB_HOST || '5.42.100.180',
     port: parseInt(process.env.EXT_DB_PORT || '5432', 10),
