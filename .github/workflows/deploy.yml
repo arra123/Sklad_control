@@ -7,6 +7,10 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      AI_PROXY_KEY: ${{ secrets.AI_PROXY_KEY }}
+      CDEK_CLIENT_ID: ${{ secrets.CDEK_CLIENT_ID }}
+      CDEK_CLIENT_SECRET: ${{ secrets.CDEK_CLIENT_SECRET }}
 
     steps:
       - name: Checkout code
@@ -59,8 +63,23 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           password: ${{ secrets.SSH_PASSWORD }}
+          envs: AI_PROXY_KEY,CDEK_CLIENT_ID,CDEK_CLIENT_SECRET
           script: |
             cd /var/www/bem-dev.ru/sklad/backend
+            # Идемпотентно вносим ключи интеграций в .env (не коммитятся в git)
+            ENV_FILE=/var/www/bem-dev.ru/sklad/backend/.env
+            touch "$ENV_FILE"
+            upsert() {
+              if grep -q "^$1=" "$ENV_FILE"; then
+                sed -i "s|^$1=.*|$1=$2|" "$ENV_FILE"
+              else
+                echo "$1=$2" >> "$ENV_FILE"
+              fi
+            }
+            upsert AI_PROXY_KEY "$AI_PROXY_KEY"
+            upsert CDEK_CLIENT_ID "$CDEK_CLIENT_ID"
+            upsert CDEK_CLIENT_SECRET "$CDEK_CLIENT_SECRET"
+            upsert CDEK_API_BASE "https://api.cdek.ru"
             npm install --production
             pm2 delete c-site 2>/dev/null || true
             sleep 1
