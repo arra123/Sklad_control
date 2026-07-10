@@ -140,6 +140,23 @@ router.post('/parse-screenshot', requireAuth, async (req, res) => {
       const qty = Math.max(1, Number(item.quantity) || 1);
       const { product, score } = bestMatch(item.name, catalog);
       const matched = product && score >= 0.4;
+      const isBundle = matched && product.entity_type === 'bundle';
+
+      let itemBottles = 0;
+      let bundleEmpty = false;
+      if (matched) {
+        // Раскладываем позицию в отдельную корзину — чтобы знать вклад именно этой строки
+        const tmp = new Map();
+        await expandProduct(client, product.id, qty, tmp);
+        itemBottles = [...tmp.values()].reduce((s, p) => s + p.qty, 0);
+        // Набор без компонентов в каталоге разворачивается «сам в себя» → счёт занижен
+        bundleEmpty = isBundle && tmp.size === 1 && tmp.has(product.id);
+        for (const [id, v] of tmp) {
+          const cur = picklistAcc.get(id) || { ...v, qty: 0 };
+          cur.qty += v.qty;
+          picklistAcc.set(id, cur);
+        }
+      }
 
       recognized.push({
         raw_name: item.name,
@@ -149,17 +166,16 @@ router.post('/parse-screenshot', requireAuth, async (req, res) => {
         confidence: Math.round(score * 100),
         product_id: matched ? product.id : null,
         product_name: matched ? product.name : null,
-        is_bundle: matched ? product.entity_type === 'bundle' : false,
+        is_bundle: isBundle,
+        bottles: itemBottles,
+        bundle_empty: bundleEmpty, // набор без состава в каталоге — счёт под вопросом
       });
-
-      if (matched) {
-        await expandProduct(client, product.id, qty, picklistAcc);
-      }
     }
 
     const picklist = [...picklistAcc.values()].sort((a, b) => a.name.localeCompare(b.name, 'ru'));
     const total_bottles = picklist.reduce((s, p) => s + p.qty, 0);
     const unmatched = recognized.filter((r) => !r.matched).length;
+    const bundle_warnings = recognized.filter((r) => r.bundle_empty).length;
 
     res.json({
       recipient: parsed.recipient || null,
@@ -173,6 +189,7 @@ router.post('/parse-screenshot', requireAuth, async (req, res) => {
       picklist,
       total_bottles,
       unmatched,
+      bundle_warnings,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
