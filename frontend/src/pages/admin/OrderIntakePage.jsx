@@ -35,11 +35,14 @@ function compressImage(file) {
 
 export default function OrderIntakePage() {
   const toast = useToast();
+  const [tab, setTab] = useState('photo'); // 'photo' | 'manual'
   const [dragOver, setDragOver] = useState(false);
   const [preview, setPreview] = useState(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const fileInputRef = useRef(null);
+
+  const switchTab = (t) => { setTab(t); setResult(null); setPreview(null); };
 
   const handleImage = useCallback(async (file) => {
     if (!file || !file.type.startsWith('image/')) {
@@ -84,15 +87,31 @@ export default function OrderIntakePage() {
   return (
     <div className="w-full max-w-6xl mx-auto p-3 sm:p-6 overflow-x-hidden">
       <div className="mb-4">
-        <h1 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">Приём заказа по фото</h1>
+        <h1 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">Приём заказа</h1>
         <p className="text-sm text-gray-400 mt-0.5">
-          Перетащите скриншот, вставьте (Ctrl+V) или выберите файл — AI распознает состав и развернёт наборы в баночки.
+          {tab === 'photo'
+            ? 'Перетащите скриншот, вставьте (Ctrl+V) или выберите файл — AI распознает состав и развернёт наборы в баночки.'
+            : 'Соберите заказ вручную: выберите товары и количество, затем оформите СДЭК.'}
         </p>
       </div>
 
+      {/* Вкладки способа создания */}
+      <div className="flex gap-2 mb-4 p-1 bg-gray-100 dark:bg-gray-800 rounded-2xl max-w-md">
+        {[['photo', 'По фото', ImageIcon], ['manual', 'Вручную', Package]].map(([k, label, Icon]) => (
+          <button key={k} onClick={() => switchTab(k)}
+            className={'flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2 ' +
+              (tab === k ? 'bg-white dark:bg-gray-900 text-primary-600 shadow-sm' : 'text-gray-500')}>
+            <Icon className="w-4 h-4" /> {label}
+          </button>
+        ))}
+      </div>
+
       <div className="grid gap-4 lg:grid-cols-2">
-        {/* ── Загрузка ── */}
+        {/* ── Загрузка / ручной подбор ── */}
         <div className="min-w-0">
+          {tab === 'manual' ? (
+            <ManualPicker onResult={(d) => { setResult(d); setPreview(null); }} hasResult={!!result} onReset={() => setResult(null)} />
+          ) : (
           <div
             onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
             onDragLeave={() => setDragOver(false)}
@@ -134,9 +153,10 @@ export default function OrderIntakePage() {
             <input ref={fileInputRef} type="file" accept="image/*" className="hidden"
               onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImage(f); e.target.value = ''; }} />
           </div>
+          )}
 
           {/* Получатель (только нужное) */}
-          {result && (
+          {result && (result.recipient || result.phone || result.address) && (
             <div className="mt-3 rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 p-4 text-sm space-y-1.5">
               {result.recipient && <Row label="Получатель" value={result.recipient} />}
               {result.phone && <Row label="Телефон" value={result.phone} />}
@@ -193,6 +213,95 @@ export default function OrderIntakePage() {
 
       {/* ── Оформление СДЭК ── */}
       {result && result.picklist.length > 0 && <CdekPanel result={result} />}
+    </div>
+  );
+}
+
+// ─── Ручной подбор товаров для заказа ────────────────────────────────────────
+function ManualPicker({ onResult, hasResult, onReset }) {
+  const toast = useToast();
+  const [search, setSearch] = useState('');
+  const [results, setResults] = useState([]);
+  const [items, setItems] = useState([]);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (search.trim().length < 2) { setResults([]); return; }
+    const t = setTimeout(() => {
+      api.get('/products', { params: { search, limit: 10 } })
+        .then((r) => setResults(r.data?.items || []))
+        .catch(() => setResults([]));
+    }, 300);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  const add = (p) => {
+    setItems((prev) => prev.find((x) => x.product_id === p.id)
+      ? prev.map((x) => x.product_id === p.id ? { ...x, qty: x.qty + 1 } : x)
+      : [...prev, { product_id: p.id, name: p.name, code: p.code, entity_type: p.entity_type, qty: 1 }]);
+    setSearch(''); setResults([]);
+  };
+  const setQty = (id, q) => setItems((prev) => prev.map((x) => x.product_id === id ? { ...x, qty: Math.max(1, q || 1) } : x));
+  const remove = (id) => setItems((prev) => prev.filter((x) => x.product_id !== id));
+
+  const build = async () => {
+    if (!items.length) { toast.error('Добавьте товары'); return; }
+    setBusy(true);
+    try {
+      const { data } = await api.post('/orders/build-picklist', { items: items.map((i) => ({ product_id: i.product_id, qty: i.qty })) });
+      onResult(data);
+    } catch (e) { toast.error(e.response?.data?.error || 'Ошибка'); }
+    finally { setBusy(false); }
+  };
+
+  if (hasResult) {
+    return (
+      <div className="rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 p-4 text-center py-8">
+        <Check className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
+        <p className="text-sm text-gray-600 dark:text-gray-300">Состав собран — оформляйте СДЭК ниже</p>
+        <button onClick={onReset} className="mt-3 text-sm text-primary-600 hover:underline">← Изменить состав</button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 p-4">
+      <label className="text-xs font-medium text-gray-500">Добавить товар</label>
+      <div className="relative mt-1">
+        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Поиск по названию…"
+          className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2.5 text-sm" />
+        {results.length > 0 && (
+          <div className="absolute z-30 left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg max-h-60 overflow-y-auto">
+            {results.map((p) => (
+              <button key={p.id} onClick={() => add(p)} className="w-full text-left px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 text-sm">
+                <p className="text-gray-800 dark:text-gray-100 break-words">{p.name}{p.entity_type === 'bundle' && <span className="text-primary-500 text-xs"> · набор</span>}</p>
+                {p.code && <p className="text-[11px] text-gray-400">{p.code}</p>}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {items.length > 0 && (
+        <div className="mt-3 space-y-1.5">
+          {items.map((it) => (
+            <div key={it.product_id} className="flex items-center gap-2 rounded-xl bg-gray-50 dark:bg-gray-800/60 px-3 py-2">
+              <p className="flex-1 min-w-0 text-sm text-gray-800 dark:text-gray-100 break-words leading-tight">
+                {it.name}{it.entity_type === 'bundle' && <span className="text-primary-500 text-xs"> · набор</span>}
+              </p>
+              <input type="number" min="1" value={it.qty} onChange={(e) => setQty(it.product_id, Number(e.target.value))}
+                className="w-14 flex-shrink-0 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1 text-sm text-center" />
+              <button onClick={() => remove(it.product_id)} className="flex-shrink-0 text-gray-400 hover:text-rose-500"><X className="w-4 h-4" /></button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <button onClick={build} disabled={busy || !items.length}
+        className="w-full mt-4 py-2.5 rounded-xl bg-primary-600 text-white text-sm font-medium hover:bg-primary-700 disabled:opacity-40 flex items-center justify-center gap-2">
+        {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Package className="w-4 h-4" />}
+        Собрать заказ ({items.reduce((s, i) => s + i.qty, 0)} поз.)
+      </button>
     </div>
   );
 }
@@ -387,6 +496,14 @@ function CdekPanel({ result }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cfg]);
 
+  // Живой поиск ПВЗ по мере ввода
+  useEffect(() => {
+    if (!city || pvz) return;
+    const t = setTimeout(() => { filterPvz(); }, 350);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pvzQuery]);
+
   const searchCity = async () => {
     if (!cityQuery.trim()) return;
     setBusy('city');
@@ -563,8 +680,8 @@ function CdekPanel({ result }) {
                 </button>
               </div>
               <div className="flex gap-2 mt-1">
-                <input value={pvzQuery} onChange={(e) => setPvzQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && filterPvz()}
-                  placeholder="улица / фильтр" className="flex-1 min-w-0 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm" />
+                <input value={pvzQuery} onChange={(e) => { setPvzQuery(e.target.value); if (pvz) setPvz(null); }} onKeyDown={(e) => e.key === 'Enter' && filterPvz()}
+                  placeholder="улица / название / фильтр" className="flex-1 min-w-0 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm" />
                 <button onClick={filterPvz} disabled={busy === 'pvz'}
                   className="px-3 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 text-gray-600 flex items-center flex-shrink-0">
                   {busy === 'pvz' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
@@ -590,26 +707,41 @@ function CdekPanel({ result }) {
 
         {/* Тарифы + действия */}
         <div className="space-y-3 min-w-0">
-          {/* Коробка — авто по числу банок, редактируемо */}
-          {pkg && (
+          {/* Коробка — кнопки-пресеты + своя */}
+          {pkg && cfg && (
             <div className="rounded-xl border border-gray-100 dark:border-gray-800 p-3">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-medium text-gray-500">
-                  Коробка (авто по {bottles} бан.){pkgEdited && <span className="text-amber-500"> · изменено</span>}
-                </span>
-                <button onClick={() => { setPkg(computeDefaultPkg(bottles, cfg)); setPkgEdited(false); }}
-                  className="text-[11px] text-gray-400 hover:underline">сбросить</button>
+              <span className="text-xs font-medium text-gray-500">Коробка · {bottles} бан.</span>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 mt-2">
+                {(cfg.box_table || []).map((row) => {
+                  const active = !pkgEdited && Number(pkg.length) === row.length && Number(pkg.width) === row.width && Number(pkg.height) === row.height;
+                  return (
+                    <button key={row.max}
+                      onClick={() => { setPkg({ weight: (cfg.box_tare_g ?? 150) + bottles * (cfg.bottle_weight_g ?? 50), length: row.length, width: row.width, height: row.height }); setPkgEdited(false); }}
+                      className={'rounded-lg border px-2 py-1.5 text-left transition-all ' + (active ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20' : 'border-gray-200 dark:border-gray-700 hover:border-primary-300')}>
+                      <p className="text-[11px] font-semibold text-gray-800 dark:text-gray-100">до {row.max} бан.</p>
+                      <p className="text-[10px] text-gray-400">{row.length}×{row.width}×{row.height}</p>
+                    </button>
+                  );
+                })}
+                <button onClick={() => setPkgEdited(true)}
+                  className={'rounded-lg border px-2 py-1.5 text-left transition-all ' + (pkgEdited ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20' : 'border-gray-200 dark:border-gray-700 hover:border-primary-300')}>
+                  <p className="text-[11px] font-semibold text-gray-800 dark:text-gray-100">Своя</p>
+                  <p className="text-[10px] text-gray-400">вручную</p>
+                </button>
               </div>
-              <div className="grid grid-cols-4 gap-2">
-                {[['weight', 'Вес, г'], ['length', 'Д, см'], ['width', 'Ш, см'], ['height', 'В, см']].map(([k, label]) => (
-                  <label key={k} className="text-[10px] text-gray-400 block">
-                    {label}
-                    <input type="number" min="0" step={k === 'weight' ? '10' : '0.5'} value={pkg[k]}
-                      onChange={(e) => { const v = e.target.value; setPkg((prev) => ({ ...prev, [k]: v === '' ? '' : Number(v) })); setPkgEdited(true); }}
-                      className="mt-0.5 w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-2 py-1.5 text-sm text-gray-800 dark:text-gray-100" />
-                  </label>
-                ))}
-              </div>
+              {pkgEdited && (
+                <div className="grid grid-cols-4 gap-2 mt-2">
+                  {[['weight', 'Вес, г'], ['length', 'Д, см'], ['width', 'Ш, см'], ['height', 'В, см']].map(([k, label]) => (
+                    <label key={k} className="text-[10px] text-gray-400 block">
+                      {label}
+                      <input type="number" min="0" step={k === 'weight' ? '10' : '0.5'} value={pkg[k]}
+                        onChange={(e) => { const v = e.target.value; setPkg((prev) => ({ ...prev, [k]: v === '' ? '' : Number(v) })); }}
+                        className="mt-0.5 w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-2 py-1.5 text-sm text-gray-800 dark:text-gray-100" />
+                    </label>
+                  ))}
+                </div>
+              )}
+              <p className="text-[10px] text-gray-400 mt-1.5">Вес {pkg.weight} г · {pkg.length}×{pkg.width}×{pkg.height} см</p>
             </div>
           )}
 

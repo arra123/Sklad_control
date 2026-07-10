@@ -55,21 +55,24 @@ export default function CdekMapPicker({ cityCode, cityName, selectedCode, onSele
         }).addTo(map);
 
         const latlngs = [];
+        let selMarker = null, selLatLng = null;
         pts.forEach((p) => {
           const isSel = p.code === selectedCode;
           const icon = L.divIcon({
             className: 'cdek-pin',
             html: pinHtml(isSel ? '#059669' : '#e11d48'),
-            iconSize: [16, 16],
-            iconAnchor: [8, 16],
+            iconSize: isSel ? [22, 22] : [16, 16],
+            iconAnchor: isSel ? [11, 22] : [8, 16],
             popupAnchor: [0, -14],
           });
-          const m = L.marker([p.lat, p.lng], { icon }).addTo(map);
-          m.bindTooltip(`${p.code} · ${p.address || ''}`, { direction: 'top', offset: [0, -12] });
+          const m = L.marker([p.lat, p.lng], { icon, zIndexOffset: isSel ? 1000 : 0 }).addTo(map);
+          m.bindTooltip(`${p.code} · ${p.address || ''}`, { direction: 'top', offset: [0, -12], permanent: isSel });
           m.on('click', () => { onSelect(p); onClose(); });
           latlngs.push([p.lat, p.lng]);
+          if (isSel) { selMarker = m; selLatLng = [p.lat, p.lng]; }
         });
-        if (latlngs.length) map.fitBounds(latlngs, { padding: [30, 30], maxZoom: 14 });
+        if (selLatLng) { map.setView(selLatLng, 15); if (selMarker) selMarker.openTooltip(); }
+        else if (latlngs.length) map.fitBounds(latlngs, { padding: [30, 30], maxZoom: 14 });
 
         // Leaflet иногда неверно считает размер в модалке — пересчёт после отрисовки
         setTimeout(() => map.invalidateSize(), 200);

@@ -226,6 +226,47 @@ router.post('/parse-screenshot', requireAuth, async (req, res) => {
   }
 });
 
+// POST /build-picklist — собрать пик-лист из выбранных товаров (ручной заказ)
+// body: { items: [{ product_id, qty }] } → та же структура, что у parse-screenshot
+router.post('/build-picklist', requireAuth, async (req, res) => {
+  const items = Array.isArray(req.body?.items) ? req.body.items : [];
+  if (!items.length) return res.status(400).json({ error: 'Пустой список товаров' });
+  const client = await pool.connect();
+  try {
+    const picklistAcc = new Map();
+    const recognized = [];
+    for (const it of items) {
+      const pid = Number(it.product_id);
+      const qty = Math.max(1, Number(it.qty) || 1);
+      if (!pid) continue;
+      const info = await client.query('SELECT id, name, entity_type FROM products_s WHERE id=$1', [pid]);
+      if (!info.rows.length) continue;
+      const tmp = new Map();
+      await expandProduct(client, pid, qty, tmp);
+      const bottles = [...tmp.values()].reduce((s, p) => s + p.qty, 0);
+      for (const [id, v] of tmp) {
+        const cur = picklistAcc.get(id) || { ...v, qty: 0 };
+        cur.qty += v.qty;
+        picklistAcc.set(id, cur);
+      }
+      recognized.push({
+        raw_name: info.rows[0].name, quantity: qty, matched: true, confidence: 100,
+        product_id: pid, product_name: info.rows[0].name,
+        is_bundle: info.rows[0].entity_type === 'bundle', bottles, bundle_empty: false,
+      });
+    }
+    const picklist = [...picklistAcc.values()].sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+    const total_bottles = picklist.reduce((s, p) => s + p.qty, 0);
+    res.json({
+      recipient: null, phone: null, city: null, pvz_address: null, address: null,
+      order_number: null, recognized, picklist, total_bottles, unmatched: 0, bundle_warnings: 0,
+      manual: true,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  } finally { client.release(); }
+});
+
 // ════════════════════════════════════════════════════════════════════════════
 //  СДЭК — оформление доставки
 // ════════════════════════════════════════════════════════════════════════════
@@ -291,12 +332,15 @@ router.get('/cdek/pvz', requireAuth, async (req, res) => {
     let list = (Array.isArray(r.json) ? r.json : []).map((p) => ({
       code: p.code,
       name: p.name,
-      address: p.location?.address_full || p.location?.address,
+      // Чистый полный адрес: «Город, улица, дом» (address_full замусорен индексом/страной)
+      address: [p.location?.city, p.location?.address].filter(Boolean).join(', ') || p.location?.address_full,
+      short_address: p.location?.address,
       city: p.location?.city,
       city_code: p.location?.city_code,
       lat: p.location?.latitude ?? null,
       lng: p.location?.longitude ?? null,
       type: p.type,
+      work_time: p.work_time,
       have_cashless: p.have_cashless,
       nearest_station: p.nearest_station,
     }));
