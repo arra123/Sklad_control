@@ -384,16 +384,18 @@ function ManualPicker({ onResult, hasResult, onReset }) {
   const toast = useToast();
   const [search, setSearch] = useState('');
   const [results, setResults] = useState([]);
+  const [open, setOpen] = useState(false);
   const [items, setItems] = useState([]);
   const [busy, setBusy] = useState(false);
 
+  // Список всплывает сразу (без ввода) и фильтруется по мере набора
   useEffect(() => {
-    if (search.trim().length < 2) { setResults([]); return; }
+    const q = search.trim();
     const t = setTimeout(() => {
-      api.get('/products', { params: { search, limit: 10 } })
+      api.get('/products', { params: q.length >= 2 ? { search: q, limit: 25 } : { limit: 25 } })
         .then((r) => setResults(r.data?.items || []))
         .catch(() => setResults([]));
-    }, 300);
+    }, q ? 250 : 0);
     return () => clearTimeout(t);
   }, [search]);
 
@@ -430,12 +432,14 @@ function ManualPicker({ onResult, hasResult, onReset }) {
     <div className="rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 p-4">
       <label className="text-xs font-medium text-gray-500">Добавить товар</label>
       <div className="relative mt-1">
-        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Поиск по названию…"
+        <input value={search} onChange={(e) => setSearch(e.target.value)}
+          onFocus={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 150)}
+          placeholder="Нажмите и выберите товар (или начните вводить)…"
           className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2.5 text-sm" />
-        {results.length > 0 && (
-          <div className="absolute z-30 left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg max-h-60 overflow-y-auto">
+        {open && results.length > 0 && (
+          <div className="absolute z-30 left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg max-h-72 overflow-y-auto">
             {results.map((p) => (
-              <button key={p.id} onClick={() => add(p)} className="w-full text-left px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 text-sm">
+              <button key={p.id} onMouseDown={(e) => { e.preventDefault(); add(p); }} className="w-full text-left px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 text-sm">
                 <p className="text-gray-800 dark:text-gray-100 break-words">{p.name}{p.entity_type === 'bundle' && <span className="text-primary-500 text-xs"> · набор</span>}</p>
                 {p.code && <p className="text-[11px] text-gray-400">{p.code}</p>}
               </button>
@@ -625,6 +629,24 @@ function fmtDate(s) {
   return d.toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 }
 
+// Поле «label: value» и группа полей для сводки «как в СДЭК»
+function F({ label, v }) {
+  return (
+    <div className="flex justify-between gap-3 py-1.5 border-b border-gray-50 dark:border-gray-800/60 last:border-0">
+      <span className="text-gray-400 flex-shrink-0">{label}</span>
+      <span className="text-gray-800 dark:text-gray-100 text-right break-words min-w-0">{(v ?? '') === '' ? '—' : v}</span>
+    </div>
+  );
+}
+function FieldGroup({ title, children }) {
+  return (
+    <div className="rounded-xl border border-gray-100 dark:border-gray-800 p-3">
+      <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">{title}</p>
+      {children}
+    </div>
+  );
+}
+
 // Габариты + вес коробки по числу баночек (таблица из конфига).
 function computeDefaultPkg(bottles, cfg) {
   const n = Math.max(1, bottles || 1);
@@ -658,6 +680,8 @@ function CdekPanel({ result }) {
   const [showMap, setShowMap] = useState(false);
   const [pkg, setPkg] = useState(null); // { weight, length, width, height } — авто, редактируемо
   const [pkgEdited, setPkgEdited] = useState(false);
+  const [imNumber, setImNumber] = useState(result.order_number || '');
+  const [showAll, setShowAll] = useState(false);
 
   // Город/улица/дом получателя. AI отдаёт city и pvz_address отдельными полями;
   // если их нет — аккуратный фолбэк из полного адреса.
@@ -766,7 +790,7 @@ function CdekPanel({ result }) {
     setBusy('create');
     try {
       const body = {
-        number: result.order_number || undefined,
+        number: imNumber.trim() || undefined,
         tariff_code: tariff.tariff_code,
         shipment_point: shipmentPoint,
         recipient: { name: name.trim(), phone: phone.trim() },
@@ -1044,6 +1068,53 @@ function CdekPanel({ result }) {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Все поля заказа (как в СДЭК) — скрыто, раскрывается */}
+      <div className="border-t border-gray-100 dark:border-gray-800">
+        <button onClick={() => setShowAll((v) => !v)} className="w-full flex items-center justify-between px-4 py-3 text-sm font-semibold text-gray-900 dark:text-white">
+          <span>Все поля заказа (как в СДЭК)</span>
+          <span className="text-gray-400 text-xs">{showAll ? 'скрыть' : 'показать'}</span>
+        </button>
+        {showAll && (
+          <div className="px-4 pb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4 text-sm">
+            <FieldGroup title="Отправитель">
+              <F label="Тип заказа" v="интернет-магазин" />
+              <F label="Контрагент" v={cfg?.sender?.company} />
+              <F label="ИНН" v={cfg?.sender?.inn} />
+              <F label="ФИО" v={cfg?.sender?.name} />
+              <F label="Телефон" v={cfg?.sender?.phone} />
+              <F label="Город отправл." v={(cfg?.shipment_points || []).find((p) => p.code === shipmentPoint)?.name} />
+              <F label="Истинный продавец" v={cfg?.sender?.true_seller} />
+            </FieldGroup>
+
+            <FieldGroup title="Получатель">
+              <F label="ФИО" v={name} />
+              <F label="Телефон" v={phone} />
+              <F label="Город" v={city ? `${city.city} (код ${city.code})` : ''} />
+              <F label="ПВЗ" v={pvz ? `${pvz.code}` : ''} />
+              <F label="Адрес ПВЗ" v={pvz?.address} />
+            </FieldGroup>
+
+            <FieldGroup title="Грузоместо">
+              <F label="Мест" v="1" />
+              <F label="Баночек" v={bottles} />
+              <F label="Вес" v={pkg ? `${pkg.weight} г` : ''} />
+              <F label="Габариты" v={pkg ? `${pkg.length}×${pkg.width}×${pkg.height} см` : ''} />
+            </FieldGroup>
+
+            <FieldGroup title="Заказ">
+              <div className="py-1.5">
+                <span className="text-gray-400 block mb-0.5">№ отправления ИМ</span>
+                <input value={imNumber} onChange={(e) => setImNumber(e.target.value)} placeholder="сгенерируется автоматически"
+                  className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-2 py-1.5 text-sm" />
+              </div>
+              <F label="Тариф" v={tariff ? `${tariff.tariff_name} · ${tariff.delivery_sum}₽` : ''} />
+              <F label="Трек СДЭК" v={order?.cdek_number} />
+              <F label="Статус СДЭК" v={order?.cdek_status} />
+            </FieldGroup>
+          </div>
+        )}
       </div>
 
       {showMap && city && (
