@@ -271,6 +271,14 @@ router.post('/build-picklist', requireAuth, async (req, res) => {
 //  СДЭК — оформление доставки
 // ════════════════════════════════════════════════════════════════════════════
 
+// Нормализация телефона в формат СДЭК: +7XXXXXXXXXX (убираем скобки/тире/пробелы).
+function normalizePhone(raw) {
+  let d = String(raw || '').replace(/\D/g, ''); // только цифры
+  if (d.length === 11 && (d[0] === '8' || d[0] === '7')) d = '7' + d.slice(1);
+  else if (d.length === 10) d = '7' + d;
+  return d ? '+' + d : '';
+}
+
 // Валидация ручного override габаритов/веса. Возвращает объект или null.
 function normalizePkg(o) {
   if (!o) return null;
@@ -397,6 +405,7 @@ router.post('/cdek/create', requireAuth, async (req, res) => {
   const b = req.body || {};
   if (!b.tariff_code) return res.status(400).json({ error: 'Нужен tariff_code' });
   if (!b.recipient?.name || !b.recipient?.phone) return res.status(400).json({ error: 'Нужны ФИО и телефон получателя' });
+  if (normalizePhone(b.recipient.phone).length < 12) return res.status(400).json({ error: `Телефон получателя некорректный: «${b.recipient.phone}»` });
   if (!b.delivery_point && !b.to_location?.address) {
     return res.status(400).json({ error: 'Нужен delivery_point (ПВЗ) или to_location.address' });
   }
@@ -430,7 +439,7 @@ router.post('/cdek/create', requireAuth, async (req, res) => {
     },
     recipient: {
       name: b.recipient.name,
-      phones: [{ number: b.recipient.phone }],
+      phones: [{ number: normalizePhone(b.recipient.phone) }],
     },
     packages: [{
       number: '1',

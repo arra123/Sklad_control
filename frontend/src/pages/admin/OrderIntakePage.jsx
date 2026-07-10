@@ -841,17 +841,23 @@ function CdekPanel({ result }) {
     if (tries < 8) setTimeout(() => pollOrder(uuid, tries + 1), 2500);
   };
 
-  // Печать: сервер сам качает PDF с авторизацией и отдаёт байты → открываем как PDF
+  // Печать: сервер сам качает PDF с авторизацией и отдаёт байты → открываем как PDF.
+  // Окно открываем СРАЗУ по клику (иначе браузер блокирует popup после await).
   const printDoc = async (kind) => { // 'label' | 'receipt'
     if (!order?.uuid) return;
+    const win = window.open('', '_blank');
     setBusy('print-' + kind);
     try {
       const { data } = await api.get(`/orders/cdek/${kind}/${order.uuid}`, { responseType: 'blob', timeout: 60000 });
       const url = URL.createObjectURL(data);
-      window.open(url, '_blank');
-      setTimeout(() => URL.revokeObjectURL(url), 60000);
-    } catch { toast.error('Не удалось сформировать PDF — попробуйте ещё раз'); }
-    finally { setBusy(''); }
+      if (win) win.location.href = url; else window.open(url, '_blank');
+      setTimeout(() => URL.revokeObjectURL(url), 120000);
+    } catch (e) {
+      if (win) win.close();
+      let msg = 'Не удалось сформировать PDF';
+      try { const t = await e.response?.data?.text?.(); if (t) msg = JSON.parse(t).error || msg; } catch { /* keep */ }
+      toast.error(msg);
+    } finally { setBusy(''); }
   };
 
   // Подтянуть реальный статус из СДЭК
