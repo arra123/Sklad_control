@@ -54,8 +54,12 @@ export default function OrderIntakePage() {
         total_bottles: data.total_bottles, recognized: data.recognized, picklist: data.picklist,
       });
       setResult({ ...data, id: saved.id, status: saved.status, collected: saved.collected || {} });
-    } catch { setResult(data); }
-  }, []);
+    } catch (e) {
+      // Не смогли сохранить в общий список — работаем локально, но предупредим
+      toast.error('Заказ не сохранён в список: ' + (e.response?.data?.error || 'ошибка сервера'));
+      setResult(data);
+    }
+  }, [toast]);
 
   const handleImage = useCallback(async (file) => {
     if (!file || !file.type.startsWith('image/')) {
