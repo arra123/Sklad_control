@@ -273,15 +273,17 @@ function OrdersList({ onOpen }) {
   const toast = useToast();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showDeleted, setShowDeleted] = useState(false);
 
   const load = () => {
-    api.get('/orders').then(({ data }) => setOrders(data)).catch(() => {}).finally(() => setLoading(false));
+    api.get('/orders', { params: showDeleted ? { status: 'deleted' } : {} })
+      .then(({ data }) => setOrders(data)).catch(() => {}).finally(() => setLoading(false));
   };
-  useEffect(() => { load(); const t = setInterval(load, 8000); return () => clearInterval(t); }, []); // eslint-disable-line
+  useEffect(() => { setLoading(true); load(); const t = setInterval(load, 8000); return () => clearInterval(t); }, [showDeleted]); // eslint-disable-line
 
   const del = async (e, id) => {
     e.stopPropagation();
-    if (!window.confirm('Удалить заказ?')) return;
+    if (!window.confirm('Удалить заказ? (останется в разделе «Удалённые»)')) return;
     try { await api.delete(`/orders/${id}`); setOrders((o) => o.filter((x) => x.id !== id)); }
     catch { toast.error('Не удалось удалить'); }
   };
@@ -294,16 +296,26 @@ function OrdersList({ onOpen }) {
     <div className="rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 overflow-hidden max-w-4xl">
       <div className="flex items-center justify-between gap-2 px-4 lg:px-6 py-3.5 lg:py-4 border-b border-gray-100 dark:border-gray-800">
         <div className="flex items-center gap-2 min-w-0">
-          <ClipboardList className="w-5 h-5 flex-shrink-0 text-primary-600" />
-          <span className="font-semibold text-gray-900 dark:text-white lg:text-lg">Все заказы</span>
-          <span className="text-xs lg:text-sm text-gray-400">{active.length} активных</span>
+          {showDeleted ? <Trash2 className="w-5 h-5 flex-shrink-0 text-gray-400" /> : <ClipboardList className="w-5 h-5 flex-shrink-0 text-primary-600" />}
+          <span className="font-semibold text-gray-900 dark:text-white lg:text-lg">{showDeleted ? 'Удалённые' : 'Все заказы'}</span>
+          {!showDeleted && <span className="text-xs lg:text-sm text-gray-400">{active.length} активных</span>}
         </div>
-        <button onClick={load} className="w-9 h-9 rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-center flex-shrink-0"><RefreshCw className="w-4 h-4 lg:w-5 lg:h-5" /></button>
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          <button onClick={() => setShowDeleted((v) => !v)}
+            className={'px-3 py-1.5 rounded-lg text-xs lg:text-sm font-medium ' + (showDeleted ? 'bg-primary-50 text-primary-600 dark:bg-primary-900/30' : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800')}>
+            {showDeleted ? '← К заказам' : 'Удалённые'}
+          </button>
+          <button onClick={load} className="w-9 h-9 rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-center"><RefreshCw className="w-4 h-4 lg:w-5 lg:h-5" /></button>
+        </div>
       </div>
       {loading && orders.length === 0 ? (
         <div className="py-16 flex justify-center"><Loader2 className="w-7 h-7 text-primary-500 animate-spin" /></div>
       ) : orders.length === 0 ? (
-        <div className="py-16 text-center text-sm lg:text-base text-gray-400">Заказов нет</div>
+        <div className="py-16 text-center text-sm lg:text-base text-gray-400">{showDeleted ? 'Удалённых нет' : 'Заказов нет'}</div>
+      ) : showDeleted ? (
+        <div className="divide-y divide-gray-50 dark:divide-gray-800">
+          {orders.map((o) => <OrderRow key={o.id} o={o} onOpen={onOpen} onDel={del} dim />)}
+        </div>
       ) : (
         <div className="divide-y divide-gray-50 dark:divide-gray-800">
           {active.map((o) => <OrderRow key={o.id} o={o} onOpen={onOpen} onDel={del} />)}
@@ -618,6 +630,7 @@ const STATUS_META = {
   shipped: { label: 'Оформлен', cls: 'bg-primary-50 text-primary-600 dark:bg-primary-900/30 dark:text-primary-300' },
   delivered: { label: 'Доставлен', cls: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-300' },
   cancelled: { label: 'Отменён', cls: 'bg-rose-50 text-rose-600 dark:bg-rose-900/30 dark:text-rose-300' },
+  deleted: { label: 'Удалён', cls: 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400' },
 };
 function StatusBadge({ status }) {
   const m = STATUS_META[status] || STATUS_META.new;
@@ -676,7 +689,6 @@ function CdekPanel({ result }) {
   const [tariff, setTariff] = useState(null);
   const [busy, setBusy] = useState('');
   const [order, setOrder] = useState(result.cdek_uuid ? { uuid: result.cdek_uuid, number: result.order_number, cdek_number: result.cdek_number, cdek_status: result.cdek_status } : null);
-  const [labelUrl, setLabelUrl] = useState(null);
   const [showMap, setShowMap] = useState(false);
   const [pkg, setPkg] = useState(null); // { weight, length, width, height } — авто, редактируемо
   const [pkgEdited, setPkgEdited] = useState(false);
@@ -829,14 +841,16 @@ function CdekPanel({ result }) {
     if (tries < 8) setTimeout(() => pollOrder(uuid, tries + 1), 2500);
   };
 
-  const printLabel = async () => {
+  // Печать: сервер сам качает PDF с авторизацией и отдаёт байты → открываем как PDF
+  const printDoc = async (kind) => { // 'label' | 'receipt'
     if (!order?.uuid) return;
-    setBusy('print');
+    setBusy('print-' + kind);
     try {
-      const { data } = await api.post(`/orders/cdek/print/${order.uuid}`);
-      if (data.url) { setLabelUrl(data.url); window.open(data.url, '_blank'); return; }
-      pollLabel(data.print_uuid);
-    } catch (e) { toast.error(e.response?.data?.error || 'Ошибка печати'); }
+      const { data } = await api.get(`/orders/cdek/${kind}/${order.uuid}`, { responseType: 'blob', timeout: 60000 });
+      const url = URL.createObjectURL(data);
+      window.open(url, '_blank');
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch { toast.error('Не удалось сформировать PDF — попробуйте ещё раз'); }
     finally { setBusy(''); }
   };
 
@@ -868,13 +882,6 @@ function CdekPanel({ result }) {
     finally { setBusy(''); }
   };
 
-  const pollLabel = async (printUuid, tries = 0) => {
-    try {
-      const { data } = await api.get(`/orders/cdek/print/${printUuid}`);
-      if (data.url) { setLabelUrl(data.url); window.open(data.url, '_blank'); return; }
-    } catch { /* retry */ }
-    if (tries < 8) setTimeout(() => pollLabel(printUuid, tries + 1), 2500);
-  };
 
   const modeLabel = (m) => (m === 4 ? 'ПВЗ' : m === 7 ? 'постамат' : m === 3 ? 'курьер' : '');
 
@@ -1054,12 +1061,18 @@ function CdekPanel({ result }) {
                 className="mt-1 w-full py-2 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 text-sm font-medium hover:bg-gray-200 dark:hover:bg-gray-700 flex items-center justify-center gap-2">
                 {busy === 'track' ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />} Отследить статус СДЭК
               </button>
-              <button onClick={printLabel} disabled={busy === 'print'}
-                className="mt-1 w-full py-2 rounded-xl bg-gray-900 dark:bg-gray-700 text-white text-sm font-medium hover:opacity-90 flex items-center justify-center gap-2">
-                {busy === 'print' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />}
-                Печать этикетки
-              </button>
-              {labelUrl && <a href={labelUrl} target="_blank" rel="noreferrer" className="block text-center text-xs text-primary-600 hover:underline">Открыть PDF этикетки</a>}
+              <div className="grid grid-cols-2 gap-2 mt-1">
+                <button onClick={() => printDoc('label')} disabled={busy.startsWith('print')}
+                  className="w-full py-2 rounded-xl bg-gray-900 dark:bg-gray-700 text-white text-sm font-medium hover:opacity-90 flex items-center justify-center gap-2">
+                  {busy === 'print-label' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />}
+                  Этикетка
+                </button>
+                <button onClick={() => printDoc('receipt')} disabled={busy.startsWith('print')}
+                  className="w-full py-2 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-100 text-sm font-medium hover:bg-gray-200 dark:hover:bg-gray-700 flex items-center justify-center gap-2">
+                  {busy === 'print-receipt' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />}
+                  Квитанция
+                </button>
+              </div>
               <button onClick={cancelOrder} disabled={busy === 'cancel'}
                 className="mt-1 w-full py-2 rounded-xl border border-rose-200 dark:border-rose-800 text-rose-600 text-sm font-medium hover:bg-rose-50 dark:hover:bg-rose-900/20 flex items-center justify-center gap-2">
                 {busy === 'cancel' ? <Loader2 className="w-4 h-4 animate-spin" /> : <X className="w-4 h-4" />}
@@ -1077,7 +1090,8 @@ function CdekPanel({ result }) {
           <span className="text-gray-400 text-xs">{showAll ? 'скрыть' : 'показать'}</span>
         </button>
         {showAll && (
-          <div className="px-4 pb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4 text-sm">
+          <div className="px-4 pb-4 space-y-3 text-sm">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <FieldGroup title="Отправитель">
               <F label="Тип заказа" v="интернет-магазин" />
               <F label="Контрагент" v={cfg?.sender?.company} />
@@ -1113,6 +1127,36 @@ function CdekPanel({ result }) {
               <F label="Трек СДЭК" v={order?.cdek_number} />
               <F label="Статус СДЭК" v={order?.cdek_status} />
             </FieldGroup>
+          </div>
+
+          {/* Товары в грузоместе — поля по каждой позиции (как в СДЭК) */}
+          <div className="rounded-xl border border-gray-100 dark:border-gray-800 overflow-hidden">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400 px-3 pt-2.5 pb-1">Товары в грузоместе</p>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs lg:text-sm">
+                <thead>
+                  <tr className="text-gray-400 text-left border-b border-gray-100 dark:border-gray-800">
+                    <th className="px-3 py-1.5 font-medium">Наименование</th>
+                    <th className="px-3 py-1.5 font-medium">Артикул / ШК</th>
+                    <th className="px-3 py-1.5 font-medium text-center">Кол-во</th>
+                    <th className="px-3 py-1.5 font-medium text-right">Вес, г</th>
+                    <th className="px-3 py-1.5 font-medium text-right">Цена, ₽</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {result.picklist.map((p) => (
+                    <tr key={p.product_id} className="border-b border-gray-50 dark:border-gray-800/60 last:border-0">
+                      <td className="px-3 py-1.5 text-gray-800 dark:text-gray-100">{p.name}</td>
+                      <td className="px-3 py-1.5 text-gray-500 font-mono">{p.barcode || p.product_id}</td>
+                      <td className="px-3 py-1.5 text-center text-gray-800 dark:text-gray-100">{p.qty}</td>
+                      <td className="px-3 py-1.5 text-right text-gray-500">{cfg?.bottle_weight_g ?? 50}</td>
+                      <td className="px-3 py-1.5 text-right text-gray-500">{p.price ?? '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
           </div>
         )}
       </div>

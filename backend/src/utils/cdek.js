@@ -72,6 +72,35 @@ async function getToken() {
   return tokenCache.access_token;
 }
 
+// Бинарный GET (для PDF этикеток/квитанций) с Bearer-токеном.
+function requestBinary(fullUrl, token) {
+  return new Promise((resolve, reject) => {
+    const url = new URL(fullUrl.startsWith('http') ? fullUrl : API_BASE + fullUrl);
+    const req = https.request(
+      { hostname: url.hostname, path: url.pathname + url.search, method: 'GET', headers: { Authorization: `Bearer ${token}`, Accept: 'application/pdf' } },
+      (res) => {
+        const chunks = [];
+        res.on('data', (c) => chunks.push(c));
+        res.on('end', () => resolve({ status: res.statusCode, buffer: Buffer.concat(chunks), contentType: res.headers['content-type'] }));
+      }
+    );
+    req.on('error', reject);
+    req.end();
+  });
+}
+
+// Скачать PDF по ссылке СДЭК с авторизацией (автоповтор при 401).
+async function getPdf(fullUrl) {
+  let token = await getToken();
+  let r = await requestBinary(fullUrl, token);
+  if (r.status === 401) {
+    tokenCache = { access_token: null, expires_at: 0 };
+    token = await getToken();
+    r = await requestBinary(fullUrl, token);
+  }
+  return r;
+}
+
 // Авторизованный вызов API с автоповтором при 401 (протух токен).
 async function call(method, path, body = null) {
   let token = await getToken();
@@ -120,6 +149,7 @@ module.exports = {
   isConfigured,
   getToken,
   call,
+  getPdf,
   calcTariffList,
   deliveryPoints,
   cities,

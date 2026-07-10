@@ -506,6 +506,41 @@ router.get('/cdek/print/:uuid', requireAuth, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// Сформировать печать и дождаться готового PDF-URL
+async function preparePrint(kind, orderUuid) {
+  const create = kind === 'receipt'
+    ? await cdek.printReceipt({ orders: [{ order_uuid: orderUuid }], copy_count: 1 })
+    : await cdek.printBarcode({ orders: [{ order_uuid: orderUuid }], format: 'A6', copy_count: 1 });
+  const printUuid = create.json?.entity?.uuid;
+  if (!printUuid) return { error: create.json?.requests?.[0]?.errors?.[0]?.message || 'СДЭК не принял запрос на печать' };
+  for (let i = 0; i < 20; i++) {
+    const g = kind === 'receipt' ? await cdek.getPrintReceipt(printUuid) : await cdek.getPrintBarcode(printUuid);
+    const e = g.json?.entity;
+    const st = e?.statuses?.slice(-1)[0]?.code;
+    if (e?.url && (st === 'READY' || !st)) return { url: e.url };
+    if (st === 'INVALID') return { error: 'СДЭК: не удалось сформировать документ' };
+    await new Promise((r) => setTimeout(r, 1200));
+  }
+  return { error: 'PDF не готов (таймаут)' };
+}
+
+// GET /cdek/label/:uuid — PDF этикетки (ШК) | GET /cdek/receipt/:uuid — квитанция.
+// Сервер сам скачивает PDF с авторизацией и отдаёт байты (браузер откроет как PDF).
+async function streamPrint(kind, req, res) {
+  if (!cdekReady(res)) return;
+  try {
+    const prep = await preparePrint(kind, req.params.uuid);
+    if (prep.error) return res.status(502).json({ error: prep.error });
+    const pdf = await cdek.getPdf(prep.url);
+    if (pdf.status !== 200 || !pdf.buffer?.length) return res.status(502).json({ error: 'Не удалось скачать PDF (' + pdf.status + ')' });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${kind}-${req.params.uuid}.pdf"`);
+    res.send(pdf.buffer);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+}
+router.get('/cdek/label/:uuid', requireAuth, (req, res) => streamPrint('label', req, res));
+router.get('/cdek/receipt/:uuid', requireAuth, (req, res) => streamPrint('receipt', req, res));
+
 // ════════════════════════════════════════════════════════════════════════════
 //  Заказы — хранение в БД, общий пикинг, статусы, история
 // ════════════════════════════════════════════════════════════════════════════
@@ -566,8 +601,10 @@ router.get('/', requireAuth, async (req, res) => {
   const { status } = req.query;
   const cond = [];
   const params = [];
-  if (status === 'active') cond.push(`o.status NOT IN ('cancelled','shipped')`);
+  if (status === 'active') cond.push(`o.status NOT IN ('cancelled','shipped','deleted')`);
+  else if (status === 'deleted') cond.push(`o.status = 'deleted'`);
   else if (status) { params.push(status); cond.push(`o.status = $${params.length}`); }
+  else cond.push(`o.status <> 'deleted'`); // по умолчанию — без удалённых
   const where = cond.length ? 'WHERE ' + cond.join(' AND ') : '';
   try {
     const r = await pool.query(
@@ -704,11 +741,12 @@ router.post('/:id(\\d+)/collect', requireAuth, async (req, res) => {
   } finally { client.release(); }
 });
 
-// DELETE /orders/:id — удалить заказ
+// DELETE /orders/:id — мягкое удаление (заказ остаётся, статус deleted)
 router.delete('/:id(\\d+)', requireAuth, async (req, res) => {
   try {
-    const r = await pool.query('DELETE FROM orders_s WHERE id=$1 RETURNING id', [req.params.id]);
+    const r = await pool.query(`UPDATE orders_s SET status='deleted', updated_at=NOW() WHERE id=$1 RETURNING id`, [req.params.id]);
     if (!r.rows.length) return res.status(404).json({ error: 'Заказ не найден' });
+    await logEvent(pool, req.params.id, req.user.id, 'deleted', null, null, 'Заказ удалён');
     res.json({ ok: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
