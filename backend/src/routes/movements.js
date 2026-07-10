@@ -644,6 +644,87 @@ router.post('/put-to-box', requireAuth, async (req, res) => {
   } finally { client.release(); }
 });
 
+// POST /api/movements/relocate-box — универсальный перенос коробки между
+// паллетом и полкой в любую сторону (paллет↔полка). Коробка переезжает между
+// boxes_s и shelf_boxes_s с сохранением ШК и содержимого.
+router.post('/relocate-box', requireAuth, async (req, res) => {
+  const { source_type, box_id, dest_type, dest_id } = req.body;
+  if (!['pallet', 'shelf'].includes(source_type) || !['pallet', 'shelf'].includes(dest_type)) {
+    return res.status(400).json({ error: 'source_type/dest_type должны быть pallet или shelf' });
+  }
+  if (!box_id || !dest_id) return res.status(400).json({ error: 'box_id и dest_id обязательны' });
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // Источник
+    const srcTable = source_type === 'pallet' ? 'boxes_s' : 'shelf_boxes_s';
+    const srcRes = await client.query(`SELECT * FROM ${srcTable} WHERE id=$1`, [box_id]);
+    if (!srcRes.rows.length) throw new Error('Коробка не найдена');
+    const src = srcRes.rows[0];
+    const srcLocId = source_type === 'pallet' ? src.pallet_id : src.shelf_id;
+
+    if (source_type === dest_type) {
+      // Тот же тип — просто меняем привязку
+      if (String(srcLocId) === String(dest_id)) {
+        throw new Error(source_type === 'pallet' ? 'Коробка уже на этом паллете' : 'Коробка уже на этой полке');
+      }
+      if (source_type === 'pallet') await client.query('UPDATE boxes_s SET pallet_id=$1 WHERE id=$2', [dest_id, box_id]);
+      else await client.query('UPDATE shelf_boxes_s SET shelf_id=$1 WHERE id=$2', [dest_id, box_id]);
+    } else if (source_type === 'pallet' && dest_type === 'shelf') {
+      // Паллет → полка: создаём shelf_box, переносим содержимое, удаляем boxes_s
+      const items = await client.query('SELECT product_id, quantity FROM box_items_s WHERE box_id=$1', [box_id]);
+      const posR = await client.query('SELECT COALESCE(MAX(position),0)+1 AS p FROM shelf_boxes_s WHERE shelf_id=$1', [dest_id]);
+      const ins = await client.query(
+        `INSERT INTO shelf_boxes_s (shelf_id, position, name, barcode_value, product_id, task_id, quantity, box_size, status, confirmed, closed_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'closed',$9,COALESCE($10,NOW())) RETURNING id`,
+        [dest_id, posR.rows[0].p, src.name, src.barcode_value, src.product_id, src.task_id, src.quantity, src.box_size, src.confirmed, src.closed_at]
+      );
+      const newId = ins.rows[0].id;
+      for (const it of items.rows) {
+        await client.query('INSERT INTO shelf_box_items_s (shelf_box_id, product_id, quantity) VALUES ($1,$2,$3)', [newId, it.product_id, it.quantity]);
+      }
+      await client.query('DELETE FROM box_items_s WHERE box_id=$1', [box_id]);
+      await client.query('DELETE FROM boxes_s WHERE id=$1', [box_id]);
+    } else {
+      // Полка → паллет: создаём boxes_s, переносим содержимое, удаляем shelf_box
+      const items = await client.query('SELECT product_id, quantity FROM shelf_box_items_s WHERE shelf_box_id=$1', [box_id]);
+      const whR = await client.query('SELECT pr.warehouse_id FROM pallets_s pa JOIN pallet_rows_s pr ON pr.id=pa.row_id WHERE pa.id=$1', [dest_id]);
+      const warehouseId = whR.rows[0]?.warehouse_id || null;
+      const barcode = src.barcode_value || `${Date.now()}${Math.floor(Math.random() * 10000)}`;
+      const ins = await client.query(
+        `INSERT INTO boxes_s (barcode_value, product_id, pallet_id, task_id, quantity, box_size, status, confirmed, closed_at, warehouse_id, name)
+         VALUES ($1,$2,$3,$4,$5,$6,'closed',$7,COALESCE($8,NOW()),$9,$10) RETURNING id`,
+        [barcode, src.product_id, dest_id, src.task_id, src.quantity, src.box_size, src.confirmed, src.closed_at, warehouseId, src.name]
+      );
+      const newId = ins.rows[0].id;
+      for (const it of items.rows) {
+        await client.query('INSERT INTO box_items_s (box_id, product_id, quantity) VALUES ($1,$2,$3)', [newId, it.product_id, it.quantity]);
+      }
+      await client.query('DELETE FROM shelf_box_items_s WHERE shelf_box_id=$1', [box_id]);
+      await client.query('DELETE FROM shelf_boxes_s WHERE id=$1', [box_id]);
+    }
+
+    // Лог (только pallet/shelf id — from_box_id/to_box_id не трогаем: FK на boxes_s)
+    await client.query(
+      `INSERT INTO movements_s (movement_type, product_id, quantity, from_pallet_id, from_shelf_id, to_pallet_id, to_shelf_id, performed_by, source, notes)
+       VALUES ('box_transfer', $1, $2, $3, $4, $5, $6, $7, 'admin', $8)`,
+      [src.product_id || null, src.quantity || 0,
+       source_type === 'pallet' ? srcLocId : null,
+       source_type === 'shelf' ? srcLocId : null,
+       dest_type === 'pallet' ? dest_id : null,
+       dest_type === 'shelf' ? dest_id : null,
+       req.user.id, `Перенос коробки ${src.barcode_value || box_id} (${source_type}→${dest_type})`]
+    );
+
+    await client.query('COMMIT');
+    res.json({ success: true });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(400).json({ error: err.message });
+  } finally { client.release(); }
+});
+
 // POST /api/movements/move-shelf-box — перенести коробку с одной полки на другую
 router.post('/move-shelf-box', requireAuth, async (req, res) => {
   const { shelf_box_id, dest_shelf_id } = req.body;
