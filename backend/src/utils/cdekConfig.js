@@ -24,12 +24,22 @@ const DEFAULT_SHIPMENT_POINT = SHIPMENT_POINTS[0].code;
 const BOX_TARE_G = 150;      // вес пустой коробки
 const BOTTLE_WEIGHT_G = 50;  // вес одной баночки (оценка, поправим фактическим)
 
-// Габариты коробки (см) в зависимости от числа баночек.
+// Реальная таблица коробок (см) по числу баночек. max — верхняя граница по числу банок.
+const BOX_TABLE = [
+  { max: 1, length: 9, width: 6.5, height: 6.5 },
+  { max: 2, length: 12.5, width: 8, height: 6.5 },
+  { max: 3, length: 19, width: 10, height: 6 },
+  { max: 4, length: 11, width: 11, height: 11 },
+  { max: 5, length: 17, width: 12, height: 10 },
+  { max: 6, length: 20, width: 13.5, height: 11 },
+  { max: 12, length: 23, width: 16, height: 10 },
+];
+
+// Габариты коробки по числу баночек: берём первую коробку, куда влезает.
 function boxDimensions(bottles) {
-  if (bottles <= 8) return { length: 20, width: 9, height: 9 };
-  if (bottles <= 16) return { length: 25, width: 18, height: 9 };
-  if (bottles <= 30) return { length: 33, width: 20, height: 18 };
-  return { length: 40, width: 30, height: 20 };
+  const n = Math.max(1, Number(bottles) || 1);
+  const row = BOX_TABLE.find((b) => n <= b.max) || BOX_TABLE[BOX_TABLE.length - 1];
+  return { length: row.length, width: row.width, height: row.height };
 }
 
 // Рассчитать грузоместо по числу баночек.
@@ -48,6 +58,7 @@ module.exports = {
   DEFAULT_SHIPMENT_POINT,
   BOX_TARE_G,
   BOTTLE_WEIGHT_G,
+  BOX_TABLE,
   boxDimensions,
   computePackage,
 };

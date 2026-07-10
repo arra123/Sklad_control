@@ -1,7 +1,9 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Upload, Loader2, Check, AlertTriangle, X, ImageIcon, Package, Truck, Printer, MapPin, Search, ScanLine } from 'lucide-react';
+import { Upload, Loader2, Check, AlertTriangle, X, ImageIcon, Package, Truck, Printer, MapPin, Search, ScanLine, Map as MapIcon } from 'lucide-react';
 import api from '../../api/client';
 import { useToast } from '../../components/ui/Toast';
+import CdekMapPicker from '../../components/CdekMapPicker';
+import { playBeep } from '../../utils/audio';
 
 // Сжать изображение на клиенте: макс. сторона 1600px, JPEG 0.85 → лёгкий payload и дешевле AI.
 function compressImage(file) {
@@ -80,7 +82,7 @@ export default function OrderIntakePage() {
   const reset = () => { setPreview(null); setResult(null); };
 
   return (
-    <div className="w-full max-w-5xl mx-auto p-3 sm:p-6 overflow-x-hidden">
+    <div className="w-full max-w-6xl mx-auto p-3 sm:p-6 overflow-x-hidden">
       <div className="mb-4">
         <h1 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">Приём заказа по фото</h1>
         <p className="text-sm text-gray-400 mt-0.5">
@@ -205,6 +207,7 @@ function AssemblyChecklist({ result }) {
   const total = result.total_bottles;
   const done = Object.values(collected).reduce((s, n) => s + n, 0);
   const complete = done >= total && total > 0;
+  const orderValue = result.picklist.reduce((s, p) => s + (Number(p.price) || 0) * p.qty, 0);
 
   const inc = (p, delta) => {
     setCollected((c) => {
@@ -221,9 +224,10 @@ function AssemblyChecklist({ result }) {
     setScan('');
     if (!code) return;
     const item = result.picklist.find((p) => p.barcode && String(p.barcode) === code);
-    if (!item) { toast.error('ШК не из этого заказа'); return; }
+    if (!item) { playBeep(false); toast.error('ШК не из этого заказа'); return; }
     const cur = collected[item.product_id] || 0;
-    if (cur >= item.qty) { toast.error(`«${item.name}» уже собрана полностью`); return; }
+    if (cur >= item.qty) { playBeep(false); toast.error(`«${item.name}» уже собрана полностью`); return; }
+    playBeep(true);
     inc(item, +1);
   };
 
@@ -234,9 +238,12 @@ function AssemblyChecklist({ result }) {
           <Package className="w-4.5 h-4.5 flex-shrink-0 text-primary-600" />
           <span className="font-semibold text-gray-900 dark:text-white truncate">Сборка</span>
         </div>
-        <span className={'px-2.5 py-1 rounded-lg text-sm font-bold flex-shrink-0 ' + (complete ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' : 'bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300')}>
-          {done} / {total}
-        </span>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {orderValue > 0 && <span className="text-xs text-gray-400">{orderValue} ₽</span>}
+          <span className={'px-2.5 py-1 rounded-lg text-sm font-bold ' + (complete ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' : 'bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300')}>
+            {done} / {total}
+          </span>
+        </div>
       </div>
 
       {/* Поле сканера */}
@@ -268,7 +275,10 @@ function AssemblyChecklist({ result }) {
               </button>
               <div className="flex-1 min-w-0" onClick={() => inc(p, +1)}>
                 <p className="text-sm text-gray-800 dark:text-gray-100 break-words leading-tight">{p.name}</p>
-                {p.barcode && <p className="text-[11px] text-gray-400 font-mono break-all">{p.barcode}</p>}
+                <p className="text-[11px] text-gray-400 flex items-center gap-2 flex-wrap">
+                  {p.barcode && <span className="font-mono break-all">{p.barcode}</span>}
+                  {p.price != null && <span className="text-emerald-600 font-medium">{p.price} ₽/шт</span>}
+                </p>
               </div>
               {c > 0 && (
                 <button onClick={() => inc(p, -1)} className="w-7 h-7 flex-shrink-0 rounded-lg text-gray-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 flex items-center justify-center">
@@ -294,6 +304,15 @@ function norm(s) {
   return String(s || '').toLowerCase().replace(/ё/g, 'е').replace(/[^a-zа-я0-9]+/gi, ' ').trim();
 }
 
+// Габариты + вес коробки по числу баночек (таблица из конфига).
+function computeDefaultPkg(bottles, cfg) {
+  const n = Math.max(1, bottles || 1);
+  const table = cfg?.box_table || [];
+  const row = table.find((b) => n <= b.max) || table[table.length - 1] || { length: 20, width: 9, height: 9 };
+  const weight = (cfg?.box_tare_g ?? 150) + n * (cfg?.bottle_weight_g ?? 50);
+  return { weight, length: row.length, width: row.width, height: row.height };
+}
+
 // ─── Панель оформления доставки СДЭК ─────────────────────────────────────────
 function CdekPanel({ result }) {
   const toast = useToast();
@@ -315,6 +334,9 @@ function CdekPanel({ result }) {
   const [busy, setBusy] = useState('');
   const [order, setOrder] = useState(null);
   const [labelUrl, setLabelUrl] = useState(null);
+  const [showMap, setShowMap] = useState(false);
+  const [pkg, setPkg] = useState(null); // { weight, length, width, height } — авто, редактируемо
+  const [pkgEdited, setPkgEdited] = useState(false);
 
   // Город/улица/дом получателя. AI отдаёт city и pvz_address отдельными полями;
   // если их нет — аккуратный фолбэк из полного адреса.
@@ -335,7 +357,9 @@ function CdekPanel({ result }) {
     api.get('/orders/cdek/config').then(({ data }) => {
       setCfg(data);
       setShipmentPoint(data.default_shipment_point);
+      setPkg(computeDefaultPkg(bottles, data));
     }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Автоподстановка города + ПВЗ из адреса заказа
@@ -398,7 +422,7 @@ function CdekPanel({ result }) {
     if (!city) { toast.error('Выберите город получателя'); return; }
     setBusy('calc'); setTariffs(null); setTariff(null);
     try {
-      const { data } = await api.post('/orders/cdek/calculate', { shipment_point: shipmentPoint, to_city_code: city.code, bottles });
+      const { data } = await api.post('/orders/cdek/calculate', { shipment_point: shipmentPoint, to_city_code: city.code, bottles, pkg });
       setTariffs(data.tariffs);
       if (!data.tariffs.length) toast.error('Нет доступных тарифов');
     } catch (e) { toast.error(e.response?.data?.error || 'Ошибка расчёта'); }
@@ -419,6 +443,7 @@ function CdekPanel({ result }) {
         recipient: { name: name.trim(), phone: phone.trim() },
         picklist: result.picklist,
         bottles,
+        pkg,
       };
       if (isPvzMode) body.delivery_point = pvz.code;
       else body.to_location = { address: result.address || city.city };
@@ -447,6 +472,18 @@ function CdekPanel({ result }) {
       if (data.url) { setLabelUrl(data.url); window.open(data.url, '_blank'); return; }
       pollLabel(data.print_uuid);
     } catch (e) { toast.error(e.response?.data?.error || 'Ошибка печати'); }
+    finally { setBusy(''); }
+  };
+
+  const cancelOrder = async () => {
+    if (!order?.uuid) return;
+    if (!window.confirm('Отменить заказ в СДЭК?')) return;
+    setBusy('cancel');
+    try {
+      await api.post(`/orders/cdek/cancel/${order.uuid}`);
+      toast.success('Заказ отменён');
+      setOrder(null); setLabelUrl(null); setTariff(null); setTariffs(null);
+    } catch (e) { toast.error(e.response?.data?.error || 'Не удалось отменить'); }
     finally { setBusy(''); }
   };
 
@@ -519,7 +556,12 @@ function CdekPanel({ result }) {
           {/* ПВЗ */}
           {city && (
             <div>
-              <label className="text-xs font-medium text-gray-500">ПВЗ получения</label>
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-medium text-gray-500">ПВЗ получения</label>
+                <button onClick={() => setShowMap(true)} className="text-xs text-rose-600 hover:underline flex items-center gap-1">
+                  <MapIcon className="w-3.5 h-3.5" /> На карте
+                </button>
+              </div>
               <div className="flex gap-2 mt-1">
                 <input value={pvzQuery} onChange={(e) => setPvzQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && filterPvz()}
                   placeholder="улица / фильтр" className="flex-1 min-w-0 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm" />
@@ -548,6 +590,29 @@ function CdekPanel({ result }) {
 
         {/* Тарифы + действия */}
         <div className="space-y-3 min-w-0">
+          {/* Коробка — авто по числу банок, редактируемо */}
+          {pkg && (
+            <div className="rounded-xl border border-gray-100 dark:border-gray-800 p-3">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-medium text-gray-500">
+                  Коробка (авто по {bottles} бан.){pkgEdited && <span className="text-amber-500"> · изменено</span>}
+                </span>
+                <button onClick={() => { setPkg(computeDefaultPkg(bottles, cfg)); setPkgEdited(false); }}
+                  className="text-[11px] text-gray-400 hover:underline">сбросить</button>
+              </div>
+              <div className="grid grid-cols-4 gap-2">
+                {[['weight', 'Вес, г'], ['length', 'Д, см'], ['width', 'Ш, см'], ['height', 'В, см']].map(([k, label]) => (
+                  <label key={k} className="text-[10px] text-gray-400 block">
+                    {label}
+                    <input type="number" min="0" step={k === 'weight' ? '10' : '0.5'} value={pkg[k]}
+                      onChange={(e) => { const v = e.target.value; setPkg((prev) => ({ ...prev, [k]: v === '' ? '' : Number(v) })); setPkgEdited(true); }}
+                      className="mt-0.5 w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-2 py-1.5 text-sm text-gray-800 dark:text-gray-100" />
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+
           <button onClick={calculate} disabled={busy === 'calc' || !city}
             className="w-full py-2.5 rounded-xl bg-primary-600 text-white text-sm font-medium hover:bg-primary-700 disabled:opacity-40 flex items-center justify-center gap-2">
             {busy === 'calc' ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
@@ -594,10 +659,23 @@ function CdekPanel({ result }) {
                 Печать этикетки
               </button>
               {labelUrl && <a href={labelUrl} target="_blank" rel="noreferrer" className="block text-center text-xs text-primary-600 hover:underline">Открыть PDF этикетки</a>}
+              <button onClick={cancelOrder} disabled={busy === 'cancel'}
+                className="mt-1 w-full py-2 rounded-xl border border-rose-200 dark:border-rose-800 text-rose-600 text-sm font-medium hover:bg-rose-50 dark:hover:bg-rose-900/20 flex items-center justify-center gap-2">
+                {busy === 'cancel' ? <Loader2 className="w-4 h-4 animate-spin" /> : <X className="w-4 h-4" />}
+                Отменить заказ
+              </button>
             </div>
           )}
         </div>
       </div>
+
+      {showMap && city && (
+        <CdekMapPicker
+          cityCode={city.code} cityName={city.city} selectedCode={pvz?.code}
+          onSelect={(p) => { setPvz(p); setPvzQuery(''); }}
+          onClose={() => setShowMap(false)}
+        />
+      )}
     </div>
   );
 }

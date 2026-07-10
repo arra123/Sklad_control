@@ -82,7 +82,7 @@ function bestMatch(name, catalog) {
 async function expandProduct(client, productId, qty, acc, depth = 0, visited = new Set()) {
   if (depth > 5 || visited.has(productId)) return;
   const r = await client.query(
-    `SELECT id, name, entity_type, production_barcode, barcode_list FROM products_s WHERE id = $1`,
+    `SELECT id, name, entity_type, production_barcode, barcode_list, sale_price FROM products_s WHERE id = $1`,
     [productId]
   );
   const p = r.rows[0];
@@ -93,6 +93,7 @@ async function expandProduct(client, productId, qty, acc, depth = 0, visited = n
       product_id: p.id,
       name: p.name,
       barcode: p.production_barcode || (p.barcode_list ? p.barcode_list.split(';')[0] : null),
+      price: p.sale_price != null ? Number(p.sale_price) : null, // цена баночки из каталога
       qty: 0,
     };
     cur.qty += qty;
@@ -229,6 +230,24 @@ router.post('/parse-screenshot', requireAuth, async (req, res) => {
 //  СДЭК — оформление доставки
 // ════════════════════════════════════════════════════════════════════════════
 
+// Валидация ручного override габаритов/веса. Возвращает объект или null.
+function normalizePkg(o) {
+  if (!o) return null;
+  const weight = Number(o.weight), length = Number(o.length), width = Number(o.width), height = Number(o.height);
+  if ([weight, length, width, height].some((v) => !v || v <= 0)) return null;
+  return { weight, length, width, height };
+}
+
+// СДЭК принимает целые см и граммы — округляем габариты вверх, вес — до целого.
+function cdekPkgDims(pkg) {
+  return {
+    weight: Math.round(pkg.weight),
+    length: Math.ceil(pkg.length),
+    width: Math.ceil(pkg.width),
+    height: Math.ceil(pkg.height),
+  };
+}
+
 function cdekReady(res) {
   if (!cdek.isConfigured()) {
     res.status(503).json({ error: 'СДЭК API не настроен (CDEK_CLIENT_ID / CDEK_CLIENT_SECRET)' });
@@ -246,6 +265,7 @@ router.get('/cdek/config', requireAuth, (req, res) => {
     default_shipment_point: cdekCfg.DEFAULT_SHIPMENT_POINT,
     box_tare_g: cdekCfg.BOX_TARE_G,
     bottle_weight_g: cdekCfg.BOTTLE_WEIGHT_G,
+    box_table: cdekCfg.BOX_TABLE,
   });
 });
 
@@ -267,13 +287,15 @@ router.get('/cdek/pvz', requireAuth, async (req, res) => {
   const { city_code, query, type } = req.query;
   if (!city_code) return res.status(400).json({ error: 'Нужен city_code' });
   try {
-    const r = await cdek.deliveryPoints({ city_code, type: type || 'ALL', size: 200 });
+    const r = await cdek.deliveryPoints({ city_code, type: type || 'ALL', size: 1000 });
     let list = (Array.isArray(r.json) ? r.json : []).map((p) => ({
       code: p.code,
       name: p.name,
       address: p.location?.address_full || p.location?.address,
       city: p.location?.city,
       city_code: p.location?.city_code,
+      lat: p.location?.latitude ?? null,
+      lng: p.location?.longitude ?? null,
       type: p.type,
       have_cashless: p.have_cashless,
       nearest_station: p.nearest_station,
@@ -282,7 +304,8 @@ router.get('/cdek/pvz', requireAuth, async (req, res) => {
       const q = normalize(query);
       list = list.filter((p) => normalize(p.address).includes(q) || normalize(p.name).includes(q));
     }
-    res.json(list.slice(0, 60));
+    // На карту нужны все точки города; для списка ограничиваем.
+    res.json(query ? list.slice(0, 60) : list.slice(0, 800));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -290,19 +313,19 @@ router.get('/cdek/pvz', requireAuth, async (req, res) => {
 // body: { shipment_point?, to_city_code, bottles }
 router.post('/cdek/calculate', requireAuth, async (req, res) => {
   if (!cdekReady(res)) return;
-  const { shipment_point, to_city_code, bottles } = req.body || {};
+  const { shipment_point, to_city_code, bottles, pkg: pkgOverride } = req.body || {};
   if (!to_city_code) return res.status(400).json({ error: 'Нужен to_city_code' });
 
   const point = cdekCfg.SHIPMENT_POINTS.find((p) => p.code === (shipment_point || cdekCfg.DEFAULT_SHIPMENT_POINT))
     || cdekCfg.SHIPMENT_POINTS[0];
-  const pkg = cdekCfg.computePackage(bottles);
+  const pkg = normalizePkg(pkgOverride) || cdekCfg.computePackage(bottles);
 
   try {
     const r = await cdek.calcTariffList({
       type: 1,
       from_location: { code: point.city_code },
       to_location: { code: Number(to_city_code) },
-      packages: [{ weight: pkg.weight, length: pkg.length, width: pkg.width, height: pkg.height }],
+      packages: [{ ...cdekPkgDims(pkg) }],
     });
     if (r.status !== 200 || !r.json?.tariff_codes) {
       return res.status(502).json({ error: 'СДЭК калькулятор: ' + (r.json?.errors?.[0]?.message || r.text?.slice(0, 200)) });
@@ -339,14 +362,14 @@ router.post('/cdek/create', requireAuth, async (req, res) => {
   const point = cdekCfg.SHIPMENT_POINTS.find((p) => p.code === (b.shipment_point || cdekCfg.DEFAULT_SHIPMENT_POINT))
     || cdekCfg.SHIPMENT_POINTS[0];
   const bottles = picklist.reduce((s, p) => s + (Number(p.qty) || 0), 0);
-  const pkg = cdekCfg.computePackage(bottles);
+  const pkg = normalizePkg(b.pkg) || cdekCfg.computePackage(bottles);
   const number = String(b.number || `GRA-${Date.now()}`).slice(0, 40);
 
   const items = picklist.map((p, i) => ({
     name: p.name,
     ware_key: String(p.barcode || p.product_id || `pos${i + 1}`).slice(0, 50),
     payment: { value: 0 }, // предоплата, наложенного платежа нет
-    cost: Number(p.cost) || 0, // объявленная ценность за ед.
+    cost: Number(p.cost ?? p.price) || 0, // объявленная ценность за ед. (цена баночки)
     weight: cdekCfg.BOTTLE_WEIGHT_G,
     amount: Math.max(1, Number(p.qty) || 1),
   }));
@@ -367,10 +390,7 @@ router.post('/cdek/create', requireAuth, async (req, res) => {
     },
     packages: [{
       number: '1',
-      weight: pkg.weight,
-      length: pkg.length,
-      width: pkg.width,
-      height: pkg.height,
+      ...cdekPkgDims(pkg),
       items,
     }],
   };
@@ -387,6 +407,19 @@ router.post('/cdek/create', requireAuth, async (req, res) => {
     }
     const uuid = r.json?.entity?.uuid;
     res.json({ ok: true, uuid, number, status: r.status });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// POST /cdek/cancel/:uuid — отменить заказ в СДЭК
+router.post('/cdek/cancel/:uuid', requireAuth, async (req, res) => {
+  if (!cdekReady(res)) return;
+  try {
+    const r = await cdek.deleteOrder(req.params.uuid);
+    if (r.status !== 200 && r.status !== 202) {
+      const msg = r.json?.requests?.[0]?.errors?.[0]?.message || r.json?.errors?.[0]?.message || r.text?.slice(0, 200);
+      return res.status(502).json({ error: 'СДЭК не отменил заказ: ' + msg });
+    }
+    res.json({ ok: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

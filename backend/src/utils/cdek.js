@@ -100,6 +100,9 @@ const cities = (query = {}) =>
 // Создание заказа. POST /v2/orders → HTTP 202 + { entity: { uuid } } (асинхронно).
 const createOrder = (payload) => call('POST', '/v2/orders', payload);
 
+// Отмена заказа. DELETE /v2/orders/{uuid}
+const deleteOrder = (uuid) => call('DELETE', `/v2/orders/${uuid}`);
+
 // Инфо о заказе (статусы, номер СДЭК). GET /v2/orders/{uuid} или ?cdek_number= / ?im_number=
 const getOrder = (uuid) => call('GET', `/v2/orders/${uuid}`);
 const getOrderByCdekNumber = (n) => call('GET', `/v2/orders?cdek_number=${encodeURIComponent(n)}`);
@@ -121,6 +124,7 @@ module.exports = {
   deliveryPoints,
   cities,
   createOrder,
+  deleteOrder,
   getOrder,
   getOrderByCdekNumber,
   getOrderByImNumber,
