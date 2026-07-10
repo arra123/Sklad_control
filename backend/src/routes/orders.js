@@ -2,6 +2,8 @@ const router = require('express').Router();
 const pool = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
 const aiProxy = require('../utils/aiProxy');
+const cdek = require('../utils/cdek');
+const cdekCfg = require('../utils/cdekConfig');
 
 // ─── Сопоставление названия из скриншота с товаром в БД ──────────────────────
 // Нормализация: нижний регистр, убрать пунктуацию, схлопнуть пробелы.
@@ -177,6 +179,210 @@ router.post('/parse-screenshot', requireAuth, async (req, res) => {
   } finally {
     client.release();
   }
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+//  СДЭК — оформление доставки
+// ════════════════════════════════════════════════════════════════════════════
+
+function cdekReady(res) {
+  if (!cdek.isConfigured()) {
+    res.status(503).json({ error: 'СДЭК API не настроен (CDEK_CLIENT_ID / CDEK_CLIENT_SECRET)' });
+    return false;
+  }
+  return true;
+}
+
+// GET /cdek/config — данные отправителя, пункты отправки, параметры веса
+router.get('/cdek/config', requireAuth, (req, res) => {
+  res.json({
+    configured: cdek.isConfigured(),
+    sender: cdekCfg.SENDER,
+    shipment_points: cdekCfg.SHIPMENT_POINTS,
+    default_shipment_point: cdekCfg.DEFAULT_SHIPMENT_POINT,
+    box_tare_g: cdekCfg.BOX_TARE_G,
+    bottle_weight_g: cdekCfg.BOTTLE_WEIGHT_G,
+  });
+});
+
+// GET /cdek/cities?name=Москва — поиск кода города
+router.get('/cdek/cities', requireAuth, async (req, res) => {
+  if (!cdekReady(res)) return;
+  try {
+    const r = await cdek.cities({ city: req.query.name || '', size: 10, country_codes: 'RU' });
+    const list = (Array.isArray(r.json) ? r.json : []).map((c) => ({
+      code: c.code, city: c.city, region: c.region, fias_guid: c.fias_guid,
+    }));
+    res.json(list);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// GET /cdek/pvz?city_code=44&query=Цимлянская — список ПВЗ получения
+router.get('/cdek/pvz', requireAuth, async (req, res) => {
+  if (!cdekReady(res)) return;
+  const { city_code, query, type } = req.query;
+  if (!city_code) return res.status(400).json({ error: 'Нужен city_code' });
+  try {
+    const r = await cdek.deliveryPoints({ city_code, type: type || 'ALL', size: 200 });
+    let list = (Array.isArray(r.json) ? r.json : []).map((p) => ({
+      code: p.code,
+      name: p.name,
+      address: p.location?.address_full || p.location?.address,
+      city: p.location?.city,
+      city_code: p.location?.city_code,
+      type: p.type,
+      have_cashless: p.have_cashless,
+      nearest_station: p.nearest_station,
+    }));
+    if (query) {
+      const q = normalize(query);
+      list = list.filter((p) => normalize(p.address).includes(q) || normalize(p.name).includes(q));
+    }
+    res.json(list.slice(0, 60));
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// POST /cdek/calculate — тарифы для заказа (только склад-* режимы)
+// body: { shipment_point?, to_city_code, bottles }
+router.post('/cdek/calculate', requireAuth, async (req, res) => {
+  if (!cdekReady(res)) return;
+  const { shipment_point, to_city_code, bottles } = req.body || {};
+  if (!to_city_code) return res.status(400).json({ error: 'Нужен to_city_code' });
+
+  const point = cdekCfg.SHIPMENT_POINTS.find((p) => p.code === (shipment_point || cdekCfg.DEFAULT_SHIPMENT_POINT))
+    || cdekCfg.SHIPMENT_POINTS[0];
+  const pkg = cdekCfg.computePackage(bottles);
+
+  try {
+    const r = await cdek.calcTariffList({
+      type: 1,
+      from_location: { code: point.city_code },
+      to_location: { code: Number(to_city_code) },
+      packages: [{ weight: pkg.weight, length: pkg.length, width: pkg.width, height: pkg.height }],
+    });
+    if (r.status !== 200 || !r.json?.tariff_codes) {
+      return res.status(502).json({ error: 'СДЭК калькулятор: ' + (r.json?.errors?.[0]?.message || r.text?.slice(0, 200)) });
+    }
+    const tariffs = r.json.tariff_codes
+      .filter((t) => cdekCfg.SENDER_DELIVERY_MODES.includes(t.delivery_mode))
+      .map((t) => ({
+        tariff_code: t.tariff_code,
+        tariff_name: t.tariff_name,
+        delivery_mode: t.delivery_mode, // 3 склад-дверь, 4 склад-склад, 7 склад-постамат
+        delivery_sum: t.delivery_sum,
+        period_min: t.period_min,
+        period_max: t.period_max,
+      }))
+      .sort((a, b) => a.delivery_sum - b.delivery_sum);
+    res.json({ package: pkg, tariffs });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// POST /cdek/create — создать заказ в СДЭК
+// body: { number?, tariff_code, shipment_point?, delivery_point?, to_location?,
+//         recipient:{name,phone}, picklist:[{name,barcode,product_id,qty,cost?}], bottles }
+router.post('/cdek/create', requireAuth, async (req, res) => {
+  if (!cdekReady(res)) return;
+  const b = req.body || {};
+  if (!b.tariff_code) return res.status(400).json({ error: 'Нужен tariff_code' });
+  if (!b.recipient?.name || !b.recipient?.phone) return res.status(400).json({ error: 'Нужны ФИО и телефон получателя' });
+  if (!b.delivery_point && !b.to_location?.address) {
+    return res.status(400).json({ error: 'Нужен delivery_point (ПВЗ) или to_location.address' });
+  }
+  const picklist = Array.isArray(b.picklist) ? b.picklist : [];
+  if (picklist.length === 0) return res.status(400).json({ error: 'Пустой состав заказа' });
+
+  const point = cdekCfg.SHIPMENT_POINTS.find((p) => p.code === (b.shipment_point || cdekCfg.DEFAULT_SHIPMENT_POINT))
+    || cdekCfg.SHIPMENT_POINTS[0];
+  const bottles = picklist.reduce((s, p) => s + (Number(p.qty) || 0), 0);
+  const pkg = cdekCfg.computePackage(bottles);
+  const number = String(b.number || `GRA-${Date.now()}`).slice(0, 40);
+
+  const items = picklist.map((p, i) => ({
+    name: p.name,
+    ware_key: String(p.barcode || p.product_id || `pos${i + 1}`).slice(0, 50),
+    payment: { value: 0 }, // предоплата, наложенного платежа нет
+    cost: Number(p.cost) || 0, // объявленная ценность за ед.
+    weight: cdekCfg.BOTTLE_WEIGHT_G,
+    amount: Math.max(1, Number(p.qty) || 1),
+  }));
+
+  const payload = {
+    type: 1, // интернет-магазин
+    number,
+    tariff_code: Number(b.tariff_code),
+    shipment_point: point.code,
+    sender: {
+      company: cdekCfg.SENDER.company,
+      name: cdekCfg.SENDER.name,
+      phones: [{ number: cdekCfg.SENDER.phone }],
+    },
+    recipient: {
+      name: b.recipient.name,
+      phones: [{ number: b.recipient.phone }],
+    },
+    packages: [{
+      number: '1',
+      weight: pkg.weight,
+      length: pkg.length,
+      width: pkg.width,
+      height: pkg.height,
+      items,
+    }],
+  };
+  if (b.delivery_point) payload.delivery_point = b.delivery_point;
+  else payload.to_location = { address: b.to_location.address };
+  if (b.recipient.email) payload.recipient.email = b.recipient.email;
+
+  try {
+    const r = await cdek.createOrder(payload);
+    if (r.status !== 202 && r.status !== 200) {
+      const msg = r.json?.requests?.[0]?.errors?.[0]?.message
+        || r.json?.errors?.[0]?.message || r.text?.slice(0, 300);
+      return res.status(502).json({ error: 'СДЭК не принял заказ: ' + msg, raw: r.json });
+    }
+    const uuid = r.json?.entity?.uuid;
+    res.json({ ok: true, uuid, number, status: r.status });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// GET /cdek/order/:uuid — статус и номер СДЭК
+router.get('/cdek/order/:uuid', requireAuth, async (req, res) => {
+  if (!cdekReady(res)) return;
+  try {
+    const r = await cdek.getOrder(req.params.uuid);
+    const e = r.json?.entity;
+    if (!e) return res.status(r.status || 404).json({ error: 'Заказ не найден', raw: r.json });
+    res.json({
+      uuid: e.uuid,
+      cdek_number: e.cdek_number,
+      number: e.number,
+      statuses: (e.statuses || []).map((s) => ({ code: s.code, name: s.name, date: s.date_time })),
+      errors: r.json?.requests?.flatMap((q) => q.errors || []) || [],
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// POST /cdek/print/:uuid — сформировать этикетку (ШК), вернуть ссылку на PDF
+router.post('/cdek/print/:uuid', requireAuth, async (req, res) => {
+  if (!cdekReady(res)) return;
+  try {
+    const r = await cdek.printBarcode({ orders: [{ order_uuid: req.params.uuid }], format: 'A6', copy_count: 1 });
+    const uuid = r.json?.entity?.uuid;
+    if (!uuid) return res.status(502).json({ error: 'СДЭК не вернул задание на печать', raw: r.json });
+    // Ссылка на PDF готовится асинхронно; фронт опрашивает GET /cdek/print/:uuid
+    res.json({ print_uuid: uuid, url: r.json?.entity?.url || null });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// GET /cdek/print/:uuid — статус/ссылка на готовый PDF этикетки
+router.get('/cdek/print/:uuid', requireAuth, async (req, res) => {
+  if (!cdekReady(res)) return;
+  try {
+    const r = await cdek.getPrintBarcode(req.params.uuid);
+    const e = r.json?.entity;
+    res.json({ url: e?.url || null, status: e?.statuses?.slice(-1)[0]?.code || null });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 module.exports = router;
