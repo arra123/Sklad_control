@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Upload, Loader2, Check, AlertTriangle, X, ImageIcon, Package, Truck, Printer, MapPin, Search, ScanLine, Map as MapIcon } from 'lucide-react';
+import { Upload, Loader2, Check, AlertTriangle, X, ImageIcon, Package, Truck, Printer, MapPin, Search, ScanLine, Map as MapIcon, ClipboardList, Trash2, Clock, User, RefreshCw } from 'lucide-react';
 import api from '../../api/client';
 import { useToast } from '../../components/ui/Toast';
 import CdekMapPicker from '../../components/CdekMapPicker';
@@ -44,6 +44,19 @@ export default function OrderIntakePage() {
 
   const switchTab = (t) => { setTab(t); setResult(null); setPreview(null); };
 
+  // Сохранить заказ в БД (общий список) и открыть его в работе
+  const persistOrder = useCallback(async (data) => {
+    try {
+      const { data: saved } = await api.post('/orders', {
+        source: data.manual ? 'manual' : 'photo',
+        recipient: data.recipient, phone: data.phone, city: data.city, city_code: data.city_code,
+        address: data.address, pvz_address: data.pvz_address,
+        total_bottles: data.total_bottles, recognized: data.recognized, picklist: data.picklist,
+      });
+      setResult({ ...data, id: saved.id, status: saved.status, collected: saved.collected || {} });
+    } catch { setResult(data); }
+  }, []);
+
   const handleImage = useCallback(async (file) => {
     if (!file || !file.type.startsWith('image/')) {
       toast.error('Нужен файл изображения');
@@ -55,7 +68,7 @@ export default function OrderIntakePage() {
       setPreview(dataUrl);
       setLoading(true);
       const { data } = await api.post('/orders/parse-screenshot', { image: dataUrl }, { timeout: 90000 });
-      setResult(data);
+      await persistOrder(data);
       if (data.unmatched > 0) toast.error(`Не распознано позиций: ${data.unmatched}`);
       else if (data.bundle_warnings > 0) toast.error('Набор без состава в каталоге — проверьте количество');
       else toast.success(`Распознано: ${data.total_bottles} баночек`);
@@ -64,7 +77,7 @@ export default function OrderIntakePage() {
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, [toast, persistOrder]);
 
   useEffect(() => {
     const onPaste = (e) => {
@@ -84,6 +97,11 @@ export default function OrderIntakePage() {
 
   const reset = () => { setPreview(null); setResult(null); };
 
+  const openOrder = useCallback(async (id) => {
+    try { const { data } = await api.get(`/orders/${id}`); setResult(orderToResult(data)); }
+    catch { toast.error('Не удалось открыть заказ'); }
+  }, [toast]);
+
   return (
     <div className="w-full max-w-6xl mx-auto p-3 sm:p-6 overflow-x-hidden">
       <div className="mb-4">
@@ -95,9 +113,9 @@ export default function OrderIntakePage() {
         </p>
       </div>
 
-      {/* Вкладки способа создания */}
-      <div className="flex gap-2 mb-4 p-1 bg-gray-100 dark:bg-gray-800 rounded-2xl max-w-md">
-        {[['photo', 'По фото', ImageIcon], ['manual', 'Вручную', Package]].map(([k, label, Icon]) => (
+      {/* Вкладки */}
+      <div className="flex gap-2 mb-4 p-1 bg-gray-100 dark:bg-gray-800 rounded-2xl max-w-lg">
+        {[['photo', 'По фото', ImageIcon], ['manual', 'Вручную', Package], ['orders', 'Заказы', ClipboardList]].map(([k, label, Icon]) => (
           <button key={k} onClick={() => switchTab(k)}
             className={'flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2 ' +
               (tab === k ? 'bg-white dark:bg-gray-900 text-primary-600 shadow-sm' : 'text-gray-500')}>
@@ -106,11 +124,17 @@ export default function OrderIntakePage() {
         ))}
       </div>
 
+      {tab === 'orders' && !result && <OrdersList onOpen={openOrder} />}
+
+      {!(tab === 'orders' && !result) && (
+      <>
       <div className="grid gap-4 lg:grid-cols-2">
-        {/* ── Загрузка / ручной подбор ── */}
+        {/* ── Загрузка / ручной подбор / открытый заказ ── */}
         <div className="min-w-0">
-          {tab === 'manual' ? (
-            <ManualPicker onResult={(d) => { setResult(d); setPreview(null); }} hasResult={!!result} onReset={() => setResult(null)} />
+          {result?.isSaved ? (
+            <OrderSummaryCard result={result} onBack={reset} onDeleted={reset} />
+          ) : tab === 'manual' ? (
+            <ManualPicker onResult={(d) => { setPreview(null); persistOrder(d); }} hasResult={!!result} onReset={() => setResult(null)} />
           ) : (
           <div
             onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
@@ -213,6 +237,138 @@ export default function OrderIntakePage() {
 
       {/* ── Оформление СДЭК ── */}
       {result && result.picklist.length > 0 && <CdekPanel result={result} />}
+
+      {/* История заказа */}
+      {result?.id && <OrderHistory orderId={result.id} />}
+      </>
+      )}
+    </div>
+  );
+}
+
+// ─── Список заказов (общий, с автообновлением) ───────────────────────────────
+function OrdersList({ onOpen }) {
+  const toast = useToast();
+  const [orders, setOrders] = useState([]);
+  const [filter, setFilter] = useState('active');
+  const [loading, setLoading] = useState(true);
+
+  const load = () => {
+    api.get('/orders', { params: filter === 'all' ? {} : { status: 'active' } })
+      .then(({ data }) => setOrders(data)).catch(() => {}).finally(() => setLoading(false));
+  };
+  useEffect(() => { setLoading(true); load(); const t = setInterval(load, 8000); return () => clearInterval(t); }, [filter]); // eslint-disable-line
+
+  const del = async (e, id) => {
+    e.stopPropagation();
+    if (!window.confirm('Удалить заказ?')) return;
+    try { await api.delete(`/orders/${id}`); setOrders((o) => o.filter((x) => x.id !== id)); }
+    catch { toast.error('Не удалось удалить'); }
+  };
+
+  return (
+    <div className="rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 overflow-hidden max-w-3xl">
+      <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-gray-100 dark:border-gray-800">
+        <div className="flex items-center gap-2 min-w-0">
+          <ClipboardList className="w-4.5 h-4.5 flex-shrink-0 text-primary-600" />
+          <span className="font-semibold text-gray-900 dark:text-white">Заказы</span>
+        </div>
+        <div className="flex items-center gap-1 flex-shrink-0">
+          <div className="flex gap-1 p-0.5 bg-gray-100 dark:bg-gray-800 rounded-lg">
+            {[['active', 'Активные'], ['all', 'Все']].map(([k, l]) => (
+              <button key={k} onClick={() => setFilter(k)} className={'px-2.5 py-1 rounded-md text-xs font-medium ' + (filter === k ? 'bg-white dark:bg-gray-900 text-primary-600 shadow-sm' : 'text-gray-500')}>{l}</button>
+            ))}
+          </div>
+          <button onClick={load} className="w-8 h-8 rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-center"><RefreshCw className="w-4 h-4" /></button>
+        </div>
+      </div>
+      {loading && orders.length === 0 ? (
+        <div className="py-12 flex justify-center"><Loader2 className="w-6 h-6 text-primary-500 animate-spin" /></div>
+      ) : orders.length === 0 ? (
+        <div className="py-12 text-center text-sm text-gray-400">Заказов нет</div>
+      ) : (
+        <div className="divide-y divide-gray-50 dark:divide-gray-800">
+          {orders.map((o) => (
+            <div key={o.id} onClick={() => onOpen(o.id)} className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800/60 cursor-pointer">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{o.recipient_name || 'Без получателя'}</span>
+                  <StatusBadge status={o.status} />
+                  <span className="text-[11px] text-gray-400">{o.source === 'manual' ? 'вручную' : 'фото'}</span>
+                </div>
+                <p className="text-[11px] text-gray-400 break-words">
+                  {o.pvz_address || o.city || '—'} · {o.collected_total || 0}/{o.total_bottles} бан.{o.order_value ? ` · ${Math.round(o.order_value)}₽` : ''}
+                  {o.cdek_number ? ` · трек ${o.cdek_number}` : ''}
+                </p>
+                <p className="text-[10px] text-gray-400 flex items-center gap-1 mt-0.5 flex-wrap">
+                  <User className="w-3 h-3" /> {o.created_by_label || '—'} · <Clock className="w-3 h-3" /> {fmtDate(o.created_at)}
+                </p>
+              </div>
+              <button onClick={(e) => del(e, o.id)} className="w-8 h-8 flex-shrink-0 rounded-lg text-gray-300 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 flex items-center justify-center"><Trash2 className="w-4 h-4" /></button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Сводка открытого заказа (левая колонка) ─────────────────────────────────
+function OrderSummaryCard({ result, onBack, onDeleted }) {
+  const toast = useToast();
+  const del = async () => {
+    if (!window.confirm('Удалить заказ?')) return;
+    try { await api.delete(`/orders/${result.id}`); toast.success('Заказ удалён'); onDeleted(); }
+    catch { toast.error('Не удалось удалить'); }
+  };
+  return (
+    <div className="rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 p-4">
+      <button onClick={onBack} className="text-sm text-primary-600 hover:underline mb-3">← К заказам</button>
+      <div className="flex items-center gap-2 mb-1">
+        <span className="font-semibold text-gray-900 dark:text-white">Заказ #{result.id}</span>
+        <StatusBadge status={result.status} />
+      </div>
+      <p className="text-sm text-gray-600 dark:text-gray-300">{result.total_bottles} баночек · {result.source === 'manual' ? 'вручную' : 'по фото'}</p>
+      {result.cdek_number && <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">Трек СДЭК: <span className="font-mono font-semibold">{result.cdek_number}</span></p>}
+      <button onClick={del} className="mt-3 w-full py-2 rounded-xl border border-rose-200 dark:border-rose-800 text-rose-600 text-sm font-medium hover:bg-rose-50 dark:hover:bg-rose-900/20 flex items-center justify-center gap-2">
+        <Trash2 className="w-4 h-4" /> Удалить заказ
+      </button>
+    </div>
+  );
+}
+
+// ─── История заказа (кто, когда, что) ────────────────────────────────────────
+function OrderHistory({ orderId }) {
+  const [events, setEvents] = useState([]);
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    api.get(`/orders/${orderId}/events`).then(({ data }) => setEvents(data)).catch(() => {});
+  }, [open, orderId]);
+  const labelFor = (e) => {
+    if (e.event_type === 'created') return 'создал заказ';
+    if (e.event_type === 'pick') return `пикнул +${e.qty || 1}${e.product_name ? ' · ' + e.product_name : ''}`;
+    if (e.event_type === 'unpick') return `убрал ${e.qty || 1}${e.product_name ? ' · ' + e.product_name : ''}`;
+    if (e.event_type === 'status') return e.notes || 'сменил статус';
+    return e.notes || e.event_type;
+  };
+  return (
+    <div className="mt-4 rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 overflow-hidden">
+      <button onClick={() => setOpen((o) => !o)} className="w-full flex items-center justify-between px-4 py-3 text-sm font-semibold text-gray-900 dark:text-white">
+        <span className="flex items-center gap-2"><Clock className="w-4 h-4 text-gray-400" /> История сборки</span>
+        <span className="text-gray-400 text-xs">{open ? 'скрыть' : 'показать'}</span>
+      </button>
+      {open && (
+        <div className="px-4 pb-3 max-h-64 overflow-y-auto">
+          {events.length === 0 ? <p className="text-sm text-gray-400 py-2">Событий нет</p> :
+            events.map((e) => (
+              <div key={e.id} className="flex items-start gap-2 py-1.5 text-xs border-t border-gray-50 dark:border-gray-800 first:border-0">
+                <span className="text-gray-400 flex-shrink-0 w-20">{fmtDate(e.created_at)}</span>
+                <span className="text-gray-700 dark:text-gray-200 flex-1 min-w-0 break-words"><b>{e.user_label || '—'}</b> {labelFor(e)}</span>
+              </div>
+            ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -309,21 +465,40 @@ function ManualPicker({ onResult, hasResult, onReset }) {
 // ─── Чек-лист сборки: сканер + ручной тап, прогресс N/total ──────────────────
 function AssemblyChecklist({ result }) {
   const toast = useToast();
-  const [collected, setCollected] = useState({}); // product_id → собрано
+  const orderId = result.id;
+  const [collected, setCollected] = useState(result.collected || {});
   const [scan, setScan] = useState('');
   const scanRef = useRef(null);
 
+  useEffect(() => { setCollected(result.collected || {}); }, [result.id]); // eslint-disable-line
+
+  // Общий пикинг: подтягиваем прогресс других сборщиков
+  useEffect(() => {
+    if (!orderId) return;
+    const t = setInterval(() => {
+      api.get(`/orders/${orderId}`).then(({ data }) => setCollected(data.collected || {})).catch(() => {});
+    }, 5000);
+    return () => clearInterval(t);
+  }, [orderId]);
+
   const total = result.total_bottles;
-  const done = Object.values(collected).reduce((s, n) => s + n, 0);
+  const done = Object.values(collected).reduce((s, n) => s + (Number(n) || 0), 0);
   const complete = done >= total && total > 0;
   const orderValue = result.picklist.reduce((s, p) => s + (Number(p.price) || 0) * p.qty, 0);
 
-  const inc = (p, delta) => {
-    setCollected((c) => {
-      const cur = c[p.product_id] || 0;
-      const next = Math.min(p.qty, Math.max(0, cur + delta));
-      return { ...c, [p.product_id]: next };
-    });
+  const inc = async (p, delta) => {
+    if (orderId) {
+      try {
+        const { data } = await api.post(`/orders/${orderId}/collect`, { product_id: p.product_id, delta });
+        setCollected(data.collected);
+      } catch (e) { playBeep(false); toast.error(e.response?.data?.error || 'Ошибка'); }
+    } else {
+      setCollected((c) => {
+        const cur = c[p.product_id] || 0;
+        const next = Math.min(p.qty, Math.max(0, cur + delta));
+        return { ...c, [p.product_id]: next };
+      });
+    }
   };
 
   const onScan = (e) => {
@@ -413,6 +588,36 @@ function norm(s) {
   return String(s || '').toLowerCase().replace(/ё/g, 'е').replace(/[^a-zа-я0-9]+/gi, ' ').trim();
 }
 
+// Заказ из БД → форма, которую использует рабочая область
+function orderToResult(o) {
+  return {
+    id: o.id, status: o.status, source: o.source, isSaved: true,
+    recipient: o.recipient_name, phone: o.recipient_phone,
+    city: o.city, city_code: o.city_code, address: o.address, pvz_address: o.pvz_address,
+    order_number: null,
+    recognized: o.recognized || [], picklist: o.picklist || [], total_bottles: o.total_bottles,
+    collected: o.collected || {},
+    cdek_uuid: o.cdek_uuid, cdek_number: o.cdek_number, pkg: o.pkg,
+  };
+}
+
+const STATUS_META = {
+  new: { label: 'Новый', cls: 'bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300' },
+  picking: { label: 'Сборка', cls: 'bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-300' },
+  assembled: { label: 'Собран', cls: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-300' },
+  shipped: { label: 'Оформлен', cls: 'bg-primary-50 text-primary-600 dark:bg-primary-900/30 dark:text-primary-300' },
+  cancelled: { label: 'Отменён', cls: 'bg-rose-50 text-rose-600 dark:bg-rose-900/30 dark:text-rose-300' },
+};
+function StatusBadge({ status }) {
+  const m = STATUS_META[status] || STATUS_META.new;
+  return <span className={'px-2 py-0.5 rounded-lg text-[11px] font-semibold ' + m.cls}>{m.label}</span>;
+}
+function fmtDate(s) {
+  if (!s) return '';
+  const d = new Date(s);
+  return d.toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+}
+
 // Габариты + вес коробки по числу баночек (таблица из конфига).
 function computeDefaultPkg(bottles, cfg) {
   const n = Math.max(1, bottles || 1);
@@ -441,7 +646,7 @@ function CdekPanel({ result }) {
   const [tariffs, setTariffs] = useState(null);
   const [tariff, setTariff] = useState(null);
   const [busy, setBusy] = useState('');
-  const [order, setOrder] = useState(null);
+  const [order, setOrder] = useState(result.cdek_uuid ? { uuid: result.cdek_uuid, number: result.order_number, cdek_number: result.cdek_number } : null);
   const [labelUrl, setLabelUrl] = useState(null);
   const [showMap, setShowMap] = useState(false);
   const [pkg, setPkg] = useState(null); // { weight, length, width, height } — авто, редактируемо
@@ -567,6 +772,14 @@ function CdekPanel({ result }) {
       const { data } = await api.post('/orders/cdek/create', body);
       setOrder({ uuid: data.uuid, number: data.number, cdek_number: null });
       toast.success('Заказ создан в СДЭК');
+      if (result.id) api.patch(`/orders/${result.id}`, {
+        cdek_uuid: data.uuid, status: 'shipped',
+        tariff_code: tariff.tariff_code, tariff_name: tariff.tariff_name,
+        shipment_point: shipmentPoint,
+        pvz_code: pvz?.code || null, pvz_address: pvz?.address || null,
+        city: city?.city || null, city_code: city?.code || null,
+        recipient_name: name.trim(), recipient_phone: phone.trim(),
+      }).catch(() => {});
       pollOrder(data.uuid);
     } catch (e) { toast.error(e.response?.data?.error || 'Ошибка создания заказа'); }
     finally { setBusy(''); }
@@ -575,7 +788,11 @@ function CdekPanel({ result }) {
   const pollOrder = async (uuid, tries = 0) => {
     try {
       const { data } = await api.get(`/orders/cdek/order/${uuid}`);
-      if (data.cdek_number) { setOrder((o) => ({ ...o, cdek_number: data.cdek_number })); return; }
+      if (data.cdek_number) {
+        setOrder((o) => ({ ...o, cdek_number: data.cdek_number }));
+        if (result.id) api.patch(`/orders/${result.id}`, { cdek_number: data.cdek_number }).catch(() => {});
+        return;
+      }
       if (data.errors?.length) { toast.error('СДЭК: ' + data.errors[0].message); return; }
     } catch { /* retry */ }
     if (tries < 8) setTimeout(() => pollOrder(uuid, tries + 1), 2500);
@@ -598,6 +815,7 @@ function CdekPanel({ result }) {
     setBusy('cancel');
     try {
       await api.post(`/orders/cdek/cancel/${order.uuid}`);
+      if (result.id) api.patch(`/orders/${result.id}`, { status: 'cancelled' }).catch(() => {});
       toast.success('Заказ отменён');
       setOrder(null); setLabelUrl(null); setTariff(null); setTariffs(null);
     } catch (e) { toast.error(e.response?.data?.error || 'Не удалось отменить'); }

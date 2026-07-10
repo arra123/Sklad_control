@@ -147,6 +147,55 @@ async function createSchema(attempt = 1) {
       )
     `);
 
+    // ─── Заказы СДЭК (приём по фото / вручную, общий пикинг) ───────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS orders_s (
+        id SERIAL PRIMARY KEY,
+        source VARCHAR(20) NOT NULL DEFAULT 'photo',
+        status VARCHAR(20) NOT NULL DEFAULT 'new',
+        recipient_name VARCHAR(300),
+        recipient_phone VARCHAR(50),
+        city VARCHAR(200),
+        city_code INTEGER,
+        address TEXT,
+        pvz_code VARCHAR(50),
+        pvz_address TEXT,
+        total_bottles INTEGER NOT NULL DEFAULT 0,
+        order_value NUMERIC(14,2) DEFAULT 0,
+        recognized_json JSONB,
+        picklist_json JSONB,
+        collected_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+        pkg_json JSONB,
+        shipment_point VARCHAR(50),
+        tariff_code INTEGER,
+        tariff_name VARCHAR(200),
+        cdek_uuid VARCHAR(100),
+        cdek_number VARCHAR(100),
+        cdek_status VARCHAR(100),
+        notes TEXT,
+        created_by INTEGER,
+        assembled_by INTEGER,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_orders_s_status ON orders_s(status)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_orders_s_created ON orders_s(created_at DESC)`);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS order_events_s (
+        id SERIAL PRIMARY KEY,
+        order_id INTEGER NOT NULL REFERENCES orders_s(id) ON DELETE CASCADE,
+        user_id INTEGER,
+        event_type VARCHAR(40) NOT NULL,
+        product_id INTEGER,
+        qty INTEGER,
+        notes TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_order_events_order ON order_events_s(order_id, created_at)`);
+
     // ─── Raw Materials (ingredients & packaging) ───────────────────
     await client.query(`
       CREATE TABLE IF NOT EXISTS raw_materials_s (

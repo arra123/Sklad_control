@@ -506,4 +506,184 @@ router.get('/cdek/print/:uuid', requireAuth, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// ════════════════════════════════════════════════════════════════════════════
+//  Заказы — хранение в БД, общий пикинг, статусы, история
+// ════════════════════════════════════════════════════════════════════════════
+
+async function logEvent(db, orderId, userId, type, productId, qty, notes) {
+  await db.query(
+    `INSERT INTO order_events_s (order_id, user_id, event_type, product_id, qty, notes) VALUES ($1,$2,$3,$4,$5,$6)`,
+    [orderId, userId || null, type, productId || null, qty || null, notes || null]
+  );
+}
+
+function collectedSum(collected) {
+  return Object.values(collected || {}).reduce((s, n) => s + (Number(n) || 0), 0);
+}
+
+const ORDER_LIST_JOIN = `
+  LEFT JOIN users_s cu ON cu.id = o.created_by
+  LEFT JOIN employees_s ce ON ce.id = cu.employee_id
+  LEFT JOIN users_s au ON au.id = o.assembled_by
+  LEFT JOIN employees_s ae ON ae.id = au.employee_id`;
+
+function fmtOrderRow(r) {
+  return {
+    ...r,
+    collected: r.collected_json || {},
+    collected_total: collectedSum(r.collected_json),
+    picklist: r.picklist_json || undefined,
+    recognized: r.recognized_json || undefined,
+    pkg: r.pkg_json || undefined,
+    created_by_label: r.created_by_fullname || r.created_by_name || null,
+    assembled_by_label: r.assembled_by_fullname || r.assembled_by_name || null,
+  };
+}
+
+// POST /orders — сохранить новый заказ (из фото или вручную)
+router.post('/', requireAuth, async (req, res) => {
+  const b = req.body || {};
+  const picklist = Array.isArray(b.picklist) ? b.picklist : [];
+  const orderValue = picklist.reduce((s, p) => s + (Number(p.price) || 0) * (Number(p.qty) || 0), 0);
+  try {
+    const r = await pool.query(
+      `INSERT INTO orders_s
+         (source, status, recipient_name, recipient_phone, city, city_code, address, pvz_code, pvz_address,
+          total_bottles, order_value, recognized_json, picklist_json, pkg_json, created_by)
+       VALUES ($1,'new',$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
+      [b.source === 'manual' ? 'manual' : 'photo', b.recipient || null, b.phone || null, b.city || null,
+       b.city_code || null, b.address || null, b.pvz_code || null, b.pvz_address || null,
+       b.total_bottles || 0, orderValue, JSON.stringify(b.recognized || []), JSON.stringify(picklist),
+       b.pkg ? JSON.stringify(b.pkg) : null, req.user.id]
+    );
+    await logEvent(pool, r.rows[0].id, req.user.id, 'created', null, null, `Создан (${b.source === 'manual' ? 'вручную' : 'по фото'})`);
+    res.json(fmtOrderRow(r.rows[0]));
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// GET /orders — список (?status=active|new|picking|assembled|shipped|cancelled)
+router.get('/', requireAuth, async (req, res) => {
+  const { status } = req.query;
+  const cond = [];
+  const params = [];
+  if (status === 'active') cond.push(`o.status NOT IN ('cancelled','shipped')`);
+  else if (status) { params.push(status); cond.push(`o.status = $${params.length}`); }
+  const where = cond.length ? 'WHERE ' + cond.join(' AND ') : '';
+  try {
+    const r = await pool.query(
+      `SELECT o.id, o.source, o.status, o.recipient_name, o.recipient_phone, o.city, o.pvz_address,
+              o.total_bottles, o.order_value, o.collected_json, o.cdek_number, o.created_at, o.updated_at,
+              cu.username AS created_by_name, ce.full_name AS created_by_fullname,
+              au.username AS assembled_by_name, ae.full_name AS assembled_by_fullname
+       FROM orders_s o ${ORDER_LIST_JOIN}
+       ${where} ORDER BY o.created_at DESC LIMIT 200`,
+      params
+    );
+    res.json(r.rows.map(fmtOrderRow));
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// GET /orders/:id — полный заказ
+router.get('/:id(\\d+)', requireAuth, async (req, res) => {
+  try {
+    const r = await pool.query(
+      `SELECT o.*, cu.username AS created_by_name, ce.full_name AS created_by_fullname,
+              au.username AS assembled_by_name, ae.full_name AS assembled_by_fullname
+       FROM orders_s o ${ORDER_LIST_JOIN} WHERE o.id = $1`,
+      [req.params.id]
+    );
+    if (!r.rows.length) return res.status(404).json({ error: 'Заказ не найден' });
+    res.json(fmtOrderRow(r.rows[0]));
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// GET /orders/:id/events — история (кто, когда, что)
+router.get('/:id(\\d+)/events', requireAuth, async (req, res) => {
+  try {
+    const r = await pool.query(
+      `SELECT e.*, COALESCE(emp.full_name, u.username) AS user_label, p.name AS product_name
+       FROM order_events_s e
+       LEFT JOIN users_s u ON u.id = e.user_id
+       LEFT JOIN employees_s emp ON emp.id = u.employee_id
+       LEFT JOIN products_s p ON p.id = e.product_id
+       WHERE e.order_id = $1 ORDER BY e.created_at ASC`,
+      [req.params.id]
+    );
+    res.json(r.rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// PATCH /orders/:id — обновить мета/статус/данные СДЭК
+router.patch('/:id(\\d+)', requireAuth, async (req, res) => {
+  const b = req.body || {};
+  const map = {
+    status: 'status', recipient_name: 'recipient_name', recipient_phone: 'recipient_phone',
+    city: 'city', city_code: 'city_code', address: 'address', pvz_code: 'pvz_code', pvz_address: 'pvz_address',
+    shipment_point: 'shipment_point', tariff_code: 'tariff_code', tariff_name: 'tariff_name',
+    cdek_uuid: 'cdek_uuid', cdek_number: 'cdek_number', cdek_status: 'cdek_status', notes: 'notes',
+  };
+  const sets = [];
+  const params = [];
+  for (const [k, col] of Object.entries(map)) {
+    if (b[k] !== undefined) { params.push(b[k]); sets.push(`${col} = $${params.length}`); }
+  }
+  if (b.pkg !== undefined) { params.push(JSON.stringify(b.pkg)); sets.push(`pkg_json = $${params.length}`); }
+  if (!sets.length) return res.status(400).json({ error: 'Нет полей для обновления' });
+  sets.push('updated_at = NOW()');
+  params.push(req.params.id);
+  try {
+    const r = await pool.query(`UPDATE orders_s SET ${sets.join(', ')} WHERE id = $${params.length} RETURNING *`, params);
+    if (!r.rows.length) return res.status(404).json({ error: 'Заказ не найден' });
+    if (b.status) await logEvent(pool, req.params.id, req.user.id, 'status', null, null, `Статус: ${b.status}`);
+    res.json(fmtOrderRow(r.rows[0]));
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// POST /orders/:id/collect — общий пикинг: {product_id, delta}
+router.post('/:id(\\d+)/collect', requireAuth, async (req, res) => {
+  const { product_id, delta } = req.body || {};
+  if (!product_id || !delta) return res.status(400).json({ error: 'product_id и delta обязательны' });
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const or = await client.query('SELECT collected_json, picklist_json, total_bottles, status FROM orders_s WHERE id=$1 FOR UPDATE', [req.params.id]);
+    if (!or.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Заказ не найден' }); }
+    const collected = or.rows[0].collected_json || {};
+    const picklist = or.rows[0].picklist_json || [];
+    const item = picklist.find((p) => String(p.product_id) === String(product_id));
+    const maxQty = item ? Number(item.qty) : Infinity;
+    const cur = Number(collected[product_id]) || 0;
+    const next = Math.max(0, Math.min(maxQty, cur + Number(delta)));
+    if (next === cur) { await client.query('ROLLBACK'); return res.status(409).json({ error: delta > 0 ? 'Уже собрано полностью' : 'Нечего убирать' }); }
+    collected[product_id] = next;
+
+    const total = Number(or.rows[0].total_bottles) || 0;
+    const done = collectedSum(collected);
+    let status = or.rows[0].status;
+    let assembledBy = null;
+    if (done >= total && total > 0) { status = 'assembled'; assembledBy = req.user.id; }
+    else if (done > 0) status = (status === 'new' ? 'picking' : status);
+
+    await client.query(
+      `UPDATE orders_s SET collected_json=$1, status=$2, ${assembledBy ? 'assembled_by=$3,' : ''} updated_at=NOW() WHERE id=$${assembledBy ? 4 : 3}`,
+      assembledBy ? [JSON.stringify(collected), status, assembledBy, req.params.id] : [JSON.stringify(collected), status, req.params.id]
+    );
+    await logEvent(client, req.params.id, req.user.id, delta > 0 ? 'pick' : 'unpick', product_id, Math.abs(delta), item?.name || null);
+    await client.query('COMMIT');
+    res.json({ collected, collected_total: done, status });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: err.message });
+  } finally { client.release(); }
+});
+
+// DELETE /orders/:id — удалить заказ
+router.delete('/:id(\\d+)', requireAuth, async (req, res) => {
+  try {
+    const r = await pool.query('DELETE FROM orders_s WHERE id=$1 RETURNING id', [req.params.id]);
+    if (!r.rows.length) return res.status(404).json({ error: 'Заказ не найден' });
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 module.exports = router;
