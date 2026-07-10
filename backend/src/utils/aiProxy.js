@@ -47,10 +47,13 @@ const SYSTEM_PROMPT =
   'Ты — парсер заказов интернет-магазина БАДов. На вход даётся скриншот карточки заказа. ' +
   'Извлеки строго состав заказа и данные получателя. Верни ТОЛЬКО JSON без markdown. ' +
   'Формат: {"items":[{"name":string,"quantity":number,"price":number|null}],' +
-  '"recipient":string|null,"phone":string|null,"address":string|null,' +
-  '"delivery":string|null,"total":number|null,"order_number":string|null,"track":string|null}. ' +
+  '"recipient":string|null,"phone":string|null,"city":string|null,"pvz_address":string|null,' +
+  '"address":string|null,"delivery":string|null,"total":number|null,"order_number":string|null,"track":string|null}. ' +
   'name — точное наименование позиции как на скрине (включая "60 капсул", "набор 120 капсул"). ' +
-  'quantity — число из "× N" (если не указано — 1). Не придумывай позиции, которых нет.';
+  'quantity — число из "× N" (если не указано — 1). ' +
+  'city — ТОЛЬКО название населённого пункта получателя (например "Москва"), без слов "СДЭК", "пункт выдачи", улиц. ' +
+  'pvz_address — улица и дом пункта выдачи (например "ул. Цимлянская, 20"). ' +
+  'address — полный адрес доставки как на скрине. Не придумывай позиции, которых нет.';
 
 // Распознать заказ по изображению. imageDataUrl — "data:image/...;base64,....".
 async function parseOrderScreenshot(imageDataUrl) {

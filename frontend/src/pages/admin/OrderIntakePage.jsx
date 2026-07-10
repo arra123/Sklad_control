@@ -316,13 +316,18 @@ function CdekPanel({ result }) {
   const [order, setOrder] = useState(null);
   const [labelUrl, setLabelUrl] = useState(null);
 
-  // Разобрать адрес получателя: город, улица, дом
+  // Город/улица/дом получателя. AI отдаёт city и pvz_address отдельными полями;
+  // если их нет — аккуратный фолбэк из полного адреса.
   const parseAddr = () => {
-    const parts = String(result.address || '').split(',').map((s) => s.trim()).filter(Boolean);
-    const cityName = (parts[0] || '').replace(/^(г\.?|город)\s*/i, '').trim();
-    const streetPart = parts.slice(1).find((p) => /[а-я]{4,}/i.test(p)) || '';
-    const street = streetPart.replace(/^(ул\.?|улица|пр\.?|проспект|пер\.?|ш\.?|шоссе|б-р|бульвар)\s*/i, '').trim();
-    const house = (parts.find((p) => /^\d+[а-я]?$/i.test(p.trim())) || '').trim();
+    let cityName = (result.city || '').replace(/^(г\.?|город)\s*/i, '').trim();
+    let streetSrc = result.pvz_address || '';
+    if (!cityName || !streetSrc) {
+      const parts = String(result.address || '').split(',').map((s) => s.trim()).filter(Boolean);
+      if (!cityName) cityName = (parts.find((p) => /^(г\.?\s*)?[А-ЯЁ][а-яё-]+$/.test(p)) || parts[0] || '').replace(/^(г\.?|город)\s*/i, '').trim();
+      if (!streetSrc) streetSrc = parts.find((p) => /(ул|улица|пр|просп|пер|ш|шоссе|бульвар)/i.test(p)) || '';
+    }
+    const street = streetSrc.replace(/^(ул\.?|улица|пр\.?|проспект|пер\.?|ш\.?|шоссе|б-р|бульвар)\s*/i, '').replace(/,?\s*\d+.*$/, '').trim();
+    const house = (streetSrc.match(/\d+[а-я]?/i) || [''])[0];
     return { cityName, street, house };
   };
 

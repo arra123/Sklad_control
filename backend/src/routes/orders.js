@@ -16,6 +16,18 @@ function normalize(s) {
     .replace(/\s+/g, ' ');
 }
 
+// Стоп-слова: общие для всех БАД токены, только зашумляют сопоставление.
+const MATCH_STOP = new Set([
+  'набор', 'наборы', 'банка', 'банки', 'банок', 'банке', 'по', 'шт', 'штук', 'штука',
+  'капсул', 'капсула', 'капсулы', 'капсулах', 'мг', 'мл', 'г', 'грамм', 'гр', 'для',
+  'graflab', 'граflab', 'up', 'ап', 'и', 'в',
+]);
+
+// Ядро названия: убрать стоп-слова и числа — остаются различающие термины.
+function core(s) {
+  return normalize(s).split(' ').filter((w) => w && !MATCH_STOP.has(w) && !/^\d+$/.test(w)).join(' ');
+}
+
 // Биграммы для коэффициента Дайса.
 function bigrams(s) {
   const set = new Map();
@@ -27,8 +39,8 @@ function bigrams(s) {
 }
 
 function diceScore(a, b) {
-  const na = normalize(a);
-  const nb = normalize(b);
+  const na = core(a);
+  const nb = core(b);
   if (!na || !nb) return 0;
   if (na === nb) return 1;
   const ba = bigrams(na);
@@ -41,15 +53,28 @@ function diceScore(a, b) {
   return total ? (2 * inter) / total : 0;
 }
 
-// Лучшее совпадение названия среди каталога.
+// Заказ хочет НАБОР (несколько баночек)? — по слову «набор/банки» или числу капсул > 60.
+function wantsBundle(raw) {
+  const n = normalize(raw);
+  if (/набор|банк/.test(n)) return true;
+  const m = n.match(/(\d+)\s*капсул/);
+  return Boolean(m && Number(m[1]) > 60);
+}
+
+const MATCH_THRESHOLD = 0.34;
+
+// Лучшее совпадение: по ядру названия, с учётом «набор vs единичный товар».
+// Среди близких кандидатов выбираем bundle, если строка про набор, иначе — product.
 function bestMatch(name, catalog) {
-  let best = null;
-  let bestScore = 0;
-  for (const p of catalog) {
-    const score = diceScore(name, p.name);
-    if (score > bestScore) { bestScore = score; best = p; }
-  }
-  return { product: best, score: bestScore };
+  const scored = catalog
+    .map((p) => ({ p, s: diceScore(name, p.name) }))
+    .sort((a, b) => b.s - a.s);
+  const best = scored[0];
+  if (!best || best.s < MATCH_THRESHOLD) return { product: null, score: best?.s || 0 };
+  const want = wantsBundle(name);
+  const near = scored.filter((x) => x.s >= best.s - 0.12);
+  const pick = near.find((x) => (want ? x.p.entity_type === 'bundle' : x.p.entity_type === 'product')) || best;
+  return { product: pick.p, score: pick.s };
 }
 
 // Рекурсивный разворот товара/набора в плоский список баночек.
@@ -139,7 +164,7 @@ router.post('/parse-screenshot', requireAuth, async (req, res) => {
     for (const item of parsed.items) {
       const qty = Math.max(1, Number(item.quantity) || 1);
       const { product, score } = bestMatch(item.name, catalog);
-      const matched = product && score >= 0.4;
+      const matched = product && score >= MATCH_THRESHOLD;
       const isBundle = matched && product.entity_type === 'bundle';
 
       let itemBottles = 0;
@@ -180,6 +205,8 @@ router.post('/parse-screenshot', requireAuth, async (req, res) => {
     res.json({
       recipient: parsed.recipient || null,
       phone: parsed.phone || null,
+      city: parsed.city || null,
+      pvz_address: parsed.pvz_address || null,
       address: parsed.address || null,
       delivery: parsed.delivery || null,
       total: parsed.total ?? null,
