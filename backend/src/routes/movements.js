@@ -644,4 +644,41 @@ router.post('/put-to-box', requireAuth, async (req, res) => {
   } finally { client.release(); }
 });
 
+// POST /api/movements/move-shelf-box — перенести коробку с одной полки на другую
+router.post('/move-shelf-box', requireAuth, async (req, res) => {
+  const { shelf_box_id, dest_shelf_id } = req.body;
+  if (!shelf_box_id || !dest_shelf_id) return res.status(400).json({ error: 'shelf_box_id и dest_shelf_id обязательны' });
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const box = await client.query('SELECT id, shelf_id, barcode_value, quantity, product_id FROM shelf_boxes_s WHERE id=$1', [shelf_box_id]);
+    if (!box.rows.length) throw new Error('Коробка не найдена');
+    const b = box.rows[0];
+    const oldShelfId = b.shelf_id;
+    if (oldShelfId === parseInt(dest_shelf_id)) throw new Error('Коробка уже на этой полке');
+
+    // Проверим, что целевая полка существует
+    const dest = await client.query('SELECT id FROM shelves_s WHERE id=$1', [dest_shelf_id]);
+    if (!dest.rows.length) throw new Error('Целевая полка не найдена');
+
+    // Перенос коробки
+    await client.query('UPDATE shelf_boxes_s SET shelf_id=$1 WHERE id=$2', [dest_shelf_id, shelf_box_id]);
+
+    // Лог перемещения (только shelf-поля, to_box_id не трогаем — FK на boxes_s)
+    await client.query(
+      `INSERT INTO movements_s (movement_type, product_id, quantity, from_shelf_id, to_shelf_id, performed_by, source, notes)
+       VALUES ('box_transfer', $1, $2, $3, $4, $5, 'admin', $6)`,
+      [b.product_id || null, b.quantity || 0, oldShelfId, dest_shelf_id, req.user.id,
+       `Перенос коробки ${b.barcode_value || shelf_box_id} между полками`]
+    );
+
+    await client.query('COMMIT');
+    res.json({ success: true, shelf_box_id, from_shelf: oldShelfId, to_shelf: parseInt(dest_shelf_id) });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(400).json({ error: err.message });
+  } finally { client.release(); }
+});
+
 module.exports = router;

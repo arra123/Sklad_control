@@ -180,63 +180,92 @@ if (typeof document !== 'undefined' && !document.getElementById(styleId)) {
 
 function AdminTransfer({ onBack, onDone }) {
   const toast = useToast();
+  const [kind, setKind] = useState('pallet'); // 'pallet' | 'shelf'
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Data
+  // Pallet data
   const [pallets, setPallets] = useState([]);
   const [srcPalletId, setSrcPalletId] = useState(null);
-  const [srcBoxes, setSrcBoxes] = useState([]);
-  const [srcBoxId, setSrcBoxId] = useState(null);
+  const [palletBoxes, setPalletBoxes] = useState([]);
+  const [palletBoxId, setPalletBoxId] = useState(null);
   const [destPalletId, setDestPalletId] = useState(null);
 
-  // Load pallets
-  useEffect(() => {
-    api.get('/fbo/pallets-list').then(r => setPallets(r.data || [])).catch(() => {});
-  }, []);
+  // Shelf data
+  const [shelves, setShelves] = useState([]);
+  const [srcShelfId, setSrcShelfId] = useState(null);
+  const [shelfBoxes, setShelfBoxes] = useState([]);
+  const [shelfBoxId, setShelfBoxId] = useState(null);
+  const [destShelfId, setDestShelfId] = useState(null);
 
-  // Load boxes when source pallet selected
+  // Сбросить выбор при смене типа склада
+  const switchKind = (k) => {
+    setKind(k); setError('');
+    setSrcPalletId(null); setPalletBoxes([]); setPalletBoxId(null); setDestPalletId(null);
+    setSrcShelfId(null); setShelfBoxes([]); setShelfBoxId(null); setDestShelfId(null);
+  };
+
+  // Загрузка списков под выбранный тип
   useEffect(() => {
-    if (!srcPalletId) { setSrcBoxes([]); setSrcBoxId(null); return; }
-    api.get(`/fbo/pallets/${srcPalletId}`).then(r => {
-      setSrcBoxes(r.data?.boxes || []);
-      setSrcBoxId(null);
-    }).catch(() => setSrcBoxes([]));
+    if (kind === 'pallet') api.get('/fbo/pallets-list').then(r => setPallets(r.data || [])).catch(() => {});
+    else api.get('/warehouse/shelves-list').then(r => setShelves(r.data || [])).catch(() => {});
+  }, [kind]);
+
+  // Коробки на выбранном паллете
+  useEffect(() => {
+    if (!srcPalletId) { setPalletBoxes([]); setPalletBoxId(null); return; }
+    api.get(`/fbo/pallets/${srcPalletId}`).then(r => { setPalletBoxes(r.data?.boxes || []); setPalletBoxId(null); }).catch(() => setPalletBoxes([]));
   }, [srcPalletId]);
 
-  const palletOptions = pallets.map(p => ({
-    value: p.id,
-    label: `${p.row_name} · ${p.name}`,
-  }));
+  // Коробки на выбранной полке
+  useEffect(() => {
+    if (!srcShelfId) { setShelfBoxes([]); setShelfBoxId(null); return; }
+    api.get(`/warehouse/shelves/${srcShelfId}`).then(r => {
+      setShelfBoxes((r.data?.boxes || []).filter(b => (b.quantity || 0) > 0 || b.barcode_value));
+      setShelfBoxId(null);
+    }).catch(() => setShelfBoxes([]));
+  }, [srcShelfId]);
 
-  const boxOptions = srcBoxes.map(b => ({
-    value: b.id,
-    label: `${b.barcode_value || b.name || 'Коробка'} — ${b.quantity || 0} шт.${b.product_name ? ` (${b.product_name})` : ''}`,
-  }));
+  const shelfLabel = (s) => `${s.warehouse_name} · ${s.rack_name} · ${s.code || s.name || 'Полка ' + s.number}`;
+  const boxLabel = (b) => `${b.barcode_value || b.name || 'Коробка'} — ${b.quantity || 0} шт.${b.product_name ? ` (${b.product_name})` : ''}`;
 
-  const destOptions = palletOptions.filter(p => String(p.value) !== String(srcPalletId));
+  const palletOptions = pallets.map(p => ({ value: p.id, label: `${p.row_name} · ${p.name}` }));
+  const shelfOptions = shelves.map(s => ({ value: s.id, label: shelfLabel(s) + (s.boxes_count ? ` · ${s.boxes_count} кор.` : '') }));
 
-  const selectedBox = srcBoxes.find(b => String(b.id) === String(srcBoxId));
-
-  const handleTransfer = async () => {
-    if (!srcBoxId || !destPalletId) return;
-    setLoading(true);
-    setError('');
+  const handlePalletTransfer = async () => {
+    if (!palletBoxId || !destPalletId) return;
+    setLoading(true); setError('');
     try {
-      await api.post('/movements/move-box', { box_id: parseInt(srcBoxId), dest_pallet_id: parseInt(destPalletId) });
+      await api.post('/movements/move-box', { box_id: parseInt(palletBoxId), dest_pallet_id: parseInt(destPalletId) });
       const destName = pallets.find(p => String(p.id) === String(destPalletId))?.name || 'паллет';
       toast.success(`Коробка перенесена на ${destName}`);
       onDone(`Коробка перенесена на ${destName}`);
-    } catch (err) {
-      setError(err.response?.data?.error || 'Ошибка переноса');
-    } finally { setLoading(false); }
+    } catch (err) { setError(err.response?.data?.error || 'Ошибка переноса'); }
+    finally { setLoading(false); }
   };
+
+  const handleShelfTransfer = async () => {
+    if (!shelfBoxId || !destShelfId) return;
+    setLoading(true); setError('');
+    try {
+      await api.post('/movements/move-shelf-box', { shelf_box_id: parseInt(shelfBoxId), dest_shelf_id: parseInt(destShelfId) });
+      const dest = shelves.find(s => String(s.id) === String(destShelfId));
+      const destName = dest ? (dest.code || dest.name || `полку ${dest.number}`) : 'полку';
+      toast.success(`Коробка перенесена на ${destName}`);
+      onDone(`Коробка перенесена на ${destName}`);
+    } catch (err) { setError(err.response?.data?.error || 'Ошибка переноса'); }
+    finally { setLoading(false); }
+  };
+
+  const selectedPalletBox = palletBoxes.find(b => String(b.id) === String(palletBoxId));
+  const selectedShelfBox = shelfBoxes.find(b => String(b.id) === String(shelfBoxId));
+  const selectedBox = kind === 'pallet' ? selectedPalletBox : selectedShelfBox;
 
   return (
     <div className="p-4 max-w-md mx-auto animate-fade-in">
       <button onClick={onBack} className="flex items-center gap-1 text-sm text-gray-400 mb-3"><ArrowLeft size={16} /> Назад</button>
 
-      <div className="bg-rose-50 rounded-2xl p-5 mb-5 text-center">
+      <div className="bg-rose-50 rounded-2xl p-5 mb-4 text-center">
         <div className="w-16 h-16 rounded-2xl bg-rose-100 text-rose-600 ring-4 ring-rose-200 flex items-center justify-center mx-auto mb-3">
           <Settings2 size={32} />
         </div>
@@ -244,30 +273,45 @@ function AdminTransfer({ onBack, onDone }) {
         <p className="text-xs text-gray-500 mt-1">Без сканера — выберите откуда, что и куда</p>
       </div>
 
+      {/* Переключатель тип склада */}
+      <div className="flex gap-2 mb-4 p-1 bg-gray-100 rounded-2xl">
+        <button onClick={() => switchKind('pallet')}
+          className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2 ${kind === 'pallet' ? 'bg-white text-rose-600 shadow-sm' : 'text-gray-500'}`}>
+          <PalletIcon size={18} /> Паллеты
+        </button>
+        <button onClick={() => switchKind('shelf')}
+          className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2 ${kind === 'shelf' ? 'bg-white text-rose-600 shadow-sm' : 'text-gray-500'}`}>
+          <Layers size={18} /> Стеллажи
+        </button>
+      </div>
+
       <ErrorBanner message={error} />
 
-      {/* Source pallet */}
-      <StyledSelect
-        label="Откуда (паллет)"
-        value={srcPalletId}
-        onChange={setSrcPalletId}
-        options={palletOptions}
-        placeholder="Выберите паллет-источник..."
-      />
-
-      {/* Source box */}
-      {srcPalletId && (
-        <StyledSelect
-          label="Какую коробку переносим"
-          value={srcBoxId}
-          onChange={setSrcBoxId}
-          options={boxOptions}
-          placeholder={srcBoxes.length ? 'Выберите коробку...' : 'Нет коробок на паллете'}
-          disabled={!srcBoxes.length}
-        />
+      {kind === 'pallet' ? (
+        <>
+          <StyledSelect label="Откуда (паллет)" value={srcPalletId} onChange={setSrcPalletId}
+            options={palletOptions} placeholder="Выберите паллет-источник..." />
+          {srcPalletId && (
+            <StyledSelect label="Какую коробку переносим" value={palletBoxId} onChange={setPalletBoxId}
+              options={palletBoxes.map(b => ({ value: b.id, label: boxLabel(b) }))}
+              placeholder={palletBoxes.length ? 'Выберите коробку...' : 'Нет коробок на паллете'}
+              disabled={!palletBoxes.length} />
+          )}
+        </>
+      ) : (
+        <>
+          <StyledSelect label="Откуда (полка)" value={srcShelfId} onChange={setSrcShelfId}
+            options={shelfOptions} placeholder="Выберите полку-источник..." />
+          {srcShelfId && (
+            <StyledSelect label="Какую коробку переносим" value={shelfBoxId} onChange={setShelfBoxId}
+              options={shelfBoxes.map(b => ({ value: b.id, label: boxLabel(b) }))}
+              placeholder={shelfBoxes.length ? 'Выберите коробку...' : 'Нет коробок на полке'}
+              disabled={!shelfBoxes.length} />
+          )}
+        </>
       )}
 
-      {/* Selected box info */}
+      {/* Инфо о выбранной коробке */}
       {selectedBox && (
         <div className="bg-indigo-50 border border-indigo-200 rounded-xl px-4 py-3 mb-3">
           <p className="text-xs text-indigo-500 font-medium mb-1">Выбранная коробка</p>
@@ -276,21 +320,22 @@ function AdminTransfer({ onBack, onDone }) {
         </div>
       )}
 
-      {/* Destination pallet */}
-      {srcBoxId && (
-        <StyledSelect
-          label="Куда переносим (паллет)"
-          value={destPalletId}
-          onChange={setDestPalletId}
-          options={destOptions}
-          placeholder="Выберите паллет назначения..."
-        />
+      {/* Назначение */}
+      {kind === 'pallet' && palletBoxId && (
+        <StyledSelect label="Куда переносим (паллет)" value={destPalletId} onChange={setDestPalletId}
+          options={palletOptions.filter(p => String(p.value) !== String(srcPalletId))}
+          placeholder="Выберите паллет назначения..." />
+      )}
+      {kind === 'shelf' && shelfBoxId && (
+        <StyledSelect label="Куда переносим (полка)" value={destShelfId} onChange={setDestShelfId}
+          options={shelfOptions.filter(s => String(s.value) !== String(srcShelfId))}
+          placeholder="Выберите полку назначения..." />
       )}
 
-      {/* Transfer button */}
-      {srcBoxId && destPalletId && (
+      {/* Кнопка */}
+      {((kind === 'pallet' && palletBoxId && destPalletId) || (kind === 'shelf' && shelfBoxId && destShelfId)) && (
         <button
-          onClick={handleTransfer}
+          onClick={kind === 'pallet' ? handlePalletTransfer : handleShelfTransfer}
           disabled={loading}
           className="w-full mt-4 py-3.5 rounded-2xl bg-rose-500 text-white font-bold text-sm hover:bg-rose-600 disabled:opacity-50 transition-all shadow-lg shadow-rose-200 active:scale-[0.98]"
         >

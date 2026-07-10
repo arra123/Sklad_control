@@ -258,6 +258,31 @@ router.get('/racks', requireAuth, async (req, res) => {
   }
 });
 
+// GET /api/warehouse/shelves-list — плоский список всех полок (для админ-переноса)
+router.get('/shelves-list', requireAuth, async (req, res) => {
+  try {
+    const { warehouse_id } = req.query;
+    const params = [];
+    let where = '';
+    if (warehouse_id) { params.push(warehouse_id); where = 'WHERE w.id = $1'; }
+    const result = await pool.query(
+      `SELECT s.id, s.code, s.name, s.number,
+              r.name as rack_name, r.number as rack_number,
+              w.id as warehouse_id, w.name as warehouse_name,
+              (SELECT COUNT(*) FROM shelf_boxes_s sb WHERE sb.shelf_id = s.id AND sb.quantity > 0) as boxes_count
+       FROM shelves_s s
+       JOIN racks_s r ON r.id = s.rack_id
+       JOIN warehouses_s w ON w.id = r.warehouse_id
+       ${where}
+       ORDER BY w.name, r.number, s.number`,
+      params
+    );
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /api/warehouse/racks/:id — rack with shelves
 router.get('/racks/:id', requireAuth, async (req, res) => {
   try {
