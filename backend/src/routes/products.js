@@ -2,6 +2,7 @@ const router = require('express').Router();
 const pool = require('../db/pool');
 const { requireAuth, requirePermission } = require('../middleware/auth');
 const { importCatalog } = require('../utils/catalogImport');
+const { isSharedBarcodeAllowed } = require('../utils/sharedBarcodes');
 
 // GET /api/products
 router.get('/', requireAuth, async (req, res) => {
@@ -467,6 +468,7 @@ router.get('/barcode/:value', requireAuth, async (req, res) => {
        WHERE $1 = ANY(string_to_array(barcode_list, ';'))
           OR production_barcode = $1
           OR marketplace_barcodes_json @> jsonb_build_array(jsonb_build_object('value', $1))
+       ORDER BY id
        LIMIT 1`,
       [value]
     );
@@ -784,6 +786,22 @@ router.post('/:id/barcode', requireAuth, requirePermission('products.edit'), asy
     if (!product.rows.length) return res.status(404).json({ error: 'Товар не найден' });
     const existing = (product.rows[0].barcode_list || '').split(';').map(s => s.trim()).filter(Boolean);
     if (existing.includes(value.trim())) return res.status(400).json({ error: 'Штрих-код уже существует' });
+
+    // Глобальная уникальность: один ШК = один товар,
+    // кроме точечных исключений из utils/sharedBarcodes.js
+    const dup = await pool.query(
+      `SELECT id FROM products_s
+       WHERE id <> $2 AND (
+         production_barcode = $1
+         OR $1 = ANY(string_to_array(barcode_list, ';'))
+         OR marketplace_barcodes_json @> jsonb_build_array(jsonb_build_object('value', $1))
+       )`,
+      [value.trim(), req.params.id]
+    );
+    if (dup.rows.length && !isSharedBarcodeAllowed(value, req.params.id, dup.rows.map(r => r.id))) {
+      return res.status(400).json({ error: 'Штрих-код уже принадлежит другому товару' });
+    }
+
     existing.push(value.trim());
     const result = await pool.query(
       'UPDATE products_s SET barcode_list=$1, updated_at=NOW() WHERE id=$2 RETURNING *',
@@ -861,16 +879,19 @@ router.put('/:id/barcode', requireAuth, requirePermission('products.edit'), asyn
     if (existing.has(newBc)) return res.status(400).json({ error: 'Такой штрих-код уже есть у этого товара' });
 
     // Check global uniqueness across other products
+    // (кроме точечных исключений из utils/sharedBarcodes.js)
     const dup = await pool.query(
       `SELECT id FROM products_s
        WHERE id <> $2 AND (
          production_barcode = $1
          OR $1 = ANY(string_to_array(barcode_list, ';'))
          OR marketplace_barcodes_json @> jsonb_build_array(jsonb_build_object('value', $1))
-       ) LIMIT 1`,
+       )`,
       [newBc, req.params.id]
     );
-    if (dup.rows.length) return res.status(400).json({ error: 'Штрих-код уже принадлежит другому товару' });
+    if (dup.rows.length && !isSharedBarcodeAllowed(newBc, req.params.id, dup.rows.map(r => r.id))) {
+      return res.status(400).json({ error: 'Штрих-код уже принадлежит другому товару' });
+    }
 
     const sets = [];
     const params = [];

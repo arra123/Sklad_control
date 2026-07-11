@@ -83,6 +83,7 @@ router.post('/scan', requireAuth, async (req, res) => {
       `SELECT id, name, code FROM products_s
        WHERE $1 = ANY(string_to_array(barcode_list, ';')) OR production_barcode=$1
          OR marketplace_barcodes_json::text ILIKE '%' || $1 || '%'
+       ORDER BY id
        LIMIT 1`, [bc]);
     if (prod.rows.length) {
       return res.json({ type: 'product', id: prod.rows[0].id, name: prod.rows[0].name, location: '', contents: [] });

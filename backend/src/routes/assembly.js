@@ -2,19 +2,30 @@ const router = require('express').Router();
 const pool = require('../db/pool');
 const { requireAuth, requirePermission } = require('../middleware/auth');
 const { awardScanReward } = require('./tasks');
+const { pickPreferredProduct } = require('../utils/sharedBarcodes');
 
 // ─── Barcode → Product resolver (reused from tasks.js pattern) ──────────────
-async function resolveProduct(client, barcode) {
+// preferredIds: при shared-ШК (несколько товаров с одним ШК) предпочитаем
+// товар из контекста задачи — компонент комплекта или сам комплект.
+async function resolveProduct(client, barcode, preferredIds = []) {
   const r = await client.query(
     `SELECT id, name, code, entity_type, production_barcode, barcode_list
      FROM products_s
      WHERE $1 = ANY(string_to_array(barcode_list, ';'))
         OR production_barcode = $1
         OR marketplace_barcodes_json @> jsonb_build_array(jsonb_build_object('value', $1))
-     LIMIT 1`,
+     ORDER BY id
+     LIMIT 5`,
     [barcode]
   );
-  return r.rows[0] || null;
+  return pickPreferredProduct(r.rows, preferredIds);
+}
+
+// Компоненты комплекта — для предпочтения при shared-ШК
+async function bundleComponentIds(client, bundleId) {
+  if (!bundleId) return [];
+  const r = await client.query('SELECT component_id FROM bundle_components_s WHERE bundle_id = $1', [bundleId]);
+  return r.rows.map(x => x.component_id).filter(Boolean);
 }
 
 // ─── GET /source-locations — Find where components are stored ────────────────
@@ -397,7 +408,8 @@ router.post('/:id/scan-pick', requireAuth, async (req, res) => {
     }
     if (!box_id && !shelf_id && !pallet_id) { await client.query('ROLLBACK'); client.release(); return res.status(400).json({ error: 'Укажите источник (box_id / shelf_id / pallet_id)' }); }
 
-    let product = await resolveProduct(client, barcode);
+    let product = await resolveProduct(client, barcode,
+      await bundleComponentIds(client, task.rows[0].bundle_product_id));
     if (!product) {
       // Smart scan classification
       const hasCyrillic = /[а-яА-ЯёЁ]/.test(barcode);
@@ -753,7 +765,8 @@ router.post('/:id/scan-component', requireAuth, async (req, res) => {
       }
     }
 
-    const product = await resolveProduct(pool, barcode);
+    const product = await resolveProduct(pool, barcode,
+      await bundleComponentIds(pool, task.rows[0].bundle_product_id));
     if (!product) return res.status(400).json({ error: 'Товар не найден по ШК' });
 
     // Check if already scanned enough of this component for current bundle
@@ -921,7 +934,7 @@ router.post('/:id/scan-place', requireAuth, async (req, res) => {
 
     // Verify scanned barcode belongs to bundle product
     if (!barcode) { await client.query('ROLLBACK'); client.release(); return res.status(400).json({ error: 'Отсканируйте ШК комплекта' }); }
-    const product = await resolveProduct(client, barcode);
+    const product = await resolveProduct(client, barcode, [productId]);
     if (!product || product.id !== productId) {
       await client.query('ROLLBACK'); client.release();
       return res.status(400).json({ error: 'ШК не соответствует комплекту. Сканируйте ШК собранного комплекта' });

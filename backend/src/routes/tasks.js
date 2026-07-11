@@ -3,6 +3,7 @@ const pool = require('../db/pool');
 const rateLimit = require('express-rate-limit');
 const { requireAuth, requirePermission } = require('../middleware/auth');
 const { emitScanEvent, emitTaskCompleted } = require('../socket');
+const { pickPreferredProduct } = require('../utils/sharedBarcodes');
 
 // Rate limit for scan endpoints — max 10 scans per second per user
 const scanLimiter = rateLimit({
@@ -3017,7 +3018,7 @@ router.post('/:id/log-scan', requireAuth, scanLimiter, async (req, res) => {
     let prodId = product_id || null;
     if (!prodId && scanned_value) {
       const pr = await pool.query(
-        `SELECT id FROM products_s WHERE $1 = ANY(string_to_array(barcode_list, ';')) OR production_barcode = $1 LIMIT 1`,
+        `SELECT id FROM products_s WHERE $1 = ANY(string_to_array(barcode_list, ';')) OR production_barcode = $1 ORDER BY id LIMIT 1`,
         [scanned_value]);
       if (pr.rows.length) prodId = pr.rows[0].id;
     }
@@ -3057,7 +3058,7 @@ router.post('/:id/scan', requireAuth, scanLimiter, async (req, res) => {
     }
 
     const taskBoxes = await client.query(
-      `SELECT tb.id, tb.status,
+      `SELECT tb.id, tb.status, tb.shelf_box_id, tb.box_id,
               COALESCE(sbx.barcode_value, bx.barcode_value) as box_barcode
        FROM inventory_task_boxes_s tb
        LEFT JOIN shelf_boxes_s sbx ON sbx.id = tb.shelf_box_id
@@ -3091,18 +3092,42 @@ router.post('/:id/scan', requireAuth, scanLimiter, async (req, res) => {
       return res.status(400).json({ error: 'Сначала отсканируйте коробку из этой инвентаризации.' });
     }
 
-    // Find product — check ALL barcode fields
+    // Find product — check ALL barcode fields.
+    // ШК из shared-исключений может принадлежать нескольким товарам —
+    // тогда выбираем товар из контекста задачи (коробка/полка).
     const product = await client.query(
       `SELECT id, external_id, name, code, production_barcode
        FROM products_s
        WHERE $1 = ANY(string_to_array(barcode_list, ';'))
           OR production_barcode = $1
           OR marketplace_barcodes_json @> jsonb_build_array(jsonb_build_object('value', $1))
-       LIMIT 1`,
+       ORDER BY id
+       LIMIT 5`,
       [scanned_value]
     );
 
     let productRow = product.rows[0] || null;
+    if (product.rows.length > 1) {
+      const matchIds = product.rows.map(r => r.id);
+      let preferred = [];
+      if (activeTaskBox?.shelf_box_id) {
+        const r = await client.query(
+          'SELECT product_id FROM shelf_box_items_s WHERE shelf_box_id = $1 AND product_id = ANY($2)',
+          [activeTaskBox.shelf_box_id, matchIds]);
+        preferred = r.rows.map(x => x.product_id);
+      } else if (activeTaskBox?.box_id) {
+        const r = await client.query(
+          'SELECT product_id FROM box_items_s WHERE box_id = $1 AND product_id = ANY($2)',
+          [activeTaskBox.box_id, matchIds]);
+        preferred = r.rows.map(x => x.product_id);
+      } else if (t.shelf_id) {
+        const r = await client.query(
+          'SELECT product_id FROM shelf_items_s WHERE shelf_id = $1 AND product_id = ANY($2)',
+          [t.shelf_id, matchIds]);
+        preferred = r.rows.map(x => x.product_id);
+      }
+      productRow = pickPreferredProduct(product.rows, preferred);
+    }
     if (!productRow) {
       // Smart scan error classification
       const val = scanned_value;

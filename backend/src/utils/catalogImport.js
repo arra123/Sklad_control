@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const pool = require('../db/pool');
 const config = require('../config');
+const { applySharedBarcodeExceptions } = require('./sharedBarcodes');
 
 function stripBOM(str) {
   return str.charCodeAt(0) === 0xFEFF ? str.slice(1) : str;
@@ -197,6 +198,10 @@ async function importCatalog() {
         }
       }
     }
+
+    // Импорт перезаписывает barcode_list из МойСклад —
+    // возвращаем shared-ШК исключения (см. utils/sharedBarcodes.js)
+    await applySharedBarcodeExceptions(pool);
 
     await pool.query(
       `UPDATE import_runs_s SET status='success', products_count=$1, bundles_count=$2, errors_json=$3, finished_at=NOW() WHERE id=$4`,

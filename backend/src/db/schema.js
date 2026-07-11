@@ -1,4 +1,5 @@
 const pool = require('./pool');
+const { applySharedBarcodeExceptions } = require('../utils/sharedBarcodes');
 
 async function createSchema(attempt = 1) {
   const client = await pool.connect();
@@ -846,6 +847,10 @@ async function createSchema(attempt = 1) {
       SET barcode_value = (100000 + id)::text
       WHERE barcode_value ~ '^RACK-'
     `);
+
+    // Shared-ШК исключения (один ШК на нескольких товарах) —
+    // см. utils/sharedBarcodes.js
+    await applySharedBarcodeExceptions(client);
 
     // ─── Pallet items (loose products on pallets, like shelf_items_s) ──
     await client.query(`

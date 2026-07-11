@@ -286,6 +286,7 @@ router.post('/:taskId/scan', requireAuth, async (req, res) => {
        WHERE $1 = ANY(string_to_array(barcode_list, ';'))
           OR production_barcode = $1
           OR marketplace_barcodes_json @> jsonb_build_array(jsonb_build_object('value', $1))
+       ORDER BY id
        LIMIT 1`,
       [scanned_value]
     );
@@ -318,7 +319,7 @@ router.post('/:taskId/scan', requireAuth, async (req, res) => {
         const retry = await client.query(
           `SELECT id, name, code, production_barcode, barcode_list FROM products_s
            WHERE $1 = ANY(string_to_array(barcode_list, ';')) OR production_barcode = $1
-              OR marketplace_barcodes_json @> jsonb_build_array(jsonb_build_object('value', $1)) LIMIT 1`,
+              OR marketplace_barcodes_json @> jsonb_build_array(jsonb_build_object('value', $1)) ORDER BY id LIMIT 1`,
           [deduped]
         );
         if (retry.rows.length) {
