@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Upload, Loader2, Check, AlertTriangle, X, ImageIcon, Package, Truck, Printer, MapPin, Search, ScanLine, Map as MapIcon, ClipboardList, Trash2, Clock, User, RefreshCw } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
+import { Upload, Loader2, Check, AlertTriangle, X, ImageIcon, Package, Truck, Printer, MapPin, Search, ScanLine, Map as MapIcon, ClipboardList, Trash2, Clock, User, RefreshCw, FileText, Link2, Pencil } from 'lucide-react';
 import api from '../../api/client';
 import { useToast } from '../../components/ui/Toast';
 import CdekMapPicker from '../../components/CdekMapPicker';
@@ -35,31 +36,38 @@ function compressImage(file) {
 
 export default function OrderIntakePage() {
   const toast = useToast();
-  const [tab, setTab] = useState('photo'); // 'photo' | 'manual'
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [tab, setTab] = useState('photo'); // 'photo' | 'manual' | 'orders'
   const [dragOver, setDragOver] = useState(false);
   const [preview, setPreview] = useState(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const fileInputRef = useRef(null);
 
-  const switchTab = (t) => { setTab(t); setResult(null); setPreview(null); };
+  const switchTab = (t) => { setTab(t); setResult(null); setPreview(null); setSearchParams({}, { replace: true }); };
+
+  // Низкоуровневое сохранение заказа в БД. status: 'new' | 'draft'.
+  const createOrder = useCallback(async (data, status = 'new') => {
+    const { data: saved } = await api.post('/orders', {
+      source: data.manual ? 'manual' : 'photo', status,
+      recipient: data.recipient, phone: data.phone, city: data.city, city_code: data.city_code,
+      address: data.address, pvz_address: data.pvz_address,
+      total_bottles: data.total_bottles, recognized: data.recognized, picklist: data.picklist,
+    });
+    return saved;
+  }, []);
 
   // Сохранить заказ в БД (общий список) и открыть его в работе
   const persistOrder = useCallback(async (data) => {
     try {
-      const { data: saved } = await api.post('/orders', {
-        source: data.manual ? 'manual' : 'photo',
-        recipient: data.recipient, phone: data.phone, city: data.city, city_code: data.city_code,
-        address: data.address, pvz_address: data.pvz_address,
-        total_bottles: data.total_bottles, recognized: data.recognized, picklist: data.picklist,
-      });
+      const saved = await createOrder(data, 'new');
       setResult({ ...data, id: saved.id, status: saved.status, collected: saved.collected || {} });
     } catch (e) {
       // Не смогли сохранить в общий список — работаем локально, но предупредим
       toast.error('Заказ не сохранён в список: ' + (e.response?.data?.error || 'ошибка сервера'));
       setResult(data);
     }
-  }, [toast]);
+  }, [toast, createOrder]);
 
   const handleImage = useCallback(async (file) => {
     if (!file || !file.type.startsWith('image/')) {
@@ -99,12 +107,34 @@ export default function OrderIntakePage() {
     if (file) handleImage(file);
   };
 
-  const reset = () => { setPreview(null); setResult(null); };
+  const reset = () => { setPreview(null); setResult(null); setSearchParams({}, { replace: true }); };
 
   const openOrder = useCallback(async (id) => {
-    try { const { data } = await api.get(`/orders/${id}`); setResult(orderToResult(data)); }
-    catch { toast.error('Не удалось открыть заказ'); }
-  }, [toast]);
+    try {
+      const { data } = await api.get(`/orders/${id}`);
+      setResult(orderToResult(data));
+      setTab('orders');
+      setSearchParams({ order: String(id) }, { replace: true });
+    } catch { toast.error('Не удалось открыть заказ'); }
+  }, [toast, setSearchParams]);
+
+  // Сохранить как черновик (можно неполный) и открыть его — со ссылкой, чтобы дозаполнить позже
+  const saveDraft = useCallback(async (data) => {
+    try {
+      const saved = await createOrder(data, 'draft');
+      await openOrder(saved.id);
+      toast.success('Черновик сохранён — можно дозаполнить позже');
+    } catch (e) {
+      toast.error('Не удалось сохранить черновик: ' + (e.response?.data?.error || 'ошибка'));
+    }
+  }, [createOrder, openOrder, toast]);
+
+  // Глубокая ссылка ?order=<id> — открыть заказ сразу при загрузке страницы
+  useEffect(() => {
+    const oid = searchParams.get('order');
+    if (oid) openOrder(oid);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="w-full max-w-[1500px] mx-auto p-3 sm:p-6 lg:p-8 overflow-x-hidden">
@@ -129,9 +159,9 @@ export default function OrderIntakePage() {
         {/* ── Загрузка / ручной подбор / открытый заказ ── */}
         <div className="min-w-0">
           {result?.isSaved ? (
-            <OrderSummaryCard result={result} onBack={reset} onDeleted={reset} />
+            <OrderSummaryCard result={result} onBack={reset} onDeleted={reset} onUpdated={setResult} />
           ) : tab === 'manual' ? (
-            <ManualPicker onResult={(d) => { setPreview(null); persistOrder(d); }} hasResult={!!result} onReset={() => setResult(null)} />
+            <ManualPicker onResult={(d) => { setPreview(null); persistOrder(d); }} onDraft={saveDraft} hasResult={!!result} onReset={() => setResult(null)} />
           ) : (
           <div
             onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
@@ -332,13 +362,39 @@ function OrdersList({ onOpen }) {
 }
 
 // ─── Сводка открытого заказа (левая колонка) ─────────────────────────────────
-function OrderSummaryCard({ result, onBack, onDeleted }) {
+function OrderSummaryCard({ result, onBack, onDeleted, onUpdated }) {
   const toast = useToast();
+  const [editing, setEditing] = useState(false);
+  const [items, setItems] = useState([]);
+  const [busy, setBusy] = useState(false);
+
+  const link = `${window.location.origin}${window.location.pathname}?order=${result.id}`;
+  const copyLink = async () => {
+    try { await navigator.clipboard.writeText(link); toast.success('Ссылка скопирована'); }
+    catch { window.prompt('Ссылка на заказ:', link); }
+  };
+
+  const startEdit = () => {
+    setItems((result.picklist || []).map((p) => ({ product_id: p.product_id, name: p.name, qty: p.qty })));
+    setEditing(true);
+  };
+  const saveItems = async () => {
+    setBusy(true);
+    try {
+      const { data } = await api.put(`/orders/${result.id}/items`, { items: items.map((i) => ({ product_id: i.product_id, qty: i.qty })) });
+      onUpdated(orderToResult(data));
+      setEditing(false);
+      toast.success('Состав обновлён');
+    } catch (e) { toast.error(e.response?.data?.error || 'Ошибка сохранения состава'); }
+    finally { setBusy(false); }
+  };
+
   const del = async () => {
     if (!window.confirm('Удалить заказ?')) return;
     try { await api.delete(`/orders/${result.id}`); toast.success('Заказ удалён'); onDeleted(); }
     catch { toast.error('Не удалось удалить'); }
   };
+
   return (
     <div className="rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 p-4">
       <button onClick={onBack} className="text-sm text-primary-600 hover:underline mb-3">← К заказам</button>
@@ -348,7 +404,36 @@ function OrderSummaryCard({ result, onBack, onDeleted }) {
       </div>
       <p className="text-sm text-gray-600 dark:text-gray-300">{result.total_bottles} баночек · {result.source === 'manual' ? 'вручную' : 'по фото'}</p>
       {result.cdek_number && <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">Трек СДЭК: <span className="font-mono font-semibold">{result.cdek_number}</span></p>}
-      <button onClick={del} className="mt-3 w-full py-2 rounded-xl border border-rose-200 dark:border-rose-800 text-rose-600 text-sm font-medium hover:bg-rose-50 dark:hover:bg-rose-900/20 flex items-center justify-center gap-2">
+
+      {/* Ссылка на заказ — можно передать другому сборщику, чтобы продолжил */}
+      <button onClick={copyLink}
+        className="mt-3 w-full py-2 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300 text-xs font-medium hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center justify-center gap-2">
+        <Link2 className="w-3.5 h-3.5" /> Скопировать ссылку на заказ
+      </button>
+
+      {/* Редактирование состава — ручное добавление/удаление позиций */}
+      {editing ? (
+        <div className="mt-3 rounded-xl border border-gray-100 dark:border-gray-800 p-3">
+          <ComposeItems items={items} setItems={setItems} />
+          <div className="grid grid-cols-2 gap-2 mt-3">
+            <button onClick={saveItems} disabled={busy}
+              className="py-2 rounded-xl bg-primary-600 text-white text-sm font-medium hover:bg-primary-700 disabled:opacity-40 flex items-center justify-center gap-2">
+              {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Сохранить
+            </button>
+            <button onClick={() => setEditing(false)} disabled={busy}
+              className="py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-gray-600 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800">
+              Отмена
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button onClick={startEdit}
+          className="mt-2 w-full py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 flex items-center justify-center gap-2">
+          <Pencil className="w-4 h-4" /> Изменить состав
+        </button>
+      )}
+
+      <button onClick={del} className="mt-2 w-full py-2 rounded-xl border border-rose-200 dark:border-rose-800 text-rose-600 text-sm font-medium hover:bg-rose-50 dark:hover:bg-rose-900/20 flex items-center justify-center gap-2">
         <Trash2 className="w-4 h-4" /> Удалить заказ
       </button>
     </div>
@@ -391,14 +476,11 @@ function OrderHistory({ orderId }) {
   );
 }
 
-// ─── Ручной подбор товаров для заказа ────────────────────────────────────────
-function ManualPicker({ onResult, hasResult, onReset }) {
-  const toast = useToast();
+// ─── Редактор состава: поиск + выпадашка + список позиций (переиспользуемый) ──
+function ComposeItems({ items, setItems }) {
   const [search, setSearch] = useState('');
   const [results, setResults] = useState([]);
   const [open, setOpen] = useState(false);
-  const [items, setItems] = useState([]);
-  const [busy, setBusy] = useState(false);
 
   // Список всплывает сразу (без ввода) и фильтруется по мере набора
   useEffect(() => {
@@ -420,28 +502,8 @@ function ManualPicker({ onResult, hasResult, onReset }) {
   const setQty = (id, q) => setItems((prev) => prev.map((x) => x.product_id === id ? { ...x, qty: Math.max(1, q || 1) } : x));
   const remove = (id) => setItems((prev) => prev.filter((x) => x.product_id !== id));
 
-  const build = async () => {
-    if (!items.length) { toast.error('Добавьте товары'); return; }
-    setBusy(true);
-    try {
-      const { data } = await api.post('/orders/build-picklist', { items: items.map((i) => ({ product_id: i.product_id, qty: i.qty })) });
-      onResult(data);
-    } catch (e) { toast.error(e.response?.data?.error || 'Ошибка'); }
-    finally { setBusy(false); }
-  };
-
-  if (hasResult) {
-    return (
-      <div className="rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 p-4 text-center py-8">
-        <Check className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
-        <p className="text-sm text-gray-600 dark:text-gray-300">Состав собран — оформляйте СДЭК ниже</p>
-        <button onClick={onReset} className="mt-3 text-sm text-primary-600 hover:underline">← Изменить состав</button>
-      </div>
-    );
-  }
-
   return (
-    <div className="rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 p-4">
+    <div>
       <label className="text-xs font-medium text-gray-500">Добавить товар</label>
       <div className="relative mt-1">
         <input value={search} onChange={(e) => setSearch(e.target.value)}
@@ -474,12 +536,66 @@ function ManualPicker({ onResult, hasResult, onReset }) {
           ))}
         </div>
       )}
+    </div>
+  );
+}
 
-      <button onClick={build} disabled={busy || !items.length}
+// ─── Ручной подбор товаров для заказа ────────────────────────────────────────
+function ManualPicker({ onResult, onDraft, hasResult, onReset }) {
+  const toast = useToast();
+  const [items, setItems] = useState([]);
+  const [busy, setBusy] = useState('');
+
+  const build = async () => {
+    if (!items.length) { toast.error('Добавьте товары'); return; }
+    setBusy('build');
+    try {
+      const { data } = await api.post('/orders/build-picklist', { items: items.map((i) => ({ product_id: i.product_id, qty: i.qty })) });
+      onResult(data);
+    } catch (e) { toast.error(e.response?.data?.error || 'Ошибка'); }
+    finally { setBusy(''); }
+  };
+
+  // Черновик можно завести даже без товаров — дозаполнить по ссылке позже
+  const draft = async () => {
+    setBusy('draft');
+    try {
+      let data = { manual: true, picklist: [], recognized: [], total_bottles: 0 };
+      if (items.length) {
+        const r = await api.post('/orders/build-picklist', { items: items.map((i) => ({ product_id: i.product_id, qty: i.qty })) });
+        data = r.data;
+      }
+      await onDraft(data);
+    } catch (e) { toast.error(e.response?.data?.error || 'Ошибка'); }
+    finally { setBusy(''); }
+  };
+
+  if (hasResult) {
+    return (
+      <div className="rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 p-4 text-center py-8">
+        <Check className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
+        <p className="text-sm text-gray-600 dark:text-gray-300">Состав собран — оформляйте СДЭК ниже</p>
+        <button onClick={onReset} className="mt-3 text-sm text-primary-600 hover:underline">← Изменить состав</button>
+      </div>
+    );
+  }
+
+  const totalPos = items.reduce((s, i) => s + i.qty, 0);
+  return (
+    <div className="rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 p-4">
+      <ComposeItems items={items} setItems={setItems} />
+
+      <button onClick={build} disabled={!!busy || !items.length}
         className="w-full mt-4 py-2.5 rounded-xl bg-primary-600 text-white text-sm font-medium hover:bg-primary-700 disabled:opacity-40 flex items-center justify-center gap-2">
-        {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Package className="w-4 h-4" />}
-        Собрать заказ ({items.reduce((s, i) => s + i.qty, 0)} поз.)
+        {busy === 'build' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Package className="w-4 h-4" />}
+        Собрать заказ ({totalPos} поз.)
       </button>
+      <button onClick={draft} disabled={!!busy}
+        className="w-full mt-2 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40 flex items-center justify-center gap-2">
+        {busy === 'draft' ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
+        Сохранить черновик{items.length ? '' : ' (пустой)'}
+      </button>
+      <p className="text-[11px] text-gray-400 text-center mt-1.5">Черновик заведёт заказ и даст ссылку — дозаполните позже</p>
     </div>
   );
 }
@@ -624,6 +740,7 @@ function orderToResult(o) {
 }
 
 const STATUS_META = {
+  draft: { label: 'Черновик', cls: 'bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-300' },
   new: { label: 'Новый', cls: 'bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300' },
   picking: { label: 'Сборка', cls: 'bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-300' },
   assembled: { label: 'Собран', cls: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-300' },

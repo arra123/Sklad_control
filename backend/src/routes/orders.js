@@ -589,18 +589,20 @@ router.post('/', requireAuth, async (req, res) => {
   const b = req.body || {};
   const picklist = Array.isArray(b.picklist) ? b.picklist : [];
   const orderValue = picklist.reduce((s, p) => s + (Number(p.price) || 0) * (Number(p.qty) || 0), 0);
+  const status = b.status === 'draft' ? 'draft' : 'new'; // черновик — заводим неполный, дозаполним позже
   try {
     const r = await pool.query(
       `INSERT INTO orders_s
          (source, status, recipient_name, recipient_phone, city, city_code, address, pvz_code, pvz_address,
           total_bottles, order_value, recognized_json, picklist_json, pkg_json, created_by)
-       VALUES ($1,'new',$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
-      [b.source === 'manual' ? 'manual' : 'photo', b.recipient || null, b.phone || null, b.city || null,
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING *`,
+      [b.source === 'manual' ? 'manual' : 'photo', status, b.recipient || null, b.phone || null, b.city || null,
        b.city_code || null, b.address || null, b.pvz_code || null, b.pvz_address || null,
        b.total_bottles || 0, orderValue, JSON.stringify(b.recognized || []), JSON.stringify(picklist),
        b.pkg ? JSON.stringify(b.pkg) : null, req.user.id]
     );
-    await logEvent(pool, r.rows[0].id, req.user.id, 'created', null, null, `Создан (${b.source === 'manual' ? 'вручную' : 'по фото'})`);
+    await logEvent(pool, r.rows[0].id, req.user.id, 'created', null, null,
+      `${status === 'draft' ? 'Черновик' : 'Создан'} (${b.source === 'manual' ? 'вручную' : 'по фото'})`);
     res.json(fmtOrderRow(r.rows[0]));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -744,6 +746,60 @@ router.post('/:id(\\d+)/collect', requireAuth, async (req, res) => {
     await logEvent(client, req.params.id, req.user.id, delta > 0 ? 'pick' : 'unpick', product_id, Math.abs(delta), item?.name || null);
     await client.query('COMMIT');
     res.json({ collected, collected_total: done, status });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: err.message });
+  } finally { client.release(); }
+});
+
+// PUT /orders/:id/items — заменить состав заказа (ручное добавление/удаление позиций).
+// body: { items: [{ product_id, qty }] } → пересобираем пик-лист (разворачивая наборы),
+// пересчитываем баночки/сумму, подрезаем собранное под новые количества.
+router.put('/:id(\\d+)/items', requireAuth, async (req, res) => {
+  const items = Array.isArray(req.body?.items) ? req.body.items : [];
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const or = await client.query('SELECT collected_json FROM orders_s WHERE id=$1 FOR UPDATE', [req.params.id]);
+    if (!or.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Заказ не найден' }); }
+
+    const acc = new Map();
+    for (const it of items) {
+      const pid = Number(it.product_id);
+      const qty = Math.max(1, Number(it.qty) || 1);
+      if (!pid) continue;
+      const tmp = new Map();
+      await expandProduct(client, pid, qty, tmp);
+      for (const [id, v] of tmp) {
+        const cur = acc.get(id) || { ...v, qty: 0 };
+        cur.qty += v.qty;
+        acc.set(id, cur);
+      }
+    }
+    const picklist = [...acc.values()].sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+    const total_bottles = picklist.reduce((s, p) => s + p.qty, 0);
+    const order_value = picklist.reduce((s, p) => s + (Number(p.price) || 0) * p.qty, 0);
+
+    // Собранное оставляем только по существующим позициям и не больше нового количества
+    const collected = or.rows[0].collected_json || {};
+    const clamped = {};
+    for (const p of picklist) {
+      const c = Number(collected[p.product_id]) || 0;
+      if (c > 0) clamped[p.product_id] = Math.min(c, p.qty);
+    }
+
+    await client.query(
+      `UPDATE orders_s SET picklist_json=$1, total_bottles=$2, order_value=$3, collected_json=$4, updated_at=NOW() WHERE id=$5`,
+      [JSON.stringify(picklist), total_bottles, order_value, JSON.stringify(clamped), req.params.id]
+    );
+    await logEvent(client, req.params.id, req.user.id, 'items', null, null, `Изменён состав: ${picklist.length} поз., ${total_bottles} бан.`);
+    await client.query('COMMIT');
+
+    const full = await pool.query(
+      `SELECT o.*, cu.username AS created_by_name, ce.full_name AS created_by_fullname,
+              au.username AS assembled_by_name, ae.full_name AS assembled_by_fullname
+       FROM orders_s o ${ORDER_LIST_JOIN} WHERE o.id=$1`, [req.params.id]);
+    res.json(fmtOrderRow(full.rows[0]));
   } catch (err) {
     await client.query('ROLLBACK');
     res.status(500).json({ error: err.message });
