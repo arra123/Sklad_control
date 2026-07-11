@@ -247,11 +247,14 @@ export default function OrderIntakePage() {
                         </p>
                         {r.matched ? (
                           <p className="text-[11px] text-gray-400 break-words">
-                            → {r.bottles} баночек{r.is_bundle ? ' (набор)' : ''} · {r.confidence}%
+                            → {r.bottles} баночек{r.is_bundle ? ' (набор)' : ''}{r.manual ? ' · выбрано вручную' : ` · ${r.confidence}%`}
                             {r.bundle_empty && <span className="text-rose-500"> · состав набора не заполнен в каталоге!</span>}
                           </p>
                         ) : (
-                          <p className="text-[11px] text-amber-500">не найдено в каталоге</p>
+                          <div className="mt-1">
+                            <p className="text-[11px] text-amber-500 mb-1">не найдено в каталоге — выберите вручную:</p>
+                            {result.id && <ResolvePicker orderId={result.id} index={i} onResolved={setResult} />}
+                          </div>
                         )}
                       </div>
                     </div>
@@ -533,6 +536,54 @@ function ComposeItems({ items, setItems }) {
                 className="w-14 flex-shrink-0 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1 text-sm text-center" />
               <button onClick={() => remove(it.product_id)} className="flex-shrink-0 text-gray-400 hover:text-rose-500"><X className="w-4 h-4" /></button>
             </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Выбор товара вручную для нераспознанной позиции заказа ──────────────────
+function ResolvePicker({ orderId, index, onResolved }) {
+  const toast = useToast();
+  const [search, setSearch] = useState('');
+  const [results, setResults] = useState([]);
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    const q = search.trim();
+    const t = setTimeout(() => {
+      api.get('/products', { params: q.length >= 2 ? { search: q, limit: 20 } : { limit: 20 } })
+        .then((r) => setResults(r.data?.items || [])).catch(() => setResults([]));
+    }, q ? 250 : 0);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  const pick = async (p) => {
+    setBusy(true); setOpen(false);
+    try {
+      const { data } = await api.post(`/orders/${orderId}/resolve`, { index, product_id: p.id });
+      onResolved(orderToResult(data));
+      toast.success(`Привязано: ${p.name}`);
+    } catch (e) { toast.error(e.response?.data?.error || 'Ошибка привязки'); }
+    finally { setBusy(false); }
+  };
+
+  return (
+    <div className="relative">
+      <input value={search} onChange={(e) => setSearch(e.target.value)}
+        onFocus={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 150)}
+        placeholder="Нажмите и выберите товар…" disabled={busy}
+        className="w-full rounded-lg border border-amber-200 dark:border-amber-800 bg-white dark:bg-gray-800 px-2.5 py-1.5 text-xs" />
+      {busy && <Loader2 className="w-3.5 h-3.5 animate-spin absolute right-2 top-2 text-gray-400" />}
+      {open && results.length > 0 && (
+        <div className="absolute z-30 left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg max-h-60 overflow-y-auto">
+          {results.map((p) => (
+            <button key={p.id} onMouseDown={(e) => { e.preventDefault(); pick(p); }} className="w-full text-left px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 text-xs">
+              <p className="text-gray-800 dark:text-gray-100 break-words">{p.name}{p.entity_type === 'bundle' && <span className="text-primary-500"> · набор</span>}</p>
+              {p.code && <p className="text-[10px] text-gray-400">{p.code}</p>}
+            </button>
           ))}
         </div>
       )}

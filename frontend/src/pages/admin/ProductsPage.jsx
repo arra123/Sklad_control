@@ -556,6 +556,7 @@ export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
         setProduct(r.data);
         setEditForm({
           name: r.data.name || '', code: r.data.code || '', article: r.data.article || '',
+          alt_names: r.data.alt_names || '',
           entity_type: r.data.entity_type || 'product', honest_sign: !!r.data.honest_sign,
           folder_path: r.data.folder_path || '', notes: r.data.notes || '',
           stock: r.data.stock !== undefined ? fmtQty(r.data.stock) : '',
@@ -818,6 +819,11 @@ export function ProductDetailModal({ productId, onClose, onEdit, onDelete }) {
                 <div className="space-y-3">
                   <label className="block"><span className="text-[11px] text-gray-400 font-medium">Название</span>
                     <input value={editForm?.name || ''} onChange={e => set('name', e.target.value)} className={FORM_INPUT} /></label>
+                  <label className="block"><span className="text-[11px] text-gray-400 font-medium">Доп. названия (синонимы)</span>
+                    <textarea value={editForm?.alt_names || ''} onChange={e => set('alt_names', e.target.value)} rows={2}
+                      placeholder="Другие названия товара — по ним ИИ тоже найдёт. По одному в строке (или через «;»)"
+                      className={`${FORM_INPUT} resize-y min-h-[52px]`} />
+                    <span className="text-[10px] text-gray-400">Напр.: «NAC, N-ацетилцистеин (Acetyl Cysteine) 1200 мг, 60 капсул»</span></label>
                   <div className="grid grid-cols-2 gap-3">
                     <label className="block"><span className="text-[11px] text-gray-400 font-medium">Код</span>
                       <input value={editForm?.code || ''} onChange={e => set('code', e.target.value)} className={FORM_INPUT} /></label>

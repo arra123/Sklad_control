@@ -63,11 +63,23 @@ function wantsBundle(raw) {
 
 const MATCH_THRESHOLD = 0.34;
 
+// Доп. названия (синонимы) товара — несколько через перевод строки / «;».
+function altNames(p) {
+  return String(p.alt_names || '').split(/[\n;]+/).map((s) => s.trim()).filter(Boolean);
+}
+
+// Лучший балл сходства строки заказа с товаром — по основному И по доп. названиям.
+function nameScore(name, p) {
+  let s = diceScore(name, p.name);
+  for (const alt of altNames(p)) s = Math.max(s, diceScore(name, alt));
+  return s;
+}
+
 // Лучшее совпадение: по ядру названия, с учётом «набор vs единичный товар».
 // Среди близких кандидатов выбираем bundle, если строка про набор, иначе — product.
 function bestMatch(name, catalog) {
   const scored = catalog
-    .map((p) => ({ p, s: diceScore(name, p.name) }))
+    .map((p) => ({ p, s: nameScore(name, p) }))
     .sort((a, b) => b.s - a.s);
   const best = scored[0];
   if (!best || best.s < MATCH_THRESHOLD) return { product: null, score: best?.s || 0 };
@@ -152,9 +164,9 @@ router.post('/parse-screenshot', requireAuth, async (req, res) => {
     // 1) Распознать состав через AI Vision
     const parsed = await aiProxy.parseOrderScreenshot(image);
 
-    // 2) Каталог для сопоставления
+    // 2) Каталог для сопоставления (с доп. названиями — ИИ ищет и по ним)
     const cat = await client.query(
-      `SELECT id, name, entity_type FROM products_s WHERE archived = false`
+      `SELECT id, name, entity_type, alt_names FROM products_s WHERE archived = false`
     );
     const catalog = cat.rows;
 
@@ -793,6 +805,65 @@ router.put('/:id(\\d+)/items', requireAuth, async (req, res) => {
       [JSON.stringify(picklist), total_bottles, order_value, JSON.stringify(clamped), req.params.id]
     );
     await logEvent(client, req.params.id, req.user.id, 'items', null, null, `Изменён состав: ${picklist.length} поз., ${total_bottles} бан.`);
+    await client.query('COMMIT');
+
+    const full = await pool.query(
+      `SELECT o.*, cu.username AS created_by_name, ce.full_name AS created_by_fullname,
+              au.username AS assembled_by_name, ae.full_name AS assembled_by_fullname
+       FROM orders_s o ${ORDER_LIST_JOIN} WHERE o.id=$1`, [req.params.id]);
+    res.json(fmtOrderRow(full.rows[0]));
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: err.message });
+  } finally { client.release(); }
+});
+
+// POST /orders/:id/resolve — привязать нераспознанную позицию к товару вручную.
+// body: { index, product_id } — index в recognized_json. Добавляет товар (× кол-во
+// строки) в пик-лист, помечает позицию найденной, пересчитывает баночки/сумму.
+router.post('/:id(\\d+)/resolve', requireAuth, async (req, res) => {
+  const index = Number(req.body?.index);
+  const productId = Number(req.body?.product_id);
+  if (!Number.isInteger(index) || !productId) return res.status(400).json({ error: 'Нужны index и product_id' });
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const or = await client.query('SELECT picklist_json, recognized_json FROM orders_s WHERE id=$1 FOR UPDATE', [req.params.id]);
+    if (!or.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Заказ не найден' }); }
+    const recognized = Array.isArray(or.rows[0].recognized_json) ? or.rows[0].recognized_json : [];
+    const rec = recognized[index];
+    if (!rec) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Позиция не найдена' }); }
+
+    const info = await client.query('SELECT id, name, entity_type FROM products_s WHERE id=$1', [productId]);
+    if (!info.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Товар не найден' }); }
+    const qty = Math.max(1, Number(rec.quantity) || 1);
+
+    // Разворачиваем выбранный товар в баночки и мержим в существующий пик-лист
+    const tmp = new Map();
+    await expandProduct(client, productId, qty, tmp);
+    const bottles = [...tmp.values()].reduce((s, p) => s + p.qty, 0);
+    const acc = new Map();
+    for (const p of (or.rows[0].picklist_json || [])) acc.set(p.product_id, { ...p });
+    for (const [id, v] of tmp) {
+      const cur = acc.get(id) || { ...v, qty: 0 };
+      cur.qty += v.qty;
+      acc.set(id, cur);
+    }
+    const picklist = [...acc.values()].sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+    const total_bottles = picklist.reduce((s, p) => s + p.qty, 0);
+    const order_value = picklist.reduce((s, p) => s + (Number(p.price) || 0) * p.qty, 0);
+
+    recognized[index] = {
+      ...rec, matched: true, manual: true, confidence: 100,
+      product_id: productId, product_name: info.rows[0].name,
+      is_bundle: info.rows[0].entity_type === 'bundle', bottles, bundle_empty: false,
+    };
+
+    await client.query(
+      `UPDATE orders_s SET picklist_json=$1, recognized_json=$2, total_bottles=$3, order_value=$4, updated_at=NOW() WHERE id=$5`,
+      [JSON.stringify(picklist), JSON.stringify(recognized), total_bottles, order_value, req.params.id]
+    );
+    await logEvent(client, req.params.id, req.user.id, 'items', productId, qty, `Привязано вручную: ${info.rows[0].name}`);
     await client.query('COMMIT');
 
     const full = await pool.query(

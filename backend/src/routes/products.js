@@ -30,7 +30,7 @@ router.get('/', requireAuth, async (req, res) => {
 
     if (search) {
       params.push(`%${search}%`);
-      conditions.push(`(p.name ILIKE $${params.length} OR p.code ILIKE $${params.length} OR p.article ILIKE $${params.length} OR p.barcode_list ILIKE $${params.length} OR p.production_barcode ILIKE $${params.length} OR p.marketplace_barcodes_json::text ILIKE $${params.length})`);
+      conditions.push(`(p.name ILIKE $${params.length} OR p.alt_names ILIKE $${params.length} OR p.code ILIKE $${params.length} OR p.article ILIKE $${params.length} OR p.barcode_list ILIKE $${params.length} OR p.production_barcode ILIKE $${params.length} OR p.marketplace_barcodes_json::text ILIKE $${params.length})`);
     }
 
     if (entity_type) {
@@ -928,7 +928,7 @@ router.post('/', requireAuth, requirePermission('products.edit'), async (req, re
 
 // PUT /api/products/:id — update product
 router.put('/:id', requireAuth, requirePermission('products.edit'), async (req, res) => {
-  const { name, code, article, entity_type, barcode_list, stock, reserve, archived, sale_price, cost_price, honest_sign, folder_path, notes } = req.body;
+  const { name, code, article, entity_type, barcode_list, stock, reserve, archived, sale_price, cost_price, honest_sign, folder_path, notes, alt_names } = req.body;
   if (!name || !String(name).trim()) return res.status(400).json({ error: 'Название обязательно' });
   try {
     const result = await pool.query(
@@ -937,8 +937,8 @@ router.put('/:id', requireAuth, requirePermission('products.edit'), async (req, 
          barcode_list = $5,
          stock = $6, reserve = $7, archived = $8,
          sale_price = $9, cost_price = $10, honest_sign = $11,
-         folder_path = $12, notes = $13, updated_at = NOW()
-       WHERE id = $14 RETURNING *`,
+         folder_path = $12, notes = $13, alt_names = $14, updated_at = NOW()
+       WHERE id = $15 RETURNING *`,
       [String(name).trim(), code || null, article || null, entity_type || 'product',
        barcode_list || null,
        parseFloat(stock) || 0, parseFloat(reserve) || 0,
@@ -948,6 +948,7 @@ router.put('/:id', requireAuth, requirePermission('products.edit'), async (req, 
        honest_sign === true,
        folder_path != null ? (String(folder_path).trim() || null) : null,
        notes != null ? (String(notes).trim() || null) : null,
+       alt_names != null ? (String(alt_names).trim() || null) : null,
        req.params.id]
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Товар не найден' });
