@@ -29,14 +29,12 @@ const BOX_TARE_G = 150;      // вес пустой коробки
 const BOTTLE_WEIGHT_G = 50;  // вес одной баночки (оценка, поправим фактическим)
 
 // Реальная таблица коробок (см) по числу баночек. max — верхняя граница по числу банок.
+// 4 фактические коробки склада (банка Ø5×7: в двух младших лежит, т.к. высота < 7).
 const BOX_TABLE = [
-  { max: 1, length: 9, width: 6.5, height: 6.5 },
-  { max: 2, length: 12.5, width: 8, height: 6.5 },
-  { max: 3, length: 19, width: 10, height: 6 },
-  { max: 4, length: 11, width: 11, height: 11 },
-  { max: 5, length: 17, width: 12, height: 10 },
-  { max: 6, length: 20, width: 13.5, height: 11 },
-  { max: 12, length: 23, width: 16, height: 10 },
+  { max: 1, length: 8.5, width: 7, height: 6.5 },
+  { max: 3, length: 18.5, width: 9.5, height: 5.5 },
+  { max: 7, length: 18.5, width: 13, height: 11 },
+  { max: 14, length: 22.5, width: 16, height: 11 },
 ];
 
 // Габариты коробки по числу баночек: берём первую коробку, куда влезает.
