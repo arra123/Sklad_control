@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
-import { Upload, Loader2, Check, AlertTriangle, X, ImageIcon, Package, Truck, Printer, MapPin, Search, ScanLine, Map as MapIcon, ClipboardList, Trash2, Clock, User, RefreshCw, FileText, Link2, Pencil, Plus } from 'lucide-react';
+import { Upload, Loader2, Check, AlertTriangle, X, ImageIcon, Package, Truck, Printer, MapPin, Search, ScanLine, Map as MapIcon, ClipboardList, Trash2, Clock, User, RefreshCw, FileText, Link2, Pencil, Plus, ArrowLeft } from 'lucide-react';
 import api from '../../api/client';
 import { useToast } from '../../components/ui/Toast';
 import CdekMapPicker from '../../components/CdekMapPicker';
@@ -43,6 +43,9 @@ export default function OrderIntakePage() {
   const [preview, setPreview] = useState(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
+  // Подсветка связи «позиция заказа ↔ баночки сборки» при наведении:
+  // { pids: [product_id...], idx: индекс позиции | null, from: 'rec' | 'picklist' }
+  const [link, setLink] = useState(null);
   const fileInputRef = useRef(null);
 
   const switchTab = (t) => { setTab(t); setResult(null); setPreview(null); setSearchParams({}, { replace: true }); };
@@ -122,6 +125,14 @@ export default function OrderIntakePage() {
     } catch (e) { toast.error(e.response?.data?.error || 'Не удалось убрать позицию'); }
   }, [applyOrderUpdate, toast]);
 
+  // Изменить позицию: другой товар, количество, итоговое наименование
+  const updatePosition = useCallback(async (orderId, index, body) => {
+    try {
+      const { data } = await api.put(`/orders/${orderId}/positions/${index}`, body);
+      applyOrderUpdate(data);
+    } catch (e) { toast.error(e.response?.data?.error || 'Не удалось изменить позицию'); }
+  }, [applyOrderUpdate, toast]);
+
   const openOrder = useCallback(async (id) => {
     try {
       const { data } = await api.get(`/orders/${id}`);
@@ -150,7 +161,7 @@ export default function OrderIntakePage() {
   }, []);
 
   return (
-    <div className="w-full max-w-[1500px] mx-auto p-3 sm:p-6 lg:p-8 overflow-x-hidden">
+    <div className="w-full max-w-[1750px] mx-auto p-3 sm:p-6 lg:p-8 overflow-x-hidden">
       <h1 className="text-2xl lg:text-4xl font-bold text-gray-900 dark:text-white mb-4 lg:mb-6">Заказы</h1>
 
       {/* Вкладки */}
@@ -168,8 +179,8 @@ export default function OrderIntakePage() {
 
       {!(tab === 'orders' && !result) && (
       <>
-      <div className="grid gap-4 lg:gap-6 lg:grid-cols-2">
-        {/* ── Загрузка / ручной подбор / открытый заказ ── */}
+      <div className="grid gap-4 lg:gap-6 lg:grid-cols-3">
+        {/* ── Загрузка / ручной подбор / открытый заказ (слева) ── */}
         <div className="min-w-0">
           {result?.isSaved ? (
             <OrderSummaryCard result={result} onBack={reset} onDeleted={reset} onUpdated={setResult} />
@@ -229,67 +240,31 @@ export default function OrderIntakePage() {
           )}
         </div>
 
-        {/* ── Сборка ── */}
+        {/* ── Сборка (центр) ── */}
         <div className="min-w-0">
           {!result && !loading && (
             <div className="h-full rounded-2xl border border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/40 flex flex-col items-center justify-center text-center p-8 text-gray-400" style={{ minHeight: 220 }}>
-              <ImageIcon className="w-8 h-8 mb-2 opacity-50" />
+              <Package className="w-8 h-8 mb-2 opacity-50" />
               <p className="text-sm">Здесь появится список баночек для сборки</p>
             </div>
           )}
-
           {result && (
-            <>
-              <AssemblyChecklist result={result} />
+            <AssemblyChecklist result={result} link={link} setLink={setLink}
+              onReplace={(index, productId) => updatePosition(result.id, index, { product_id: productId })} />
+          )}
+        </div>
 
-              {/* Позиции заказа: распознанные строки + удаление крестиком + ручное добавление */}
-              {(result.recognized.length > 0 || result.id) && (
-              <div className="mt-3 rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 overflow-hidden">
-                <div className="px-4 py-2.5 border-b border-gray-100 dark:border-gray-800 font-semibold text-gray-900 dark:text-white text-sm">
-                  Позиции заказа ({result.recognized.length})
-                </div>
-                <div className="divide-y divide-gray-50 dark:divide-gray-800">
-                  {result.recognized.map((r, i) => (
-                    <div key={i} className="flex items-start gap-2.5 px-4 py-2.5">
-                      {r.bundle_empty ? <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5 text-rose-500" />
-                        : r.matched ? <Check className="w-4 h-4 flex-shrink-0 mt-0.5 text-emerald-500" />
-                        : <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5 text-amber-500" />}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-gray-800 dark:text-gray-100 break-words">
-                          {r.raw_name} <span className="text-gray-400 whitespace-nowrap">× {r.quantity}</span>
-                        </p>
-                        {r.matched ? (
-                          <p className="text-[11px] text-gray-400 break-words">
-                            → {r.bottles} баночек{r.is_bundle ? ' (набор)' : ''}{r.manual ? ' · выбрано вручную' : ` · ${r.confidence}%`}
-                            {r.bundle_empty && <span className="text-rose-500"> · состав набора не заполнен в каталоге!</span>}
-                          </p>
-                        ) : (
-                          <div className="mt-1">
-                            <p className="text-[11px] text-amber-500 mb-1">не найдено в каталоге — выберите вручную:</p>
-                            {result.id && <ResolvePicker orderId={result.id} index={i} onResolved={applyOrderUpdate} />}
-                          </div>
-                        )}
-                      </div>
-                      {result.id && (
-                        <button onClick={() => removePosition(result.id, i)} title="Убрать позицию"
-                          className="w-7 h-7 flex-shrink-0 mt-0.5 rounded-lg text-gray-300 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 flex items-center justify-center">
-                          <X className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                  {result.recognized.length === 0 && (
-                    <p className="px-4 py-3 text-xs text-gray-400">Позиций нет — добавьте товар вручную ниже</p>
-                  )}
-                </div>
-                {result.id && (
-                  <div className="px-4 py-2.5 border-t border-gray-100 dark:border-gray-800 bg-gray-50/60 dark:bg-gray-800/30">
-                    <AddPositionPicker orderId={result.id} onAdded={applyOrderUpdate} />
-                  </div>
-                )}
-              </div>
-              )}
-            </>
+        {/* ── Позиции заказа (справа) ── */}
+        <div className="min-w-0">
+          {!result && !loading && (
+            <div className="h-full rounded-2xl border border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/40 flex flex-col items-center justify-center text-center p-8 text-gray-400" style={{ minHeight: 220 }}>
+              <ClipboardList className="w-8 h-8 mb-2 opacity-50" />
+              <p className="text-sm">Здесь появятся позиции заказа</p>
+            </div>
+          )}
+          {result && (result.recognized.length > 0 || result.id) && (
+            <OrderPositions result={result} link={link} setLink={setLink}
+              applyOrderUpdate={applyOrderUpdate} removePosition={removePosition} updatePosition={updatePosition} />
           )}
         </div>
       </div>
@@ -775,11 +750,15 @@ function ManualPicker({ onResult, onDraft, hasResult, onReset }) {
 }
 
 // ─── Чек-лист сборки: сканер + ручной тап, прогресс N/total ──────────────────
-function AssemblyChecklist({ result }) {
+// link/setLink — подсветка связи со списком позиций; onReplace(index, productId) —
+// замена товара позиции прямо из сборки (для баночек, привязанных к позиции напрямую).
+function AssemblyChecklist({ result, link, setLink, onReplace }) {
   const toast = useToast();
   const orderId = result.id;
+  const recognized = result.recognized || [];
   const [collected, setCollected] = useState(result.collected || {});
   const [scan, setScan] = useState('');
+  const [editPid, setEditPid] = useState(null); // product_id строки с открытой заменой товара
   const scanRef = useRef(null);
 
   useEffect(() => { setCollected(result.collected || {}); }, [result]); // eslint-disable-line
@@ -862,24 +841,52 @@ function AssemblyChecklist({ result }) {
         {result.picklist.map((p) => {
           const c = collected[p.product_id] || 0;
           const full = c >= p.qty;
+          const lit = Boolean(link?.pids?.includes(p.product_id));
+          // Позиция, из которой баночка пришла напрямую (не через набор) — её и заменяем
+          const directIdx = recognized.findIndex((r) => r.matched && !r.is_bundle && r.product_id === p.product_id);
           return (
-            <div key={p.product_id}
-              className={'flex items-center gap-2.5 lg:gap-3 rounded-xl px-3 lg:px-4 py-2 lg:py-3 ' + (full ? 'bg-emerald-50 dark:bg-emerald-900/20' : 'bg-gray-50 dark:bg-gray-800/60')}>
-              <button onClick={() => inc(p, +1)}
-                className={'w-9 h-9 lg:w-12 lg:h-12 flex-shrink-0 rounded-lg flex items-center justify-center text-sm lg:text-base font-bold ' + (full ? 'bg-emerald-500 text-white' : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-600')}>
-                {full ? <Check className="w-4 h-4 lg:w-5 lg:h-5" /> : `${c}/${p.qty}`}
-              </button>
-              <div className="flex-1 min-w-0" onClick={() => inc(p, +1)}>
-                <p className="text-sm lg:text-base text-gray-800 dark:text-gray-100 break-words leading-tight">{p.name}</p>
-                <p className="text-[11px] text-gray-400 flex items-center gap-2 flex-wrap">
-                  {p.barcode && <span className="font-mono break-all">{p.barcode}</span>}
-                  {p.price != null && <span className="text-emerald-600 font-medium">{p.price} ₽/шт</span>}
-                </p>
-              </div>
-              {c > 0 && (
-                <button onClick={() => inc(p, -1)} className="w-7 h-7 flex-shrink-0 rounded-lg text-gray-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 flex items-center justify-center">
-                  <X className="w-3.5 h-3.5" />
+            <div key={p.product_id}>
+              <div
+                onMouseEnter={() => setLink?.({ pids: [p.product_id], idx: null, from: 'picklist' })}
+                onMouseLeave={() => setLink?.(null)}
+                className={'flex items-center gap-2.5 lg:gap-3 rounded-xl px-3 lg:px-4 py-2 lg:py-3 transition-shadow ' +
+                  (full ? 'bg-emerald-50 dark:bg-emerald-900/20' : 'bg-gray-50 dark:bg-gray-800/60') +
+                  (lit ? ' ring-2 ring-primary-400' : '')}>
+                <button onClick={() => inc(p, +1)}
+                  className={'w-9 h-9 lg:w-12 lg:h-12 flex-shrink-0 rounded-lg flex items-center justify-center text-sm lg:text-base font-bold ' + (full ? 'bg-emerald-500 text-white' : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-600')}>
+                  {full ? <Check className="w-4 h-4 lg:w-5 lg:h-5" /> : `${c}/${p.qty}`}
                 </button>
+                <div className="flex-1 min-w-0" onClick={() => inc(p, +1)}>
+                  <p className="text-sm lg:text-base text-gray-800 dark:text-gray-100 break-words leading-tight">{p.name}</p>
+                  <p className="text-[11px] text-gray-400 flex items-center gap-2 flex-wrap">
+                    {p.barcode && <span className="font-mono break-all">{p.barcode}</span>}
+                    {p.price != null && <span className="text-emerald-600 font-medium">{p.price} ₽/шт</span>}
+                  </p>
+                </div>
+                {orderId && onReplace && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (directIdx === -1) { toast.error('Эта баночка входит в набор — замените позицию набора в «Позициях заказа»'); return; }
+                      setEditPid(editPid === p.product_id ? null : p.product_id);
+                    }}
+                    title="Заменить товар"
+                    className="w-7 h-7 flex-shrink-0 rounded-lg text-gray-300 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 flex items-center justify-center">
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
+                )}
+                {c > 0 && (
+                  <button onClick={() => inc(p, -1)} className="w-7 h-7 flex-shrink-0 rounded-lg text-gray-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 flex items-center justify-center">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+              {editPid === p.product_id && directIdx !== -1 && (
+                <div className="mt-1 px-1">
+                  <InlineProductPicker placeholder="На какой товар заменить…"
+                    onPick={(prod) => { onReplace(directIdx, prod.id); setEditPid(null); }}
+                    onClose={() => setEditPid(null)} />
+                </div>
               )}
             </div>
           );
@@ -890,6 +897,216 @@ function AssemblyChecklist({ result }) {
         <div className="px-4 py-2.5 bg-emerald-50 dark:bg-emerald-900/20 border-t border-emerald-100 dark:border-emerald-800 text-sm font-medium text-emerald-700 dark:text-emerald-300 flex items-center gap-2">
           <Check className="w-4 h-4" /> Заказ собран — можно оформлять СДЭК
         </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Позиции заказа (правая колонка) ─────────────────────────────────────────
+// Жирным — итоговое наименование (пойдёт в СДЭК): как в заказе / как на складе /
+// своё. Стрелка «←» показывает, что списывается со склада; при наведении
+// подсвечиваются связанные строки сборки (и наоборот).
+function OrderPositions({ result, link, setLink, applyOrderUpdate, removePosition, updatePosition }) {
+  const recognized = result.recognized || [];
+  const picklist = result.picklist || [];
+  const orderId = result.id;
+  const [nameEdit, setNameEdit] = useState(null); // индекс позиции с ручным вводом названия
+  const [nameDraft, setNameDraft] = useState('');
+  const [pickIdx, setPickIdx] = useState(null);   // индекс позиции с открытой заменой товара
+
+  const compIds = (r) => (Array.isArray(r.component_ids) && r.component_ids.length
+    ? r.component_ids
+    : (r.product_id ? [r.product_id] : []));
+  const compNames = (r) => compIds(r)
+    .map((id) => picklist.find((p) => p.product_id === id)?.name)
+    .filter(Boolean);
+
+  const highlighted = (r, i) =>
+    Boolean(link && (link.from === 'picklist' ? compIds(r).some((id) => link.pids.includes(id)) : link.idx === i));
+
+  const chip = (active) => 'px-2 py-1 rounded-md text-[10px] font-medium border transition-colors ' +
+    (active
+      ? 'border-primary-400 bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300 dark:border-primary-700'
+      : 'border-gray-200 dark:border-gray-700 text-gray-500 hover:border-primary-300');
+
+  return (
+    <div className="rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 overflow-hidden">
+      <div className="px-4 py-2.5 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between gap-2">
+        <span className="font-semibold text-gray-900 dark:text-white text-sm flex items-center gap-2">
+          <ClipboardList className="w-4 h-4 text-primary-600" /> Позиции заказа ({recognized.length})
+        </span>
+        <span className="text-[10px] text-gray-400">жирным — как уйдёт в СДЭК</span>
+      </div>
+      <div className="divide-y divide-gray-50 dark:divide-gray-800">
+        {recognized.map((r, i) => {
+          const finalName = r.display_name || r.raw_name;
+          const mode = r.display_name ? (r.display_name === r.product_name ? 'stock' : 'custom') : 'order';
+          return (
+            <div key={i}
+              onMouseEnter={() => setLink?.({ pids: compIds(r), idx: i, from: 'rec' })}
+              onMouseLeave={() => setLink?.(null)}
+              className={'px-4 py-2.5 transition-colors ' + (highlighted(r, i) ? 'bg-primary-50/70 dark:bg-primary-900/20' : '')}>
+              <div className="flex items-start gap-2.5">
+                {r.bundle_empty ? <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5 text-rose-500" />
+                  : r.matched ? <Check className="w-4 h-4 flex-shrink-0 mt-0.5 text-emerald-500" />
+                  : <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5 text-amber-500" />}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 break-words">
+                    {finalName}{' '}
+                    <span className="text-gray-400 font-normal whitespace-nowrap inline-flex items-center gap-1">
+                      ×{' '}
+                      {orderId ? (
+                        <input type="number" min="1" key={`${i}-${r.quantity}`} defaultValue={r.quantity}
+                          onBlur={(e) => { const q = Math.max(1, Number(e.target.value) || 1); if (q !== Number(r.quantity)) updatePosition(orderId, i, { qty: q }); }}
+                          onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+                          title="Количество по заказу"
+                          className="w-12 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-1 py-0.5 text-xs text-center" />
+                      ) : r.quantity}
+                    </span>
+                  </p>
+                  {mode !== 'order' && (
+                    <p className="text-[11px] text-gray-400 break-words">в заказе: {r.raw_name}</p>
+                  )}
+                  {r.matched ? (
+                    <p className="text-[11px] text-gray-400 break-words flex items-start gap-1 mt-0.5">
+                      <ArrowLeft className="w-3 h-3 mt-[1px] flex-shrink-0 text-primary-400" />
+                      <span>
+                        со склада: {compNames(r).join(', ') || r.product_name} · {r.bottles} бан.{r.is_bundle ? ' (набор)' : ''}
+                        {r.manual ? ' · вручную' : ` · ${r.confidence}%`}
+                        {r.bundle_empty && <span className="text-rose-500"> · состав набора не заполнен в каталоге!</span>}
+                      </span>
+                    </p>
+                  ) : (
+                    <div className="mt-1">
+                      <p className="text-[11px] text-amber-500 mb-1">не найдено в каталоге — выберите вручную:</p>
+                      {orderId && <ResolvePicker orderId={orderId} index={i} onResolved={applyOrderUpdate} />}
+                    </div>
+                  )}
+
+                  {/* Что писать в итоговых документах + замена товара */}
+                  {orderId && r.matched && (
+                    <div className="flex items-center gap-1 mt-1.5 flex-wrap">
+                      <span className="text-[10px] text-gray-400 mr-0.5">в СДЭК:</span>
+                      <button onClick={() => updatePosition(orderId, i, { display_name: '' })} className={chip(mode === 'order')}>
+                        как в заказе
+                      </button>
+                      <button onClick={() => updatePosition(orderId, i, { display_name: r.product_name })} className={chip(mode === 'stock')}>
+                        как на складе
+                      </button>
+                      <button onClick={() => { setNameEdit(nameEdit === i ? null : i); setNameDraft(finalName); }}
+                        className={chip(mode === 'custom')} title="Своё наименование">
+                        <Pencil className="w-3 h-3" />
+                      </button>
+                      <button onClick={() => setPickIdx(pickIdx === i ? null : i)}
+                        className="ml-auto text-[10px] text-primary-600 hover:underline">
+                        заменить товар
+                      </button>
+                    </div>
+                  )}
+                  {nameEdit === i && (
+                    <div className="flex items-center gap-1.5 mt-1.5">
+                      <input value={nameDraft} onChange={(e) => setNameDraft(e.target.value)} autoFocus
+                        onKeyDown={(e) => { if (e.key === 'Enter') { updatePosition(orderId, i, { display_name: nameDraft }); setNameEdit(null); } }}
+                        placeholder="Своё наименование для СДЭК"
+                        className="flex-1 min-w-0 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-2.5 py-1.5 text-xs" />
+                      <button onClick={() => { updatePosition(orderId, i, { display_name: nameDraft }); setNameEdit(null); }}
+                        className="w-7 h-7 flex-shrink-0 rounded-lg text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 flex items-center justify-center">
+                        <Check className="w-3.5 h-3.5" />
+                      </button>
+                      <button onClick={() => setNameEdit(null)}
+                        className="w-7 h-7 flex-shrink-0 rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-center">
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
+                  {pickIdx === i && (
+                    <div className="mt-1.5">
+                      <InlineProductPicker placeholder="На какой товар заменить…"
+                        onPick={(p) => { updatePosition(orderId, i, { product_id: p.id }); setPickIdx(null); }}
+                        onClose={() => setPickIdx(null)} />
+                    </div>
+                  )}
+                </div>
+                {orderId && (
+                  <button onClick={() => removePosition(orderId, i)} title="Убрать позицию"
+                    className="w-7 h-7 flex-shrink-0 mt-0.5 rounded-lg text-gray-300 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 flex items-center justify-center">
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })}
+        {recognized.length === 0 && (
+          <p className="px-4 py-3 text-xs text-gray-400">Позиций нет — добавьте товар вручную ниже</p>
+        )}
+      </div>
+      {orderId && (
+        <div className="px-4 py-2.5 border-t border-gray-100 dark:border-gray-800 bg-gray-50/60 dark:bg-gray-800/30">
+          <AddPositionPicker orderId={orderId} onAdded={applyOrderUpdate} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Универсальный инлайн-выбор товара (выпадашка порталом в body) ───────────
+function InlineProductPicker({ placeholder = 'Выберите товар…', onPick, onClose }) {
+  const inputRef = useRef(null);
+  const [search, setSearch] = useState('');
+  const [results, setResults] = useState([]);
+  const [open, setOpen] = useState(false);
+  const [rect, setRect] = useState(null);
+
+  useEffect(() => {
+    const q = search.trim();
+    const t = setTimeout(() => {
+      api.get('/products', { params: q.length >= 2 ? { search: q, limit: 20 } : { limit: 20 } })
+        .then((r) => setResults(r.data?.items || [])).catch(() => setResults([]));
+    }, q ? 250 : 0);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  const syncRect = useCallback(() => {
+    if (inputRef.current) setRect(inputRef.current.getBoundingClientRect());
+  }, []);
+  useEffect(() => {
+    if (!open) return;
+    syncRect();
+    window.addEventListener('scroll', syncRect, true);
+    window.addEventListener('resize', syncRect);
+    return () => {
+      window.removeEventListener('scroll', syncRect, true);
+      window.removeEventListener('resize', syncRect);
+    };
+  }, [open, syncRect]);
+
+  return (
+    <div className="flex items-center gap-1.5">
+      <div className="relative flex-1 min-w-0">
+        <input ref={inputRef} value={search} onChange={(e) => setSearch(e.target.value)} autoFocus
+          onFocus={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 150)}
+          placeholder={placeholder}
+          className="w-full rounded-lg border border-primary-200 dark:border-primary-800 bg-white dark:bg-gray-800 px-2.5 py-1.5 text-xs" />
+        {open && results.length > 0 && rect && createPortal(
+          <div
+            style={{ position: 'fixed', left: rect.left, top: rect.bottom + 4, width: rect.width, zIndex: 60 }}
+            className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl max-h-60 overflow-y-auto">
+            {results.map((p) => (
+              <button key={p.id} onMouseDown={(e) => { e.preventDefault(); onPick(p); }} className="w-full text-left px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 text-xs">
+                <p className="text-gray-800 dark:text-gray-100 break-words">{p.name}{p.entity_type === 'bundle' && <span className="text-primary-500"> · набор</span>}</p>
+                {p.code && <p className="text-[10px] text-gray-400">{p.code}</p>}
+              </button>
+            ))}
+          </div>,
+          document.body
+        )}
+      </div>
+      {onClose && (
+        <button onMouseDown={(e) => { e.preventDefault(); onClose(); }}
+          className="w-7 h-7 flex-shrink-0 rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-center">
+          <X className="w-3.5 h-3.5" />
+        </button>
       )}
     </div>
   );
@@ -995,7 +1212,16 @@ function CdekPanel({ result }) {
   const [pkg, setPkg] = useState(null); // { weight, length, width, height } — авто, редактируемо
   const [pkgEdited, setPkgEdited] = useState(false);
   const [imNumber, setImNumber] = useState(result.order_number || '');
-  const [showAll, setShowAll] = useState(false);
+  const [editing, setEditing] = useState(false); // редактор полей (отправитель/получатель/город/ПВЗ)
+
+  // Итоговые наименования: у баночки, привязанной к позиции напрямую (не через
+  // набор), берём выбранное имя позиции (как в заказе / складское / своё).
+  // Именно эти имена уходят в СДЭК и показываются в «Товарах в грузоместе».
+  const displayPicklist = (result.picklist || []).map((p) => {
+    const rec = (result.recognized || []).find((r) => r.matched && !r.is_bundle && r.product_id === p.product_id);
+    const name = rec ? (rec.display_name || rec.raw_name || p.name) : p.name;
+    return name === p.name ? p : { ...p, name };
+  });
 
   // Город/улица/дом получателя. AI отдаёт city и pvz_address отдельными полями;
   // если их нет — аккуратный фолбэк из полного адреса.
@@ -1028,17 +1254,18 @@ function CdekPanel({ result }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bottles]);
 
-  // Автоподстановка города + ПВЗ из адреса заказа
+  // Автоподстановка города + ПВЗ из адреса заказа. Если авто не справился —
+  // сразу открываем редактор полей, чтобы город можно было выбрать руками.
   useEffect(() => {
     if (!cfg) return;
     const { cityName, street, house } = parseAddr();
-    if (!cityName) return;
+    if (!cityName) { setEditing(true); return; }
     setCityQuery(cityName);
     (async () => {
       setBusy('auto');
       try {
         const { data: cs } = await api.get('/orders/cdek/cities', { params: { name: cityName } });
-        if (!cs.length) return;
+        if (!cs.length) { setEditing(true); return; }
         const c = cs[0];
         setCity(c); setCities([]);
         const { data: pv } = await api.get('/orders/cdek/pvz', { params: { city_code: c.code, query: street } });
@@ -1047,7 +1274,7 @@ function CdekPanel({ result }) {
         // авто-выбор ПВЗ, если адрес совпал по улице и дому
         const best = pv.find((p) => norm(p.address).includes(norm(street)) && (!house || norm(p.address).includes(norm(house))));
         if (best) setPvz(best);
-      } catch { /* оставим ручной ввод */ }
+      } catch { setEditing(true); /* оставим ручной ввод */ }
       finally { setBusy(''); }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1140,7 +1367,7 @@ function CdekPanel({ result }) {
   };
 
   const calculate = async () => {
-    if (!city) { toast.error('Выберите город получателя'); return; }
+    if (!city) { setEditing(true); toast.error('Выберите город получателя'); return; }
     setBusy('calc'); setTariffs(null); setTariff(null);
     try {
       const { data } = await api.post('/orders/cdek/calculate', {
@@ -1155,9 +1382,9 @@ function CdekPanel({ result }) {
 
   const createOrder = async () => {
     if (!tariff) { toast.error('Выберите тариф'); return; }
-    if (!name.trim() || !phone.trim()) { toast.error('Заполните ФИО и телефон'); return; }
+    if (!name.trim() || !phone.trim()) { setEditing(true); toast.error('Заполните ФИО и телефон'); return; }
     const isPvzMode = tariff.delivery_mode === 4 || tariff.delivery_mode === 7;
-    if (isPvzMode && !pvz) { toast.error('Выберите ПВЗ получения'); return; }
+    if (isPvzMode && !pvz) { setEditing(true); toast.error('Выберите ПВЗ получения'); return; }
     setBusy('create');
     try {
       const body = {
@@ -1166,7 +1393,7 @@ function CdekPanel({ result }) {
         shipment_point: shipmentPoint,
         sender: { company: sender.company.trim(), name: sender.name.trim(), phone: sender.phone.trim() },
         recipient: { name: name.trim(), phone: phone.trim() },
-        picklist: result.picklist,
+        picklist: displayPicklist,
         bottles,
         pkg,
       };
@@ -1259,8 +1486,91 @@ function CdekPanel({ result }) {
         <span className="text-xs text-gray-400">интернет-магазин · {bottles} баночек</span>
       </div>
 
-      <div className="p-4 grid gap-5 lg:grid-cols-2">
-        {/* Отправитель + получатель */}
+      {/* ── Все поля заказа — видны сразу, правятся через «Редактировать» ── */}
+      <div className="p-4 space-y-3 text-sm border-b border-gray-100 dark:border-gray-800">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Все поля заказа (как в СДЭК)</span>
+          <button onClick={() => setEditing((v) => !v)}
+            className={'px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 flex-shrink-0 ' +
+              (editing ? 'bg-primary-50 text-primary-600 dark:bg-primary-900/30' : 'border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800')}>
+            <Pencil className="w-3.5 h-3.5" /> {editing ? 'Скрыть редактор' : 'Редактировать'}
+          </button>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <FieldGroup title="Отправитель">
+            <F label="Тип заказа" v="интернет-магазин" />
+            <F label="Контрагент" v={sender.company} />
+            <F label="ИНН" v={cfg?.sender?.inn} />
+            <F label="ФИО" v={sender.name} />
+            <F label="Телефон" v={sender.phone} />
+            <F label="Страна" v={cfg?.sender?.country} />
+            <F label="Пункт отправки" v={customFrom
+              ? `${customFrom.code} · ${customFrom.city}, ${customFrom.address}`
+              : (cfg?.shipment_points || []).find((p) => p.code === shipmentPoint)?.name} />
+            <F label="Истинный продавец" v={cfg?.sender?.true_seller} />
+          </FieldGroup>
+
+          <FieldGroup title="Получатель">
+            <F label="ФИО" v={name} />
+            <F label="Телефон" v={phone} />
+            <F label="Город" v={city ? `${city.city} (код ${city.code})` : ''} />
+            <F label="ПВЗ" v={pvz ? `${pvz.code}` : ''} />
+            <F label="Адрес ПВЗ" v={pvz?.address} />
+          </FieldGroup>
+
+          <FieldGroup title="Грузоместо">
+            <F label="Мест" v="1" />
+            <F label="Баночек" v={bottles} />
+            <F label="Вес" v={pkg ? `${pkg.weight} г` : ''} />
+            <F label="Габариты" v={pkg ? `${pkg.length}×${pkg.width}×${pkg.height} см` : ''} />
+          </FieldGroup>
+
+          <FieldGroup title="Заказ">
+            <div className="py-1.5">
+              <span className="text-gray-400 block mb-0.5">№ отправления ИМ</span>
+              <input value={imNumber} onChange={(e) => setImNumber(e.target.value)} placeholder="сгенерируется автоматически"
+                className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-2 py-1.5 text-sm" />
+            </div>
+            <F label="Тариф" v={tariff ? `${tariff.tariff_name} · ${tariff.delivery_sum}₽` : ''} />
+            <F label="Трек СДЭК" v={order?.cdek_number} />
+            <F label="Статус СДЭК" v={order?.cdek_status} />
+          </FieldGroup>
+        </div>
+
+        {/* Товары в грузоместе — наименования как выбрано в «Позициях заказа» */}
+        <div className="rounded-xl border border-gray-100 dark:border-gray-800 overflow-hidden">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400 px-3 pt-2.5 pb-1">Товары в грузоместе</p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs lg:text-sm">
+              <thead>
+                <tr className="text-gray-400 text-left border-b border-gray-100 dark:border-gray-800">
+                  <th className="px-3 py-1.5 font-medium">Наименование</th>
+                  <th className="px-3 py-1.5 font-medium">Артикул / ШК</th>
+                  <th className="px-3 py-1.5 font-medium text-center">Кол-во</th>
+                  <th className="px-3 py-1.5 font-medium text-right">Вес, г</th>
+                  <th className="px-3 py-1.5 font-medium text-right">Цена, ₽</th>
+                </tr>
+              </thead>
+              <tbody>
+                {displayPicklist.map((p) => (
+                  <tr key={p.product_id} className="border-b border-gray-50 dark:border-gray-800/60 last:border-0">
+                    <td className="px-3 py-1.5 text-gray-800 dark:text-gray-100">{p.name}</td>
+                    <td className="px-3 py-1.5 text-gray-500 font-mono">{p.barcode || p.product_id}</td>
+                    <td className="px-3 py-1.5 text-center text-gray-800 dark:text-gray-100">{p.qty}</td>
+                    <td className="px-3 py-1.5 text-right text-gray-500">{cfg?.bottle_weight_g ?? 50}</td>
+                    <td className="px-3 py-1.5 text-right text-gray-500">{p.price ?? '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Редактор полей (отправитель / получатель / город / ПВЗ) ── */}
+      {editing && (
+      <div className="p-4 grid gap-5 lg:grid-cols-2 border-b border-gray-100 dark:border-gray-800">
+        {/* Отправитель */}
         <div className="space-y-4 min-w-0">
           <div>
             <div className="flex items-center justify-between">
@@ -1357,7 +1667,10 @@ function CdekPanel({ result }) {
               </div>
             </div>
           </div>
+        </div>
 
+        {/* Получатель */}
+        <div className="space-y-4 min-w-0">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <div className="min-w-0">
               <label className="text-xs font-medium text-gray-500">ФИО получателя</label>
@@ -1428,10 +1741,13 @@ function CdekPanel({ result }) {
             </div>
           )}
         </div>
+      </div>
+      )}
 
-        {/* Тарифы + действия */}
+      {/* ── Расчёт и оформление — снизу ── */}
+      <div className="p-4 grid gap-5 lg:grid-cols-2">
+        {/* Коробка — кнопки-пресеты + своя */}
         <div className="space-y-3 min-w-0">
-          {/* Коробка — кнопки-пресеты + своя */}
           {pkg && cfg && (
             <div className="rounded-xl border border-gray-100 dark:border-gray-800 p-3">
               <span className="text-xs font-medium text-gray-500">Коробка · {bottles} бан.</span>
@@ -1468,7 +1784,10 @@ function CdekPanel({ result }) {
               <p className="text-[10px] text-gray-400 mt-1.5">Вес {pkg.weight} г · {pkg.length}×{pkg.width}×{pkg.height} см</p>
             </div>
           )}
+        </div>
 
+        {/* Тарифы + действия */}
+        <div className="space-y-3 min-w-0">
           <button onClick={calculate} disabled={busy === 'calc' || !city}
             className="w-full py-2.5 rounded-xl bg-primary-600 text-white text-sm font-medium hover:bg-primary-700 disabled:opacity-40 flex items-center justify-center gap-2">
             {busy === 'calc' ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
@@ -1534,87 +1853,6 @@ function CdekPanel({ result }) {
             </div>
           )}
         </div>
-      </div>
-
-      {/* Все поля заказа (как в СДЭК) — скрыто, раскрывается */}
-      <div className="border-t border-gray-100 dark:border-gray-800">
-        <button onClick={() => setShowAll((v) => !v)} className="w-full flex items-center justify-between px-4 py-3 text-sm font-semibold text-gray-900 dark:text-white">
-          <span>Все поля заказа (как в СДЭК)</span>
-          <span className="text-gray-400 text-xs">{showAll ? 'скрыть' : 'показать'}</span>
-        </button>
-        {showAll && (
-          <div className="px-4 pb-4 space-y-3 text-sm">
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <FieldGroup title="Отправитель">
-              <F label="Тип заказа" v="интернет-магазин" />
-              <F label="Контрагент" v={sender.company} />
-              <F label="ИНН" v={cfg?.sender?.inn} />
-              <F label="ФИО" v={sender.name} />
-              <F label="Телефон" v={sender.phone} />
-              <F label="Страна" v={cfg?.sender?.country} />
-              <F label="Пункт отправки" v={customFrom
-                ? `${customFrom.code} · ${customFrom.city}, ${customFrom.address}`
-                : (cfg?.shipment_points || []).find((p) => p.code === shipmentPoint)?.name} />
-              <F label="Истинный продавец" v={cfg?.sender?.true_seller} />
-            </FieldGroup>
-
-            <FieldGroup title="Получатель">
-              <F label="ФИО" v={name} />
-              <F label="Телефон" v={phone} />
-              <F label="Город" v={city ? `${city.city} (код ${city.code})` : ''} />
-              <F label="ПВЗ" v={pvz ? `${pvz.code}` : ''} />
-              <F label="Адрес ПВЗ" v={pvz?.address} />
-            </FieldGroup>
-
-            <FieldGroup title="Грузоместо">
-              <F label="Мест" v="1" />
-              <F label="Баночек" v={bottles} />
-              <F label="Вес" v={pkg ? `${pkg.weight} г` : ''} />
-              <F label="Габариты" v={pkg ? `${pkg.length}×${pkg.width}×${pkg.height} см` : ''} />
-            </FieldGroup>
-
-            <FieldGroup title="Заказ">
-              <div className="py-1.5">
-                <span className="text-gray-400 block mb-0.5">№ отправления ИМ</span>
-                <input value={imNumber} onChange={(e) => setImNumber(e.target.value)} placeholder="сгенерируется автоматически"
-                  className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-2 py-1.5 text-sm" />
-              </div>
-              <F label="Тариф" v={tariff ? `${tariff.tariff_name} · ${tariff.delivery_sum}₽` : ''} />
-              <F label="Трек СДЭК" v={order?.cdek_number} />
-              <F label="Статус СДЭК" v={order?.cdek_status} />
-            </FieldGroup>
-          </div>
-
-          {/* Товары в грузоместе — поля по каждой позиции (как в СДЭК) */}
-          <div className="rounded-xl border border-gray-100 dark:border-gray-800 overflow-hidden">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400 px-3 pt-2.5 pb-1">Товары в грузоместе</p>
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs lg:text-sm">
-                <thead>
-                  <tr className="text-gray-400 text-left border-b border-gray-100 dark:border-gray-800">
-                    <th className="px-3 py-1.5 font-medium">Наименование</th>
-                    <th className="px-3 py-1.5 font-medium">Артикул / ШК</th>
-                    <th className="px-3 py-1.5 font-medium text-center">Кол-во</th>
-                    <th className="px-3 py-1.5 font-medium text-right">Вес, г</th>
-                    <th className="px-3 py-1.5 font-medium text-right">Цена, ₽</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {result.picklist.map((p) => (
-                    <tr key={p.product_id} className="border-b border-gray-50 dark:border-gray-800/60 last:border-0">
-                      <td className="px-3 py-1.5 text-gray-800 dark:text-gray-100">{p.name}</td>
-                      <td className="px-3 py-1.5 text-gray-500 font-mono">{p.barcode || p.product_id}</td>
-                      <td className="px-3 py-1.5 text-center text-gray-800 dark:text-gray-100">{p.qty}</td>
-                      <td className="px-3 py-1.5 text-right text-gray-500">{cfg?.bottle_weight_g ?? 50}</td>
-                      <td className="px-3 py-1.5 text-right text-gray-500">{p.price ?? '—'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-          </div>
-        )}
       </div>
 
       {showMap && city && (

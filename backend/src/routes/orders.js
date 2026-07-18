@@ -182,6 +182,7 @@ router.post('/parse-screenshot', requireAuth, async (req, res) => {
 
       let itemBottles = 0;
       let bundleEmpty = false;
+      let componentIds = [];
       if (matched) {
         // Раскладываем позицию в отдельную корзину — чтобы знать вклад именно этой строки
         const tmp = new Map();
@@ -189,6 +190,7 @@ router.post('/parse-screenshot', requireAuth, async (req, res) => {
         itemBottles = [...tmp.values()].reduce((s, p) => s + p.qty, 0);
         // Набор без компонентов в каталоге разворачивается «сам в себя» → счёт занижен
         bundleEmpty = isBundle && tmp.size === 1 && tmp.has(product.id);
+        componentIds = [...tmp.keys()];
         for (const [id, v] of tmp) {
           const cur = picklistAcc.get(id) || { ...v, qty: 0 };
           cur.qty += v.qty;
@@ -207,6 +209,7 @@ router.post('/parse-screenshot', requireAuth, async (req, res) => {
         is_bundle: isBundle,
         bottles: itemBottles,
         bundle_empty: bundleEmpty, // набор без состава в каталоге — счёт под вопросом
+        component_ids: componentIds, // какие баночки сборки принадлежат этой позиции
       });
     }
 
@@ -265,6 +268,7 @@ router.post('/build-picklist', requireAuth, async (req, res) => {
         raw_name: info.rows[0].name, quantity: qty, matched: true, confidence: 100,
         product_id: pid, product_name: info.rows[0].name,
         is_bundle: info.rows[0].entity_type === 'bundle', bottles, bundle_empty: false,
+        component_ids: [...tmp.keys()],
       });
     }
     const picklist = [...picklistAcc.values()].sort((a, b) => a.name.localeCompare(b.name, 'ru'));
@@ -781,11 +785,22 @@ async function fetchFullOrder(id) {
 }
 
 // Пересборка пик-листа из привязанных позиций recognized (позиции — источник правды).
+// Заодно обновляет у каждой позиции component_ids/bottles — фронт по ним связывает
+// позицию заказа со строками сборки (подсветка, замена товара).
 async function recomputeFromRecognized(client, recognized) {
   const acc = new Map();
   for (const rec of recognized) {
     if (!rec.matched || !rec.product_id) continue;
-    await expandProduct(client, rec.product_id, Math.max(1, Number(rec.quantity) || 1), acc);
+    const tmp = new Map();
+    await expandProduct(client, rec.product_id, Math.max(1, Number(rec.quantity) || 1), tmp);
+    rec.component_ids = [...tmp.keys()];
+    rec.bottles = [...tmp.values()].reduce((s, p) => s + p.qty, 0);
+    rec.bundle_empty = Boolean(rec.is_bundle && tmp.size === 1 && tmp.has(rec.product_id));
+    for (const [id, v] of tmp) {
+      const cur = acc.get(id) || { ...v, qty: 0 };
+      cur.qty += v.qty;
+      acc.set(id, cur);
+    }
   }
   const picklist = [...acc.values()].sort((a, b) => a.name.localeCompare(b.name, 'ru'));
   const total_bottles = picklist.reduce((s, p) => s + p.qty, 0);
@@ -831,6 +846,7 @@ router.put('/:id(\\d+)/items', requireAuth, async (req, res) => {
         product_id: pid, product_name: info.rows[0].name,
         is_bundle: isBundle, bottles,
         bundle_empty: isBundle && tmp.size === 1 && tmp.has(pid),
+        component_ids: [...tmp.keys()],
       });
     }
     const { picklist, total_bottles, order_value } = await recomputeFromRecognized(client, recognized);
@@ -873,6 +889,7 @@ router.post('/:id(\\d+)/positions', requireAuth, async (req, res) => {
       product_id: productId, product_name: info.rows[0].name,
       is_bundle: isBundle, bottles,
       bundle_empty: isBundle && tmp.size === 1 && tmp.has(productId),
+      component_ids: [...tmp.keys()],
     });
 
     const { picklist, total_bottles, order_value } = await recomputeFromRecognized(client, recognized);
@@ -882,6 +899,54 @@ router.post('/:id(\\d+)/positions', requireAuth, async (req, res) => {
       [JSON.stringify(picklist), JSON.stringify(recognized), total_bottles, order_value, JSON.stringify(clamped), req.params.id]
     );
     await logEvent(client, req.params.id, req.user.id, 'items', productId, qty, `Добавлена позиция: ${info.rows[0].name} × ${qty}`);
+    await client.query('COMMIT');
+    res.json(await fetchFullOrder(req.params.id));
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: err.message });
+  } finally { client.release(); }
+});
+
+// PUT /orders/:id/positions/:index — изменить позицию заказа: привязать другой товар,
+// поменять количество и/или задать итоговое наименование (display_name — то, что
+// пойдёт в документы СДЭК; пусто → как в заказе). Пик-лист пересобирается.
+router.put('/:id(\\d+)/positions/:index(\\d+)', requireAuth, async (req, res) => {
+  const index = Number(req.params.index);
+  const b = req.body || {};
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const or = await client.query('SELECT recognized_json, collected_json FROM orders_s WHERE id=$1 FOR UPDATE', [req.params.id]);
+    if (!or.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Заказ не найден' }); }
+    const recognized = Array.isArray(or.rows[0].recognized_json) ? or.rows[0].recognized_json : [];
+    const rec = recognized[index];
+    if (!rec) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Позиция не найдена' }); }
+
+    if (b.qty !== undefined) rec.quantity = Math.max(1, Number(b.qty) || 1);
+    if (b.display_name !== undefined) {
+      const dn = String(b.display_name || '').trim();
+      if (dn) rec.display_name = dn; else delete rec.display_name;
+    }
+    let logMsg = `Изменена позиция: ${rec.product_name || rec.raw_name}`;
+    if (b.product_id !== undefined) {
+      const productId = Number(b.product_id);
+      const info = await client.query('SELECT id, name, entity_type FROM products_s WHERE id=$1', [productId]);
+      if (!info.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Товар не найден' }); }
+      Object.assign(rec, {
+        matched: true, manual: true, confidence: 100,
+        product_id: productId, product_name: info.rows[0].name,
+        is_bundle: info.rows[0].entity_type === 'bundle',
+      });
+      logMsg = `Позиция заменена на: ${info.rows[0].name}`;
+    }
+
+    const { picklist, total_bottles, order_value } = await recomputeFromRecognized(client, recognized);
+    const clamped = clampCollected(or.rows[0].collected_json, picklist);
+    await client.query(
+      `UPDATE orders_s SET picklist_json=$1, recognized_json=$2, total_bottles=$3, order_value=$4, collected_json=$5, updated_at=NOW() WHERE id=$6`,
+      [JSON.stringify(picklist), JSON.stringify(recognized), total_bottles, order_value, JSON.stringify(clamped), req.params.id]
+    );
+    await logEvent(client, req.params.id, req.user.id, 'items', rec.product_id || null, rec.quantity || null, logMsg);
     await client.query('COMMIT');
     res.json(await fetchFullOrder(req.params.id));
   } catch (err) {
@@ -959,6 +1024,7 @@ router.post('/:id(\\d+)/resolve', requireAuth, async (req, res) => {
       ...rec, matched: true, manual: true, confidence: 100,
       product_id: productId, product_name: info.rows[0].name,
       is_bundle: info.rows[0].entity_type === 'bundle', bottles, bundle_empty: false,
+      component_ids: [...tmp.keys()],
     };
 
     await client.query(
