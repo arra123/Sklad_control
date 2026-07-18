@@ -183,12 +183,13 @@ function SearchWithSuggestions({ value, onChange, onSearch, entityType }) {
   const fetchSuggestions = useCallback(async (q) => {
     if (!q || q.length < 2) { setSuggestions([]); return; }
     try {
-      const res = await api.get('/products', { params: { search: q, entity_type: entityType, limit: 8 } });
+      // Подсказки — по всем карточкам, без фильтра вкладки
+      const res = await api.get('/products', { params: { search: q, limit: 8 } });
       setSuggestions(res.data.items || []);
     } catch {
       setSuggestions([]);
     }
-  }, [entityType]);
+  }, []);
 
   const handleChange = (e) => {
     const v = e.target.value;
@@ -1231,7 +1232,9 @@ function ProductTable({ entityType, onSelect, onEdit }) {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const params = { search, entity_type: entityType, page, limit, sort_by: sortBy, sort_dir: sortDir };
+      // При активном поиске ищем по ВСЕМ карточкам (единичные + комплекты),
+      // чтобы товар находился по любому ШК/полю независимо от открытой вкладки
+      const params = { search, entity_type: search ? undefined : entityType, page, limit, sort_by: sortBy, sort_dir: sortDir };
       const res = await api.get('/products', { params });
       setItems(res.data.items);
       setTotal(res.data.total);
@@ -1381,7 +1384,10 @@ function ProductTable({ entityType, onSelect, onEdit }) {
                               {item.entity_type === 'bundle' ? <BundleIcon size={20} /> : <ProductIcon size={20} />}
                             </div>
                             <div className="min-w-0">
-                              <p className="font-medium text-gray-900 dark:text-white text-sm leading-tight">{item.name}</p>
+                              <p className="font-medium text-gray-900 dark:text-white text-sm leading-tight">
+                                {item.name}
+                                {item.entity_type === 'bundle' && <span className="ml-1.5 text-[10px] font-semibold text-purple-500">комплект</span>}
+                              </p>
                               {item.article && <p className="text-xs text-gray-400">{item.article}</p>}
                             </div>
                           </div>
