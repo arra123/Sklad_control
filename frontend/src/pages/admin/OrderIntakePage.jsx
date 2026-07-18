@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
-import { Upload, Loader2, Check, AlertTriangle, X, ImageIcon, Package, Truck, Printer, MapPin, Search, ScanLine, Map as MapIcon, ClipboardList, Trash2, Clock, User, RefreshCw, FileText, Link2, Pencil } from 'lucide-react';
+import { Upload, Loader2, Check, AlertTriangle, X, ImageIcon, Package, Truck, Printer, MapPin, Search, ScanLine, Map as MapIcon, ClipboardList, Trash2, Clock, User, RefreshCw, FileText, Link2, Pencil, Plus } from 'lucide-react';
 import api from '../../api/client';
 import { useToast } from '../../components/ui/Toast';
 import CdekMapPicker from '../../components/CdekMapPicker';
@@ -108,6 +109,18 @@ export default function OrderIntakePage() {
   };
 
   const reset = () => { setPreview(null); setResult(null); setSearchParams({}, { replace: true }); };
+
+  // Обновление заказа с сервера без потери локального режима (фото-превью и т.п.)
+  const applyOrderUpdate = useCallback((data) => {
+    setResult((prev) => ({ ...orderToResult(data), isSaved: prev?.isSaved || false }));
+  }, []);
+
+  const removePosition = useCallback(async (orderId, index) => {
+    try {
+      const { data } = await api.delete(`/orders/${orderId}/positions/${index}`);
+      applyOrderUpdate(data);
+    } catch (e) { toast.error(e.response?.data?.error || 'Не удалось убрать позицию'); }
+  }, [applyOrderUpdate, toast]);
 
   const openOrder = useCallback(async (id) => {
     try {
@@ -229,8 +242,8 @@ export default function OrderIntakePage() {
             <>
               <AssemblyChecklist result={result} />
 
-              {/* Распознанные позиции — с числом баночек и предупреждением о наборах */}
-              {result.recognized.length > 0 && (
+              {/* Позиции заказа: распознанные строки + удаление крестиком + ручное добавление */}
+              {(result.recognized.length > 0 || result.id) && (
               <div className="mt-3 rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 overflow-hidden">
                 <div className="px-4 py-2.5 border-b border-gray-100 dark:border-gray-800 font-semibold text-gray-900 dark:text-white text-sm">
                   Позиции заказа ({result.recognized.length})
@@ -253,13 +266,27 @@ export default function OrderIntakePage() {
                         ) : (
                           <div className="mt-1">
                             <p className="text-[11px] text-amber-500 mb-1">не найдено в каталоге — выберите вручную:</p>
-                            {result.id && <ResolvePicker orderId={result.id} index={i} onResolved={setResult} />}
+                            {result.id && <ResolvePicker orderId={result.id} index={i} onResolved={applyOrderUpdate} />}
                           </div>
                         )}
                       </div>
+                      {result.id && (
+                        <button onClick={() => removePosition(result.id, i)} title="Убрать позицию"
+                          className="w-7 h-7 flex-shrink-0 mt-0.5 rounded-lg text-gray-300 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 flex items-center justify-center">
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                   ))}
+                  {result.recognized.length === 0 && (
+                    <p className="px-4 py-3 text-xs text-gray-400">Позиций нет — добавьте товар вручную ниже</p>
+                  )}
                 </div>
+                {result.id && (
+                  <div className="px-4 py-2.5 border-t border-gray-100 dark:border-gray-800 bg-gray-50/60 dark:bg-gray-800/30">
+                    <AddPositionPicker orderId={result.id} onAdded={applyOrderUpdate} />
+                  </div>
+                )}
               </div>
               )}
             </>
@@ -546,10 +573,12 @@ function ComposeItems({ items, setItems }) {
 // ─── Выбор товара вручную для нераспознанной позиции заказа ──────────────────
 function ResolvePicker({ orderId, index, onResolved }) {
   const toast = useToast();
+  const inputRef = useRef(null);
   const [search, setSearch] = useState('');
   const [results, setResults] = useState([]);
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [rect, setRect] = useState(null);
 
   useEffect(() => {
     const q = search.trim();
@@ -559,6 +588,22 @@ function ResolvePicker({ orderId, index, onResolved }) {
     }, q ? 250 : 0);
     return () => clearTimeout(t);
   }, [search]);
+
+  // Позиция выпадашки берётся от инпута — рендерим её порталом в body,
+  // чтобы overflow-hidden родительской карточки не обрезал список.
+  const syncRect = useCallback(() => {
+    if (inputRef.current) setRect(inputRef.current.getBoundingClientRect());
+  }, []);
+  useEffect(() => {
+    if (!open) return;
+    syncRect();
+    window.addEventListener('scroll', syncRect, true);
+    window.addEventListener('resize', syncRect);
+    return () => {
+      window.removeEventListener('scroll', syncRect, true);
+      window.removeEventListener('resize', syncRect);
+    };
+  }, [open, syncRect]);
 
   const pick = async (p) => {
     setBusy(true); setOpen(false);
@@ -572,21 +617,99 @@ function ResolvePicker({ orderId, index, onResolved }) {
 
   return (
     <div className="relative">
-      <input value={search} onChange={(e) => setSearch(e.target.value)}
+      <input ref={inputRef} value={search} onChange={(e) => setSearch(e.target.value)}
         onFocus={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 150)}
-        placeholder="Нажмите и выберите товар…" disabled={busy}
+        placeholder="Начните вводить название товара…" disabled={busy}
         className="w-full rounded-lg border border-amber-200 dark:border-amber-800 bg-white dark:bg-gray-800 px-2.5 py-1.5 text-xs" />
       {busy && <Loader2 className="w-3.5 h-3.5 animate-spin absolute right-2 top-2 text-gray-400" />}
-      {open && results.length > 0 && (
-        <div className="absolute z-30 left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg max-h-60 overflow-y-auto">
+      {open && results.length > 0 && rect && createPortal(
+        <div
+          style={{ position: 'fixed', left: rect.left, top: rect.bottom + 4, width: rect.width, zIndex: 60 }}
+          className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl max-h-60 overflow-y-auto">
           {results.map((p) => (
             <button key={p.id} onMouseDown={(e) => { e.preventDefault(); pick(p); }} className="w-full text-left px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 text-xs">
               <p className="text-gray-800 dark:text-gray-100 break-words">{p.name}{p.entity_type === 'bundle' && <span className="text-primary-500"> · набор</span>}</p>
               {p.code && <p className="text-[10px] text-gray-400">{p.code}</p>}
             </button>
           ))}
-        </div>
+        </div>,
+        document.body
       )}
+    </div>
+  );
+}
+
+// ─── Добавить позицию (товар × кол-во) в открытый заказ ──────────────────────
+function AddPositionPicker({ orderId, onAdded }) {
+  const toast = useToast();
+  const inputRef = useRef(null);
+  const [search, setSearch] = useState('');
+  const [qty, setQty] = useState(1);
+  const [results, setResults] = useState([]);
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [rect, setRect] = useState(null);
+
+  useEffect(() => {
+    const q = search.trim();
+    const t = setTimeout(() => {
+      api.get('/products', { params: q.length >= 2 ? { search: q, limit: 20 } : { limit: 20 } })
+        .then((r) => setResults(r.data?.items || [])).catch(() => setResults([]));
+    }, q ? 250 : 0);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  // Выпадашка порталом в body — overflow-hidden карточки не обрезает список
+  const syncRect = useCallback(() => {
+    if (inputRef.current) setRect(inputRef.current.getBoundingClientRect());
+  }, []);
+  useEffect(() => {
+    if (!open) return;
+    syncRect();
+    window.addEventListener('scroll', syncRect, true);
+    window.addEventListener('resize', syncRect);
+    return () => {
+      window.removeEventListener('scroll', syncRect, true);
+      window.removeEventListener('resize', syncRect);
+    };
+  }, [open, syncRect]);
+
+  const pick = async (p) => {
+    setBusy(true); setOpen(false);
+    try {
+      const { data } = await api.post(`/orders/${orderId}/positions`, { product_id: p.id, qty: Math.max(1, Number(qty) || 1) });
+      onAdded(data);
+      setSearch(''); setQty(1);
+      toast.success(`Добавлено: ${p.name}`);
+    } catch (e) { toast.error(e.response?.data?.error || 'Не удалось добавить'); }
+    finally { setBusy(false); }
+  };
+
+  return (
+    <div className="flex items-center gap-2">
+      <Plus className="w-4 h-4 flex-shrink-0 text-gray-400" />
+      <div className="relative flex-1 min-w-0">
+        <input ref={inputRef} value={search} onChange={(e) => setSearch(e.target.value)}
+          onFocus={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 150)}
+          placeholder="Добавить товар — нажмите и выберите…" disabled={busy}
+          className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-2.5 py-1.5 text-xs" />
+        {busy && <Loader2 className="w-3.5 h-3.5 animate-spin absolute right-2 top-2 text-gray-400" />}
+        {open && results.length > 0 && rect && createPortal(
+          <div
+            style={{ position: 'fixed', left: rect.left, top: rect.bottom + 4, width: rect.width, zIndex: 60 }}
+            className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl max-h-60 overflow-y-auto">
+            {results.map((p) => (
+              <button key={p.id} onMouseDown={(e) => { e.preventDefault(); pick(p); }} className="w-full text-left px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 text-xs">
+                <p className="text-gray-800 dark:text-gray-100 break-words">{p.name}{p.entity_type === 'bundle' && <span className="text-primary-500"> · набор</span>}</p>
+                {p.code && <p className="text-[10px] text-gray-400">{p.code}</p>}
+              </button>
+            ))}
+          </div>,
+          document.body
+        )}
+      </div>
+      <input type="number" min="1" value={qty} onChange={(e) => setQty(e.target.value)} title="Количество"
+        className="w-14 flex-shrink-0 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-2 py-1.5 text-xs text-center" />
     </div>
   );
 }
@@ -659,7 +782,7 @@ function AssemblyChecklist({ result }) {
   const [scan, setScan] = useState('');
   const scanRef = useRef(null);
 
-  useEffect(() => { setCollected(result.collected || {}); }, [result.id]); // eslint-disable-line
+  useEffect(() => { setCollected(result.collected || {}); }, [result]); // eslint-disable-line
 
   // Общий пикинг: подтягиваем прогресс других сборщиков
   useEffect(() => {
@@ -843,6 +966,17 @@ function CdekPanel({ result }) {
   const bottles = result.total_bottles;
   const [cfg, setCfg] = useState(null);
   const [shipmentPoint, setShipmentPoint] = useState('');
+  // Отправитель: авто-подстановка из конфига, все поля редактируемы перед оформлением
+  const [sender, setSender] = useState({ company: '', name: '', phone: '' });
+  // Свой пункт отправки (не из списка конфига): { code, address, city, city_code }
+  const [customFrom, setCustomFrom] = useState(null);
+  const [fromPicker, setFromPicker] = useState(false);
+  const [fromCityQuery, setFromCityQuery] = useState('');
+  const [fromCities, setFromCities] = useState([]);
+  const [fromCity, setFromCity] = useState(null);
+  const [fromPvzQuery, setFromPvzQuery] = useState('');
+  const [fromPvzList, setFromPvzList] = useState([]);
+  const [showFromMap, setShowFromMap] = useState(false);
   const [name, setName] = useState(result.recipient || '');
   const [phone, setPhone] = useState(result.phone || '');
 
@@ -882,10 +1016,17 @@ function CdekPanel({ result }) {
     api.get('/orders/cdek/config').then(({ data }) => {
       setCfg(data);
       setShipmentPoint(data.default_shipment_point);
+      setSender({ company: data.sender?.company || '', name: data.sender?.name || '', phone: data.sender?.phone || '' });
       setPkg(computeDefaultPkg(bottles, data));
     }).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Состав поменяли (добавили/убрали позицию) — пересчитать коробку, если её не правили вручную
+  useEffect(() => {
+    if (cfg && !pkgEdited) setPkg(computeDefaultPkg(bottles, cfg));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bottles]);
 
   // Автоподстановка города + ПВЗ из адреса заказа
   useEffect(() => {
@@ -951,11 +1092,61 @@ function CdekPanel({ result }) {
     finally { setBusy(''); }
   };
 
+  // ── Свой пункт отправки: поиск города → выбор ПВЗ (списком или на карте) ──
+  const searchFromCity = async () => {
+    if (!fromCityQuery.trim()) return;
+    setBusy('fromcity');
+    try {
+      const { data } = await api.get('/orders/cdek/cities', { params: { name: fromCityQuery.trim() } });
+      setFromCities(data);
+      if (data.length === 1) selectFromCity(data[0]);
+    } catch { toast.error('Ошибка поиска города'); }
+    finally { setBusy(''); }
+  };
+
+  const selectFromCity = async (c) => {
+    setFromCity(c); setFromCities([]);
+    setBusy('frompvz');
+    try {
+      const { data } = await api.get('/orders/cdek/pvz', { params: { city_code: c.code, query: fromPvzQuery } });
+      setFromPvzList(data);
+    } catch { toast.error('Ошибка загрузки ПВЗ'); }
+    finally { setBusy(''); }
+  };
+
+  const filterFromPvz = async () => {
+    if (!fromCity) return;
+    setBusy('frompvz');
+    try {
+      const { data } = await api.get('/orders/cdek/pvz', { params: { city_code: fromCity.code, query: fromPvzQuery } });
+      setFromPvzList(data);
+    } catch { toast.error('Ошибка загрузки ПВЗ'); }
+    finally { setBusy(''); }
+  };
+
+  const pickFromPvz = (p) => {
+    setCustomFrom({ code: p.code, address: p.address, city: fromCity?.city || '', city_code: fromCity?.code });
+    setShipmentPoint(p.code);
+    setFromPicker(false); setShowFromMap(false);
+    setTariffs(null); setTariff(null); // тарифы зависят от пункта отправки — пересчитать
+  };
+
+  const resetFrom = () => {
+    setCustomFrom(null);
+    setShipmentPoint(cfg?.default_shipment_point || '');
+    setFromPicker(false); setFromCity(null); setFromCities([]); setFromPvzList([]);
+    setFromCityQuery(''); setFromPvzQuery('');
+    setTariffs(null); setTariff(null);
+  };
+
   const calculate = async () => {
     if (!city) { toast.error('Выберите город получателя'); return; }
     setBusy('calc'); setTariffs(null); setTariff(null);
     try {
-      const { data } = await api.post('/orders/cdek/calculate', { shipment_point: shipmentPoint, to_city_code: city.code, bottles, pkg });
+      const { data } = await api.post('/orders/cdek/calculate', {
+        shipment_point: shipmentPoint, from_city_code: customFrom?.city_code,
+        to_city_code: city.code, bottles, pkg,
+      });
       setTariffs(data.tariffs);
       if (!data.tariffs.length) toast.error('Нет доступных тарифов');
     } catch (e) { toast.error(e.response?.data?.error || 'Ошибка расчёта'); }
@@ -973,6 +1164,7 @@ function CdekPanel({ result }) {
         number: imNumber.trim() || undefined,
         tariff_code: tariff.tariff_code,
         shipment_point: shipmentPoint,
+        sender: { company: sender.company.trim(), name: sender.name.trim(), phone: sender.phone.trim() },
         recipient: { name: name.trim(), phone: phone.trim() },
         picklist: result.picklist,
         bottles,
@@ -1071,12 +1263,99 @@ function CdekPanel({ result }) {
         {/* Отправитель + получатель */}
         <div className="space-y-4 min-w-0">
           <div>
-            <label className="text-xs font-medium text-gray-500">Отправляем из</label>
-            <select value={shipmentPoint} onChange={(e) => setShipmentPoint(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm">
-              {(cfg?.shipment_points || []).map((p) => <option key={p.code} value={p.code}>{p.name}</option>)}
-            </select>
-            {cfg?.sender && <p className="text-[11px] text-gray-400 mt-1 break-words">Отправитель: {cfg.sender.name} · {cfg.sender.phone}</p>}
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-medium text-gray-500">Отправляем из</label>
+              {customFrom ? (
+                <button onClick={resetFrom} className="text-xs text-gray-400 hover:text-rose-500">сбросить</button>
+              ) : (
+                <button onClick={() => setFromPicker((v) => !v)} className="text-xs text-primary-600 hover:underline">
+                  {fromPicker ? 'скрыть' : 'другой пункт…'}
+                </button>
+              )}
+            </div>
+            {customFrom ? (
+              <p className="mt-1 text-[12px] text-emerald-600 flex items-start gap-1 break-words">
+                <MapPin className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                <span>{customFrom.code} · {customFrom.city}, {customFrom.address}</span>
+              </p>
+            ) : (
+              <select value={shipmentPoint} onChange={(e) => setShipmentPoint(e.target.value)}
+                className="mt-1 w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm">
+                {(cfg?.shipment_points || []).map((p) => <option key={p.code} value={p.code}>{p.name}</option>)}
+              </select>
+            )}
+
+            {/* Поиск другого пункта отправки: город → ПВЗ (список или карта) */}
+            {fromPicker && !customFrom && (
+              <div className="mt-2 rounded-xl border border-gray-100 dark:border-gray-800 p-2.5 space-y-2">
+                <div className="flex gap-2">
+                  <input value={fromCityQuery} onChange={(e) => setFromCityQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && searchFromCity()}
+                    placeholder="Город отправки" className="flex-1 min-w-0 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-2.5 py-1.5 text-xs" />
+                  <button onClick={searchFromCity} disabled={busy === 'fromcity'}
+                    className="px-2.5 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 text-gray-600 flex items-center flex-shrink-0">
+                    {busy === 'fromcity' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
+                {fromCities.length > 0 && (
+                  <div className="rounded-lg border border-gray-100 dark:border-gray-800 divide-y divide-gray-50 dark:divide-gray-800 max-h-32 overflow-y-auto">
+                    {fromCities.map((c) => (
+                      <button key={c.code} onClick={() => selectFromCity(c)} className="w-full text-left px-2.5 py-1.5 text-xs hover:bg-gray-50 dark:hover:bg-gray-800 break-words">
+                        {c.city}{c.region ? <span className="text-gray-400">, {c.region}</span> : ''}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {fromCity && (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <p className="text-[11px] text-emerald-600 break-words">✓ {fromCity.city}</p>
+                      <button onClick={() => setShowFromMap(true)} className="text-[11px] text-rose-600 hover:underline flex items-center gap-1">
+                        <MapIcon className="w-3 h-3" /> На карте
+                      </button>
+                    </div>
+                    <div className="flex gap-2">
+                      <input value={fromPvzQuery} onChange={(e) => setFromPvzQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && filterFromPvz()}
+                        placeholder="улица / фильтр ПВЗ" className="flex-1 min-w-0 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-2.5 py-1.5 text-xs" />
+                      <button onClick={filterFromPvz} disabled={busy === 'frompvz'}
+                        className="px-2.5 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 text-gray-600 flex items-center flex-shrink-0">
+                        {busy === 'frompvz' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                    {fromPvzList.length > 0 && (
+                      <div className="rounded-lg border border-gray-100 dark:border-gray-800 divide-y divide-gray-50 dark:divide-gray-800 max-h-40 overflow-y-auto">
+                        {fromPvzList.map((p) => (
+                          <button key={p.code} onClick={() => pickFromPvz(p)} className="w-full text-left px-2.5 py-1.5 text-[11px] hover:bg-gray-50 dark:hover:bg-gray-800 break-words">
+                            <span className="font-mono text-gray-500">{p.code}</span> · {p.address}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Отправитель — заполнен из настроек, но каждое поле можно поменять */}
+          <div className="rounded-xl border border-gray-100 dark:border-gray-800 p-3 space-y-2">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Отправитель</p>
+            <div>
+              <label className="text-xs font-medium text-gray-500">Контрагент</label>
+              <input value={sender.company} onChange={(e) => setSender((s) => ({ ...s, company: e.target.value }))}
+                className="mt-1 w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm" />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="min-w-0">
+                <label className="text-xs font-medium text-gray-500">ФИО</label>
+                <input value={sender.name} onChange={(e) => setSender((s) => ({ ...s, name: e.target.value }))}
+                  className="mt-1 w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm" />
+              </div>
+              <div className="min-w-0">
+                <label className="text-xs font-medium text-gray-500">Телефон</label>
+                <input value={sender.phone} onChange={(e) => setSender((s) => ({ ...s, phone: e.target.value }))}
+                  className="mt-1 w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm" />
+              </div>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -1268,11 +1547,14 @@ function CdekPanel({ result }) {
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <FieldGroup title="Отправитель">
               <F label="Тип заказа" v="интернет-магазин" />
-              <F label="Контрагент" v={cfg?.sender?.company} />
+              <F label="Контрагент" v={sender.company} />
               <F label="ИНН" v={cfg?.sender?.inn} />
-              <F label="ФИО" v={cfg?.sender?.name} />
-              <F label="Телефон" v={cfg?.sender?.phone} />
-              <F label="Город отправл." v={(cfg?.shipment_points || []).find((p) => p.code === shipmentPoint)?.name} />
+              <F label="ФИО" v={sender.name} />
+              <F label="Телефон" v={sender.phone} />
+              <F label="Страна" v={cfg?.sender?.country} />
+              <F label="Пункт отправки" v={customFrom
+                ? `${customFrom.code} · ${customFrom.city}, ${customFrom.address}`
+                : (cfg?.shipment_points || []).find((p) => p.code === shipmentPoint)?.name} />
               <F label="Истинный продавец" v={cfg?.sender?.true_seller} />
             </FieldGroup>
 
@@ -1340,6 +1622,15 @@ function CdekPanel({ result }) {
           cityCode={city.code} cityName={city.city} selectedCode={pvz?.code}
           onSelect={(p) => { setPvz(p); setPvzQuery(''); }}
           onClose={() => setShowMap(false)}
+        />
+      )}
+
+      {/* Карта для выбора пункта ОТПРАВКИ */}
+      {showFromMap && fromCity && (
+        <CdekMapPicker
+          cityCode={fromCity.code} cityName={fromCity.city} selectedCode={customFrom?.code}
+          onSelect={pickFromPvz}
+          onClose={() => setShowFromMap(false)}
         />
       )}
     </div>

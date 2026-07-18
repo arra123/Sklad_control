@@ -374,20 +374,22 @@ router.get('/cdek/pvz', requireAuth, async (req, res) => {
 });
 
 // POST /cdek/calculate — тарифы для заказа (только склад-* режимы)
-// body: { shipment_point?, to_city_code, bottles }
+// body: { shipment_point?, from_city_code?, to_city_code, bottles }
+// from_city_code — при отправке из нестандартного пункта (не из списка конфига).
 router.post('/cdek/calculate', requireAuth, async (req, res) => {
   if (!cdekReady(res)) return;
-  const { shipment_point, to_city_code, bottles, pkg: pkgOverride } = req.body || {};
+  const { shipment_point, from_city_code, to_city_code, bottles, pkg: pkgOverride } = req.body || {};
   if (!to_city_code) return res.status(400).json({ error: 'Нужен to_city_code' });
 
   const point = cdekCfg.SHIPMENT_POINTS.find((p) => p.code === (shipment_point || cdekCfg.DEFAULT_SHIPMENT_POINT))
     || cdekCfg.SHIPMENT_POINTS[0];
+  const fromCode = Number(from_city_code) || point.city_code;
   const pkg = normalizePkg(pkgOverride) || cdekCfg.computePackage(bottles);
 
   try {
     const r = await cdek.calcTariffList({
       type: 1,
-      from_location: { code: point.city_code },
+      from_location: { code: fromCode },
       to_location: { code: Number(to_city_code) },
       packages: [{ ...cdekPkgDims(pkg) }],
     });
@@ -411,7 +413,10 @@ router.post('/cdek/calculate', requireAuth, async (req, res) => {
 
 // POST /cdek/create — создать заказ в СДЭК
 // body: { number?, tariff_code, shipment_point?, delivery_point?, to_location?,
-//         recipient:{name,phone}, picklist:[{name,barcode,product_id,qty,cost?}], bottles }
+//         sender?:{company,name,phone}, recipient:{name,phone},
+//         picklist:[{name,barcode,product_id,qty,cost?}], bottles }
+// shipment_point — любой код ПВЗ СДЭК (в т.ч. не из списка конфига);
+// sender — переопределение отправителя из UI (по умолчанию из cdekConfig).
 router.post('/cdek/create', requireAuth, async (req, res) => {
   if (!cdekReady(res)) return;
   const b = req.body || {};
@@ -424,8 +429,10 @@ router.post('/cdek/create', requireAuth, async (req, res) => {
   const picklist = Array.isArray(b.picklist) ? b.picklist : [];
   if (picklist.length === 0) return res.status(400).json({ error: 'Пустой состав заказа' });
 
-  const point = cdekCfg.SHIPMENT_POINTS.find((p) => p.code === (b.shipment_point || cdekCfg.DEFAULT_SHIPMENT_POINT))
-    || cdekCfg.SHIPMENT_POINTS[0];
+  const senderIn = b.sender || {};
+  const senderPhone = normalizePhone(senderIn.phone || cdekCfg.SENDER.phone);
+  if (senderPhone.length < 12) return res.status(400).json({ error: `Телефон отправителя некорректный: «${senderIn.phone}»` });
+  const shipmentPoint = String(b.shipment_point || cdekCfg.DEFAULT_SHIPMENT_POINT).slice(0, 20);
   const bottles = picklist.reduce((s, p) => s + (Number(p.qty) || 0), 0);
   const pkg = normalizePkg(b.pkg) || cdekCfg.computePackage(bottles);
   const number = String(b.number || `GRA-${Date.now()}`).slice(0, 40);
@@ -443,11 +450,11 @@ router.post('/cdek/create', requireAuth, async (req, res) => {
     type: 1, // интернет-магазин
     number,
     tariff_code: Number(b.tariff_code),
-    shipment_point: point.code,
+    shipment_point: shipmentPoint,
     sender: {
-      company: cdekCfg.SENDER.company,
-      name: cdekCfg.SENDER.name,
-      phones: [{ number: cdekCfg.SENDER.phone }],
+      company: String(senderIn.company || cdekCfg.SENDER.company).slice(0, 255),
+      name: String(senderIn.name || cdekCfg.SENDER.name).slice(0, 255),
+      phones: [{ number: senderPhone }],
     },
     recipient: {
       name: b.recipient.name,
@@ -764,9 +771,41 @@ router.post('/:id(\\d+)/collect', requireAuth, async (req, res) => {
   } finally { client.release(); }
 });
 
+// Полный заказ с автором/сборщиком — для ответа после изменения состава.
+async function fetchFullOrder(id) {
+  const full = await pool.query(
+    `SELECT o.*, cu.username AS created_by_name, ce.full_name AS created_by_fullname,
+            au.username AS assembled_by_name, ae.full_name AS assembled_by_fullname
+     FROM orders_s o ${ORDER_LIST_JOIN} WHERE o.id=$1`, [id]);
+  return full.rows[0] ? fmtOrderRow(full.rows[0]) : null;
+}
+
+// Пересборка пик-листа из привязанных позиций recognized (позиции — источник правды).
+async function recomputeFromRecognized(client, recognized) {
+  const acc = new Map();
+  for (const rec of recognized) {
+    if (!rec.matched || !rec.product_id) continue;
+    await expandProduct(client, rec.product_id, Math.max(1, Number(rec.quantity) || 1), acc);
+  }
+  const picklist = [...acc.values()].sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+  const total_bottles = picklist.reduce((s, p) => s + p.qty, 0);
+  const order_value = picklist.reduce((s, p) => s + (Number(p.price) || 0) * p.qty, 0);
+  return { picklist, total_bottles, order_value };
+}
+
+// Собранное оставляем только по существующим позициям и не больше нового количества.
+function clampCollected(collected, picklist) {
+  const clamped = {};
+  for (const p of picklist) {
+    const c = Number(collected?.[p.product_id]) || 0;
+    if (c > 0) clamped[p.product_id] = Math.min(c, p.qty);
+  }
+  return clamped;
+}
+
 // PUT /orders/:id/items — заменить состав заказа (ручное добавление/удаление позиций).
-// body: { items: [{ product_id, qty }] } → пересобираем пик-лист (разворачивая наборы),
-// пересчитываем баночки/сумму, подрезаем собранное под новые количества.
+// body: { items: [{ product_id, qty }] } → пересобираем позиции и пик-лист (разворачивая
+// наборы), пересчитываем баночки/сумму, подрезаем собранное под новые количества.
 router.put('/:id(\\d+)/items', requireAuth, async (req, res) => {
   const items = Array.isArray(req.body?.items) ? req.body.items : [];
   const client = await pool.connect();
@@ -775,43 +814,106 @@ router.put('/:id(\\d+)/items', requireAuth, async (req, res) => {
     const or = await client.query('SELECT collected_json FROM orders_s WHERE id=$1 FOR UPDATE', [req.params.id]);
     if (!or.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Заказ не найден' }); }
 
-    const acc = new Map();
+    // Позиции пересобираем с нуля — recognized_json остаётся в синхроне с пик-листом
+    const recognized = [];
     for (const it of items) {
       const pid = Number(it.product_id);
       const qty = Math.max(1, Number(it.qty) || 1);
       if (!pid) continue;
+      const info = await client.query('SELECT id, name, entity_type FROM products_s WHERE id=$1', [pid]);
+      if (!info.rows.length) continue;
       const tmp = new Map();
       await expandProduct(client, pid, qty, tmp);
-      for (const [id, v] of tmp) {
-        const cur = acc.get(id) || { ...v, qty: 0 };
-        cur.qty += v.qty;
-        acc.set(id, cur);
-      }
+      const bottles = [...tmp.values()].reduce((s, p) => s + p.qty, 0);
+      const isBundle = info.rows[0].entity_type === 'bundle';
+      recognized.push({
+        raw_name: info.rows[0].name, quantity: qty, matched: true, manual: true, confidence: 100,
+        product_id: pid, product_name: info.rows[0].name,
+        is_bundle: isBundle, bottles,
+        bundle_empty: isBundle && tmp.size === 1 && tmp.has(pid),
+      });
     }
-    const picklist = [...acc.values()].sort((a, b) => a.name.localeCompare(b.name, 'ru'));
-    const total_bottles = picklist.reduce((s, p) => s + p.qty, 0);
-    const order_value = picklist.reduce((s, p) => s + (Number(p.price) || 0) * p.qty, 0);
-
-    // Собранное оставляем только по существующим позициям и не больше нового количества
-    const collected = or.rows[0].collected_json || {};
-    const clamped = {};
-    for (const p of picklist) {
-      const c = Number(collected[p.product_id]) || 0;
-      if (c > 0) clamped[p.product_id] = Math.min(c, p.qty);
-    }
+    const { picklist, total_bottles, order_value } = await recomputeFromRecognized(client, recognized);
+    const clamped = clampCollected(or.rows[0].collected_json, picklist);
 
     await client.query(
-      `UPDATE orders_s SET picklist_json=$1, total_bottles=$2, order_value=$3, collected_json=$4, updated_at=NOW() WHERE id=$5`,
-      [JSON.stringify(picklist), total_bottles, order_value, JSON.stringify(clamped), req.params.id]
+      `UPDATE orders_s SET picklist_json=$1, recognized_json=$2, total_bottles=$3, order_value=$4, collected_json=$5, updated_at=NOW() WHERE id=$6`,
+      [JSON.stringify(picklist), JSON.stringify(recognized), total_bottles, order_value, JSON.stringify(clamped), req.params.id]
     );
     await logEvent(client, req.params.id, req.user.id, 'items', null, null, `Изменён состав: ${picklist.length} поз., ${total_bottles} бан.`);
     await client.query('COMMIT');
+    res.json(await fetchFullOrder(req.params.id));
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: err.message });
+  } finally { client.release(); }
+});
 
-    const full = await pool.query(
-      `SELECT o.*, cu.username AS created_by_name, ce.full_name AS created_by_fullname,
-              au.username AS assembled_by_name, ae.full_name AS assembled_by_fullname
-       FROM orders_s o ${ORDER_LIST_JOIN} WHERE o.id=$1`, [req.params.id]);
-    res.json(fmtOrderRow(full.rows[0]));
+// POST /orders/:id/positions — добавить позицию (товар/набор) в заказ вручную.
+// body: { product_id, qty? } → новая строка в recognized + пересборка пик-листа.
+router.post('/:id(\\d+)/positions', requireAuth, async (req, res) => {
+  const productId = Number(req.body?.product_id);
+  const qty = Math.max(1, Number(req.body?.qty) || 1);
+  if (!productId) return res.status(400).json({ error: 'Нужен product_id' });
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const or = await client.query('SELECT recognized_json, collected_json FROM orders_s WHERE id=$1 FOR UPDATE', [req.params.id]);
+    if (!or.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Заказ не найден' }); }
+    const info = await client.query('SELECT id, name, entity_type FROM products_s WHERE id=$1', [productId]);
+    if (!info.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Товар не найден' }); }
+
+    const recognized = Array.isArray(or.rows[0].recognized_json) ? or.rows[0].recognized_json : [];
+    const tmp = new Map();
+    await expandProduct(client, productId, qty, tmp);
+    const bottles = [...tmp.values()].reduce((s, p) => s + p.qty, 0);
+    const isBundle = info.rows[0].entity_type === 'bundle';
+    recognized.push({
+      raw_name: info.rows[0].name, quantity: qty, matched: true, manual: true, confidence: 100,
+      product_id: productId, product_name: info.rows[0].name,
+      is_bundle: isBundle, bottles,
+      bundle_empty: isBundle && tmp.size === 1 && tmp.has(productId),
+    });
+
+    const { picklist, total_bottles, order_value } = await recomputeFromRecognized(client, recognized);
+    const clamped = clampCollected(or.rows[0].collected_json, picklist);
+    await client.query(
+      `UPDATE orders_s SET picklist_json=$1, recognized_json=$2, total_bottles=$3, order_value=$4, collected_json=$5, updated_at=NOW() WHERE id=$6`,
+      [JSON.stringify(picklist), JSON.stringify(recognized), total_bottles, order_value, JSON.stringify(clamped), req.params.id]
+    );
+    await logEvent(client, req.params.id, req.user.id, 'items', productId, qty, `Добавлена позиция: ${info.rows[0].name} × ${qty}`);
+    await client.query('COMMIT');
+    res.json(await fetchFullOrder(req.params.id));
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: err.message });
+  } finally { client.release(); }
+});
+
+// DELETE /orders/:id/positions/:index — убрать позицию заказа (крестик в списке).
+// index — позиция в recognized_json; пик-лист пересобирается из оставшихся.
+router.delete('/:id(\\d+)/positions/:index(\\d+)', requireAuth, async (req, res) => {
+  const index = Number(req.params.index);
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const or = await client.query('SELECT recognized_json, collected_json FROM orders_s WHERE id=$1 FOR UPDATE', [req.params.id]);
+    if (!or.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Заказ не найден' }); }
+    const recognized = Array.isArray(or.rows[0].recognized_json) ? or.rows[0].recognized_json : [];
+    const rec = recognized[index];
+    if (!rec) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Позиция не найдена' }); }
+    recognized.splice(index, 1);
+
+    const { picklist, total_bottles, order_value } = await recomputeFromRecognized(client, recognized);
+    const clamped = clampCollected(or.rows[0].collected_json, picklist);
+    await client.query(
+      `UPDATE orders_s SET picklist_json=$1, recognized_json=$2, total_bottles=$3, order_value=$4, collected_json=$5, updated_at=NOW() WHERE id=$6`,
+      [JSON.stringify(picklist), JSON.stringify(recognized), total_bottles, order_value, JSON.stringify(clamped), req.params.id]
+    );
+    await logEvent(client, req.params.id, req.user.id, 'items', rec.product_id || null, rec.quantity || null,
+      `Удалена позиция: ${rec.product_name || rec.raw_name}`);
+    await client.query('COMMIT');
+    res.json(await fetchFullOrder(req.params.id));
   } catch (err) {
     await client.query('ROLLBACK');
     res.status(500).json({ error: err.message });
