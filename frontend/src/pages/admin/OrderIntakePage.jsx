@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
-import { Upload, Loader2, Check, AlertTriangle, X, ImageIcon, Package, Truck, Printer, MapPin, Search, ScanLine, Map as MapIcon, ClipboardList, Trash2, Clock, User, RefreshCw, FileText, Link2, Pencil, Plus, ArrowLeft } from 'lucide-react';
+import { Upload, Loader2, Check, AlertTriangle, X, ImageIcon, Package, Truck, Printer, MapPin, Search, ScanLine, Map as MapIcon, ClipboardList, Trash2, Clock, User, RefreshCw, FileText, Link2, Pencil, Plus } from 'lucide-react';
 import api from '../../api/client';
 import { useToast } from '../../components/ui/Toast';
 import CdekMapPicker from '../../components/CdekMapPicker';
@@ -43,9 +43,6 @@ export default function OrderIntakePage() {
   const [preview, setPreview] = useState(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
-  // Подсветка связи «позиция заказа ↔ баночки сборки» при наведении:
-  // { pids: [product_id...], idx: индекс позиции | null, from: 'rec' | 'picklist' }
-  const [link, setLink] = useState(null);
   const fileInputRef = useRef(null);
 
   const switchTab = (t) => { setTab(t); setResult(null); setPreview(null); setSearchParams({}, { replace: true }); };
@@ -240,30 +237,16 @@ export default function OrderIntakePage() {
           )}
         </div>
 
-        {/* ── Сборка (центр) ── */}
-        <div className="min-w-0">
+        {/* ── Сборка + позиции заказа: единая доска, строки друг напротив друга ── */}
+        <div className="min-w-0 lg:col-span-2">
           {!result && !loading && (
             <div className="h-full rounded-2xl border border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/40 flex flex-col items-center justify-center text-center p-8 text-gray-400" style={{ minHeight: 220 }}>
               <Package className="w-8 h-8 mb-2 opacity-50" />
-              <p className="text-sm">Здесь появится список баночек для сборки</p>
+              <p className="text-sm">Здесь появятся сборка и позиции заказа</p>
             </div>
           )}
           {result && (
-            <AssemblyChecklist result={result} link={link} setLink={setLink}
-              onReplace={(index, productId) => updatePosition(result.id, index, { product_id: productId })} />
-          )}
-        </div>
-
-        {/* ── Позиции заказа (справа) ── */}
-        <div className="min-w-0">
-          {!result && !loading && (
-            <div className="h-full rounded-2xl border border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/40 flex flex-col items-center justify-center text-center p-8 text-gray-400" style={{ minHeight: 220 }}>
-              <ClipboardList className="w-8 h-8 mb-2 opacity-50" />
-              <p className="text-sm">Здесь появятся позиции заказа</p>
-            </div>
-          )}
-          {result && (result.recognized.length > 0 || result.id) && (
-            <OrderPositions result={result} link={link} setLink={setLink}
+            <AssemblyBoard result={result}
               applyOrderUpdate={applyOrderUpdate} removePosition={removePosition} updatePosition={updatePosition} />
           )}
         </div>
@@ -749,16 +732,48 @@ function ManualPicker({ onResult, onDraft, hasResult, onReset }) {
   );
 }
 
-// ─── Чек-лист сборки: сканер + ручной тап, прогресс N/total ──────────────────
-// link/setLink — подсветка связи со списком позиций; onReplace(index, productId) —
-// замена товара позиции прямо из сборки (для баночек, привязанных к позиции напрямую).
-function AssemblyChecklist({ result, link, setLink, onReplace }) {
+// ─── Единая доска «Сборка ↔ Позиции заказа» ──────────────────────────────────
+// Каждая строка — пара: слева баночки со склада, справа позиция заказа, из
+// которой они пришли. Общая грид-строка гарантирует, что блоки всегда стоят
+// друг напротив друга и одной высоты. Наименование для СДЭК («как в заказе» /
+// «как на складе») переключается глобально в заголовке.
+function BottleItem({ p, collected, inc }) {
+  const c = collected[p.product_id] || 0;
+  const full = c >= p.qty;
+  return (
+    <div className={'flex items-center gap-2.5 lg:gap-3 rounded-xl px-3 py-2 ' +
+      (full ? 'bg-emerald-50 dark:bg-emerald-900/20' : 'bg-gray-50 dark:bg-gray-800/60')}>
+      <button onClick={() => inc(p, +1)}
+        className={'w-9 h-9 lg:w-11 lg:h-11 flex-shrink-0 rounded-lg flex items-center justify-center text-sm font-bold ' +
+          (full ? 'bg-emerald-500 text-white' : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-600')}>
+        {full ? <Check className="w-4 h-4 lg:w-5 lg:h-5" /> : `${c}/${p.qty}`}
+      </button>
+      <div className="flex-1 min-w-0 cursor-pointer" onClick={() => inc(p, +1)}>
+        <p className="text-sm text-gray-800 dark:text-gray-100 break-words leading-tight">{p.name}</p>
+        <p className="text-[11px] text-gray-400 flex items-center gap-2 flex-wrap">
+          {p.barcode && <span className="font-mono break-all">{p.barcode}</span>}
+          {p.price != null && <span className="text-emerald-600 font-medium">{p.price} ₽/шт</span>}
+        </p>
+      </div>
+      {c > 0 && (
+        <button onClick={() => inc(p, -1)} className="w-7 h-7 flex-shrink-0 rounded-lg text-gray-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 flex items-center justify-center">
+          <X className="w-3.5 h-3.5" />
+        </button>
+      )}
+    </div>
+  );
+}
+
+function AssemblyBoard({ result, applyOrderUpdate, removePosition, updatePosition }) {
   const toast = useToast();
   const orderId = result.id;
   const recognized = result.recognized || [];
+  const picklist = result.picklist || [];
   const [collected, setCollected] = useState(result.collected || {});
   const [scan, setScan] = useState('');
-  const [editPid, setEditPid] = useState(null); // product_id строки с открытой заменой товара
+  const [nameEdit, setNameEdit] = useState(null); // индекс позиции с ручным вводом названия
+  const [nameDraft, setNameDraft] = useState('');
+  const [pickIdx, setPickIdx] = useState(null);   // индекс позиции с открытой заменой товара
   const scanRef = useRef(null);
 
   useEffect(() => { setCollected(result.collected || {}); }, [result]); // eslint-disable-line
@@ -775,7 +790,7 @@ function AssemblyChecklist({ result, link, setLink, onReplace }) {
   const total = result.total_bottles;
   const done = Object.values(collected).reduce((s, n) => s + (Number(n) || 0), 0);
   const complete = done >= total && total > 0;
-  const orderValue = result.picklist.reduce((s, p) => s + (Number(p.price) || 0) * p.qty, 0);
+  const orderValue = picklist.reduce((s, p) => s + (Number(p.price) || 0) * p.qty, 0);
 
   const inc = async (p, delta) => {
     if (orderId) {
@@ -798,7 +813,7 @@ function AssemblyChecklist({ result, link, setLink, onReplace }) {
     const code = scan.trim();
     setScan('');
     if (!code) return;
-    const item = result.picklist.find((p) => p.barcode && String(p.barcode) === code);
+    const item = picklist.find((p) => p.barcode && String(p.barcode) === code);
     if (!item) { playBeep(false); toast.error('ШК не из этого заказа'); return; }
     const cur = collected[item.product_id] || 0;
     if (cur >= item.qty) { playBeep(false); toast.error(`«${item.name}» уже собрана полностью`); return; }
@@ -806,23 +821,76 @@ function AssemblyChecklist({ result, link, setLink, onReplace }) {
     inc(item, +1);
   };
 
+  const compIds = (r) => (Array.isArray(r.component_ids) && r.component_ids.length
+    ? r.component_ids
+    : (r.product_id ? [r.product_id] : []));
+
+  // Баночка попадает в строку первой позиции, где встречается —
+  // общая для двух позиций баночка показывается один раз
+  const usedPids = new Set();
+  const rows = recognized.map((r, i) => {
+    const items = compIds(r)
+      .filter((id) => !usedPids.has(id))
+      .map((id) => { usedPids.add(id); return picklist.find((p) => p.product_id === id); })
+      .filter(Boolean);
+    return { r, i, items };
+  });
+  const leftover = picklist.filter((p) => !usedPids.has(p.product_id));
+
+  // Глобальный режим наименований для СДЭК
+  const matchedRows = recognized.filter((r) => r.matched);
+  const nameMode = matchedRows.length && matchedRows.every((r) => !r.display_name) ? 'order'
+    : matchedRows.length && matchedRows.every((r) => r.display_name === r.product_name) ? 'stock'
+    : null;
+  const setAllNames = async (mode) => {
+    if (!orderId) return;
+    for (let i = 0; i < recognized.length; i++) {
+      const r = recognized[i];
+      if (!r.matched) continue;
+      const want = mode === 'stock' ? r.product_name : '';
+      if ((r.display_name || '') !== want) await updatePosition(orderId, i, { display_name: want });
+    }
+  };
+
+  const chip = (active) => 'px-2.5 py-1 rounded-md text-[11px] font-medium border transition-colors ' +
+    (active
+      ? 'border-primary-400 bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300 dark:border-primary-700'
+      : 'border-gray-200 dark:border-gray-700 text-gray-500 hover:border-primary-300');
+
+  const iconBtn = 'w-7 h-7 flex-shrink-0 mt-0.5 rounded-lg flex items-center justify-center ';
+
   return (
-    <div className={'rounded-2xl border overflow-hidden ' + (complete ? 'border-emerald-300 dark:border-emerald-700' : 'border-gray-100 dark:border-gray-800') + ' bg-white dark:bg-gray-900'}>
-      <div className="flex items-center justify-between gap-2 px-4 py-2.5 border-b border-gray-100 dark:border-gray-800">
-        <div className="flex items-center gap-2 min-w-0">
-          <Package className="w-4.5 h-4.5 flex-shrink-0 text-primary-600" />
-          <span className="font-semibold text-gray-900 dark:text-white truncate">Сборка</span>
+    <div className={'rounded-2xl border overflow-hidden bg-white dark:bg-gray-900 ' + (complete ? 'border-emerald-300 dark:border-emerald-700' : 'border-gray-100 dark:border-gray-800')}>
+      {/* Заголовок: слева «Сборка», справа «Позиции» + глобальный выбор наименований для СДЭК */}
+      <div className="grid md:grid-cols-2 md:divide-x divide-gray-100 dark:divide-gray-800 border-b border-gray-100 dark:border-gray-800">
+        <div className="flex items-center justify-between gap-2 px-4 py-2.5">
+          <div className="flex items-center gap-2 min-w-0">
+            <Package className="w-4.5 h-4.5 flex-shrink-0 text-primary-600" />
+            <span className="font-semibold text-gray-900 dark:text-white truncate">Сборка</span>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {orderValue > 0 && <span className="text-xs text-gray-400">{orderValue} ₽</span>}
+            <span className={'px-2.5 py-1 rounded-lg text-sm font-bold ' + (complete ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' : 'bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300')}>
+              {done} / {total}
+            </span>
+          </div>
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
-          {orderValue > 0 && <span className="text-xs text-gray-400">{orderValue} ₽</span>}
-          <span className={'px-2.5 py-1 rounded-lg text-sm font-bold ' + (complete ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' : 'bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300')}>
-            {done} / {total}
+        <div className="flex items-center justify-between gap-2 px-4 py-2.5 flex-wrap">
+          <span className="font-semibold text-gray-900 dark:text-white text-sm flex items-center gap-2">
+            <ClipboardList className="w-4 h-4 text-primary-600" /> Позиции заказа ({recognized.length})
           </span>
+          {orderId && matchedRows.length > 0 && (
+            <div className="flex items-center gap-1" title="Как назвать позиции в накладной СДЭК">
+              <span className="text-[10px] text-gray-400 mr-0.5">в СДЭК:</span>
+              <button onClick={() => setAllNames('order')} className={chip(nameMode === 'order')}>как в заказе</button>
+              <button onClick={() => setAllNames('stock')} className={chip(nameMode === 'stock')}>как на складе</button>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Поле сканера */}
-      <div className="px-3 pt-3">
+      <div className="px-3 pt-3 pb-2">
         <div className="flex items-center gap-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3">
           <ScanLine className="w-4 h-4 text-gray-400 flex-shrink-0" />
           <input
@@ -837,213 +905,125 @@ function AssemblyChecklist({ result, link, setLink, onReplace }) {
         </div>
       </div>
 
-      <div className="p-3 space-y-1.5">
-        {result.picklist.map((p) => {
-          const c = collected[p.product_id] || 0;
-          const full = c >= p.qty;
-          const lit = Boolean(link?.pids?.includes(p.product_id));
-          // Позиция, из которой баночка пришла напрямую (не через набор) — её и заменяем
-          const directIdx = recognized.findIndex((r) => r.matched && !r.is_bundle && r.product_id === p.product_id);
+      {/* Строки: баночки сборки ↔ позиция заказа */}
+      <div className="divide-y divide-gray-50 dark:divide-gray-800 border-t border-gray-50 dark:border-gray-800">
+        {rows.map(({ r, i, items }) => {
+          const finalName = r.display_name || r.raw_name;
+          const mode = r.display_name ? (r.display_name === r.product_name ? 'stock' : 'custom') : 'order';
           return (
-            <div key={p.product_id}>
-              <div
-                onMouseEnter={() => setLink?.({ pids: [p.product_id], idx: null, from: 'picklist' })}
-                onMouseLeave={() => setLink?.(null)}
-                className={'flex items-center gap-2.5 lg:gap-3 rounded-xl px-3 lg:px-4 py-2 lg:py-3 transition-shadow ' +
-                  (full ? 'bg-emerald-50 dark:bg-emerald-900/20' : 'bg-gray-50 dark:bg-gray-800/60') +
-                  (lit ? ' ring-2 ring-primary-400' : '')}>
-                <button onClick={() => inc(p, +1)}
-                  className={'w-9 h-9 lg:w-12 lg:h-12 flex-shrink-0 rounded-lg flex items-center justify-center text-sm lg:text-base font-bold ' + (full ? 'bg-emerald-500 text-white' : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-600')}>
-                  {full ? <Check className="w-4 h-4 lg:w-5 lg:h-5" /> : `${c}/${p.qty}`}
-                </button>
-                <div className="flex-1 min-w-0" onClick={() => inc(p, +1)}>
-                  <p className="text-sm lg:text-base text-gray-800 dark:text-gray-100 break-words leading-tight">{p.name}</p>
-                  <p className="text-[11px] text-gray-400 flex items-center gap-2 flex-wrap">
-                    {p.barcode && <span className="font-mono break-all">{p.barcode}</span>}
-                    {p.price != null && <span className="text-emerald-600 font-medium">{p.price} ₽/шт</span>}
-                  </p>
-                </div>
-                {orderId && onReplace && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (directIdx === -1) { toast.error('Эта баночка входит в набор — замените позицию набора в «Позициях заказа»'); return; }
-                      setEditPid(editPid === p.product_id ? null : p.product_id);
-                    }}
-                    title="Заменить товар"
-                    className="w-7 h-7 flex-shrink-0 rounded-lg text-gray-300 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 flex items-center justify-center">
-                    <Pencil className="w-3.5 h-3.5" />
-                  </button>
-                )}
-                {c > 0 && (
-                  <button onClick={() => inc(p, -1)} className="w-7 h-7 flex-shrink-0 rounded-lg text-gray-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 flex items-center justify-center">
-                    <X className="w-3.5 h-3.5" />
-                  </button>
+            <div key={i} className="grid md:grid-cols-2 md:divide-x divide-gray-50 dark:divide-gray-800 hover:bg-primary-50/40 dark:hover:bg-primary-900/10 transition-colors">
+              {/* Слева: баночки этой позиции */}
+              <div className="px-3 py-2 flex flex-col justify-center gap-1.5 min-w-0">
+                {items.map((p) => <BottleItem key={p.product_id} p={p} collected={collected} inc={inc} />)}
+                {items.length === 0 && (
+                  <div className="rounded-xl border border-dashed border-gray-200 dark:border-gray-700 px-3 py-2 text-[11px] text-gray-400">
+                    {r.matched ? 'баночка общая с позицией выше' : 'нет баночки — позиция не сопоставлена'}
+                  </div>
                 )}
               </div>
-              {editPid === p.product_id && directIdx !== -1 && (
-                <div className="mt-1 px-1">
-                  <InlineProductPicker placeholder="На какой товар заменить…"
-                    onPick={(prod) => { onReplace(directIdx, prod.id); setEditPid(null); }}
-                    onClose={() => setEditPid(null)} />
+              {/* Справа: позиция заказа */}
+              <div className="px-4 py-2.5 flex flex-col justify-center min-w-0">
+                <div className="flex items-start gap-2.5">
+                  {r.bundle_empty ? <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5 text-rose-500" />
+                    : r.matched ? <Check className="w-4 h-4 flex-shrink-0 mt-0.5 text-emerald-500" />
+                    : <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5 text-amber-500" />}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 break-words">
+                      {finalName}{' '}
+                      <span className="text-gray-400 font-normal whitespace-nowrap inline-flex items-center gap-1">
+                        ×{' '}
+                        {orderId ? (
+                          <input type="number" min="1" key={`${i}-${r.quantity}`} defaultValue={r.quantity}
+                            onBlur={(e) => { const q = Math.max(1, Number(e.target.value) || 1); if (q !== Number(r.quantity)) updatePosition(orderId, i, { qty: q }); }}
+                            onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+                            title="Количество по заказу"
+                            className="w-12 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-1 py-0.5 text-xs text-center" />
+                        ) : r.quantity}
+                      </span>
+                    </p>
+                    {mode !== 'order' && (
+                      <p className="text-[11px] text-gray-400 break-words">в заказе: {r.raw_name}</p>
+                    )}
+                    {r.bundle_empty && (
+                      <p className="text-[11px] text-rose-500">состав набора не заполнен в каталоге!</p>
+                    )}
+                    {!r.matched && (
+                      <div className="mt-1">
+                        <p className="text-[11px] text-amber-500 mb-1">не найдено в каталоге — выберите вручную:</p>
+                        {orderId && <ResolvePicker orderId={orderId} index={i} onResolved={applyOrderUpdate} />}
+                      </div>
+                    )}
+                    {nameEdit === i && (
+                      <div className="flex items-center gap-1.5 mt-1.5">
+                        <input value={nameDraft} onChange={(e) => setNameDraft(e.target.value)} autoFocus
+                          onKeyDown={(e) => { if (e.key === 'Enter') { updatePosition(orderId, i, { display_name: nameDraft }); setNameEdit(null); } }}
+                          placeholder="Своё наименование для СДЭК"
+                          className="flex-1 min-w-0 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-2.5 py-1.5 text-xs" />
+                        <button onClick={() => { updatePosition(orderId, i, { display_name: nameDraft }); setNameEdit(null); }}
+                          className="w-7 h-7 flex-shrink-0 rounded-lg text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 flex items-center justify-center">
+                          <Check className="w-3.5 h-3.5" />
+                        </button>
+                        <button onClick={() => setNameEdit(null)}
+                          className="w-7 h-7 flex-shrink-0 rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-center">
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
+                    {pickIdx === i && (
+                      <div className="mt-1.5">
+                        <InlineProductPicker placeholder="На какой товар заменить…"
+                          onPick={(p) => { updatePosition(orderId, i, { product_id: p.id }); setPickIdx(null); }}
+                          onClose={() => setPickIdx(null)} />
+                      </div>
+                    )}
+                  </div>
+                  {orderId && r.matched && (
+                    <button onClick={() => { setNameEdit(nameEdit === i ? null : i); setNameDraft(finalName); }}
+                      title="Своё наименование для СДЭК"
+                      className={iconBtn + 'text-gray-300 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20'}>
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                  {orderId && r.matched && (
+                    <button onClick={() => setPickIdx(pickIdx === i ? null : i)} title="Заменить товар"
+                      className={iconBtn + 'text-gray-300 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20'}>
+                      <RefreshCw className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                  {orderId && (
+                    <button onClick={() => removePosition(orderId, i)} title="Убрать позицию"
+                      className={iconBtn + 'text-gray-300 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20'}>
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
-              )}
+              </div>
             </div>
           );
         })}
+        {/* Баночки без позиции (страховка — обычно таких нет) */}
+        {leftover.map((p) => (
+          <div key={'lo' + p.product_id} className="grid md:grid-cols-2 md:divide-x divide-gray-50 dark:divide-gray-800">
+            <div className="px-3 py-2">
+              <BottleItem p={p} collected={collected} inc={inc} />
+            </div>
+            <div className="px-4 py-2.5 flex items-center text-[11px] text-gray-400">не привязана к позиции заказа</div>
+          </div>
+        ))}
+        {recognized.length === 0 && leftover.length === 0 && (
+          <p className="px-4 py-3 text-xs text-gray-400">Позиций нет — добавьте товар ниже</p>
+        )}
       </div>
+
+      {orderId && (
+        <div className="px-4 py-2.5 border-t border-gray-100 dark:border-gray-800 bg-gray-50/60 dark:bg-gray-800/30">
+          <AddPositionPicker orderId={orderId} onAdded={applyOrderUpdate} />
+        </div>
+      )}
 
       {complete && (
         <div className="px-4 py-2.5 bg-emerald-50 dark:bg-emerald-900/20 border-t border-emerald-100 dark:border-emerald-800 text-sm font-medium text-emerald-700 dark:text-emerald-300 flex items-center gap-2">
           <Check className="w-4 h-4" /> Заказ собран — можно оформлять СДЭК
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── Позиции заказа (правая колонка) ─────────────────────────────────────────
-// Жирным — итоговое наименование (пойдёт в СДЭК): как в заказе / как на складе /
-// своё. Стрелка «←» показывает, что списывается со склада; при наведении
-// подсвечиваются связанные строки сборки (и наоборот).
-function OrderPositions({ result, link, setLink, applyOrderUpdate, removePosition, updatePosition }) {
-  const recognized = result.recognized || [];
-  const picklist = result.picklist || [];
-  const orderId = result.id;
-  const [nameEdit, setNameEdit] = useState(null); // индекс позиции с ручным вводом названия
-  const [nameDraft, setNameDraft] = useState('');
-  const [pickIdx, setPickIdx] = useState(null);   // индекс позиции с открытой заменой товара
-
-  const compIds = (r) => (Array.isArray(r.component_ids) && r.component_ids.length
-    ? r.component_ids
-    : (r.product_id ? [r.product_id] : []));
-  const compNames = (r) => compIds(r)
-    .map((id) => picklist.find((p) => p.product_id === id)?.name)
-    .filter(Boolean);
-
-  const highlighted = (r, i) =>
-    Boolean(link && (link.from === 'picklist' ? compIds(r).some((id) => link.pids.includes(id)) : link.idx === i));
-
-  const chip = (active) => 'px-2 py-1 rounded-md text-[10px] font-medium border transition-colors ' +
-    (active
-      ? 'border-primary-400 bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300 dark:border-primary-700'
-      : 'border-gray-200 dark:border-gray-700 text-gray-500 hover:border-primary-300');
-
-  return (
-    <div className="rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 overflow-hidden">
-      <div className="px-4 py-2.5 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between gap-2">
-        <span className="font-semibold text-gray-900 dark:text-white text-sm flex items-center gap-2">
-          <ClipboardList className="w-4 h-4 text-primary-600" /> Позиции заказа ({recognized.length})
-        </span>
-        <span className="text-[10px] text-gray-400">жирным — как уйдёт в СДЭК</span>
-      </div>
-      <div className="divide-y divide-gray-50 dark:divide-gray-800">
-        {recognized.map((r, i) => {
-          const finalName = r.display_name || r.raw_name;
-          const mode = r.display_name ? (r.display_name === r.product_name ? 'stock' : 'custom') : 'order';
-          return (
-            <div key={i}
-              onMouseEnter={() => setLink?.({ pids: compIds(r), idx: i, from: 'rec' })}
-              onMouseLeave={() => setLink?.(null)}
-              className={'px-4 py-2.5 transition-colors ' + (highlighted(r, i) ? 'bg-primary-50/70 dark:bg-primary-900/20' : '')}>
-              <div className="flex items-start gap-2.5">
-                {r.bundle_empty ? <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5 text-rose-500" />
-                  : r.matched ? <Check className="w-4 h-4 flex-shrink-0 mt-0.5 text-emerald-500" />
-                  : <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5 text-amber-500" />}
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 break-words">
-                    {finalName}{' '}
-                    <span className="text-gray-400 font-normal whitespace-nowrap inline-flex items-center gap-1">
-                      ×{' '}
-                      {orderId ? (
-                        <input type="number" min="1" key={`${i}-${r.quantity}`} defaultValue={r.quantity}
-                          onBlur={(e) => { const q = Math.max(1, Number(e.target.value) || 1); if (q !== Number(r.quantity)) updatePosition(orderId, i, { qty: q }); }}
-                          onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-                          title="Количество по заказу"
-                          className="w-12 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-1 py-0.5 text-xs text-center" />
-                      ) : r.quantity}
-                    </span>
-                  </p>
-                  {mode !== 'order' && (
-                    <p className="text-[11px] text-gray-400 break-words">в заказе: {r.raw_name}</p>
-                  )}
-                  {r.matched ? (
-                    <p className="text-[11px] text-gray-400 break-words flex items-start gap-1 mt-0.5">
-                      <ArrowLeft className="w-3 h-3 mt-[1px] flex-shrink-0 text-primary-400" />
-                      <span>
-                        со склада: {compNames(r).join(', ') || r.product_name} · {r.bottles} бан.{r.is_bundle ? ' (набор)' : ''}
-                        {r.manual ? ' · вручную' : ` · ${r.confidence}%`}
-                        {r.bundle_empty && <span className="text-rose-500"> · состав набора не заполнен в каталоге!</span>}
-                      </span>
-                    </p>
-                  ) : (
-                    <div className="mt-1">
-                      <p className="text-[11px] text-amber-500 mb-1">не найдено в каталоге — выберите вручную:</p>
-                      {orderId && <ResolvePicker orderId={orderId} index={i} onResolved={applyOrderUpdate} />}
-                    </div>
-                  )}
-
-                  {/* Что писать в итоговых документах + замена товара */}
-                  {orderId && r.matched && (
-                    <div className="flex items-center gap-1 mt-1.5 flex-wrap">
-                      <span className="text-[10px] text-gray-400 mr-0.5">в СДЭК:</span>
-                      <button onClick={() => updatePosition(orderId, i, { display_name: '' })} className={chip(mode === 'order')}>
-                        как в заказе
-                      </button>
-                      <button onClick={() => updatePosition(orderId, i, { display_name: r.product_name })} className={chip(mode === 'stock')}>
-                        как на складе
-                      </button>
-                      <button onClick={() => { setNameEdit(nameEdit === i ? null : i); setNameDraft(finalName); }}
-                        className={chip(mode === 'custom')} title="Своё наименование">
-                        <Pencil className="w-3 h-3" />
-                      </button>
-                      <button onClick={() => setPickIdx(pickIdx === i ? null : i)}
-                        className="ml-auto text-[10px] text-primary-600 hover:underline">
-                        заменить товар
-                      </button>
-                    </div>
-                  )}
-                  {nameEdit === i && (
-                    <div className="flex items-center gap-1.5 mt-1.5">
-                      <input value={nameDraft} onChange={(e) => setNameDraft(e.target.value)} autoFocus
-                        onKeyDown={(e) => { if (e.key === 'Enter') { updatePosition(orderId, i, { display_name: nameDraft }); setNameEdit(null); } }}
-                        placeholder="Своё наименование для СДЭК"
-                        className="flex-1 min-w-0 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-2.5 py-1.5 text-xs" />
-                      <button onClick={() => { updatePosition(orderId, i, { display_name: nameDraft }); setNameEdit(null); }}
-                        className="w-7 h-7 flex-shrink-0 rounded-lg text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 flex items-center justify-center">
-                        <Check className="w-3.5 h-3.5" />
-                      </button>
-                      <button onClick={() => setNameEdit(null)}
-                        className="w-7 h-7 flex-shrink-0 rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-center">
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  )}
-                  {pickIdx === i && (
-                    <div className="mt-1.5">
-                      <InlineProductPicker placeholder="На какой товар заменить…"
-                        onPick={(p) => { updatePosition(orderId, i, { product_id: p.id }); setPickIdx(null); }}
-                        onClose={() => setPickIdx(null)} />
-                    </div>
-                  )}
-                </div>
-                {orderId && (
-                  <button onClick={() => removePosition(orderId, i)} title="Убрать позицию"
-                    className="w-7 h-7 flex-shrink-0 mt-0.5 rounded-lg text-gray-300 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 flex items-center justify-center">
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
-            </div>
-          );
-        })}
-        {recognized.length === 0 && (
-          <p className="px-4 py-3 text-xs text-gray-400">Позиций нет — добавьте товар вручную ниже</p>
-        )}
-      </div>
-      {orderId && (
-        <div className="px-4 py-2.5 border-t border-gray-100 dark:border-gray-800 bg-gray-50/60 dark:bg-gray-800/30">
-          <AddPositionPicker orderId={orderId} onAdded={applyOrderUpdate} />
         </div>
       )}
     </div>
