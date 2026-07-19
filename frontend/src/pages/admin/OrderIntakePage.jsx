@@ -253,7 +253,7 @@ export default function OrderIntakePage() {
       </div>
 
       {/* ── Оформление СДЭК ── */}
-      {result && result.picklist.length > 0 && <CdekPanel result={result} />}
+      {result && result.picklist.length > 0 && <CdekPanel key={result.id || 'local'} result={result} />}
 
       {/* История заказа */}
       {result?.id && <OrderHistory orderId={result.id} />}
@@ -1133,16 +1133,29 @@ function fmtDate(s) {
 // Поле «label: value» и группа полей для сводки «как в СДЭК»
 function F({ label, v }) {
   return (
-    <div className="flex justify-between gap-3 py-1.5 border-b border-gray-50 dark:border-gray-800/60 last:border-0">
+    <div className="flex justify-between gap-3 py-1.5 border-b border-gray-200/70 dark:border-gray-700/60 last:border-0">
       <span className="text-gray-400 flex-shrink-0">{label}</span>
       <span className="text-gray-800 dark:text-gray-100 text-right break-words min-w-0">{(v ?? '') === '' ? '—' : v}</span>
     </div>
   );
 }
-function FieldGroup({ title, children }) {
+// То же поле, но в режиме редактирования значение превращается в инпут на месте
+function EF({ label, value, onChange, editing, placeholder, type = 'text' }) {
+  if (!editing) return <F label={label} v={value} />;
   return (
-    <div className="rounded-xl border border-gray-100 dark:border-gray-800 p-3">
-      <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">{title}</p>
+    <div className="flex items-center justify-between gap-3 py-1 border-b border-gray-200/70 dark:border-gray-700/60 last:border-0">
+      <span className="text-gray-400 flex-shrink-0">{label}</span>
+      <input type={type} value={value ?? ''} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
+        className="flex-1 min-w-0 rounded-lg border border-primary-300 dark:border-primary-700 bg-white dark:bg-gray-800 px-2 py-1 text-sm text-right text-gray-800 dark:text-gray-100" />
+    </div>
+  );
+}
+function FieldGroup({ title, children, editing }) {
+  return (
+    <div className={'rounded-xl border p-3 transition-colors ' + (editing
+      ? 'border-primary-300 dark:border-primary-700 bg-primary-50/40 dark:bg-primary-900/10'
+      : 'border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-800/40')}>
+      <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1.5">{title}</p>
       {children}
     </div>
   );
@@ -1192,7 +1205,15 @@ function CdekPanel({ result }) {
   const [pkg, setPkg] = useState(null); // { weight, length, width, height } — авто, редактируемо
   const [pkgEdited, setPkgEdited] = useState(false);
   const [imNumber, setImNumber] = useState(result.order_number || '');
-  const [editing, setEditing] = useState(false); // редактор полей (отправитель/получатель/город/ПВЗ)
+  const [editing, setEditing] = useState(false); // режим правки полей прямо в сводке
+
+  // Получатель мог приехать позже (обновление заказа с сервера) или парс
+  // не отдал его при монтировании — дозаполняем пустые поля, не трогая правки.
+  useEffect(() => {
+    if (result.recipient && !name.trim()) setName(result.recipient);
+    if (result.phone && !phone.trim()) setPhone(result.phone);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [result.recipient, result.phone]);
 
   // Итоговые наименования: у баночки, привязанной к позиции напрямую (не через
   // набор), берём выбранное имя позиции (как в заказе / складское / своё).
@@ -1472,41 +1493,200 @@ function CdekPanel({ result }) {
           <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Все поля заказа (как в СДЭК)</span>
           <button onClick={() => setEditing((v) => !v)}
             className={'px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 flex-shrink-0 ' +
-              (editing ? 'bg-primary-50 text-primary-600 dark:bg-primary-900/30' : 'border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800')}>
-            <Pencil className="w-3.5 h-3.5" /> {editing ? 'Скрыть редактор' : 'Редактировать'}
+              (editing ? 'bg-primary-600 text-white hover:bg-primary-700' : 'border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800')}>
+            {editing ? <Check className="w-3.5 h-3.5" /> : <Pencil className="w-3.5 h-3.5" />}
+            {editing ? 'Готово' : 'Редактировать'}
           </button>
         </div>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <FieldGroup title="Отправитель">
+          <FieldGroup title="Отправитель" editing={editing}>
             <F label="Тип заказа" v="интернет-магазин" />
-            <F label="Контрагент" v={sender.company} />
+            <EF label="Контрагент" value={sender.company} onChange={(v) => setSender((s) => ({ ...s, company: v }))} editing={editing} />
             <F label="ИНН" v={cfg?.sender?.inn} />
-            <F label="ФИО" v={sender.name} />
-            <F label="Телефон" v={sender.phone} />
+            <EF label="ФИО" value={sender.name} onChange={(v) => setSender((s) => ({ ...s, name: v }))} editing={editing} />
+            <EF label="Телефон" value={sender.phone} onChange={(v) => setSender((s) => ({ ...s, phone: v }))} editing={editing} placeholder="+7…" />
             <F label="Страна" v={cfg?.sender?.country} />
-            <F label="Пункт отправки" v={customFrom
-              ? `${customFrom.code} · ${customFrom.city}, ${customFrom.address}`
-              : (cfg?.shipment_points || []).find((p) => p.code === shipmentPoint)?.name} />
+            {!editing ? (
+              <F label="Пункт отправки" v={customFrom
+                ? `${customFrom.code} · ${customFrom.city}, ${customFrom.address}`
+                : (cfg?.shipment_points || []).find((p) => p.code === shipmentPoint)?.name} />
+            ) : (
+              <div className="py-1.5 border-b border-gray-200/70 dark:border-gray-700/60">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-gray-400">Пункт отправки</span>
+                  {customFrom ? (
+                    <button onClick={resetFrom} className="text-xs text-gray-400 hover:text-rose-500">сбросить</button>
+                  ) : (
+                    <button onClick={() => setFromPicker((v) => !v)} className="text-xs text-primary-600 hover:underline">
+                      {fromPicker ? 'скрыть' : 'другой пункт…'}
+                    </button>
+                  )}
+                </div>
+                {customFrom ? (
+                  <p className="mt-1 text-[12px] text-emerald-600 flex items-start gap-1 break-words">
+                    <MapPin className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                    <span>{customFrom.code} · {customFrom.city}, {customFrom.address}</span>
+                  </p>
+                ) : (
+                  <select value={shipmentPoint} onChange={(e) => setShipmentPoint(e.target.value)}
+                    className="mt-1 w-full rounded-lg border border-primary-300 dark:border-primary-700 bg-white dark:bg-gray-800 px-2 py-1.5 text-sm">
+                    {(cfg?.shipment_points || []).map((p) => <option key={p.code} value={p.code}>{p.name}</option>)}
+                  </select>
+                )}
+                {fromPicker && !customFrom && (
+                  <div className="mt-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-2 space-y-2">
+                    <div className="flex gap-1.5">
+                      <input value={fromCityQuery} onChange={(e) => setFromCityQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && searchFromCity()}
+                        placeholder="Город отправки" className="flex-1 min-w-0 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-2 py-1.5 text-xs" />
+                      <button onClick={searchFromCity} disabled={busy === 'fromcity'}
+                        className="px-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 text-gray-600 flex items-center flex-shrink-0">
+                        {busy === 'fromcity' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                    {fromCities.length > 0 && (
+                      <div className="rounded-lg border border-gray-200 dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-800 max-h-32 overflow-y-auto">
+                        {fromCities.map((c) => (
+                          <button key={c.code} onClick={() => selectFromCity(c)} className="w-full text-left px-2 py-1.5 text-xs hover:bg-gray-50 dark:hover:bg-gray-800 break-words">
+                            {c.city}{c.region ? <span className="text-gray-400">, {c.region}</span> : ''}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {fromCity && (
+                      <>
+                        <div className="flex items-center justify-between">
+                          <p className="text-[11px] text-emerald-600 break-words">✓ {fromCity.city}</p>
+                          <button onClick={() => setShowFromMap(true)} className="text-[11px] text-rose-600 hover:underline flex items-center gap-1">
+                            <MapIcon className="w-3 h-3" /> На карте
+                          </button>
+                        </div>
+                        <div className="flex gap-1.5">
+                          <input value={fromPvzQuery} onChange={(e) => setFromPvzQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && filterFromPvz()}
+                            placeholder="улица / фильтр ПВЗ" className="flex-1 min-w-0 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-2 py-1.5 text-xs" />
+                          <button onClick={filterFromPvz} disabled={busy === 'frompvz'}
+                            className="px-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 text-gray-600 flex items-center flex-shrink-0">
+                            {busy === 'frompvz' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
+                          </button>
+                        </div>
+                        {fromPvzList.length > 0 && (
+                          <div className="rounded-lg border border-gray-200 dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-800 max-h-40 overflow-y-auto">
+                            {fromPvzList.map((p) => (
+                              <button key={p.code} onClick={() => pickFromPvz(p)} className="w-full text-left px-2 py-1.5 text-[11px] hover:bg-gray-50 dark:hover:bg-gray-800 break-words">
+                                <span className="font-mono text-gray-500">{p.code}</span> · {p.address}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
             <F label="Истинный продавец" v={cfg?.sender?.true_seller} />
           </FieldGroup>
 
-          <FieldGroup title="Получатель">
-            <F label="ФИО" v={name} />
-            <F label="Телефон" v={phone} />
-            <F label="Город" v={city ? `${city.city} (код ${city.code})` : ''} />
-            <F label="ПВЗ" v={pvz ? `${pvz.code}` : ''} />
-            <F label="Адрес ПВЗ" v={pvz?.address} />
+          <FieldGroup title="Получатель" editing={editing}>
+            <EF label="ФИО" value={name} onChange={setName} editing={editing} placeholder="Фамилия Имя Отчество" />
+            <EF label="Телефон" value={phone} onChange={setPhone} editing={editing} placeholder="+7…" />
+            {!editing ? (
+              <>
+                <F label="Город" v={city ? `${city.city} (код ${city.code})` : ''} />
+                <F label="ПВЗ" v={pvz ? `${pvz.code}` : ''} />
+                <F label="Адрес ПВЗ" v={pvz?.address} />
+              </>
+            ) : (
+              <>
+                {/* Город: поиск по базе СДЭК прямо в блоке */}
+                <div className="py-1.5 border-b border-gray-200/70 dark:border-gray-700/60">
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-400 flex-shrink-0">Город</span>
+                    <div className="flex gap-1.5 flex-1 min-w-0">
+                      <input value={cityQuery} onChange={(e) => setCityQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && searchCity()}
+                        placeholder="Москва" className="flex-1 min-w-0 rounded-lg border border-primary-300 dark:border-primary-700 bg-white dark:bg-gray-800 px-2 py-1 text-sm text-right" />
+                      <button onClick={searchCity} disabled={busy === 'city'}
+                        className="px-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 text-gray-600 flex items-center flex-shrink-0">
+                        {busy === 'city' || busy === 'auto' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                  </div>
+                  {city && <p className="text-[11px] text-emerald-600 mt-1 text-right break-words">✓ {city.city}{city.region ? `, ${city.region}` : ''} (код {city.code})</p>}
+                  {cities.length > 0 && (
+                    <div className="mt-1 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 divide-y divide-gray-100 dark:divide-gray-800 max-h-40 overflow-y-auto">
+                      {cities.map((c) => (
+                        <button key={c.code} onClick={() => selectCity(c)} className="w-full text-left px-2 py-1.5 text-xs hover:bg-gray-50 dark:hover:bg-gray-800 break-words">
+                          {c.city}{c.region ? <span className="text-gray-400">, {c.region}</span> : ''}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {/* ПВЗ: фильтр + список + карта */}
+                <div className="py-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-gray-400 flex-shrink-0">ПВЗ</span>
+                    {city && (
+                      <button onClick={() => setShowMap(true)} className="text-xs text-rose-600 hover:underline flex items-center gap-1">
+                        <MapIcon className="w-3.5 h-3.5" /> На карте
+                      </button>
+                    )}
+                  </div>
+                  {city ? (
+                    <>
+                      <div className="flex gap-1.5 mt-1">
+                        <input value={pvzQuery} onChange={(e) => { setPvzQuery(e.target.value); if (pvz) setPvz(null); }} onKeyDown={(e) => e.key === 'Enter' && filterPvz()}
+                          placeholder="улица / название / фильтр" className="flex-1 min-w-0 rounded-lg border border-primary-300 dark:border-primary-700 bg-white dark:bg-gray-800 px-2 py-1 text-sm" />
+                        <button onClick={filterPvz} disabled={busy === 'pvz'}
+                          className="px-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 text-gray-600 flex items-center flex-shrink-0">
+                          {busy === 'pvz' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
+                        </button>
+                      </div>
+                      {pvz && (
+                        <p className="text-[11px] text-emerald-600 mt-1 flex items-start gap-1 break-words">
+                          <MapPin className="w-3 h-3 flex-shrink-0 mt-0.5" /> <span>{pvz.code} · {pvz.address}</span>
+                        </p>
+                      )}
+                      {!pvz && pvzList.length > 0 && (
+                        <div className="mt-1 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 divide-y divide-gray-100 dark:divide-gray-800 max-h-48 overflow-y-auto">
+                          {pvzList.map((p) => (
+                            <button key={p.code} onClick={() => setPvz(p)} className="w-full text-left px-2 py-1.5 text-xs hover:bg-gray-50 dark:hover:bg-gray-800 break-words">
+                              <span className="font-mono text-gray-500">{p.code}</span> · {p.address}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-[11px] text-gray-400 mt-1">сначала выберите город</p>
+                  )}
+                </div>
+              </>
+            )}
           </FieldGroup>
 
-          <FieldGroup title="Грузоместо">
+          <FieldGroup title="Грузоместо" editing={editing}>
             <F label="Мест" v="1" />
             <F label="Баночек" v={bottles} />
-            <F label="Вес" v={pkg ? `${pkg.weight} г` : ''} />
-            <F label="Габариты" v={pkg ? `${pkg.length}×${pkg.width}×${pkg.height} см` : ''} />
+            <EF label="Вес, г" type="number" value={pkg?.weight} editing={editing}
+              onChange={(v) => { setPkg((p) => ({ ...p, weight: v === '' ? '' : Number(v) })); setPkgEdited(true); }} />
+            {!editing ? (
+              <F label="Габариты" v={pkg ? `${pkg.length}×${pkg.width}×${pkg.height} см` : ''} />
+            ) : (
+              <div className="flex items-center justify-between gap-3 py-1">
+                <span className="text-gray-400 flex-shrink-0">Габариты, см</span>
+                <div className="flex items-center gap-1 min-w-0">
+                  {['length', 'width', 'height'].map((k) => (
+                    <input key={k} type="number" min="0" step="0.5" value={pkg?.[k] ?? ''}
+                      onChange={(e) => { const v = e.target.value; setPkg((p) => ({ ...p, [k]: v === '' ? '' : Number(v) })); setPkgEdited(true); }}
+                      className="w-14 min-w-0 rounded-lg border border-primary-300 dark:border-primary-700 bg-white dark:bg-gray-800 px-1 py-1 text-sm text-center" />
+                  ))}
+                </div>
+              </div>
+            )}
           </FieldGroup>
 
-          <FieldGroup title="Заказ">
-            <div className="py-1.5">
+          <FieldGroup title="Заказ" editing={editing}>
+            <div className="py-1.5 border-b border-gray-200/70 dark:border-gray-700/60">
               <span className="text-gray-400 block mb-0.5">№ отправления ИМ</span>
               <input value={imNumber} onChange={(e) => setImNumber(e.target.value)} placeholder="сгенерируется автоматически"
                 className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-2 py-1.5 text-sm" />
@@ -1518,8 +1698,8 @@ function CdekPanel({ result }) {
         </div>
 
         {/* Товары в грузоместе — наименования как выбрано в «Позициях заказа» */}
-        <div className="rounded-xl border border-gray-100 dark:border-gray-800 overflow-hidden">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400 px-3 pt-2.5 pb-1">Товары в грузоместе</p>
+        <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-800/40 overflow-hidden">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 px-3 pt-2.5 pb-1">Товары в грузоместе</p>
           <div className="overflow-x-auto">
             <table className="w-full text-xs lg:text-sm">
               <thead>
@@ -1547,190 +1727,13 @@ function CdekPanel({ result }) {
         </div>
       </div>
 
-      {/* ── Редактор полей (отправитель / получатель / город / ПВЗ) ── */}
-      {editing && (
-      <div className="p-4 grid gap-5 lg:grid-cols-2 border-b border-gray-100 dark:border-gray-800">
-        {/* Отправитель */}
-        <div className="space-y-4 min-w-0">
-          <div>
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-medium text-gray-500">Отправляем из</label>
-              {customFrom ? (
-                <button onClick={resetFrom} className="text-xs text-gray-400 hover:text-rose-500">сбросить</button>
-              ) : (
-                <button onClick={() => setFromPicker((v) => !v)} className="text-xs text-primary-600 hover:underline">
-                  {fromPicker ? 'скрыть' : 'другой пункт…'}
-                </button>
-              )}
-            </div>
-            {customFrom ? (
-              <p className="mt-1 text-[12px] text-emerald-600 flex items-start gap-1 break-words">
-                <MapPin className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
-                <span>{customFrom.code} · {customFrom.city}, {customFrom.address}</span>
-              </p>
-            ) : (
-              <select value={shipmentPoint} onChange={(e) => setShipmentPoint(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm">
-                {(cfg?.shipment_points || []).map((p) => <option key={p.code} value={p.code}>{p.name}</option>)}
-              </select>
-            )}
-
-            {/* Поиск другого пункта отправки: город → ПВЗ (список или карта) */}
-            {fromPicker && !customFrom && (
-              <div className="mt-2 rounded-xl border border-gray-100 dark:border-gray-800 p-2.5 space-y-2">
-                <div className="flex gap-2">
-                  <input value={fromCityQuery} onChange={(e) => setFromCityQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && searchFromCity()}
-                    placeholder="Город отправки" className="flex-1 min-w-0 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-2.5 py-1.5 text-xs" />
-                  <button onClick={searchFromCity} disabled={busy === 'fromcity'}
-                    className="px-2.5 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 text-gray-600 flex items-center flex-shrink-0">
-                    {busy === 'fromcity' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
-                  </button>
-                </div>
-                {fromCities.length > 0 && (
-                  <div className="rounded-lg border border-gray-100 dark:border-gray-800 divide-y divide-gray-50 dark:divide-gray-800 max-h-32 overflow-y-auto">
-                    {fromCities.map((c) => (
-                      <button key={c.code} onClick={() => selectFromCity(c)} className="w-full text-left px-2.5 py-1.5 text-xs hover:bg-gray-50 dark:hover:bg-gray-800 break-words">
-                        {c.city}{c.region ? <span className="text-gray-400">, {c.region}</span> : ''}
-                      </button>
-                    ))}
-                  </div>
-                )}
-                {fromCity && (
-                  <>
-                    <div className="flex items-center justify-between">
-                      <p className="text-[11px] text-emerald-600 break-words">✓ {fromCity.city}</p>
-                      <button onClick={() => setShowFromMap(true)} className="text-[11px] text-rose-600 hover:underline flex items-center gap-1">
-                        <MapIcon className="w-3 h-3" /> На карте
-                      </button>
-                    </div>
-                    <div className="flex gap-2">
-                      <input value={fromPvzQuery} onChange={(e) => setFromPvzQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && filterFromPvz()}
-                        placeholder="улица / фильтр ПВЗ" className="flex-1 min-w-0 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-2.5 py-1.5 text-xs" />
-                      <button onClick={filterFromPvz} disabled={busy === 'frompvz'}
-                        className="px-2.5 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 text-gray-600 flex items-center flex-shrink-0">
-                        {busy === 'frompvz' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
-                      </button>
-                    </div>
-                    {fromPvzList.length > 0 && (
-                      <div className="rounded-lg border border-gray-100 dark:border-gray-800 divide-y divide-gray-50 dark:divide-gray-800 max-h-40 overflow-y-auto">
-                        {fromPvzList.map((p) => (
-                          <button key={p.code} onClick={() => pickFromPvz(p)} className="w-full text-left px-2.5 py-1.5 text-[11px] hover:bg-gray-50 dark:hover:bg-gray-800 break-words">
-                            <span className="font-mono text-gray-500">{p.code}</span> · {p.address}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Отправитель — заполнен из настроек, но каждое поле можно поменять */}
-          <div className="rounded-xl border border-gray-100 dark:border-gray-800 p-3 space-y-2">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Отправитель</p>
-            <div>
-              <label className="text-xs font-medium text-gray-500">Контрагент</label>
-              <input value={sender.company} onChange={(e) => setSender((s) => ({ ...s, company: e.target.value }))}
-                className="mt-1 w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm" />
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <div className="min-w-0">
-                <label className="text-xs font-medium text-gray-500">ФИО</label>
-                <input value={sender.name} onChange={(e) => setSender((s) => ({ ...s, name: e.target.value }))}
-                  className="mt-1 w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm" />
-              </div>
-              <div className="min-w-0">
-                <label className="text-xs font-medium text-gray-500">Телефон</label>
-                <input value={sender.phone} onChange={(e) => setSender((s) => ({ ...s, phone: e.target.value }))}
-                  className="mt-1 w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm" />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Получатель */}
-        <div className="space-y-4 min-w-0">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <div className="min-w-0">
-              <label className="text-xs font-medium text-gray-500">ФИО получателя</label>
-              <input value={name} onChange={(e) => setName(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm" />
-            </div>
-            <div className="min-w-0">
-              <label className="text-xs font-medium text-gray-500">Телефон</label>
-              <input value={phone} onChange={(e) => setPhone(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm" />
-            </div>
-          </div>
-
-          {/* Город */}
-          <div>
-            <label className="text-xs font-medium text-gray-500">Город получателя {busy === 'auto' && <span className="text-gray-400">· ищу…</span>}</label>
-            <div className="flex gap-2 mt-1">
-              <input value={cityQuery} onChange={(e) => setCityQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && searchCity()}
-                placeholder="Москва" className="flex-1 min-w-0 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm" />
-              <button onClick={searchCity} disabled={busy === 'city'}
-                className="px-3 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 text-gray-600 flex items-center flex-shrink-0">
-                {busy === 'city' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-              </button>
-            </div>
-            {city && <p className="text-[11px] text-emerald-600 mt-1 break-words">✓ {city.city}{city.region ? `, ${city.region}` : ''} (код {city.code})</p>}
-            {cities.length > 0 && (
-              <div className="mt-1 rounded-xl border border-gray-100 dark:border-gray-800 divide-y divide-gray-50 dark:divide-gray-800 max-h-40 overflow-y-auto">
-                {cities.map((c) => (
-                  <button key={c.code} onClick={() => selectCity(c)} className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-800 break-words">
-                    {c.city}{c.region ? <span className="text-gray-400">, {c.region}</span> : ''}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* ПВЗ */}
-          {city && (
-            <div>
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-medium text-gray-500">ПВЗ получения</label>
-                <button onClick={() => setShowMap(true)} className="text-xs text-rose-600 hover:underline flex items-center gap-1">
-                  <MapIcon className="w-3.5 h-3.5" /> На карте
-                </button>
-              </div>
-              <div className="flex gap-2 mt-1">
-                <input value={pvzQuery} onChange={(e) => { setPvzQuery(e.target.value); if (pvz) setPvz(null); }} onKeyDown={(e) => e.key === 'Enter' && filterPvz()}
-                  placeholder="улица / название / фильтр" className="flex-1 min-w-0 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm" />
-                <button onClick={filterPvz} disabled={busy === 'pvz'}
-                  className="px-3 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 text-gray-600 flex items-center flex-shrink-0">
-                  {busy === 'pvz' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-                </button>
-              </div>
-              {pvz && (
-                <p className="text-[11px] text-emerald-600 mt-1 flex items-start gap-1 break-words">
-                  <MapPin className="w-3 h-3 flex-shrink-0 mt-0.5" /> <span>{pvz.code} · {pvz.address}</span>
-                </p>
-              )}
-              {!pvz && pvzList.length > 0 && (
-                <div className="mt-1 rounded-xl border border-gray-100 dark:border-gray-800 divide-y divide-gray-50 dark:divide-gray-800 max-h-48 overflow-y-auto">
-                  {pvzList.map((p) => (
-                    <button key={p.code} onClick={() => setPvz(p)} className="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 dark:hover:bg-gray-800 break-words">
-                      <span className="font-mono text-gray-500">{p.code}</span> · {p.address}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-      )}
-
       {/* ── Расчёт и оформление — снизу ── */}
       <div className="p-4 grid gap-5 lg:grid-cols-2">
         {/* Коробка — кнопки-пресеты + своя */}
         <div className="space-y-3 min-w-0">
           {pkg && cfg && (
-            <div className="rounded-xl border border-gray-100 dark:border-gray-800 p-3">
-              <span className="text-xs font-medium text-gray-500">Коробка · {bottles} бан.</span>
+            <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-800/40 p-3">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Коробка · {bottles} бан.</span>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 mt-2">
                 {(cfg.box_table || []).map((row) => {
                   const active = !pkgEdited && Number(pkg.length) === row.length && Number(pkg.width) === row.width && Number(pkg.height) === row.height;
@@ -1776,7 +1779,7 @@ function CdekPanel({ result }) {
           {!city && <p className="text-[11px] text-gray-400 text-center -mt-1">Сначала выберите город получателя</p>}
 
           {tariffs && (
-            <div className="rounded-xl border border-gray-100 dark:border-gray-800 divide-y divide-gray-50 dark:divide-gray-800 max-h-64 overflow-y-auto">
+            <div className="rounded-xl border border-gray-200 dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-800 max-h-64 overflow-y-auto">
               {tariffs.map((t) => (
                 <label key={t.tariff_code}
                   className={'flex items-center gap-3 px-3 py-2.5 cursor-pointer text-sm ' + (tariff?.tariff_code === t.tariff_code ? 'bg-primary-50 dark:bg-primary-900/20' : 'hover:bg-gray-50 dark:hover:bg-gray-800')}>
